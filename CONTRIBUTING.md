@@ -1,0 +1,31 @@
+# Contributing to Moniqo
+
+Thank you for your interest in contributing to Moniqo. It is our goal to make the best open source personal Budget Management Software possible, and we are excited you want to help out.
+
+This guide details how to contribute to Moniqo in a way that is efficient for everyone involved.
+
+Moniqo currently only comes in one flavor, Moniqo Community Edition, which is our free and open source edition. In the future, we reserve the right to create Commercial Edition, though we're currently pouring our effort into create a rock-solid open source platform. This document will be updated if Commercial Edition is created.
+
+# Contributor license agreement
+
+By submitting code as an individual you agree to the [individual contributor license agreement](agreement/individual_contributor.md). By submitting code as an entity you agree to the [corporate contributor license agreement](agreement/corporate_contributor.md).
+
+# Security vulnerability disclosure
+
+Please report suspected security vulnerabilities in private to [support@peanutsoftwares.io](mailto:support@peanutsoftwares.io). Please do NOT create publicly viewable issues for suspected security vulnerabilities. You can typically expect a response within two business days, and we typically have fixes out in under a week from the initial disclosure.
+
+This obviously varies based on the severity of the security issue and the difficulty in remediation, but those have historically been the timelines we worm around.
+
+# Closing policy for issues and merge requests
+
+It is our goal that Moniqo will become a popular tool for the budget management. If this were to happen, we may begin receiving more issues and merge requests than we can keep up with.
+
+Out of respect for our volunteers, issues and merge requests not in line with the guidelines listed in this document may be closed without notice. It will always be our goal to try and provide at least a reason why the issue is closed as much as possible.
+
+Please treat our volunteers with courtesy and respect, it will go a long way towards getting your issue resolved.
+
+Issues and merge requests should be in English and contain appropriate language for audiences of all ages.
+
+# Have Questions?
+
+If you ever have questions, please don't hesitate to reach out to at [support@peanutsoftwares.io](mailto:support@peanutsoftwares.io)
