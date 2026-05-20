@@ -8,7 +8,7 @@ Moniqo currently only comes in one flavor, Moniqo Community Edition, which is ou
 
 # Contributor license agreement
 
-By submitting code as an individual you agree to the [individual contributor license agreement](agreement/individual_contributor.md). By submitting code as an entity you agree to the [corporate contributor license agreement](agreement/corporate_contributor.md).
+By submitting code as an individual you agree to the [individual contributor license agreement](agreements/individual_contributor.md). By submitting code as an entity you agree to the [corporate contributor license agreement](agreements/corporate_contributor.md).
 
 # Security vulnerability disclosure
 
