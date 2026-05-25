@@ -37,7 +37,7 @@ Per `docs/moniqo_architecture.md`, the intended stack is:
 - **Shared:** Tailwind + shadcn/ui, Zustand, React Hook Form, Zod, Recharts
 - **Monorepo:** native (no Turborepo/Nx specified)
 
-The doc sketches a monorepo rooted at `okane/` with `apps/{backend,web,desktop,mobile}` and `packages/{ui,types,sdk,validation,config,design-system}`. This is **planned**, not current — the working directory is `moniqo/` and contains only docs.
+The doc sketches a monorepo rooted at `moniqo/` with `apps/{backend,web,desktop,mobile}` and `packages/{ui,types,sdk,validation,config,design-system}`. This is **planned**, not current — the working directory is `moniqo/` and contains only docs.
 
 **Known inconsistency to flag with the user before scaffolding:** `README.md` lists SQLite under "Core Stack," while `docs/moniqo_architecture.md` lists PostgreSQL + sqlc. Ask which is canonical before generating schema or DB code.
 

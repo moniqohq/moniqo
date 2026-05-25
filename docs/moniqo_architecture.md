@@ -33,7 +33,7 @@ This design supports:
 > This structure reflects the current state of the monorepo and will evolve as the project grows — new apps, packages, and tooling will be added over time.
 
 ```
-okane/
+moniqo/
 ├── apps/
 │   ├── backend/        # Go + Echo API
 │   ├── web/            # Next.js app
