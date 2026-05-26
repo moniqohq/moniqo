@@ -43,7 +43,7 @@ export function DashboardView() {
           <div className="relative">
             <button
               onClick={() => setOpen(v => !v)}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#1E2B42] text-[12px] text-[#A8B4CC] hover:bg-[#131C2E] hover:text-white transition-colors"
+              className="flex items-center gap-1.5 h-10 px-4 rounded-lg border border-[#1E2B42] text-[14px] text-[#A8B4CC] hover:bg-[#131C2E] hover:text-white transition-colors"
             >
               {selected.label}
               <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
