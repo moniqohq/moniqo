@@ -21,6 +21,7 @@ export interface Budget {
   currency: string
   locale: string
   toBeBudgeted: number
+  overspent: number
   totalAllocated: number
   totalAccounts: number
   memberCount: number
