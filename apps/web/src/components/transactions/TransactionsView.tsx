@@ -1,20 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Plus, Upload, ChevronDown, MoreVertical, Search,
-  Calendar, Grid3x3, SlidersHorizontal, Square, CheckSquare,
+  Grid3x3, SlidersHorizontal, Square, CheckSquare,
   ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Building2,
+  CreditCard, PiggyBank, Wallet, TrendingUp,
+  ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import {
   AreaChart, Area, BarChart, Bar,
   ResponsiveContainer, Tooltip,
 } from 'recharts'
-import { mockTransactions } from '@/mock/data'
+import { mockTransactions, mockEnvelopes, mockAccounts } from '@/mock/data'
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from '@/lib/utils'
 import { AddTransactionModal } from './AddTransactionModal'
-import type { Transaction } from '@/types'
+import { DateRangePicker } from './DateRangePicker'
+import type { DateRange } from './DateRangePicker'
+import type { Transaction, AccountType } from '@/types'
 
 /* ── Sparkline mock data (daily buckets for current month) ── */
 const sparkInflow = [
@@ -162,23 +166,35 @@ function TxRow({
       {/* Account */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded flex items-center justify-center bg-[#0E2040] flex-shrink-0">
-            <Building2 size={10} className="text-[#3B82F6]" />
-          </div>
+          {(() => {
+            const acc = mockAccounts.find(a => a.id === tx.accountId)
+            const meta = acc ? ACCOUNT_TYPE_META[acc.type] : ACCOUNT_TYPE_META.checking
+            return (
+              <div
+                className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
+              >
+                {meta.icon}
+              </div>
+            )
+          })()}
           <div>
             <p className="text-sm text-[#A8B4CC] leading-tight whitespace-nowrap">
               {tx.accountInstitution ?? tx.accountName}
             </p>
-            {tx.accountSubLabel && (
-              <p className="text-xs text-[#5A6A85] leading-tight">{tx.accountSubLabel}</p>
-            )}
+            <p className="text-xs text-[#5A6A85] leading-tight">{tx.accountSubLabel}</p>
           </div>
         </div>
       </td>
 
       {/* Amount */}
       <td className={cn('px-4 py-3 text-sm font-semibold tabular-nums text-right whitespace-nowrap', amountColor)}>
-        {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
+        <span className="inline-flex items-center justify-end gap-1.5">
+          {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
+          {tx.amount >= 0
+            ? <ArrowUp size={13} strokeWidth={2.5} />
+            : <ArrowDown size={13} strokeWidth={2.5} />}
+        </span>
       </td>
 
       {/* Running Balance */}
@@ -201,10 +217,433 @@ function TxRow({
   )
 }
 
+/* ── Account type icon ──────────────────────────────────── */
+const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string }> = {
+  checking:   { icon: <Building2 size={11} />,  color: '#3B82F6' },
+  savings:    { icon: <PiggyBank size={11} />,   color: '#22C55E' },
+  credit:     { icon: <CreditCard size={11} />,  color: '#F87171' },
+  cash:       { icon: <Wallet size={11} />,       color: '#F59E0B' },
+  investment: { icon: <TrendingUp size={11} />,  color: '#8B5CF6' },
+}
+
+/* ── Account filter dropdown (multi-select) ─────────────── */
+function AccountFilter({
+  value, onChange, triggerClassName,
+}: {
+  value: Set<string>
+  onChange: (ids: Set<string>) => void
+  triggerClassName?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  function toggle(id: string) {
+    const next = new Set(value)
+    next.has(id) ? next.delete(id) : next.add(id)
+    onChange(next)
+  }
+
+  function triggerLabel() {
+    if (value.size === 0) return 'All Accounts'
+    if (value.size === 1) {
+      const acc = mockAccounts.find(a => a.id === [...value][0])
+      return acc ? acc.name : 'All Accounts'
+    }
+    return `${value.size} Accounts`
+  }
+
+  const firstSelected = value.size === 1
+    ? mockAccounts.find(a => a.id === [...value][0])
+    : null
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={cn(triggerClassName, open && 'border-[#6C3AED]/60 text-[#A8B4CC]')}
+      >
+        {firstSelected && (
+          <span
+            className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: `${ACCOUNT_TYPE_META[firstSelected.type].color}22` }}
+          >
+            <span style={{ color: ACCOUNT_TYPE_META[firstSelected.type].color }}>
+              {ACCOUNT_TYPE_META[firstSelected.type].icon}
+            </span>
+          </span>
+        )}
+        {value.size > 1 && (
+          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#6C3AED] text-[9px] font-bold text-white flex-shrink-0">
+            {value.size}
+          </span>
+        )}
+        {triggerLabel()}
+        <ChevronDown size={11} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-60 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 overflow-hidden">
+          {/* header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A2640]">
+            <span className="text-[11px] font-semibold text-[#3A4A60] uppercase tracking-wider">Accounts</span>
+            {value.size > 0 && (
+              <button
+                onClick={() => onChange(new Set())}
+                className="text-[11px] text-[#6C3AED] hover:text-[#7C4AFF] transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          {/* list */}
+          <div className="py-1 max-h-64 overflow-y-auto">
+            {mockAccounts.map(acc => {
+              const checked = value.has(acc.id)
+              const meta = ACCOUNT_TYPE_META[acc.type]
+              return (
+                <button
+                  key={acc.id}
+                  onClick={() => toggle(acc.id)}
+                  className={cn(
+                    'w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors',
+                    checked ? 'bg-[#6C3AED]/15 text-white' : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                  )}
+                >
+                  {/* checkbox */}
+                  <span className={cn(
+                    'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
+                    checked ? 'bg-[#6C3AED] border-[#6C3AED]' : 'border-[#2A3A54]',
+                  )}>
+                    {checked && (
+                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  {/* type icon */}
+                  <span
+                    className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
+                  >
+                    {meta.icon}
+                  </span>
+                  {/* name + institution */}
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] text-[#A8B4CC] leading-tight">{acc.name}</p>
+                    {acc.institution && (
+                      <p className="text-[11px] text-[#5A6A85] leading-tight">{acc.institution}</p>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Envelope filter dropdown (multi-select) ────────────── */
+function EnvelopeFilter({
+  value, onChange, triggerClassName,
+}: {
+  value: Set<string>
+  onChange: (ids: Set<string>) => void
+  triggerClassName?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  function toggle(id: string) {
+    const next = new Set(value)
+    next.has(id) ? next.delete(id) : next.add(id)
+    onChange(next)
+  }
+
+  function triggerLabel() {
+    if (value.size === 0) return 'All Envelopes'
+    if (value.size === 1) {
+      const env = mockEnvelopes.find(e => e.id === [...value][0])
+      return env ? env.name : 'All Envelopes'
+    }
+    return `${value.size} Envelopes`
+  }
+
+  const firstSelected = value.size === 1
+    ? mockEnvelopes.find(e => e.id === [...value][0])
+    : null
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={cn(triggerClassName, open && 'border-[#6C3AED]/60 text-[#A8B4CC]')}
+      >
+        {firstSelected && (
+          <span
+            className="w-4 h-4 rounded flex items-center justify-center text-[10px] flex-shrink-0"
+            style={{ backgroundColor: firstSelected.color }}
+          >
+            {firstSelected.icon}
+          </span>
+        )}
+        {value.size > 1 && (
+          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#6C3AED] text-[9px] font-bold text-white flex-shrink-0">
+            {value.size}
+          </span>
+        )}
+        {triggerLabel()}
+        <ChevronDown size={11} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-56 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 overflow-hidden">
+          {/* header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A2640]">
+            <span className="text-[11px] font-semibold text-[#3A4A60] uppercase tracking-wider">Envelopes</span>
+            {value.size > 0 && (
+              <button
+                onClick={() => onChange(new Set())}
+                className="text-[11px] text-[#6C3AED] hover:text-[#7C4AFF] transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          {/* list */}
+          <div className="py-1 max-h-64 overflow-y-auto">
+            {mockEnvelopes.map(env => {
+              const checked = value.has(env.id)
+              return (
+                <button
+                  key={env.id}
+                  onClick={() => toggle(env.id)}
+                  className={cn(
+                    'w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors',
+                    checked ? 'bg-[#6C3AED]/15 text-white' : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                  )}
+                >
+                  {/* checkbox */}
+                  <span className={cn(
+                    'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
+                    checked ? 'bg-[#6C3AED] border-[#6C3AED]' : 'border-[#2A3A54]',
+                  )}>
+                    {checked && (
+                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  <span
+                    className="w-5 h-5 rounded flex items-center justify-center text-[11px] flex-shrink-0"
+                    style={{ backgroundColor: env.color }}
+                  >
+                    {env.icon}
+                  </span>
+                  <span className="truncate text-[#A8B4CC]">{env.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Transaction type filter (multi-select) ─────────────── */
+const TX_TYPES = [
+  { id: 'expense',  label: 'Expense',  icon: <ArrowDownLeft size={11} />,  color: '#F87171', bg: 'rgba(239,68,68,0.12)' },
+  { id: 'income',   label: 'Income',   icon: <ArrowUpRight size={11} />,   color: '#4ADE80', bg: 'rgba(34,197,94,0.12)' },
+  { id: 'transfer', label: 'Transfer', icon: <ArrowLeftRight size={11} />, color: '#7DD3FC', bg: 'rgba(99,179,237,0.12)' },
+] as const
+
+type TxTypeId = typeof TX_TYPES[number]['id']
+
+function TypeFilter({
+  value, onChange, triggerClassName,
+}: {
+  value: Set<TxTypeId>
+  onChange: (ids: Set<TxTypeId>) => void
+  triggerClassName?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  function toggle(id: TxTypeId) {
+    const next = new Set(value)
+    next.has(id) ? next.delete(id) : next.add(id)
+    onChange(next)
+  }
+
+  function triggerLabel() {
+    if (value.size === 0 || value.size === TX_TYPES.length) return 'All Types'
+    if (value.size === 1) return TX_TYPES.find(t => t.id === [...value][0])!.label
+    return `${value.size} Types`
+  }
+
+  const singleSelected = value.size === 1 ? TX_TYPES.find(t => t.id === [...value][0]) : null
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={cn(triggerClassName, open && 'border-[#6C3AED]/60 text-[#A8B4CC]')}
+      >
+        {singleSelected ? (
+          <span style={{ color: singleSelected.color }}>{singleSelected.icon}</span>
+        ) : (
+          <Grid3x3 size={12} />
+        )}
+        {value.size > 1 && value.size < TX_TYPES.length && (
+          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#6C3AED] text-[9px] font-bold text-white flex-shrink-0">
+            {value.size}
+          </span>
+        )}
+        {triggerLabel()}
+        <ChevronDown size={11} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A2640]">
+            <span className="text-[11px] font-semibold text-[#3A4A60] uppercase tracking-wider">Type</span>
+            {value.size > 0 && value.size < TX_TYPES.length && (
+              <button
+                onClick={() => onChange(new Set())}
+                className="text-[11px] text-[#6C3AED] hover:text-[#7C4AFF] transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          <div className="py-1">
+            {TX_TYPES.map(type => {
+              const checked = value.has(type.id)
+              return (
+                <button
+                  key={type.id}
+                  onClick={() => toggle(type.id)}
+                  className={cn(
+                    'w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors',
+                    checked ? 'bg-[#6C3AED]/15 text-white' : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                  )}
+                >
+                  <span className={cn(
+                    'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
+                    checked ? 'bg-[#6C3AED] border-[#6C3AED]' : 'border-[#2A3A54]',
+                  )}>
+                    {checked && (
+                      <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  <span
+                    className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: type.bg, color: type.color }}
+                  >
+                    {type.icon}
+                  </span>
+                  <span className="text-[#A8B4CC]">{type.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Per-page dropdown ──────────────────────────────────── */
+const PAGE_SIZES = [10, 25, 50, 100]
+
+function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative ml-1">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors"
+      >
+        {value} / page <ChevronDown size={10} />
+      </button>
+      {open && (
+        <div className="absolute right-0 bottom-full mb-1 w-32 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 py-1 overflow-hidden">
+          {PAGE_SIZES.map(n => (
+            <button
+              key={n}
+              onClick={() => { onChange(n); setOpen(false) }}
+              className={cn(
+                'w-full text-left px-3 py-1.5 text-sm transition-colors',
+                n === value
+                  ? 'bg-[#6C3AED]/20 text-white'
+                  : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+              )}
+            >
+              {n} / page
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [pageSize, setPageSize] = useState(25)
+  const [envelopeFilter, setEnvelopeFilter] = useState<Set<string>>(new Set())
+  const [accountFilter, setAccountFilter] = useState<Set<string>>(new Set())
+  const [typeFilter, setTypeFilter] = useState<Set<TxTypeId>>(new Set())
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const now = new Date()
+    return {
+      from: new Date(now.getFullYear(), now.getMonth(), 1),
+      to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+    }
+  })
 
   const allSelected = selected.size === mockTransactions.length && mockTransactions.length > 0
   const someSelected = selected.size > 0 && !allSelected
@@ -259,18 +698,13 @@ export function TransactionsView() {
             Import
           </button>
 
-          <div className="inline-flex rounded-lg shadow-sm" role="group">
-            <button
-              onClick={() => setModalOpen(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#6C3AED] rounded-l-lg border border-[#6C3AED] hover:bg-[#7C4AFF] focus:z-10 focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-colors"
-            >
-              <Plus size={14} />
-              Add Transaction
-            </button>
-            <button className="inline-flex items-center px-3 py-2.5 text-sm font-medium text-white bg-[#6C3AED] rounded-r-lg border border-l-[#5530C8]/60 border-[#6C3AED] hover:bg-[#7C4AFF] focus:z-10 focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-colors">
-              <ChevronDown size={13} />
-            </button>
-          </div>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#6C3AED] rounded-lg border border-[#6C3AED] hover:bg-[#7C4AFF] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-colors shadow-sm"
+          >
+            <Plus size={14} />
+            Add Transaction
+          </button>
         </div>
       </div>
 
@@ -291,18 +725,26 @@ export function TransactionsView() {
             />
           </div>
 
-          <button className={filterBtn}>All Accounts <ChevronDown size={11} /></button>
-          <button className={filterBtn}>All Envelopes <ChevronDown size={11} /></button>
-          <button className={filterBtn}>
-            <Calendar size={12} />
-            May 1 — May 31, 2024
-            <ChevronDown size={11} />
-          </button>
-          <button className={filterBtn}>
-            <Grid3x3 size={12} />
-            All Types
-            <ChevronDown size={11} />
-          </button>
+          <AccountFilter
+            value={accountFilter}
+            onChange={setAccountFilter}
+            triggerClassName={filterBtn}
+          />
+          <EnvelopeFilter
+            value={envelopeFilter}
+            onChange={setEnvelopeFilter}
+            triggerClassName={filterBtn}
+          />
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            triggerClassName={filterBtn}
+          />
+          <TypeFilter
+            value={typeFilter}
+            onChange={setTypeFilter}
+            triggerClassName={filterBtn}
+          />
           <button className={cn(filterBtn, 'ml-auto')}>
             <SlidersHorizontal size={12} />
             Filters
@@ -471,9 +913,7 @@ export function TransactionsView() {
               ›
             </button>
 
-            <button className="inline-flex items-center gap-1 px-3 py-1.5 ml-1 text-sm rounded-lg border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors">
-              25 / page <ChevronDown size={10} />
-            </button>
+            <PageSizeSelect value={pageSize} onChange={setPageSize} />
           </div>
         </div>
       </div>
