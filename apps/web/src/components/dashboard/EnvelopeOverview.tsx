@@ -10,7 +10,7 @@ export function EnvelopeOverview() {
 
   const renderGroup = (label: string, envelopes: typeof mockEnvelopes) => (
     <div>
-      <div className="text-[10px] font-semibold text-[#2A3A54] uppercase tracking-widest mb-2 px-1">
+      <div className="text-[11px] font-semibold text-[#2A3A54] uppercase tracking-widest mb-2 px-1">
         {label}
       </div>
       <div className="space-y-1.5">
@@ -29,9 +29,9 @@ export function EnvelopeOverview() {
               <span className="text-[13px] flex-shrink-0">{env.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[12px] text-[#A8B4CC] truncate">{env.name}</span>
+                  <span className="text-[13px] text-[#A8B4CC] truncate">{env.name}</span>
                   <span className={cn(
-                    'text-[11px] font-medium tabular-nums',
+                    'text-[12px] font-medium tabular-nums',
                     empty ? 'text-[#EF4444]' : low ? 'text-[#F59E0B]' : 'text-[#22C55E]',
                   )}>
                     {formatCurrencyCompact(env.available)}

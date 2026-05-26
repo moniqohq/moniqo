@@ -26,8 +26,8 @@ export function CategorySpendingList() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[12px] font-medium text-[#A8B4CC]">{cat.category}</span>
-                <div className="flex items-center gap-1.5 text-[11px]">
+                <span className="text-[13px] font-medium text-[#A8B4CC]">{cat.category}</span>
+                <div className="flex items-center gap-1.5 text-[12px]">
                   <span className={overBudget ? 'text-[#EF4444]' : 'text-[#A8B4CC]'}>
                     {formatCurrencyCompact(cat.amount)}
                   </span>
@@ -44,6 +44,14 @@ export function CategorySpendingList() {
                   style={{ background: overBudget ? '#EF4444' : cat.color }}
                 />
               </div>
+            </div>
+            <div className="w-10 flex-shrink-0 text-right">
+              <span
+                className="text-[12px] font-medium tabular-nums"
+                style={{ color: overBudget ? '#EF4444' : '#5A6A85' }}
+              >
+                {pct.toFixed(0)}%
+              </span>
             </div>
           </motion.div>
         )
