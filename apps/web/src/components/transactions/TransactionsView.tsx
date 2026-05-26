@@ -7,28 +7,64 @@ import {
   ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Building2,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import {
+  AreaChart, Area, BarChart, Bar,
+  ResponsiveContainer, Tooltip,
+} from 'recharts'
 import { mockTransactions } from '@/mock/data'
-import { formatCurrency, formatTableDate, cn } from '@/lib/utils'
+import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from '@/lib/utils'
 import { AddTransactionModal } from './AddTransactionModal'
 import type { Transaction } from '@/types'
+
+/* ── Sparkline mock data (daily buckets for current month) ── */
+const sparkInflow = [
+  { v: 42000 }, { v: 58000 }, { v: 35000 }, { v: 91000 }, { v: 67000 },
+  { v: 48000 }, { v: 72000 }, { v: 55000 }, { v: 83000 }, { v: 61000 },
+  { v: 44000 }, { v: 96000 }, { v: 70000 }, { v: 52000 }, { v: 88000 },
+]
+const sparkOutflow = [
+  { v: 18000 }, { v: 24000 }, { v: 31000 }, { v: 15000 }, { v: 27000 },
+  { v: 22000 }, { v: 38000 }, { v: 19000 }, { v: 29000 }, { v: 33000 },
+  { v: 16000 }, { v: 41000 }, { v: 25000 }, { v: 20000 }, { v: 36000 },
+]
+const sparkNet = [
+  { v: 24000 }, { v: 34000 }, { v: 4000 }, { v: 76000 }, { v: 40000 },
+  { v: 26000 }, { v: 34000 }, { v: 36000 }, { v: 54000 }, { v: 28000 },
+  { v: 28000 }, { v: 55000 }, { v: 45000 }, { v: 32000 }, { v: 52000 },
+]
+const sparkCount = [
+  { v: 3 }, { v: 5 }, { v: 2 }, { v: 8 }, { v: 4 },
+  { v: 6 }, { v: 7 }, { v: 3 }, { v: 9 }, { v: 5 },
+  { v: 4 }, { v: 11 }, { v: 6 }, { v: 3 }, { v: 6 },
+]
+
+/* ── Tooltip shared across sparklines ── */
+function SparkTooltip({ active, payload, formatter }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-[#131C2E] border border-[#1E2B42] rounded px-2 py-1 text-[11px] text-white shadow-xl">
+      {formatter(payload[0].value)}
+    </div>
+  )
+}
 
 /* ── Type badge — Flowbite: rounded, px-2.5 py-0.5 text-xs font-medium ── */
 function TypeBadge({ type }: { type: Transaction['type'] }) {
   if (type === 'expense') return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-[rgba(239,68,68,0.12)] text-[#F87171] whitespace-nowrap">
-      <ArrowDownLeft size={10} strokeWidth={2.5} />
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[rgba(239,68,68,0.12)] text-[#F87171] whitespace-nowrap">
+      <ArrowDownLeft size={12} strokeWidth={2.5} />
       Expense
     </span>
   )
   if (type === 'income') return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-[rgba(34,197,94,0.12)] text-[#4ADE80] whitespace-nowrap">
-      <ArrowUpRight size={10} strokeWidth={2.5} />
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[rgba(34,197,94,0.12)] text-[#4ADE80] whitespace-nowrap">
+      <ArrowUpRight size={12} strokeWidth={2.5} />
       Income
     </span>
   )
   return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-[rgba(99,179,237,0.12)] text-[#7DD3FC] whitespace-nowrap">
-      <ArrowLeftRight size={10} strokeWidth={2.5} />
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[rgba(99,179,237,0.12)] text-[#7DD3FC] whitespace-nowrap">
+      <ArrowLeftRight size={12} strokeWidth={2.5} />
       Transfer
     </span>
   )
@@ -52,7 +88,7 @@ function EnvelopeChip({ name, icon, color }: { name?: string; icon?: string; col
   return (
     <div className="flex items-center gap-2">
       <div
-        className="w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0"
+        className="w-6 h-6 rounded flex items-center justify-center text-xs flex-shrink-0"
         style={{ backgroundColor: color ?? '#1E2B42' }}
       >
         {icon ?? name[0]}
@@ -107,7 +143,7 @@ function TxRow({
           <div>
             <p className="text-sm font-medium text-[#E8EEF8] leading-tight">{tx.payee}</p>
             {tx.memo && (
-              <p className="text-xs text-[#5A6A85] mt-0.5 leading-tight">{tx.memo}</p>
+              <p className="text-xs text-[#5A6A85] mt-0.5 leading-tight whitespace-nowrap">{tx.memo}</p>
             )}
           </div>
         </div>
@@ -157,7 +193,7 @@ function TxRow({
 
       {/* Actions */}
       <td className="px-3 py-3">
-        <button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-all ml-auto flex">
+        <button className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-all ml-auto flex">
           <MoreVertical size={13} />
         </button>
       </td>
@@ -204,14 +240,15 @@ export function TransactionsView() {
   ].join(' ')
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
+    <div className="layout-page py-6">
 
       {/* ── Page header ─────────────────────────────────── */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-[#E8EEF8] tracking-tight">Transactions</h1>
-          <p className="text-sm text-[#5A6A85] mt-1 max-w-xl">
+          <p className="text-sm text-[#5A6A85] mt-1 whitespace-nowrap">
             Review and manage all transactions in your budget. Your transactions update your accounts and envelopes.
+            <br />Filter by type, envelope, or account to find what you need. Import from your bank or add transactions manually.
           </p>
         </div>
 
@@ -250,7 +287,7 @@ export function TransactionsView() {
             <input
               type="search"
               placeholder="Search transactions..."
-              className="block w-44 py-2 pl-9 pr-3 text-sm text-[#A8B4CC] bg-[#080D1A] border border-[#1A2640] rounded-lg placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25 focus:border-[#6C3AED] transition-colors"
+              className="block w-56 py-2 pl-9 pr-3 text-sm text-[#A8B4CC] bg-[#080D1A] border border-[#1A2640] rounded-lg placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25 focus:border-[#6C3AED] transition-colors"
             />
           </div>
 
@@ -273,31 +310,91 @@ export function TransactionsView() {
         </div>
 
         {/* Stats row */}
-        <div className="flex items-center px-5 py-4 border-b border-[#131E30] gap-8">
-          <div>
-            <p className="text-xs font-semibold text-[#22C55E] uppercase tracking-widest mb-1">Total Inflow</p>
-            <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">{formatCurrency(totalInflow)}</p>
-          </div>
+        <div className="px-4 py-3 border-b border-[#131E30]">
+          <div className="bg-[#080E1A] border border-[#1A2640] rounded-lg flex">
 
-          <div className="w-px h-10 bg-[#131E30]" />
+            {/* Total Inflow */}
+            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
+              <p className="text-xs font-semibold text-[#22C55E] uppercase tracking-widest mb-1">Total Inflow</p>
+              <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">{formatCurrency(totalInflow)}</p>
+              <div className="mt-1 h-12 -mx-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={sparkInflow} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                    <defs>
+                      <linearGradient id="inflowGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22C55E" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Tooltip content={<SparkTooltip formatter={formatCurrencyCompact} />} />
+                    <Area type="monotone" dataKey="v" stroke="#22C55E" strokeWidth={1.5} fill="url(#inflowGrad)" dot={false} activeDot={{ r: 3, fill: '#22C55E', stroke: '#080C14', strokeWidth: 1.5 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-          <div>
-            <p className="text-xs font-semibold text-[#F97316] uppercase tracking-widest mb-1">Total Outflow</p>
-            <p className="text-2xl font-bold tabular-nums text-[#F97316]">{formatCurrency(totalOutflow)}</p>
-          </div>
+            <div className="w-px my-3 bg-[#1A2640]" />
 
-          <div className="w-px h-10 bg-[#131E30]" />
+            {/* Total Outflow */}
+            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
+              <p className="text-xs font-semibold text-[#F97316] uppercase tracking-widest mb-1">Total Outflow</p>
+              <p className="text-2xl font-bold tabular-nums text-[#F97316]">{formatCurrency(totalOutflow)}</p>
+              <div className="mt-1 h-12 -mx-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={sparkOutflow} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                    <defs>
+                      <linearGradient id="outflowGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#F97316" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#F97316" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Tooltip content={<SparkTooltip formatter={formatCurrencyCompact} />} />
+                    <Area type="monotone" dataKey="v" stroke="#F97316" strokeWidth={1.5} fill="url(#outflowGrad)" dot={false} activeDot={{ r: 3, fill: '#F97316', stroke: '#080C14', strokeWidth: 1.5 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-          <div>
-            <p className="text-xs font-semibold text-[#22C55E] uppercase tracking-widest mb-1">Net Flow</p>
-            <p className={cn('text-2xl font-bold tabular-nums', netFlow >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')}>
-              {formatCurrency(netFlow)}
-            </p>
-          </div>
+            <div className="w-px my-3 bg-[#1A2640]" />
 
-          <div className="ml-auto">
-            <p className="text-xs font-semibold text-[#5A6A85] uppercase tracking-widest mb-1">Transactions</p>
-            <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">{totalCount}</p>
+            {/* Net Flow */}
+            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
+              <p className={cn('text-xs font-semibold uppercase tracking-widest mb-1', netFlow >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]')}>Net Flow</p>
+              <p className={cn('text-2xl font-bold tabular-nums', netFlow >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')}>
+                {formatCurrency(netFlow)}
+              </p>
+              <div className="mt-1 h-12 -mx-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={sparkNet} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                    <defs>
+                      <linearGradient id="netGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4ADE80" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#4ADE80" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Tooltip content={<SparkTooltip formatter={formatCurrencyCompact} />} />
+                    <Area type="monotone" dataKey="v" stroke="#4ADE80" strokeWidth={1.5} fill="url(#netGrad)" dot={false} activeDot={{ r: 3, fill: '#4ADE80', stroke: '#080C14', strokeWidth: 1.5 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="w-px my-3 bg-[#1A2640]" />
+
+            {/* Transactions */}
+            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
+              <p className="text-xs font-semibold text-[#5A6A85] uppercase tracking-widest mb-1">Transactions</p>
+              <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">{totalCount}</p>
+              <div className="mt-1 h-12 -mx-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={sparkCount} margin={{ top: 2, right: 2, bottom: 2, left: 2 }} barCategoryGap="30%">
+                    <Tooltip content={<SparkTooltip formatter={(v: number) => `${v} txns`} />} />
+                    <Bar dataKey="v" fill="#6C3AED" radius={[2, 2, 0, 0]} opacity={0.7} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
           </div>
         </div>
 
