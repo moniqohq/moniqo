@@ -10,7 +10,7 @@ export function Topbar() {
   const { toggleSidebar, setMobileSidebar } = useUIStore()
 
   return (
-    <header className="h-14 border-b border-[#1E2B42] bg-[#080C14] flex items-center px-4 gap-4 flex-shrink-0">
+    <header className="h-16 border-b border-[#1E2B42] bg-[#080C14] flex items-center px-4 gap-4 flex-shrink-0 relative">
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileSidebar(true)}
@@ -19,8 +19,8 @@ export function Topbar() {
         <Menu size={18} />
       </button>
 
-      {/* Search bar */}
-      <div className="flex-1 max-w-md">
+      {/* Search bar — centered */}
+      <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-4xl px-4">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5A6A85] pointer-events-none" />
           <input
