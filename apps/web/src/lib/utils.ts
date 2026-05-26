@@ -10,12 +10,12 @@ export function formatCurrency(
   currency = 'INR',
   locale = 'en-IN',
 ): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
+  const num = new Intl.NumberFormat(locale, {
+    style: 'decimal',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  }).format(Math.abs(amount))
+  return amount < 0 ? `₹ -${num}` : `₹ ${num}`
 }
 
 export function formatTableDate(dateStr: string): string {
@@ -24,13 +24,9 @@ export function formatTableDate(dateStr: string): string {
 }
 
 export function formatCurrencyCompact(amount: number): string {
-  if (Math.abs(amount) >= 100_000) {
-    return `₹${(amount / 100_000).toFixed(1)}L`
-  }
-  if (Math.abs(amount) >= 1_000) {
-    return `₹${(amount / 1_000).toFixed(1)}K`
-  }
-  return `₹${amount.toLocaleString('en-IN')}`
+  const abs = Math.abs(amount)
+  const formatted = abs.toLocaleString('en-IN')
+  return amount < 0 ? `₹ -${formatted}` : `₹ ${formatted}`
 }
 
 export function formatDate(date: Date | string, format: 'short' | 'medium' | 'long' = 'medium'): string {

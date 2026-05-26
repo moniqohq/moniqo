@@ -159,6 +159,7 @@ export const mockSavingsGoals: SavingsGoal[] = [
   { id: 'g2', budgetId: 'b1', name: 'New MacBook',     targetAmount: 160000, currentAmount: 112000, targetDate: '2026-08-01', icon: '💻', color: '#3B82F6' },
   { id: 'g3', budgetId: 'b1', name: 'Emergency Fund',  targetAmount: 300000, currentAmount: 150000, icon: '🛡', color: '#22C55E' },
   { id: 'g4', budgetId: 'b1', name: 'Wedding Fund',    targetAmount: 500000, currentAmount: 45000,  targetDate: '2027-02-14', icon: '💍', color: '#EC4899' },
+  { id: 'g5', budgetId: 'b1', name: 'Home Down Payment', targetAmount: 1500000, currentAmount: 320000, targetDate: '2028-06-01', icon: '🏠', color: '#F59E0B' },
 ]
 
 export const mockAnalytics: AnalyticsSummary[] = [
@@ -169,6 +170,27 @@ export const mockAnalytics: AnalyticsSummary[] = [
   { month: 'Apr', income: 450000, expenses: 168000, savings: 282000, netWorth: 618000 },
   { month: 'May', income: 470000, expenses: 189000, savings: 281000, netWorth: 645000 },
 ]
+
+export const mockWeeklyCashFlow = [
+  { day: 'May 1',  income: 0,      expenses: 3880,  savings: -3880  },
+  { day: 'May 8',  income: 75650,  expenses: 5470,  savings: 70180  },
+  { day: 'May 15', income: 0,      expenses: 8200,  savings: -8200  },
+  { day: 'May 22', income: 450000, expenses: 2230,  savings: 447770 },
+  { day: 'May 29', income: 0,      expenses: 6540,  savings: -6540  },
+]
+
+export const mockSubscriptions = [
+  { id: 's1', name: 'Netflix',              amount: 1490,  period: 'month', status: 'active', bgColor: '#E50914', initials: 'N',   initialsColor: '#fff' },
+  { id: 's2', name: 'Spotify',              amount: 980,   period: 'month', status: 'active', bgColor: '#1DB954', initials: 'S',   initialsColor: '#fff' },
+  { id: 's3', name: 'Adobe Creative Cloud', amount: 6480,  period: 'month', status: 'active', bgColor: '#FF0000', initials: 'Cc',  initialsColor: '#fff' },
+  { id: 's4', name: 'AWS Lightsail',        amount: 1200,  period: 'month', status: 'active', bgColor: '#FF9900', initials: 'AWS', initialsColor: '#fff' },
+]
+
+export const mockBudgetOverview = {
+  totalBudget: 1200000,
+  spent: 816000,
+  remaining: 384000,
+}
 
 export const mockCategorySpending: CategorySpending[] = [
   { category: 'Groceries',    amount: 7425,  budget: 12000, color: '#6C3AED', icon: '🛒' },
