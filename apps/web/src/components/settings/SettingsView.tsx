@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { PreferencesView } from './PreferencesView'
+import { NotificationsView } from './NotificationsView'
 import { SectionCard } from '@/components/shared/SectionCard'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -259,9 +260,10 @@ export function SettingsView() {
         <div className="flex-1 min-w-0 flex flex-col gap-5">
 
           {activeNav === 'preferences' && <PreferencesView />}
+          {activeNav === 'notifications' && <NotificationsView />}
 
           {/* ── Combined Profile + Security card ─────────── */}
-          {activeNav !== 'preferences' && <SectionCard title="Profile" description="Manage your personal information and account details." icon={User} iconColor="#A78BFA" iconBg="rgba(108,58,237,0.15)" className="flex-1">
+          {activeNav !== 'preferences' && activeNav !== 'notifications' && <SectionCard title="Profile" description="Manage your personal information and account details." icon={User} iconColor="#A78BFA" iconBg="rgba(108,58,237,0.15)" className="flex-1">
 
             <div className="flex flex-col sm:flex-row gap-6">
 
