@@ -106,35 +106,35 @@ function TabCard({
   icon: Icon,
   label,
   description,
-  active,
+  iconColor,
+  iconBg,
+  hoverBorder,
   onClick,
 }: {
   icon: React.ElementType
   label: string
   description: string
-  active: boolean
+  iconColor: string
+  iconBg: string
+  hoverBorder: string
   onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        'flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all flex-1',
-        active
-          ? 'bg-[rgba(108,58,237,0.12)] border-[rgba(108,58,237,0.35)]'
-          : 'bg-[#0F1623] border-[#1E2B42] hover:bg-[#131C2E] hover:border-[#2A3A54]',
-      )}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[#1E2B42] bg-[#0F1623] text-left transition-all flex-1 hover:bg-[#131C2E] group"
+      style={{ '--hover-border': hoverBorder } as React.CSSProperties}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = hoverBorder)}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
     >
       <div
-        className={cn(
-          'w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors',
-          active ? 'bg-[rgba(108,58,237,0.2)]' : 'bg-[#131C2E]',
-        )}
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: iconBg }}
       >
-        <Icon size={16} className={active ? 'text-[#A78BFA]' : 'text-[#5A6A85]'} />
+        <Icon size={16} style={{ color: iconColor }} />
       </div>
       <div className="min-w-0">
-        <p className={cn('text-[13px] font-semibold leading-tight', active ? 'text-white' : 'text-[#A8B4CC]')}>
+        <p className="text-[13px] font-semibold leading-tight text-[#A8B4CC] group-hover:text-white transition-colors">
           {label}
         </p>
         <p className="text-[11px] text-[#5A6A85] mt-0.5 leading-tight">{description}</p>
@@ -166,7 +166,6 @@ type NotifKey = 'transactions' | 'budgets' | 'bills' | 'goals' | 'accountAlerts'
 // ── Main view ─────────────────────────────────────────────────────
 
 export function NotificationsView() {
-  const [activeTab, setActiveTab] = useState<'channels' | 'digest'>('channels')
   const [showChannelsModal, setShowChannelsModal] = useState(false)
   const [showQuietHoursModal, setShowQuietHoursModal] = useState(false)
   const [showEmailDigestModal, setShowEmailDigestModal] = useState(false)
@@ -217,71 +216,67 @@ export function NotificationsView() {
 
         {/* ── Tab cards ────────────────────────────────────────────── */}
         <div className="flex gap-3">
-          <TabCard icon={Bell}  label="Configure webhook" description="Set up and manage your webhook endpoint" active={activeTab === 'channels'} onClick={() => { setActiveTab('channels'); setShowChannelsModal(true) }} />
-          <TabCard icon={Moon}  label="Quiet hours"           description="Set times to pause notifications"       active={false}                   onClick={() => setShowQuietHoursModal(true)} />
-          <TabCard icon={Mail}  label="Email digest"          description="Manage summary emails"                  active={activeTab === 'digest'}   onClick={() => { setActiveTab('digest'); setShowEmailDigestModal(true) }} />
+          <TabCard icon={Bell} label="Configure webhook" description="Set up and manage your webhook endpoint" iconColor="#FB923C" iconBg="rgba(249,115,22,0.12)" hoverBorder="rgba(249,115,22,0.35)" onClick={() => setShowChannelsModal(true)} />
+          <TabCard icon={Moon} label="Quiet hours"       description="Set times to pause notifications"       iconColor="#A78BFA" iconBg="rgba(108,58,237,0.12)" hoverBorder="rgba(108,58,237,0.4)"  onClick={() => setShowQuietHoursModal(true)} />
+          <TabCard icon={Mail} label="Email digest"      description="Manage summary emails"                  iconColor="#34D399" iconBg="rgba(34,197,94,0.12)"  hoverBorder="rgba(34,197,94,0.35)"  onClick={() => setShowEmailDigestModal(true)} />
         </div>
 
-        {activeTab === 'channels' && (
-          <>
-            {/* ── Push Notifications ───────────────────────────────── */}
-            <div className="bg-[#0A1020] border border-[#1A2640] rounded-xl p-5 flex flex-col gap-0">
-              <SectionHeader
-                label="Push Notifications"
-                description="Receive alerts on this device."
-                allEnabled={allPushOn}
-                onToggleAll={v => setAll(pushKeys, v)}
+        {/* ── Push Notifications ───────────────────────────────── */}
+        <div className="bg-[#0A1020] border border-[#1A2640] rounded-xl p-5 flex flex-col gap-0">
+          <SectionHeader
+            label="Push Notifications"
+            description="Receive alerts on this device."
+            allEnabled={allPushOn}
+            onToggleAll={v => setAll(pushKeys, v)}
+          />
+          <div className="mt-1">
+            {PUSH_ITEMS.map((item, i) => (
+              <NotifRow
+                key={item.id}
+                icon={item.icon}
+                iconColor={item.iconColor}
+                iconBg={item.iconBg}
+                label={item.label}
+                description={item.description}
+                checked={settings[item.id as NotifKey]}
+                onChange={v => set(item.id as NotifKey, v)}
+                last={i === PUSH_ITEMS.length - 1}
               />
-              <div className="mt-1">
-                {PUSH_ITEMS.map((item, i) => (
-                  <NotifRow
-                    key={item.id}
-                    icon={item.icon}
-                    iconColor={item.iconColor}
-                    iconBg={item.iconBg}
-                    label={item.label}
-                    description={item.description}
-                    checked={settings[item.id as NotifKey]}
-                    onChange={v => set(item.id as NotifKey, v)}
-                    last={i === PUSH_ITEMS.length - 1}
-                  />
-                ))}
-              </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            {/* ── Email Notifications ──────────────────────────────── */}
-            <div className="bg-[#0A1020] border border-[#1A2640] rounded-xl p-5 flex flex-col gap-0">
-              <SectionHeader
-                label="Email Notifications"
-                description="Receive updates and summaries in your inbox."
-                allEnabled={allEmailOn}
-                onToggleAll={v => setAll(emailKeys, v)}
+        {/* ── Email Notifications ──────────────────────────────── */}
+        <div className="bg-[#0A1020] border border-[#1A2640] rounded-xl p-5 flex flex-col gap-0">
+          <SectionHeader
+            label="Email Notifications"
+            description="Receive updates and summaries in your inbox."
+            allEnabled={allEmailOn}
+            onToggleAll={v => setAll(emailKeys, v)}
+          />
+          <div className="mt-1">
+            {EMAIL_ITEMS.map((item, i) => (
+              <NotifRow
+                key={item.id}
+                icon={item.icon}
+                iconColor={item.iconColor}
+                iconBg={item.iconBg}
+                label={item.label}
+                description={item.description}
+                checked={settings[item.id as NotifKey]}
+                onChange={v => set(item.id as NotifKey, v)}
+                last={i === EMAIL_ITEMS.length - 1}
               />
-              <div className="mt-1">
-                {EMAIL_ITEMS.map((item, i) => (
-                  <NotifRow
-                    key={item.id}
-                    icon={item.icon}
-                    iconColor={item.iconColor}
-                    iconBg={item.iconBg}
-                    label={item.label}
-                    description={item.description}
-                    checked={settings[item.id as NotifKey]}
-                    onChange={v => set(item.id as NotifKey, v)}
-                    last={i === EMAIL_ITEMS.length - 1}
-                  />
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+            ))}
+          </div>
+        </div>
 
 
       </div>
 
-      <NotificationChannelsModal open={showChannelsModal} onClose={() => { setShowChannelsModal(false); setActiveTab('channels') }} />
+      <NotificationChannelsModal open={showChannelsModal} onClose={() => setShowChannelsModal(false)} />
       <QuietHoursModal open={showQuietHoursModal} onClose={() => setShowQuietHoursModal(false)} />
-      <EmailDigestModal open={showEmailDigestModal} onClose={() => { setShowEmailDigestModal(false); setActiveTab('channels') }} />
+      <EmailDigestModal open={showEmailDigestModal} onClose={() => setShowEmailDigestModal(false)} />
 
     </div>
   )
