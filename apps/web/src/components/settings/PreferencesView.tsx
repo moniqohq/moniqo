@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import {
-  Globe, Wallet, LayoutDashboard, Accessibility,
-  RefreshCw, RotateCcw, Check,
+  Globe, Wallet, Monitor, Cloud, Database,
+  Sun, Moon, SlidersHorizontal, Check,
+  SquarePen, CheckCircle2,
 } from 'lucide-react'
-import { SectionCard } from '@/components/shared/SectionCard'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -16,37 +16,38 @@ import { cn } from '@/lib/utils'
 // ── Options ───────────────────────────────────────────────────────
 
 const CURRENCIES = [
-  { value: 'INR', label: '₹ INR — Indian Rupee' },
-  { value: 'USD', label: '$ USD — US Dollar' },
-  { value: 'EUR', label: '€ EUR — Euro' },
-  { value: 'GBP', label: '£ GBP — British Pound' },
+  { value: 'INR', label: 'INR (₹)' },
+  { value: 'USD', label: 'USD ($)' },
+  { value: 'EUR', label: 'EUR (€)' },
+  { value: 'GBP', label: 'GBP (£)' },
+]
+
+function formatDate(fmt: string, d: Date): string {
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = String(d.getFullYear())
+  const mon = d.toLocaleString('en-US', { month: 'short' })
+  switch (fmt) {
+    case 'MMM DD, YYYY': return `${mon} ${dd}, ${yyyy}`
+    case 'DD/MM/YYYY':   return `${dd}/${mm}/${yyyy}`
+    case 'MM/DD/YYYY':   return `${mm}/${dd}/${yyyy}`
+    case 'YYYY-MM-DD':   return `${yyyy}-${mm}-${dd}`
+    default:             return fmt
+  }
+}
+
+const TODAY = new Date()
+
+const TIME_FORMATS = [
+  { value: '12h', label: '12-hour' },
+  { value: '24h', label: '24-hour' },
 ]
 
 const DATE_FORMATS = [
-  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
-  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
-  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
-]
-
-const NUMBER_FORMATS = [
-  { value: '1,00,000.00', label: '1,00,000.00 (Indian)' },
-  { value: '100,000.00', label: '100,000.00 (US/EU)' },
-  { value: '100.000,00', label: '100.000,00 (European)' },
-]
-
-const WEEK_STARTS = [
-  { value: 'monday', label: 'Monday' },
-  { value: 'sunday', label: 'Sunday' },
-  { value: 'saturday', label: 'Saturday' },
-]
-
-const TIMEZONES = [
-  { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST, UTC+5:30)' },
-  { value: 'America/New_York', label: 'America/New_York (EST, UTC−5)' },
-  { value: 'Europe/London', label: 'Europe/London (GMT, UTC+0)' },
-  { value: 'Europe/Paris', label: 'Europe/Paris (CET, UTC+1)' },
-  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PST, UTC−8)' },
-  { value: 'Asia/Tokyo', label: 'Asia/Tokyo (JST, UTC+9)' },
+  { value: 'MMM DD, YYYY', label: formatDate('MMM DD, YYYY', TODAY) },
+  { value: 'DD/MM/YYYY',   label: formatDate('DD/MM/YYYY', TODAY) },
+  { value: 'MM/DD/YYYY',   label: formatDate('MM/DD/YYYY', TODAY) },
+  { value: 'YYYY-MM-DD',   label: formatDate('YYYY-MM-DD', TODAY) },
 ]
 
 const LANGUAGES = [
@@ -57,67 +58,38 @@ const LANGUAGES = [
   { value: 'es', label: 'Spanish' },
 ]
 
-const BUDGETS = [
-  { value: 'personal', label: 'Personal Budget' },
-  { value: 'family', label: 'Family Budget' },
-  { value: 'business', label: 'Business Budget' },
+const TRANSACTION_VIEWS = [
+  { value: 'group-date', label: 'Group by date' },
+  { value: 'group-category', label: 'Group by category' },
+  { value: 'list', label: 'Simple list' },
 ]
 
-const MONTHS = [
-  { value: 'january', label: 'January' },
-  { value: 'february', label: 'February' },
-  { value: 'march', label: 'March' },
-  { value: 'april', label: 'April' },
-  { value: 'may', label: 'May' },
-  { value: 'june', label: 'June' },
-  { value: 'july', label: 'July' },
-  { value: 'august', label: 'August' },
-  { value: 'september', label: 'September' },
-  { value: 'october', label: 'October' },
-  { value: 'november', label: 'November' },
-  { value: 'december', label: 'December' },
-]
-
-const LANDING_PAGES = [
-  { value: 'dashboard', label: 'Dashboard' },
-  { value: 'budget', label: 'Budget' },
-  { value: 'transactions', label: 'Transactions' },
-  { value: 'accounts', label: 'Accounts' },
-]
-
-const DENSITIES = [
-  { value: 'comfortable', label: 'Comfortable' },
-  { value: 'compact', label: 'Compact' },
-  { value: 'spacious', label: 'Spacious' },
-]
-
-const SYNC_FREQUENCIES = [
-  { value: 'realtime', label: 'Real-time' },
-  { value: '5min', label: 'Every 5 minutes' },
-  { value: '15min', label: 'Every 15 minutes' },
-  { value: 'manual', label: 'Manual only' },
-]
-
-const CACHE_SIZES = [
-  { value: '50mb', label: '50 MB' },
-  { value: '100mb', label: '100 MB' },
-  { value: '250mb', label: '250 MB' },
-  { value: '500mb', label: '500 MB' },
+const ITEMS_PER_PAGE = [
+  { value: '10', label: '10' },
+  { value: '20', label: '20' },
+  { value: '50', label: '50' },
+  { value: '100', label: '100' },
 ]
 
 // ── Default state ─────────────────────────────────────────────────
 
 const DEFAULTS = {
-  currency: 'INR', dateFormat: 'DD/MM/YYYY', numberFormat: '1,00,000.00',
-  firstDayOfWeek: 'monday', timezone: 'Asia/Kolkata', language: 'en',
-  defaultBudget: 'personal', startMonth: 'january',
-  autoAssignIncome: false, carryOver: true,
-  showHiddenEnvelopes: false, reconciliationReminders: true,
-  defaultLanding: 'dashboard', dashboardDensity: 'comfortable',
-  compactMode: false, showSpendingCharts: true,
-  showRecentTransactions: true, showSavingsGoals: true,
-  reduceMotion: false, largerText: false, highContrast: false, keyboardNav: false,
-  autoSync: true, syncFrequency: 'realtime', offlineMode: false, cacheSize: '100mb',
+  theme: 'dark' as 'light' | 'dark' | 'system',
+  language: 'en',
+  currency: 'INR',
+  dateFormat: 'MMM DD, YYYY',
+  compactMode: false,
+  showAccountBalances: true,
+  showCurrencySymbols: true,
+  animations: true,
+  defaultBudgetAmount: '50,000',
+  autoAssignIncome: true,
+  carryOver: true,
+  reconciliationReminders: true,
+  offlineMode: true,
+  autoSync: true,
+  transactionView: 'group-date',
+  itemsPerPage: '20',
 }
 
 // ── Toggle switch ─────────────────────────────────────────────────
@@ -156,7 +128,7 @@ function ToggleRow({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div className="flex items-start justify-between gap-6 py-3 border-b border-[#1A2640] last:border-0">
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-[#1A2640] last:border-0">
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-[#A8B4CC] leading-tight">{label}</p>
         {description && (
@@ -171,21 +143,20 @@ function ToggleRow({
 // ── Select field ──────────────────────────────────────────────────
 
 function PrefSelect({
-  label, value, onValueChange, options, helperText, disabled,
+  label, value, onValueChange, options, disabled,
 }: {
   label: string
   value: string
   onValueChange: (v: string) => void
   options: { value: string; label: string }[]
-  helperText?: string
   disabled?: boolean
 }) {
   return (
-    <div className={cn('flex flex-col gap-1.5', disabled && 'opacity-50 pointer-events-none')}>
+    <div className={cn('flex flex-col gap-1.5 w-full', disabled && 'opacity-50 pointer-events-none')}>
       <Label className="text-[12px] text-[#5A6A85] font-medium uppercase tracking-wider">{label}</Label>
-      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger className="h-8 text-[13px] bg-[#0D1520] border-[#1E2B42] text-[#A8B4CC] hover:border-[#2A3A54] focus:ring-[rgba(108,58,237,0.2)] focus:border-[#6C3AED] transition-colors">
-          <SelectValue />
+      <Select value={value} onValueChange={(v) => v && onValueChange(v)} disabled={disabled}>
+        <SelectTrigger className="w-full h-9 text-[13px] bg-[#0D1520] border-[#1E2B42] text-[#A8B4CC] hover:border-[#2A3A54] focus:ring-[rgba(108,58,237,0.2)] focus:border-[#6C3AED] transition-colors">
+          <SelectValue>{options.find(o => o.value === value)?.label}</SelectValue>
         </SelectTrigger>
         <SelectContent className="bg-[#0F1623] border-[#1E2B42]">
           {options.map(o => (
@@ -199,266 +170,358 @@ function PrefSelect({
           ))}
         </SelectContent>
       </Select>
-      {helperText && <p className="text-[11px] text-[#5A6A85] leading-relaxed">{helperText}</p>}
     </div>
+  )
+}
+
+// ── Section header (icon + title + description) ───────────────────
+
+function SectionHeader({
+  icon: Icon,
+  iconColor,
+  iconBg,
+  title,
+  description,
+}: {
+  icon: React.ElementType
+  iconColor: string
+  iconBg: string
+  title: string
+  description: string
+}) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg }}>
+        <Icon size={16} style={{ color: iconColor }} />
+      </div>
+      <div>
+        <p className="text-[14px] font-semibold text-white leading-tight">{title}</p>
+        <p className="text-[11px] text-[#5A6A85] mt-0.5">{description}</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Card container ────────────────────────────────────────────────
+
+function PrefCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn('bg-[#0A1020] border border-[#1A2640] rounded-xl p-4', className)}>
+      {children}
+    </div>
+  )
+}
+
+// ── Theme option card ─────────────────────────────────────────────
+
+function ThemeCard({
+  value,
+  label,
+  icon: Icon,
+  selected,
+  onSelect,
+}: {
+  value: string
+  label: string
+  icon: React.ElementType
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className={cn(
+        'relative flex flex-col items-center justify-center gap-2 py-4 px-3 rounded-xl border transition-all',
+        selected
+          ? 'border-[#6C3AED] bg-[rgba(108,58,237,0.12)]'
+          : 'border-[#1E2B42] bg-[#0D1520] hover:border-[#2A3A54]',
+      )}
+    >
+      {selected && (
+        <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#6C3AED] flex items-center justify-center">
+          <Check size={9} className="text-white" />
+        </span>
+      )}
+      <Icon size={28} className={selected ? 'text-[#A78BFA]' : 'text-[#5A6A85]'} />
+      <span className={cn('text-[12px] font-medium', selected ? 'text-white' : 'text-[#5A6A85]')}>{label}</span>
+    </button>
   )
 }
 
 // ── Main view ─────────────────────────────────────────────────────
 
 export function PreferencesView() {
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(DEFAULTS.theme)
+  const [language, setLanguage] = useState(DEFAULTS.language)
   const [currency, setCurrency] = useState(DEFAULTS.currency)
   const [dateFormat, setDateFormat] = useState(DEFAULTS.dateFormat)
-  const [numberFormat, setNumberFormat] = useState(DEFAULTS.numberFormat)
-  const [firstDayOfWeek, setFirstDayOfWeek] = useState(DEFAULTS.firstDayOfWeek)
-  const [timezone, setTimezone] = useState(DEFAULTS.timezone)
-  const [language, setLanguage] = useState(DEFAULTS.language)
+  const [timeFormat, setTimeFormat] = useState('12h')
+  const [compactMode, setCompactMode] = useState(DEFAULTS.compactMode)
+  const [showAccountBalances, setShowAccountBalances] = useState(DEFAULTS.showAccountBalances)
+  const [showCurrencySymbols, setShowCurrencySymbols] = useState(DEFAULTS.showCurrencySymbols)
+  const [animations, setAnimations] = useState(DEFAULTS.animations)
 
-  const [defaultBudget, setDefaultBudget] = useState(DEFAULTS.defaultBudget)
-  const [startMonth, setStartMonth] = useState(DEFAULTS.startMonth)
+  const [defaultBudgetAmount, setDefaultBudgetAmount] = useState(DEFAULTS.defaultBudgetAmount)
+  const [editingBudget, setEditingBudget] = useState(false)
+  const [budgetDraft, setBudgetDraft] = useState(DEFAULTS.defaultBudgetAmount)
   const [autoAssignIncome, setAutoAssignIncome] = useState(DEFAULTS.autoAssignIncome)
   const [carryOver, setCarryOver] = useState(DEFAULTS.carryOver)
-  const [showHiddenEnvelopes, setShowHiddenEnvelopes] = useState(DEFAULTS.showHiddenEnvelopes)
   const [reconciliationReminders, setReconciliationReminders] = useState(DEFAULTS.reconciliationReminders)
 
-  const [defaultLanding, setDefaultLanding] = useState(DEFAULTS.defaultLanding)
-  const [dashboardDensity, setDashboardDensity] = useState(DEFAULTS.dashboardDensity)
-  const [compactMode, setCompactMode] = useState(DEFAULTS.compactMode)
-  const [showSpendingCharts, setShowSpendingCharts] = useState(DEFAULTS.showSpendingCharts)
-  const [showRecentTransactions, setShowRecentTransactions] = useState(DEFAULTS.showRecentTransactions)
-  const [showSavingsGoals, setShowSavingsGoals] = useState(DEFAULTS.showSavingsGoals)
-
-  const [reduceMotion, setReduceMotion] = useState(DEFAULTS.reduceMotion)
-  const [largerText, setLargerText] = useState(DEFAULTS.largerText)
-  const [highContrast, setHighContrast] = useState(DEFAULTS.highContrast)
-  const [keyboardNav, setKeyboardNav] = useState(DEFAULTS.keyboardNav)
-
-  const [autoSync, setAutoSync] = useState(DEFAULTS.autoSync)
-  const [syncFrequency, setSyncFrequency] = useState(DEFAULTS.syncFrequency)
   const [offlineMode, setOfflineMode] = useState(DEFAULTS.offlineMode)
-  const [cacheSize, setCacheSize] = useState(DEFAULTS.cacheSize)
+  const [autoSync, setAutoSync] = useState(DEFAULTS.autoSync)
+  const [transactionView, setTransactionView] = useState(DEFAULTS.transactionView)
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULTS.itemsPerPage)
 
-  const [saved, setSaved] = useState(false)
-
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
-  const handleReset = () => {
-    setCurrency(DEFAULTS.currency); setDateFormat(DEFAULTS.dateFormat)
-    setNumberFormat(DEFAULTS.numberFormat); setFirstDayOfWeek(DEFAULTS.firstDayOfWeek)
-    setTimezone(DEFAULTS.timezone); setLanguage(DEFAULTS.language)
-    setDefaultBudget(DEFAULTS.defaultBudget); setStartMonth(DEFAULTS.startMonth)
-    setAutoAssignIncome(DEFAULTS.autoAssignIncome); setCarryOver(DEFAULTS.carryOver)
-    setShowHiddenEnvelopes(DEFAULTS.showHiddenEnvelopes)
-    setReconciliationReminders(DEFAULTS.reconciliationReminders)
-    setDefaultLanding(DEFAULTS.defaultLanding); setDashboardDensity(DEFAULTS.dashboardDensity)
-    setCompactMode(DEFAULTS.compactMode); setShowSpendingCharts(DEFAULTS.showSpendingCharts)
-    setShowRecentTransactions(DEFAULTS.showRecentTransactions)
-    setShowSavingsGoals(DEFAULTS.showSavingsGoals)
-    setReduceMotion(DEFAULTS.reduceMotion); setLargerText(DEFAULTS.largerText)
-    setHighContrast(DEFAULTS.highContrast); setKeyboardNav(DEFAULTS.keyboardNav)
-    setAutoSync(DEFAULTS.autoSync); setSyncFrequency(DEFAULTS.syncFrequency)
-    setOfflineMode(DEFAULTS.offlineMode); setCacheSize(DEFAULTS.cacheSize)
-  }
+  // currency symbol for display
+  const currencySymbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '£'
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="bg-[#0F1623] border border-[#1E2B42] rounded-xl p-5">
 
-      {/* ── Regional Settings ─────────────────────────── */}
-      <SectionCard
-        title="Regional Settings"
-        description="Configure localization and financial display preferences."
-        icon={Globe}
-        iconColor="#60A5FA"
-        iconBg="rgba(59,130,246,0.12)"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
-          <PrefSelect label="Currency" value={currency} onValueChange={setCurrency} options={CURRENCIES} />
-          <PrefSelect label="Date Format" value={dateFormat} onValueChange={setDateFormat} options={DATE_FORMATS} />
-          <PrefSelect label="Number Format" value={numberFormat} onValueChange={setNumberFormat} options={NUMBER_FORMATS} />
-          <PrefSelect label="First Day of Week" value={firstDayOfWeek} onValueChange={setFirstDayOfWeek} options={WEEK_STARTS} />
-          <PrefSelect label="Timezone" value={timezone} onValueChange={setTimezone} options={TIMEZONES} />
-          <PrefSelect label="Language" value={language} onValueChange={setLanguage} options={LANGUAGES} />
-        </div>
-      </SectionCard>
+      {/* ── Two-column grid ───────────────────────────────────────── */}
+      <div className="grid grid-cols-[3fr_2fr] gap-4 items-stretch">
 
-      {/* ── Budgeting Preferences ─────────────────────── */}
-      <SectionCard
-        title="Budgeting Preferences"
-        description="Control budgeting behavior and financial workflow defaults."
-        icon={Wallet}
-        iconColor="#34D399"
-        iconBg="rgba(34,197,94,0.12)"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 pb-5 mb-1 border-b border-[#1E2B42]">
-          <PrefSelect label="Default Budget" value={defaultBudget} onValueChange={setDefaultBudget} options={BUDGETS} />
-          <PrefSelect label="Start Month On" value={startMonth} onValueChange={setStartMonth} options={MONTHS} />
-        </div>
-        <div className="flex flex-col">
-          <ToggleRow
-            label="Auto-assign income"
-            description="Automatically distribute new income across envelopes based on your last allocation."
-            checked={autoAssignIncome}
-            onChange={setAutoAssignIncome}
-          />
-          <ToggleRow
-            label="Carry over remaining balance"
-            description="Unspent envelope balance rolls forward into the next month automatically."
-            checked={carryOver}
-            onChange={setCarryOver}
-          />
-          <ToggleRow
-            label="Show hidden envelopes"
-            description="Display envelopes marked as hidden in your budget view."
-            checked={showHiddenEnvelopes}
-            onChange={setShowHiddenEnvelopes}
-          />
-          <ToggleRow
-            label="Reconciliation reminders"
-            description="Receive a prompt to reconcile accounts at the start of each month."
-            checked={reconciliationReminders}
-            onChange={setReconciliationReminders}
-          />
-        </div>
-      </SectionCard>
+        {/* ── LEFT COLUMN ──────────────────────────────────────── */}
+        <div className="flex flex-col gap-5">
 
-      {/* ── Dashboard Preferences ─────────────────────── */}
-      <SectionCard
-        title="Dashboard Preferences"
-        description="Personalize your dashboard visibility and overview behavior."
-        icon={LayoutDashboard}
-        iconColor="#A78BFA"
-        iconBg="rgba(108,58,237,0.15)"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 pb-5 mb-1 border-b border-[#1E2B42]">
-          <PrefSelect label="Default Landing Page" value={defaultLanding} onValueChange={setDefaultLanding} options={LANDING_PAGES} />
-          <PrefSelect label="Dashboard Density" value={dashboardDensity} onValueChange={setDashboardDensity} options={DENSITIES} />
-        </div>
-        <div className="flex flex-col">
-          <ToggleRow
-            label="Compact dashboard mode"
-            description="Reduce card sizes and spacing for a more information-dense view."
-            checked={compactMode}
-            onChange={setCompactMode}
-          />
-          <ToggleRow
-            label="Show spending charts"
-            description="Display spending breakdown charts on your dashboard overview."
-            checked={showSpendingCharts}
-            onChange={setShowSpendingCharts}
-          />
-          <ToggleRow
-            label="Show recent transactions"
-            description="Display the latest transactions widget on your dashboard."
-            checked={showRecentTransactions}
-            onChange={setShowRecentTransactions}
-          />
-          <ToggleRow
-            label="Show savings goals"
-            description="Display active savings goal progress on the dashboard."
-            checked={showSavingsGoals}
-            onChange={setShowSavingsGoals}
-          />
-        </div>
-      </SectionCard>
+          {/* Appearance */}
+          <PrefCard>
+            <SectionHeader
+              icon={SlidersHorizontal}
+              iconColor="#A78BFA"
+              iconBg="rgba(108,58,237,0.15)"
+              title="Appearance"
+              description="Choose how Moniqo looks for you."
+            />
+            <div className="grid grid-cols-3 gap-3">
+              <ThemeCard value="light" label="Light" icon={Sun} selected={theme === 'light'} onSelect={() => setTheme('light')} />
+              <ThemeCard value="dark" label="Dark" icon={Moon} selected={theme === 'dark'} onSelect={() => setTheme('dark')} />
+              <ThemeCard value="system" label="System" icon={Monitor} selected={theme === 'system'} onSelect={() => setTheme('system')} />
+            </div>
+          </PrefCard>
 
-      {/* ── Accessibility ─────────────────────────────── */}
-      <SectionCard
-        title="Accessibility"
-        description="Improve readability and accessibility across the application."
-        icon={Accessibility}
-        iconColor="#FBBF24"
-        iconBg="rgba(245,158,11,0.12)"
-      >
-        <div className="flex flex-col">
-          <ToggleRow
-            label="Reduce motion"
-            description="Minimize animations and transitions throughout the interface."
-            checked={reduceMotion}
-            onChange={setReduceMotion}
-          />
-          <ToggleRow
-            label="Larger text mode"
-            description="Increase base font size for improved readability."
-            checked={largerText}
-            onChange={setLargerText}
-          />
-          <ToggleRow
-            label="High contrast mode"
-            description="Enhance visual contrast between foreground and background elements."
-            checked={highContrast}
-            onChange={setHighContrast}
-          />
-          <ToggleRow
-            label="Keyboard navigation enhancements"
-            description="Improve focus indicators and keyboard shortcut visibility across the app."
-            checked={keyboardNav}
-            onChange={setKeyboardNav}
-          />
-        </div>
-      </SectionCard>
+          {/* Regional */}
+          <PrefCard>
+            <SectionHeader
+              icon={Globe}
+              iconColor="#60A5FA"
+              iconBg="rgba(59,130,246,0.12)"
+              title="Regional"
+              description="Set your language, currency, and date format."
+            />
+            <div className="grid grid-cols-[2fr_1fr] gap-4">
+              <PrefSelect label="Language" value={language} onValueChange={setLanguage} options={LANGUAGES} />
+              <PrefSelect label="Currency" value={currency} onValueChange={setCurrency} options={CURRENCIES} />
+            </div>
+            <div className="grid grid-cols-[2fr_1fr] gap-4 mt-4">
+              <PrefSelect label="Date format" value={dateFormat} onValueChange={setDateFormat} options={DATE_FORMATS} />
+              <PrefSelect label="Time format" value={timeFormat} onValueChange={setTimeFormat} options={TIME_FORMATS} />
+            </div>
+          </PrefCard>
 
-      {/* ── Data & Sync ───────────────────────────────── */}
-      <SectionCard
-        title="Data & Sync"
-        description="Manage synchronization and local application behavior."
-        icon={RefreshCw}
-        iconColor="#C084FC"
-        iconBg="rgba(168,85,247,0.12)"
-      >
-        <div className="flex flex-col pb-5 mb-1 border-b border-[#1E2B42]">
-          <ToggleRow
-            label="Auto sync"
-            description="Automatically synchronize your data across devices in the background."
-            checked={autoSync}
-            onChange={setAutoSync}
-          />
-          <ToggleRow
-            label="Offline mode"
-            description="Allow the app to function without an internet connection using cached data."
-            checked={offlineMode}
-            onChange={setOfflineMode}
-          />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4 pt-4">
-          <PrefSelect
-            label="Sync Frequency"
-            value={syncFrequency}
-            onValueChange={setSyncFrequency}
-            options={SYNC_FREQUENCIES}
-            disabled={!autoSync}
-            helperText={!autoSync ? 'Enable auto sync to configure frequency.' : undefined}
-          />
-          <PrefSelect
-            label="Local Cache Size"
-            value={cacheSize}
-            onValueChange={setCacheSize}
-            options={CACHE_SIZES}
-          />
-        </div>
-      </SectionCard>
+          {/* Display */}
+          <PrefCard>
+            <SectionHeader
+              icon={Monitor}
+              iconColor="#A78BFA"
+              iconBg="rgba(108,58,237,0.12)"
+              title="Display"
+              description="Customize how information is shown."
+            />
+            <div className="flex flex-col">
+              <ToggleRow
+                label="Compact mode"
+                description="Show more information in less space."
+                checked={compactMode}
+                onChange={setCompactMode}
+              />
+              <ToggleRow
+                label="Show account balances"
+                description="Display balances on dashboards and accounts"
+                checked={showAccountBalances}
+                onChange={setShowAccountBalances}
+              />
+              <ToggleRow
+                label="Show currency symbols"
+                description="Display currency symbols before amounts"
+                checked={showCurrencySymbols}
+                onChange={setShowCurrencySymbols}
+              />
+              <ToggleRow
+                label="Animations"
+                description="Enable smooth transitions and animations"
+                checked={animations}
+                onChange={setAnimations}
+              />
+            </div>
+          </PrefCard>
 
-      {/* ── Footer actions ────────────────────────────── */}
-      <div className="flex items-center justify-between pt-1 pb-2">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleReset}>
-          <RotateCcw size={13} />
-          Reset to Defaults
-        </Button>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          className={cn(
-            'gap-1.5 transition-all',
-            saved
-              ? 'bg-[#22C55E] hover:bg-[#16A34A] text-white'
-              : 'bg-[#6C3AED] hover:bg-[#5B2FD0] text-white',
-          )}
-        >
-          {saved && <Check size={13} />}
-          {saved ? 'Saved!' : 'Save Preferences'}
-        </Button>
+          {/* Notice */}
+          <div className="flex-1 rounded-xl border border-[#1A2640] bg-[rgba(108,58,237,0.06)] p-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(108,58,237,0.15)]">
+                <SlidersHorizontal size={13} className="text-[#A78BFA]" />
+              </div>
+              <p className="text-[13px] font-semibold text-white leading-tight">Preferences sync across devices</p>
+            </div>
+            <p className="text-[12px] text-[#5A6A85] leading-relaxed">
+              Your display, regional, and budgeting preferences are automatically saved and applied across all devices where you're signed in to Moniqo.
+            </p>
+          </div>
+
+        </div>
+
+        {/* ── RIGHT COLUMN ─────────────────────────────────────── */}
+        <div className="flex flex-col gap-5">
+
+          {/* Budgeting Preferences */}
+          <PrefCard>
+            <SectionHeader
+              icon={Wallet}
+              iconColor="#34D399"
+              iconBg="rgba(34,197,94,0.12)"
+              title="Budgeting Preferences"
+              description="Set default budgeting behaviors."
+            />
+            <div className="flex flex-col gap-0">
+
+              {/* Default Budget inline field */}
+              <div className="flex items-start justify-between gap-4 py-3 border-b border-[#1A2640]">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-[#A8B4CC] leading-tight">Default Budget</p>
+                  <p className="text-[11px] text-[#5A6A85] mt-0.5 leading-relaxed">Set your default monthly budget amount.</p>
+                </div>
+                {editingBudget ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[12px] text-[#5A6A85]">{currencySymbol}</span>
+                    <Input
+                      value={budgetDraft}
+                      onChange={e => setBudgetDraft(e.target.value)}
+                      className="h-7 w-24 text-[12px] text-right"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => { setDefaultBudgetAmount(budgetDraft); setEditingBudget(false) }}
+                      className="text-[#22C55E] hover:text-[#16A34A] transition-colors"
+                    >
+                      <CheckCircle2 size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[13px] font-medium text-[#A8B4CC]">{currencySymbol}{defaultBudgetAmount}</span>
+                    <button
+                      onClick={() => { setBudgetDraft(defaultBudgetAmount); setEditingBudget(true) }}
+                      className="text-[#5A6A85] hover:text-[#A8B4CC] transition-colors"
+                    >
+                      <SquarePen size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <ToggleRow
+                label="Auto-assign income"
+                description="Automatically distribute new income across envelopes based on your last allocation."
+                checked={autoAssignIncome}
+                onChange={setAutoAssignIncome}
+              />
+              <ToggleRow
+                label="Carry over remaining balance"
+                description="Unspent envelope balance rolls forward into the next month automatically."
+                checked={carryOver}
+                onChange={setCarryOver}
+              />
+              <ToggleRow
+                label="Reconciliation reminders"
+                description="Receive a prompt to reconcile accounts at the start of each month."
+                checked={reconciliationReminders}
+                onChange={setReconciliationReminders}
+              />
+            </div>
+          </PrefCard>
+
+          {/* Data & Sync */}
+          <PrefCard>
+            <SectionHeader
+              icon={Cloud}
+              iconColor="#60A5FA"
+              iconBg="rgba(59,130,246,0.12)"
+              title="Data & Sync"
+              description="Manage how your data syncs and works."
+            />
+            <div className="flex flex-col">
+              <ToggleRow
+                label="Offline mode"
+                description="Allow the app to function without an internet connection using cached data."
+                checked={offlineMode}
+                onChange={setOfflineMode}
+              />
+              <ToggleRow
+                label="Auto sync"
+                description="Automatically synchronize your data across devices in the background."
+                checked={autoSync}
+                onChange={setAutoSync}
+              />
+            </div>
+          </PrefCard>
+
+          {/* Data */}
+          <PrefCard className="flex-1">
+            <SectionHeader
+              icon={Database}
+              iconColor="#C084FC"
+              iconBg="rgba(168,85,247,0.12)"
+              title="Data"
+              description="Manage how data is shown and processed."
+            />
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-[#A8B4CC] leading-tight">Default transaction view</p>
+                  <p className="text-[11px] text-[#5A6A85] mt-0.5">How transactions are grouped by default</p>
+                </div>
+                <div className="w-36 shrink-0">
+                  <Select value={transactionView} onValueChange={(v) => v && setTransactionView(v)}>
+                    <SelectTrigger className="w-full h-8 text-[12px] bg-[#0D1520] border-[#1E2B42] text-[#A8B4CC] hover:border-[#2A3A54] focus:ring-[rgba(108,58,237,0.2)] focus:border-[#6C3AED] transition-colors">
+                      <SelectValue>{TRANSACTION_VIEWS.find(o => o.value === transactionView)?.label}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#0F1623] border-[#1E2B42]">
+                      {TRANSACTION_VIEWS.map(o => (
+                        <SelectItem key={o.value} value={o.value} className="text-[12px] text-[#A8B4CC] focus:bg-[rgba(108,58,237,0.12)] focus:text-white">
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-[#A8B4CC] leading-tight">Items per page</p>
+                  <p className="text-[11px] text-[#5A6A85] mt-0.5">Number of items to show in lists</p>
+                </div>
+                <div className="w-36 shrink-0">
+                  <Select value={itemsPerPage} onValueChange={(v) => v && setItemsPerPage(v)}>
+                    <SelectTrigger className="w-full h-8 text-[12px] bg-[#0D1520] border-[#1E2B42] text-[#A8B4CC] hover:border-[#2A3A54] focus:ring-[rgba(108,58,237,0.2)] focus:border-[#6C3AED] transition-colors">
+                      <SelectValue>{ITEMS_PER_PAGE.find(o => o.value === itemsPerPage)?.label}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#0F1623] border-[#1E2B42]">
+                      {ITEMS_PER_PAGE.map(o => (
+                        <SelectItem key={o.value} value={o.value} className="text-[12px] text-[#A8B4CC] focus:bg-[rgba(108,58,237,0.12)] focus:text-white">
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </PrefCard>
+
+        </div>
       </div>
 
     </div>
