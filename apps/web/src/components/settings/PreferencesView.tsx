@@ -277,8 +277,20 @@ export function PreferencesView() {
   const currencySymbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '£'
 
   return (
-    <div className="bg-[#0F1623] border border-[#1E2B42] rounded-xl p-5">
+    <div className="bg-[#0F1623] border border-[#1E2B42] rounded-xl overflow-hidden">
 
+      {/* ── Card heading ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[#1E2B42]">
+        <div>
+          <h2 className="text-[14px] font-semibold text-white">Preferences</h2>
+          <p className="text-[12px] text-[#5A6A85] mt-0.5">Customize language, currency, display, and budgeting defaults.</p>
+        </div>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(59,130,246,0.12)' }}>
+          <SlidersHorizontal size={18} style={{ color: '#60A5FA' }} />
+        </div>
+      </div>
+
+      <div className="p-5">
       {/* ── Two-column grid ───────────────────────────────────────── */}
       <div className="grid grid-cols-[3fr_2fr] gap-4 items-stretch">
 
@@ -524,6 +536,7 @@ export function PreferencesView() {
         </div>
       </div>
 
+      </div>
     </div>
   )
 }
