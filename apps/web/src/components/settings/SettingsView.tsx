@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   User, Settings2, Bell, Shield, Database, Users,
   ChevronRight, Search, Camera, CheckCircle2, Lock,
@@ -141,6 +141,19 @@ export function SettingsView() {
   const [draftForm, setDraftForm] = useState(profileForm)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const asideRef = useRef<HTMLElement>(null)
+  const [profileSidebarHeight, setProfileSidebarHeight] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (activeNav !== 'profile') return
+    const el = asideRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      if (el.offsetHeight > 0) setProfileSidebarHeight(el.offsetHeight)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [activeNav])
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -177,10 +190,14 @@ export function SettingsView() {
       />
 
       {/* ── Two-column layout ────────────────────────────── */}
-      <div className="flex gap-5 items-stretch">
+      <div className="flex gap-5 items-start">
 
         {/* ── LEFT SIDEBAR ────────────────────────────────── */}
-        <aside className="w-[320px] shrink-0 sticky top-6 self-stretch">
+        <aside
+          ref={asideRef}
+          className={cn('w-[320px] shrink-0 sticky top-6', activeNav === 'profile' ? 'self-stretch' : 'self-start')}
+          style={activeNav !== 'profile' && profileSidebarHeight ? { height: profileSidebarHeight } : undefined}
+        >
           <div className="bg-[#0F1623] border border-[#1E2B42] rounded-xl flex flex-col gap-0 overflow-hidden h-full">
 
             {/* Search */}
@@ -239,12 +256,12 @@ export function SettingsView() {
         </aside>
 
         {/* ── MAIN CONTENT ────────────────────────────────── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-5 self-stretch">
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
 
           {activeNav === 'preferences' && <PreferencesView />}
 
           {/* ── Combined Profile + Security card ─────────── */}
-          {activeNav !== 'preferences' && <SectionCard title="Profile" icon={User} iconColor="#A78BFA" iconBg="rgba(108,58,237,0.15)" className="flex-1">
+          {activeNav !== 'preferences' && <SectionCard title="Profile" description="Manage your personal information and account details." icon={User} iconColor="#A78BFA" iconBg="rgba(108,58,237,0.15)" className="flex-1">
 
             <div className="flex flex-col sm:flex-row gap-6">
 
