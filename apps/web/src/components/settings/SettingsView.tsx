@@ -11,6 +11,8 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { PreferencesView } from './PreferencesView'
 import { NotificationsView } from './NotificationsView'
 import { SecurityView } from './SecurityView'
+import { DataPrivacyView } from './DataPrivacyView'
+import { MembersPermissionsView } from './MembersPermissionsView'
 import { SectionCard } from '@/components/shared/SectionCard'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -234,17 +236,25 @@ export function SettingsView() {
               ))}
             </nav>
 
-            {/* Bottom security info */}
+            {/* Bottom info card */}
             <div className="p-3 border-t border-[#1E2B42]">
               <div className="rounded-xl bg-[#0D1520] border border-[#1E2B42] p-3">
                 <div className="flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[rgba(108,58,237,0.12)]">
-                    <Shield size={13} className="text-[#A78BFA]" />
+                    {activeNav === 'members'
+                      ? <Users size={13} className="text-[#FB923C]" style={{ color: '#FB923C' }} />
+                      : <Shield size={13} className="text-[#A78BFA]" />
+                    }
                   </div>
                   <div>
-                    <p className="text-[12px] font-semibold text-[#A8B4CC] leading-tight">Your data is safe with Moniqo</p>
+                    <p className="text-[12px] font-semibold text-[#A8B4CC] leading-tight">
+                      {activeNav === 'members' ? 'Share with confidence' : 'Your data is safe with Moniqo'}
+                    </p>
                     <p className="text-[11px] text-[#5A6A85] mt-1 leading-relaxed">
-                      We use military-grade encryption and never share your financial data.
+                      {activeNav === 'members'
+                        ? "You're in control. Add members and manage their access at any time."
+                        : 'We use military-grade encryption and never share your financial data.'
+                      }
                     </p>
                     <button className="mt-2 text-[11px] text-[#6C3AED] hover:text-[#A78BFA] transition-colors font-medium">
                       Learn more
@@ -263,9 +273,11 @@ export function SettingsView() {
           {activeNav === 'preferences' && <PreferencesView />}
           {activeNav === 'notifications' && <NotificationsView />}
           {activeNav === 'security' && <SecurityView />}
+          {activeNav === 'privacy' && <DataPrivacyView />}
+          {activeNav === 'members' && <MembersPermissionsView />}
 
           {/* ── Combined Profile + Security card ─────────── */}
-          {activeNav !== 'preferences' && activeNav !== 'notifications' && activeNav !== 'security' && <SectionCard title="Profile" description="Manage your personal information and account details." icon={User} iconColor="#A78BFA" iconBg="rgba(108,58,237,0.15)" className="flex-1">
+          {activeNav !== 'preferences' && activeNav !== 'notifications' && activeNav !== 'security' && activeNav !== 'privacy' && activeNav !== 'members' && <SectionCard title="Profile" description="Manage your personal information and account details." icon={User} iconColor="#A78BFA" iconBg="rgba(108,58,237,0.15)" className="flex-1">
 
             <div className="flex flex-col sm:flex-row gap-6">
 
