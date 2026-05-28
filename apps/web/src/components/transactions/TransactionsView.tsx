@@ -16,6 +16,7 @@ import {
 import { mockTransactions, mockEnvelopes, mockAccounts } from '@/mock/data'
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from '@/lib/utils'
 import { AddTransactionModal } from './AddTransactionModal'
+import { TransactionDetailsModal } from './TransactionDetailsModal'
 import { DateRangePicker } from './DateRangePicker'
 import type { DateRange } from './DateRangePicker'
 import type { Transaction, AccountType } from '@/types'
@@ -104,9 +105,9 @@ function EnvelopeChip({ name, icon, color }: { name?: string; icon?: string; col
 
 /* ── Transaction row ────────────────────────────────────── */
 function TxRow({
-  tx, index, selected, onSelect,
+  tx, index, selected, onSelect, onRowClick,
 }: {
-  tx: Transaction; index: number; selected: boolean; onSelect: () => void
+  tx: Transaction; index: number; selected: boolean; onSelect: () => void; onRowClick: () => void
 }) {
   const amountColor =
     tx.type === 'income' ? 'text-[#4ADE80]'
@@ -118,15 +119,16 @@ function TxRow({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: index * 0.018 }}
+      onClick={onRowClick}
       className={cn(
-        'group hover:bg-[#0D1828] transition-colors',
+        'group hover:bg-[#0D1828] transition-colors cursor-pointer',
         selected && 'bg-[rgba(108,58,237,0.05)]',
       )}
     >
       {/* Checkbox */}
       <td className="w-10 pl-4 pr-2 py-3">
         <button
-          onClick={onSelect}
+          onClick={e => { e.stopPropagation(); onSelect() }}
           className="text-[#2A3A54] hover:text-[#6C3AED] focus:outline-none transition-colors flex"
         >
           {selected
@@ -208,7 +210,7 @@ function TxRow({
       </td>
 
       {/* Actions */}
-      <td className="px-3 py-3">
+      <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
         <button className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-all ml-auto flex">
           <MoreVertical size={13} />
         </button>
@@ -632,6 +634,8 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
   const [modalOpen, setModalOpen] = useState(false)
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pageSize, setPageSize] = useState(25)
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<string>>(new Set())
@@ -877,6 +881,7 @@ export function TransactionsView() {
                   index={i}
                   selected={selected.has(tx.id)}
                   onSelect={() => toggleRow(tx.id)}
+                  onRowClick={() => { setDetailTx(tx); setDetailOpen(true) }}
                 />
               ))}
             </tbody>
@@ -919,6 +924,11 @@ export function TransactionsView() {
       </div>
 
       <AddTransactionModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <TransactionDetailsModal
+        tx={detailTx}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+      />
     </div>
   )
 }
