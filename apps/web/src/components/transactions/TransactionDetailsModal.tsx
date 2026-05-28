@@ -31,9 +31,10 @@ interface Props {
   tx: Transaction | null
   open: boolean
   onClose: () => void
+  onDelete?: () => void
 }
 
-export function TransactionDetailsModal({ tx, open, onClose }: Props) {
+export function TransactionDetailsModal({ tx, open, onClose, onDelete }: Props) {
   useEffect(() => {
     if (!open) return
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -335,7 +336,10 @@ export function TransactionDetailsModal({ tx, open, onClose }: Props) {
                   <ActionBtn className="border-[#22C55E]/30 text-[#4ADE80] hover:bg-[#22C55E]/10 hover:border-[#22C55E]/50 focus:ring-[#22C55E]/30">
                     <CheckCircle size={14} /> Mark Reconciled
                   </ActionBtn>
-                  <ActionBtn className="ml-auto border-[#EF4444]/30 text-[#F87171] hover:bg-[#EF4444]/10 hover:border-[#EF4444]/50 focus:ring-[#EF4444]/30">
+                  <ActionBtn
+                    className="ml-auto border-[#EF4444]/30 text-[#F87171] hover:bg-[#EF4444]/10 hover:border-[#EF4444]/50 focus:ring-[#EF4444]/30"
+                    onClick={onDelete}
+                  >
                     <Trash2 size={14} /> Delete
                   </ActionBtn>
                 </div>
@@ -379,9 +383,10 @@ function ImpactCard({ label, children }: { label: string; children: React.ReactN
   )
 }
 
-function ActionBtn({ children, className }: { children: React.ReactNode; className?: string }) {
+function ActionBtn({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
   return (
     <button
+      onClick={onClick}
       className={cn(
         'inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#1E2B42] text-sm font-medium text-[#A8B4CC]',
         'hover:bg-[#1A2640] hover:text-white hover:border-[#2A3A54]',

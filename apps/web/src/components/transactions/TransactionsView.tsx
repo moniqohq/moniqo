@@ -17,6 +17,7 @@ import { mockTransactions, mockEnvelopes, mockAccounts } from '@/mock/data'
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from '@/lib/utils'
 import { AddTransactionModal } from './AddTransactionModal'
 import { TransactionDetailsModal } from './TransactionDetailsModal'
+import { DeleteTransactionModal } from './DeleteTransactionModal'
 import { DateRangePicker } from './DateRangePicker'
 import type { DateRange } from './DateRangePicker'
 import type { Transaction, AccountType } from '@/types'
@@ -636,6 +637,9 @@ export function TransactionsView() {
   const [modalOpen, setModalOpen] = useState(false)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pageSize, setPageSize] = useState(25)
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<string>>(new Set())
@@ -671,6 +675,27 @@ export function TransactionsView() {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+  }
+
+  function openDeleteModal(tx: Transaction) {
+    setDeleteTx(tx)
+    setDeleteOpen(true)
+  }
+
+  function closeDeleteModal() {
+    if (deleteLoading) return
+    setDeleteOpen(false)
+    setTimeout(() => setDeleteTx(null), 200)
+  }
+
+  async function confirmDelete() {
+    setDeleteLoading(true)
+    // Simulate async delete — replace with real API call
+    await new Promise(r => setTimeout(r, 800))
+    setDeleteLoading(false)
+    setDeleteOpen(false)
+    setDetailOpen(false)
+    setTimeout(() => { setDeleteTx(null); setDetailTx(null) }, 200)
   }
 
   /* Flowbite dropdown trigger style */
@@ -928,6 +953,14 @@ export function TransactionsView() {
         tx={detailTx}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        onDelete={() => detailTx && openDeleteModal(detailTx)}
+      />
+      <DeleteTransactionModal
+        tx={deleteTx}
+        open={deleteOpen}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
+        loading={deleteLoading}
       />
     </div>
   )
