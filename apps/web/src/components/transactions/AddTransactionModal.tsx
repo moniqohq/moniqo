@@ -1,8 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Search, ChevronDown, CalendarDays, Info } from 'lucide-react'
+import {
+  X, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
+  Search, ChevronDown, CalendarDays, Info, TrendingUp, Save,
+  Building2, ArrowRight, ArrowDown,
+} from 'lucide-react'
 import { mockAccounts, mockEnvelopes } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
 import type { TransactionType } from '@/types'
@@ -12,66 +16,115 @@ interface AddTransactionModalProps {
   onClose: () => void
 }
 
-const tabs: { type: TransactionType; label: string; icon: React.ReactNode }[] = [
-  { type: 'expense',  label: 'Expense',  icon: <ArrowDownLeft  size={14} /> },
-  { type: 'income',   label: 'Income',   icon: <ArrowUpRight   size={14} /> },
-  { type: 'transfer', label: 'Transfer', icon: <ArrowLeftRight size={14} /> },
-]
+/* ── helpers ─────────────────────────────────────────────── */
 
-/* Flowbite label */
-const Label = ({ children }: { children: React.ReactNode }) => (
-  <label className="block mb-2 text-sm font-medium text-[#A8B4CC]">{children}</label>
-)
+function numberToWords(n: number): string {
+  if (!n || n <= 0) return ''
+  const units = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+                 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+                 'seventeen', 'eighteen', 'nineteen']
+  const tens  = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+  if (n < 20) return units[n]
+  if (n < 100) return `${tens[Math.floor(n / 10)]}${n % 10 ? ' ' + units[n % 10] : ''}`
+  if (n < 1000) return `${units[Math.floor(n / 100)]} hundred${n % 100 ? ' ' + numberToWords(n % 100) : ''}`
+  if (n < 100000) return `${numberToWords(Math.floor(n / 1000))} thousand${n % 1000 ? ' ' + numberToWords(n % 1000) : ''}`
+  return `${numberToWords(Math.floor(n / 100000))} lakh${n % 100000 ? ' ' + numberToWords(n % 100000) : ''}`
+}
 
-/* Flowbite input */
+/* ── shared styles ───────────────────────────────────────── */
+
 const inputCls = [
-  'w-full py-2.5 px-3 text-sm text-white bg-[#131C2E]',
-  'border border-[#1E2B42] rounded-lg',
+  'w-full py-2.5 px-3 text-sm text-white bg-[#0D1525]',
+  'border border-[#1E2B42] rounded-xl',
   'placeholder:text-[#2A3A54]',
   'focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40 focus:border-[#6C3AED]',
   'transition-all',
 ].join(' ')
 
-/* Flowbite select-like trigger */
-const selectCls = [
-  'w-full flex items-center gap-3 px-3 py-2.5 text-sm',
-  'bg-[#131C2E] border border-[#1E2B42] rounded-lg',
-  'hover:border-[#2A3A54]',
-  'focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40',
-  'transition-colors',
-].join(' ')
+const fieldLabel = 'block mb-2 text-sm font-medium text-[#A8B4CC]'
+
+/* ── component ───────────────────────────────────────────── */
 
 export function AddTransactionModal({ open, onClose }: AddTransactionModalProps) {
-  const [txType, setTxType] = useState<TransactionType>('expense')
-  const [amount, setAmount] = useState('')
-  const [payee, setPayee] = useState('')
-  const [selectedAccount] = useState(mockAccounts[0])
-  const [selectedEnvelope] = useState(mockEnvelopes[0])
-  const [date] = useState('May 15, 2024')
-  const [memo, setMemo] = useState('')
 
-  const numericAmount = parseFloat(amount.replace(/,/g, '')) || 0
-  const availableAfter = selectedEnvelope.available - numericAmount
-  const accountAfter   = selectedAccount.balance - numericAmount
+  /* core state */
+  const [txType,          setTxType]          = useState<TransactionType>('expense')
+  const [amount,          setAmount]          = useState('')
+  const [payee,           setPayee]           = useState('')
+  const [selectedAccount, setSelectedAccount] = useState(mockAccounts[0])
+  const [selectedEnvelope,setSelectedEnvelope]= useState(mockEnvelopes[0])
+  const [date]                               = useState('May 15, 2026')
+  const [memo,            setMemo]            = useState('')
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setAmount(e.target.value.replace(/[^0-9.]/g, ''))
+  /* expense dropdowns */
+  const [accountOpen,  setAccountOpen]  = useState(false)
+  const [envelopeOpen, setEnvelopeOpen] = useState(false)
+
+  /* transfer state */
+  const [fromAccountId, setFromAccountId] = useState(mockAccounts[0].id)
+  const [toAccountId,   setToAccountId]   = useState(mockAccounts[1].id)
+  const [fromOpen,      setFromOpen]      = useState(false)
+  const [toOpen,        setToOpen]        = useState(false)
+
+  const closeAll = () => {
+    setAccountOpen(false); setEnvelopeOpen(false)
+    setFromOpen(false);    setToOpen(false)
   }
 
-  const numberToWords = (n: number): string => {
-    if (!n) return ''
-    const units = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
-                   'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
-                   'seventeen', 'eighteen', 'nineteen']
-    const tens  = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
-    if (n < 20) return units[n]
-    if (n < 100) return `${tens[Math.floor(n / 10)]}${n % 10 ? ' ' + units[n % 10] : ''}`
-    if (n < 1000) return `${units[Math.floor(n / 100)]} hundred${n % 100 ? ' ' + numberToWords(n % 100) : ''}`
-    if (n < 100000) return `${numberToWords(Math.floor(n / 1000))} thousand${n % 1000 ? ' ' + numberToWords(n % 1000) : ''}`
-    return `${numberToWords(Math.floor(n / 100000))} lakh${n % 100000 ? ' ' + numberToWords(n % 100000) : ''}`
-  }
+  /* keyboard + scroll lock */
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [open, onClose])
+
+  /* derived */
+  const numericAmount  = parseFloat(amount.replace(/,/g, '')) || 0
+  const isExpense      = txType === 'expense'
+  const isIncome       = txType === 'income'
+  const isTransfer     = txType === 'transfer'
+
+  const availableBefore = selectedEnvelope.available
+  const availableAfter  = selectedEnvelope.available - numericAmount
+  const acctAfterExpense = selectedAccount.balance - numericAmount
+  const acctAfterIncome  = selectedAccount.balance + numericAmount
+
+  const fromAccount = mockAccounts.find(a => a.id === fromAccountId) ?? mockAccounts[0]
+  const toAccount   = mockAccounts.find(a => a.id === toAccountId)   ?? mockAccounts[1]
+  const fromAfter   = fromAccount.balance - numericAmount
+  const toAfter     = toAccount.balance   + numericAmount
 
   const wordsLabel = numericAmount ? `${numberToWords(Math.floor(numericAmount))} rupees` : ''
+
+  /* amount display split: integer vs decimal */
+  const [rawInt, rawDec] = amount.split('.')
+  const displayInt = rawInt ? Number(rawInt).toLocaleString('en-IN') : ''
+  const displayDec = rawDec !== undefined ? rawDec.slice(0, 2).padEnd(2, '0') : ''
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value.replace(/[^0-9.]/g, '')
+    const parts = v.split('.')
+    setAmount(parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : v)
+  }
+
+  /* tab active classes */
+  const tabCls = (type: TransactionType) => {
+    if (txType !== type) return 'text-[#5A6A85] hover:text-[#A8B4CC] bg-transparent'
+    if (type === 'income')   return 'bg-[#166534] text-white shadow-inner'
+    if (type === 'transfer') return 'bg-[#1D4ED8] text-white shadow-inner'
+    return 'bg-gradient-to-r from-[#4F46E5] to-[#6C3AED] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+  }
+
+  const tabs = [
+    { type: 'expense'  as TransactionType, label: 'Expense',  icon: <ArrowDownLeft  size={15} strokeWidth={2.5} /> },
+    { type: 'income'   as TransactionType, label: 'Income',   icon: <ArrowUpRight   size={15} strokeWidth={2.5} /> },
+    { type: 'transfer' as TransactionType, label: 'Transfer', icon: <ArrowLeftRight size={15} strokeWidth={2.5} /> },
+  ]
 
   return (
     <AnimatePresence>
@@ -82,52 +135,62 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-40 bg-black/75 backdrop-blur-md"
             onClick={onClose}
           />
 
-          {/* Modal — Flowbite: rounded-lg shadow-xl */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
-              initial={{ opacity: 0, scale: 0.97, y: 6 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.97, y: 6 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="w-full max-w-[760px] bg-[#0F1623] border border-[#1E2B42] rounded-lg shadow-xl overflow-hidden"
-              onClick={e => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1,    y: 0 }}
+              exit={{   opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 380 }}
+              className={cn(
+                'relative w-full bg-[#0B1120] border border-[#1A2540] rounded-2xl overflow-hidden my-auto',
+                'shadow-[0_0_0_1px_rgba(108,58,237,0.12),0_32px_80px_rgba(0,0,0,0.75),0_0_60px_rgba(108,58,237,0.08)]',
+                isTransfer ? 'max-w-[950px]' : 'max-w-[780px]',
+              )}
+              onClick={e => { e.stopPropagation(); closeAll() }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={isExpense ? 'Add Expense' : isIncome ? 'Add Income' : 'Transfer Money'}
             >
-              {/* Header */}
-              <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-[#1E2B42]">
+              {/* Subtle top glow */}
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/35 to-transparent" />
+
+              {/* ── Header ──────────────────────────────── */}
+              <div className="flex items-start justify-between px-6 pt-6 pb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {txType === 'expense' ? 'Add Expense' : txType === 'income' ? 'Add Income' : 'Add Transfer'}
-                  </h3>
-                  <p className="text-sm text-[#5A6A85] mt-0.5">
-                    {txType === 'expense' ? 'Record a spending transaction'
-                      : txType === 'income' ? 'Record an income transaction'
-                      : 'Move money between accounts'}
+                  <h2 className="text-[1.4rem] font-bold text-white leading-tight">
+                    {isTransfer ? 'Transfer Money' : isExpense ? 'Add Expense' : 'Add Income'}
+                  </h2>
+                  <p className="text-sm text-[#4A5A75] mt-0.5">
+                    {isTransfer ? 'Move money between accounts'
+                      : isExpense ? 'Record a spending transaction'
+                      : 'Record incoming money'}
                   </p>
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-lg text-[#5A6A85] hover:text-white hover:bg-[#1E2B42] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[#4A5A75] hover:text-white hover:bg-[#1A2540] transition-colors focus:outline-none"
+                  aria-label="Close"
                 >
-                  <X size={15} />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Type tabs — Flowbite tab group */}
-              <div className="px-6 pt-5 pb-4">
-                <div className="inline-flex w-full bg-[#131C2E] border border-[#1E2B42] rounded-lg p-1 gap-1">
-                  {tabs.map(({ type, label, icon }) => (
+              {/* ── Tab Switcher ─────────────────────────── */}
+              <div className="px-6 pb-5">
+                <div className="flex w-full bg-[#0D1525] border border-[#1A2540] rounded-xl overflow-hidden">
+                  {tabs.map(({ type, label, icon }, i) => (
                     <button
                       key={type}
                       onClick={() => setTxType(type)}
                       className={cn(
-                        'flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30',
-                        txType === type
-                          ? 'bg-[#6C3AED] text-white shadow-sm'
-                          : 'text-[#5A6A85] hover:text-[#A8B4CC]',
+                        'flex-1 inline-flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all focus:outline-none',
+                        i > 0 && 'border-l border-[#1A2540]',
+                        tabCls(type),
                       )}
                     >
                       {icon}
@@ -137,220 +200,611 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="flex gap-5 px-6 pb-5">
-                {/* Left — form */}
-                <div className="flex-1 space-y-4 min-w-0">
+              {/* ── Body ────────────────────────────────── */}
+              <div className="flex gap-5 px-6 pb-0">
 
-                  {/* Account */}
-                  <div>
-                    <Label>Account</Label>
-                    <button className={selectCls}>
-                      <div className="w-8 h-8 rounded-lg bg-[#1E2B42] flex items-center justify-center flex-shrink-0 text-sm">
-                        🏦
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="text-sm font-medium text-white">{selectedAccount.name}</p>
-                        <p className="text-xs text-[#5A6A85]">
-                          Available {formatCurrency(selectedAccount.balance)}
-                        </p>
-                      </div>
-                      <ChevronDown size={14} className="text-[#5A6A85] flex-shrink-0" />
-                    </button>
-                  </div>
+                {/* LEFT COLUMN */}
+                <div className="flex-1 min-w-0 space-y-4">
 
-                  {/* Payee */}
-                  <div>
-                    <Label>Payee</Label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        <Search size={13} className="text-[#5A6A85]" />
-                      </div>
-                      <input
-                        value={payee}
-                        onChange={e => setPayee(e.target.value)}
-                        placeholder="BigBasket"
-                        className={cn(inputCls, 'pl-9 pr-8')}
-                      />
-                      {payee && (
-                        <button
-                          onClick={() => setPayee('')}
-                          className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#5A6A85] hover:text-white"
-                        >
-                          <X size={13} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Category / Envelope */}
-                  {txType !== 'transfer' && (
-                    <div>
-                      <Label>Category / Envelope</Label>
-                      <button className={selectCls}>
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm"
-                          style={{ background: `${selectedEnvelope.color}25` }}
-                        >
-                          {selectedEnvelope.icon}
+                  {isTransfer ? (
+                    /* ── Transfer form ── */
+                    <>
+                      {/* From Account */}
+                      <div>
+                        <label className={fieldLabel}>From Account</label>
+                        <div className="relative" onClick={e => e.stopPropagation()}>
+                          <button
+                            className="w-full flex items-center gap-3 px-4 py-3 bg-[#0D1525] border border-[#1A2540] rounded-xl hover:border-[#2A3A54] transition-colors focus:outline-none"
+                            onClick={() => { setFromOpen(o => !o); setToOpen(false) }}
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-[#1E3A5F] flex items-center justify-center flex-shrink-0">
+                              <Building2 size={16} className="text-[#3B82F6]" />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="text-sm font-semibold text-white leading-tight">
+                                {fromAccount.institution ?? fromAccount.name}
+                              </p>
+                              <p className="text-xs text-[#4A5A75] mt-0.5">
+                                Available balance&nbsp;{formatCurrency(fromAccount.balance)}
+                              </p>
+                            </div>
+                            <ChevronDown size={15} className="text-[#4A5A75] flex-shrink-0" />
+                          </button>
+                          {fromOpen && (
+                            <div className="absolute top-full left-0 mt-1 w-full rounded-xl border border-[#1A2640] bg-[#0D1B2E] shadow-xl z-30 py-1.5 overflow-hidden">
+                              {mockAccounts.filter(a => a.id !== toAccountId).map(acc => (
+                                <button
+                                  key={acc.id}
+                                  onClick={() => { setFromAccountId(acc.id); setFromOpen(false) }}
+                                  className={cn(
+                                    'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                                    fromAccountId === acc.id ? 'bg-[#1D4ED8]/15 text-white' : 'text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white',
+                                  )}
+                                >
+                                  <div className="w-8 h-8 rounded-lg bg-[#1E3A5F] flex items-center justify-center flex-shrink-0">
+                                    <Building2 size={14} className="text-[#3B82F6]" />
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-sm text-white">{acc.institution ?? acc.name}</p>
+                                    <p className="text-xs text-[#5A6A85]">{formatCurrency(acc.balance)}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex-1 text-left">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium text-white">{selectedEnvelope.name}</span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
+                      </div>
+
+                      {/* To Account */}
+                      <div>
+                        <label className={fieldLabel}>To Account</label>
+                        <div className="relative" onClick={e => e.stopPropagation()}>
+                          <button
+                            className="w-full flex items-center gap-3 px-4 py-3 bg-[#0D1525] border border-[#1A2540] rounded-xl hover:border-[#2A3A54] transition-colors focus:outline-none"
+                            onClick={() => { setToOpen(o => !o); setFromOpen(false) }}
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-[#2A1A4A] flex items-center justify-center flex-shrink-0">
+                              <Building2 size={16} className="text-[#7C3AED]" />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="text-sm font-semibold text-white leading-tight">
+                                {toAccount.institution ?? toAccount.name}
+                              </p>
+                              <p className="text-xs text-[#4A5A75] mt-0.5">
+                                Available balance&nbsp;{formatCurrency(toAccount.balance)}
+                              </p>
+                            </div>
+                            <ChevronDown size={15} className="text-[#4A5A75] flex-shrink-0" />
+                          </button>
+                          {toOpen && (
+                            <div className="absolute top-full left-0 mt-1 w-full rounded-xl border border-[#1A2640] bg-[#0D1B2E] shadow-xl z-30 py-1.5 overflow-hidden">
+                              {mockAccounts.filter(a => a.id !== fromAccountId).map(acc => (
+                                <button
+                                  key={acc.id}
+                                  onClick={() => { setToAccountId(acc.id); setToOpen(false) }}
+                                  className={cn(
+                                    'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                                    toAccountId === acc.id ? 'bg-[#1D4ED8]/15 text-white' : 'text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white',
+                                  )}
+                                >
+                                  <div className="w-8 h-8 rounded-lg bg-[#2A1A4A] flex items-center justify-center flex-shrink-0">
+                                    <Building2 size={14} className="text-[#7C3AED]" />
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-sm text-white">{acc.institution ?? acc.name}</p>
+                                    <p className="text-xs text-[#5A6A85]">{formatCurrency(acc.balance)}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Transfer Flow */}
+                      <div className="flex items-center gap-3 bg-[#0D1525] border border-[#1A2540] rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-2.5 flex-shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-[#1E3A5F] flex items-center justify-center">
+                            <Building2 size={16} className="text-[#3B82F6]" />
                           </div>
-                          <p className="text-xs text-[#5A6A85]">Monthly Budget</p>
+                          <div>
+                            <p className="text-sm font-semibold text-white leading-tight">{fromAccount.institution ?? fromAccount.name}</p>
+                            <p className="text-xs text-[#4A5A75] tabular-nums">{formatCurrency(fromAccount.balance)}</p>
+                          </div>
                         </div>
-                        <ChevronDown size={14} className="text-[#5A6A85] flex-shrink-0" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Amount — Flowbite-style large input */}
-                  <div>
-                    <Label>Amount</Label>
-                    <div className="relative flex items-baseline gap-2 bg-[#131C2E] border border-[#1E2B42] rounded-lg px-4 py-3 focus-within:ring-2 focus-within:ring-[#6C3AED]/40 focus-within:border-[#6C3AED] transition-all">
-                      <span className="text-xl text-[#5A6A85] font-light">₹</span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={amount}
-                        onChange={handleAmountChange}
-                        placeholder="0"
-                        className="flex-1 bg-transparent text-3xl font-semibold text-white focus:outline-none tabular-nums tracking-tight"
-                      />
-                      <span className="text-lg text-[#5A6A85] font-light self-baseline">
-                        .{(numericAmount % 1).toFixed(2).slice(2) || '00'}
-                      </span>
-                    </div>
-                    {wordsLabel && (
-                      <p className="mt-1.5 text-xs text-[#5A6A85] px-1 capitalize">{wordsLabel}</p>
-                    )}
-                  </div>
-
-                  {/* Date + Memo */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Date</Label>
-                      <button className={selectCls}>
-                        <CalendarDays size={13} className="text-[#5A6A85] flex-shrink-0" />
-                        <span className="text-sm text-white flex-1 text-left">{date}</span>
-                        <ChevronDown size={13} className="text-[#5A6A85] flex-shrink-0" />
-                      </button>
-                    </div>
-                    <div>
-                      <Label>Memo <span className="font-normal text-[#2A3A54]">(optional)</span></Label>
-                      <div className="relative">
-                        <input
-                          value={memo}
-                          onChange={e => setMemo(e.target.value.slice(0, 200))}
-                          placeholder="Weekly grocery shopping"
-                          className={inputCls}
-                        />
-                        <span className="absolute right-2.5 bottom-1.5 text-[10px] text-[#2A3A54]">
-                          {memo.length}/200
-                        </span>
+                        <div className="flex-1 flex items-center">
+                          <div className="flex-1 border-t-2 border-dashed border-[#1A2540]" />
+                          <div className="w-7 h-7 rounded-full bg-[#1D4ED8] flex items-center justify-center flex-shrink-0 mx-2 shadow-[0_0_12px_rgba(29,78,216,0.45)]">
+                            <ArrowRight size={13} className="text-white" />
+                          </div>
+                          <div className="flex-1 border-t-2 border-dashed border-[#1A2540]" />
+                        </div>
+                        <div className="flex items-center gap-2.5 flex-shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-[#2A1A4A] flex items-center justify-center">
+                            <Building2 size={16} className="text-[#7C3AED]" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-white leading-tight">{toAccount.institution ?? toAccount.name}</p>
+                            <p className="text-xs text-[#4A5A75] tabular-nums">{formatCurrency(toAccount.balance)}</p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+
+                      {/* Amount */}
+                      <div>
+                        <label className={fieldLabel}>Amount</label>
+                        <div className="relative flex items-center bg-[#0D1525] border border-[#1A2540] rounded-xl px-5 py-4 focus-within:ring-2 focus-within:ring-[#1D4ED8]/40 focus-within:border-[#1D4ED8] transition-all">
+                          <span className="text-2xl text-[#4A5A75] flex-shrink-0 mr-4">₹</span>
+                          <input
+                            type="text" inputMode="decimal"
+                            value={amount} onChange={handleAmountChange}
+                            placeholder="0.00"
+                            className="flex-1 bg-transparent text-[2.4rem] font-bold text-white focus:outline-none tabular-nums text-right leading-none"
+                            aria-label="Amount"
+                          />
+                        </div>
+                        {wordsLabel && (
+                          <p className="mt-1.5 text-xs text-[#4A5A75] px-1 capitalize italic">{wordsLabel}</p>
+                        )}
+                      </div>
+
+                      {/* Date + Memo */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className={fieldLabel}>Date</label>
+                          <button className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-[#0D1525] border border-[#1A2540] rounded-xl hover:border-[#2A3A54] transition-colors text-sm focus:outline-none">
+                            <CalendarDays size={14} className="text-[#4A5A75] flex-shrink-0" />
+                            <span className="flex-1 text-left text-white">{date}</span>
+                            <ChevronDown size={13} className="text-[#4A5A75] flex-shrink-0" />
+                          </button>
+                        </div>
+                        <div>
+                          <label className={fieldLabel}>Memo <span className="font-normal text-[#2A3A54]">(optional)</span></label>
+                          <div className="relative">
+                            <textarea
+                              value={memo}
+                              onChange={e => setMemo(e.target.value.slice(0, 200))}
+                              placeholder="Monthly savings transfer"
+                              rows={3}
+                              className={cn(inputCls, 'resize-none')}
+                              aria-label="Memo"
+                            />
+                            <span className="absolute right-3 bottom-2.5 text-[10px] text-[#2A3A54] tabular-nums">{memo.length} / 200</span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* ── Expense / Income form ── */
+                    <>
+                      {/* Account selector */}
+                      <div>
+                        <label className={fieldLabel}>Account</label>
+                        <div className="relative" onClick={e => e.stopPropagation()}>
+                          <button
+                            className="w-full flex items-center gap-3 px-4 py-3 bg-[#0D1525] border border-[#1A2540] rounded-xl hover:border-[#2A3A54] transition-colors focus:outline-none"
+                            onClick={() => { setAccountOpen(o => !o); setEnvelopeOpen(false) }}
+                          >
+                            <div className="w-9 h-9 rounded-xl bg-[#1E2B42] flex items-center justify-center flex-shrink-0">
+                              <Building2 size={16} className="text-[#7A8BA8]" />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="text-sm font-semibold text-white leading-tight">{selectedAccount.institution ?? selectedAccount.name}</p>
+                              <p className="text-xs text-[#4A5A75] mt-0.5">
+                                Available balance&nbsp;{formatCurrency(selectedAccount.balance)}
+                              </p>
+                            </div>
+                            <ChevronDown size={15} className="text-[#4A5A75] flex-shrink-0" />
+                          </button>
+                          {accountOpen && (
+                            <div className="absolute top-full left-0 mt-1 w-full rounded-xl border border-[#1A2640] bg-[#0D1B2E] shadow-xl z-30 py-1.5 overflow-hidden">
+                              {mockAccounts.map(acc => (
+                                <button
+                                  key={acc.id}
+                                  onClick={() => { setSelectedAccount(acc); setAccountOpen(false) }}
+                                  className={cn(
+                                    'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                                    selectedAccount.id === acc.id ? 'bg-[#6C3AED]/15 text-white' : 'text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white',
+                                  )}
+                                >
+                                  <div className="w-8 h-8 rounded-lg bg-[#1E2B42] flex items-center justify-center flex-shrink-0">
+                                    <Building2 size={14} className="text-[#7A8BA8]" />
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-sm text-white">{acc.institution ?? acc.name}</p>
+                                    <p className="text-xs text-[#5A6A85] capitalize">{acc.type} · {formatCurrency(acc.balance)}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Payee */}
+                      <div>
+                        <label className={fieldLabel}>{isIncome ? 'Income Source / Payee' : 'Payee'}</label>
+                        <div className="relative">
+                          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#4A5A75] pointer-events-none" />
+                          <input
+                            value={payee}
+                            onChange={e => setPayee(e.target.value)}
+                            placeholder={isIncome ? 'Employer, client, refund source...' : 'BigBasket'}
+                            className="w-full py-2.5 pl-10 pr-9 text-sm text-white bg-[#0D1525] border border-[#1A2540] rounded-xl placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40 focus:border-[#6C3AED] transition-all"
+                          />
+                          {payee && (
+                            <button
+                              onClick={() => setPayee('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A5A75] hover:text-white transition-colors"
+                              aria-label="Clear"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Category / Envelope — expense only */}
+                      {isExpense && (
+                        <div>
+                          <label className={fieldLabel}>Category / Envelope</label>
+                          <div className="relative" onClick={e => e.stopPropagation()}>
+                            <button
+                              className="w-full flex items-center gap-3 px-4 py-3 bg-[#0D1525] border border-[#1A2540] rounded-xl hover:border-[#2A3A54] transition-colors focus:outline-none"
+                              onClick={() => { setEnvelopeOpen(o => !o); setAccountOpen(false) }}
+                            >
+                              <div
+                                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+                                style={{ background: `${selectedEnvelope.color}30` }}
+                              >
+                                {selectedEnvelope.icon}
+                              </div>
+                              <div className="flex-1 text-left">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-semibold text-white">{selectedEnvelope.name}</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
+                                </div>
+                                <p className="text-xs text-[#4A5A75] mt-0.5">Monthly Budget</p>
+                              </div>
+                              <ChevronDown size={15} className="text-[#4A5A75] flex-shrink-0" />
+                            </button>
+                            {envelopeOpen && (
+                              <div className="absolute top-full left-0 mt-1 w-full rounded-xl border border-[#1A2640] bg-[#0D1B2E] shadow-xl z-30 py-1.5 max-h-56 overflow-y-auto">
+                                {mockEnvelopes.map(env => (
+                                  <button
+                                    key={env.id}
+                                    onClick={() => { setSelectedEnvelope(env); setEnvelopeOpen(false) }}
+                                    className={cn(
+                                      'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                                      selectedEnvelope.id === env.id ? 'bg-[#6C3AED]/15 text-white' : 'text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white',
+                                    )}
+                                  >
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style={{ background: `${env.color}30` }}>
+                                      {env.icon}
+                                    </div>
+                                    <div className="text-left">
+                                      <p className="text-sm text-white">{env.name}</p>
+                                      <p className="text-xs text-[#5A6A85]">Available: {formatCurrency(env.available)}</p>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Amount — large display */}
+                      <div>
+                        <label className={fieldLabel}>Amount</label>
+                        <div className="flex items-center bg-[#0D1525] border border-[#1A2540] rounded-xl px-5 py-4 focus-within:ring-2 focus-within:ring-[#6C3AED]/40 focus-within:border-[#6C3AED] transition-all">
+                          <span className="text-2xl text-[#4A5A75] flex-shrink-0 mr-4">₹</span>
+                          <div className="flex-1 flex items-baseline justify-end">
+                            {displayInt || displayDec ? (
+                              <>
+                                <span className="text-[2.6rem] font-bold text-white tabular-nums leading-none">
+                                  {displayInt || '0'}
+                                </span>
+                                <span className="text-[2.6rem] font-bold tabular-nums leading-none text-white">
+                                  .{displayDec || '00'}
+                                </span>
+                              </>
+                            ) : (
+                              <input
+                                type="text" inputMode="decimal"
+                                value={amount} onChange={handleAmountChange}
+                                placeholder="0.00"
+                                className="flex-1 bg-transparent text-[2.6rem] font-bold text-white placeholder:text-[#1E2B42] focus:outline-none tabular-nums text-right leading-none"
+                                aria-label="Amount"
+                              />
+                            )}
+                            {/* hidden real input for editing when value present */}
+                            {(displayInt || displayDec) && (
+                              <input
+                                type="text" inputMode="decimal"
+                                value={amount} onChange={handleAmountChange}
+                                className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                                aria-hidden="true"
+                                tabIndex={-1}
+                              />
+                            )}
+                          </div>
+                        </div>
+                        {wordsLabel && (
+                          <p className="mt-1.5 text-xs text-[#4A5A75] px-1 capitalize italic leading-relaxed">{wordsLabel}</p>
+                        )}
+                      </div>
+
+                      {/* Date + Memo — side by side */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className={fieldLabel}>Date</label>
+                          <button className="w-full flex items-center gap-2.5 px-4 py-2.5 bg-[#0D1525] border border-[#1A2540] rounded-xl hover:border-[#2A3A54] transition-colors text-sm focus:outline-none">
+                            <CalendarDays size={14} className="text-[#4A5A75] flex-shrink-0" />
+                            <span className="flex-1 text-left text-white">{date}</span>
+                            <ChevronDown size={13} className="text-[#4A5A75] flex-shrink-0" />
+                          </button>
+                        </div>
+                        <div>
+                          <label className={fieldLabel}>Memo <span className="font-normal text-[#2A3A54]">(optional)</span></label>
+                          <div className="relative">
+                            <textarea
+                              value={memo}
+                              onChange={e => setMemo(e.target.value.slice(0, 200))}
+                              placeholder={isIncome ? 'Salary for May 2026...' : 'Weekly grocery shopping'}
+                              rows={3}
+                              className={cn(inputCls, 'resize-none text-sm')}
+                              aria-label="Memo"
+                            />
+                            <span className="absolute right-3 bottom-2.5 text-[10px] text-[#2A3A54] tabular-nums">{memo.length} / 200</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Income notice */}
+                      {isIncome && (
+                        <div className="flex gap-2.5 px-4 py-3 bg-[#0D1525] border border-[#1A2540] rounded-xl">
+                          <Info size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-[#A8B4CC] leading-relaxed">
+                            This income will be added to{' '}
+                            <span className="text-[#4ADE80] font-semibold">To Be Budgeted</span>
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
-                {/* Right — Transaction summary */}
-                {txType !== 'transfer' && (
-                  <div className="w-[260px] flex-shrink-0 space-y-3">
-                    {/* Flowbite card */}
-                    <div className="bg-[#131C2E] border border-[#1E2B42] rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-white mb-3">Transaction Summary</h4>
+                {/* RIGHT COLUMN */}
 
-                      {/* Envelope */}
-                      <div className="mb-3 pb-3 border-b border-[#1E2B42]">
+                {/* ── Transfer Summary ── */}
+                {isTransfer && (
+                  <div className="w-[272px] flex-shrink-0">
+                    <div className="bg-[#0D1525] border border-[#1A2540] rounded-xl p-4 space-y-3">
+                      <h4 className="text-sm font-bold text-white">Transfer Summary</h4>
+
+                      <div className="bg-[#0B1120] border border-[#1A2540] rounded-xl p-3.5">
                         <div className="flex items-center gap-2 mb-3">
-                          <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs"
-                            style={{ background: `${selectedEnvelope.color}25` }}
-                          >
-                            {selectedEnvelope.icon}
+                          <div className="w-7 h-7 rounded-lg bg-[#1E3A5F] flex items-center justify-center flex-shrink-0">
+                            <Building2 size={13} className="text-[#3B82F6]" />
                           </div>
-                          <span className="text-sm font-medium text-[#A8B4CC]">
-                            {selectedEnvelope.name}
-                          </span>
+                          <span className="text-sm font-semibold text-white truncate">{fromAccount.institution ?? fromAccount.name}</span>
                         </div>
-                        <dl className="space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <dt className="text-[#5A6A85]">Monthly Budget</dt>
-                            <dd className="text-white font-medium">{formatCurrency(selectedEnvelope.monthlyBudget)}</dd>
-                          </div>
-                          <div className="flex justify-between">
-                            <dt className="text-[#5A6A85]">Available before</dt>
-                            <dd className="text-white font-medium">{formatCurrency(selectedEnvelope.available)}</dd>
-                          </div>
-                          <div className="flex justify-between">
-                            <dt className="text-[#5A6A85]">This expense</dt>
-                            <dd className="text-[#F87171] font-medium">
-                              {numericAmount ? `- ${formatCurrency(numericAmount)}` : '—'}
-                            </dd>
-                          </div>
-                          <div className="flex justify-between pt-1.5 border-t border-[#1E2B42]">
-                            <dt className="text-[#5A6A85]">Available after</dt>
-                            <dd className={cn('font-semibold', availableAfter < 0 ? 'text-[#F87171]' : 'text-[#4ADE80]')}>
-                              {formatCurrency(availableAfter)}
-                            </dd>
+                        <dl className="space-y-1.5">
+                          <SummaryRow label="Current Balance" value={formatCurrency(fromAccount.balance)} />
+                          <SummaryRow label="After Transfer"  value={formatCurrency(fromAfter)} animate />
+                          <div className="pt-1.5 border-t border-[#1A2540]">
+                            <SummaryRow label="Change" value={numericAmount > 0 ? `-${formatCurrency(numericAmount)}` : '—'} color="red" animate />
                           </div>
                         </dl>
                       </div>
 
-                      {/* Account */}
-                      <div className="mb-3">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-7 h-7 rounded-lg bg-[#1E2B42] flex items-center justify-center text-xs">
-                            🏦
-                          </div>
-                          <span className="text-sm font-medium text-[#A8B4CC]">{selectedAccount.name}</span>
+                      <div className="flex justify-center">
+                        <div className="w-8 h-8 rounded-full bg-[#1E3A5F] border border-[#2A4A6A] flex items-center justify-center shadow-[0_0_10px_rgba(29,78,216,0.3)]">
+                          <ArrowDown size={14} className="text-[#3B82F6]" />
                         </div>
-                        <dl className="space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <dt className="text-[#5A6A85]">Current balance</dt>
-                            <dd className="text-white font-medium">{formatCurrency(selectedAccount.balance)}</dd>
+                      </div>
+
+                      <div className="bg-[#0B1120] border border-[#1A2540] rounded-xl p-3.5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-7 h-7 rounded-lg bg-[#2A1A4A] flex items-center justify-center flex-shrink-0">
+                            <Building2 size={13} className="text-[#7C3AED]" />
                           </div>
-                          <div className="flex justify-between">
-                            <dt className="text-[#5A6A85]">After this expense</dt>
-                            <dd className="text-white font-medium">{formatCurrency(accountAfter)}</dd>
+                          <span className="text-sm font-semibold text-white truncate">{toAccount.institution ?? toAccount.name}</span>
+                        </div>
+                        <dl className="space-y-1.5">
+                          <SummaryRow label="Current Balance" value={formatCurrency(toAccount.balance)} />
+                          <SummaryRow label="After Transfer"  value={formatCurrency(toAfter)} animate />
+                          <div className="pt-1.5 border-t border-[#1A2540]">
+                            <SummaryRow label="Change" value={numericAmount > 0 ? `+${formatCurrency(numericAmount)}` : '—'} color="green" animate />
                           </div>
                         </dl>
                       </div>
 
-                      {/* Info note — Flowbite alert-style */}
-                      <div className="flex gap-2 p-3 bg-[#0F1623] border border-[#1E2B42] rounded-lg">
-                        <Info size={12} className="text-[#6C3AED] flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-[#5A6A85] leading-relaxed">
-                          This expense will be deducted from your selected category.
-                        </p>
+                      <div className="flex gap-2 px-3 py-2.5 bg-[#0B1120] border border-[#1A2540] rounded-xl">
+                        <Info size={13} className="text-[#3B82F6] flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-[#A8B4CC] leading-relaxed">Transfers do not affect budget categories.</p>
                       </div>
                     </div>
                   </div>
                 )}
+
+                {/* ── Expense / Income Summary ── */}
+                {!isTransfer && (
+                  <div className="w-[272px] flex-shrink-0">
+                    {isIncome ? (
+                      /* Income summary */
+                      <div className="bg-[#0D1525] border border-[#1A2540] rounded-xl p-4 space-y-3">
+                        <h4 className="text-sm font-bold text-white">Income Summary</h4>
+
+                        <div className="bg-[#0B1120] border border-[#1A2540] rounded-xl p-3.5">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-7 h-7 rounded-lg bg-[#1E2B42] flex items-center justify-center flex-shrink-0">
+                              <Building2 size={13} className="text-[#7A8BA8]" />
+                            </div>
+                            <span className="text-sm font-semibold text-white truncate">{selectedAccount.institution ?? selectedAccount.name}</span>
+                          </div>
+                          <dl className="space-y-1.5">
+                            <SummaryRow label="Current Balance" value={formatCurrency(selectedAccount.balance)} />
+                            <SummaryRow label="After Income"    value={formatCurrency(acctAfterIncome)} animate />
+                            <div className="pt-1.5 border-t border-[#1A2540] flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <TrendingUp size={11} className="text-[#4ADE80]" />
+                                <span className="text-xs text-[#4A5A75]">To Be Budgeted</span>
+                              </div>
+                              <motion.span
+                                key={numericAmount}
+                                initial={{ opacity: 0.6, y: -2 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="text-xs font-semibold text-[#4ADE80] tabular-nums"
+                              >
+                                {numericAmount > 0 ? `+${formatCurrency(numericAmount)}` : '—'}
+                              </motion.span>
+                            </div>
+                          </dl>
+                        </div>
+
+                        <div className="flex gap-2 px-3 py-2.5 bg-[#0B1120] border border-[#1A2540] rounded-xl">
+                          <Info size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-[#A8B4CC] leading-relaxed">Income increases your To Be Budgeted balance.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Expense summary — matches reference exactly */
+                      <div className="bg-[#0D1525] border border-[#1A2540] rounded-xl p-4 space-y-3">
+                        <h4 className="text-sm font-bold text-white">Transaction Summary</h4>
+
+                        {/* Category block */}
+                        <div className="bg-[#0B1120] border border-[#1A2540] rounded-xl p-3.5">
+                          {/* Category header */}
+                          <div className="flex items-center gap-2.5 mb-3">
+                            <div
+                              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+                              style={{ background: `${selectedEnvelope.color}30` }}
+                            >
+                              {selectedEnvelope.icon}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white leading-tight">
+                                Category: {selectedEnvelope.name}
+                              </p>
+                              <p className="text-xs text-[#4A5A75]">Monthly Budget</p>
+                            </div>
+                          </div>
+
+                          {/* Category rows */}
+                          <dl className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <dt className="text-xs text-[#4A5A75]">Monthly Budget</dt>
+                              <dd className="text-xs font-semibold text-white tabular-nums">{formatCurrency(selectedEnvelope.monthlyBudget)}</dd>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <dt className="text-xs text-[#4A5A75]">Available before</dt>
+                              <dd className="text-xs font-semibold text-white tabular-nums">{formatCurrency(availableBefore)}</dd>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <dt className="text-xs text-[#4A5A75]">This expense</dt>
+                              <motion.dd
+                                key={numericAmount + 'exp'}
+                                initial={{ opacity: 0.6, y: -2 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="text-xs font-semibold text-[#F87171] tabular-nums"
+                              >
+                                {numericAmount > 0 ? `−${formatCurrency(numericAmount)}` : '—'}
+                              </motion.dd>
+                            </div>
+
+                            {/* Dashed separator */}
+                            <div className="border-t border-dashed border-[#1A2540] my-1" />
+
+                            <div className="flex items-center justify-between">
+                              <dt className="text-xs text-[#4A5A75]">Available after</dt>
+                              <motion.dd
+                                key={availableAfter}
+                                initial={{ opacity: 0.6, y: -2 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className={cn('text-sm font-bold tabular-nums', availableAfter < 0 ? 'text-[#F87171]' : 'text-[#4ADE80]')}
+                              >
+                                {formatCurrency(availableAfter)}
+                              </motion.dd>
+                            </div>
+                          </dl>
+                        </div>
+
+                        {/* Account block */}
+                        <div className="bg-[#0B1120] border border-[#1A2540] rounded-xl p-3.5">
+                          <div className="flex items-center gap-2.5 mb-3">
+                            <div className="w-8 h-8 rounded-xl bg-[#1E2B42] flex items-center justify-center flex-shrink-0">
+                              <Building2 size={14} className="text-[#7A8BA8]" />
+                            </div>
+                            <p className="text-sm font-semibold text-white leading-tight">
+                              Account: {selectedAccount.institution ?? selectedAccount.name}
+                            </p>
+                          </div>
+                          <dl className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <dt className="text-xs text-[#4A5A75]">Current balance</dt>
+                              <dd className="text-xs font-semibold text-white tabular-nums">{formatCurrency(selectedAccount.balance)}</dd>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <dt className="text-xs text-[#4A5A75]">After this expense</dt>
+                              <motion.dd
+                                key={acctAfterExpense}
+                                initial={{ opacity: 0.6, y: -2 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className="text-xs font-semibold text-white tabular-nums"
+                              >
+                                {formatCurrency(acctAfterExpense)}
+                              </motion.dd>
+                            </div>
+                          </dl>
+                        </div>
+
+                        {/* Info notice */}
+                        <div className="flex gap-2 px-3 py-2.5 bg-[#0B1120] border border-[#1A2540] rounded-xl">
+                          <Info size={13} className="text-[#6C3AED] flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-[#A8B4CC] leading-relaxed">
+                            This expense will be deducted from your selected category.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t border-[#1E2B42]">
-                <div className="flex items-center gap-2 text-xs text-[#2A3A54]">
-                  Press Enter to save
-                  <kbd className="bg-[#131C2E] border border-[#1E2B42] rounded px-1.5 py-0.5 font-mono text-[10px]">
+              {/* ── Footer ──────────────────────────────── */}
+              <div className="flex items-center justify-between px-6 py-4 mt-5 border-t border-[#111B2D]">
+                {/* Keyboard hint */}
+                <div className="flex items-center gap-2 text-[#4A5A75] text-xs">
+                  <span>Press Enter to save</span>
+                  <kbd className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#0D1525] border border-[#1A2540] text-[#7A8BA8] text-xs font-mono shadow-sm">
                     Enter
                   </kbd>
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Flowbite secondary button */}
+
+                {/* Action buttons */}
+                <div className="flex items-center gap-3">
                   <button
                     onClick={onClose}
-                    className="px-5 py-2.5 text-sm font-medium text-[#A8B4CC] bg-transparent border border-[#1E2B42] rounded-lg hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors"
+                    className="px-6 py-2.5 text-sm font-semibold text-[#A8B4CC] bg-transparent border border-[#1A2540] rounded-xl hover:bg-[#0D1525] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-all"
                   >
                     Cancel
                   </button>
-                  {/* Flowbite primary button */}
-                  <button className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#6C3AED] rounded-lg hover:bg-[#7C4AFF] focus:outline-none focus:ring-4 focus:ring-[#6C3AED]/30 transition-colors">
-                    <span className="text-sm">💾</span>
-                    Save Transaction
+                  <button
+                    className={cn(
+                      'inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white rounded-xl focus:outline-none focus:ring-4 transition-all',
+                      isTransfer
+                        ? 'bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] hover:from-[#2563EB] hover:to-[#3B82F6] shadow-[0_0_20px_rgba(29,78,216,0.4)] hover:shadow-[0_0_28px_rgba(29,78,216,0.55)] focus:ring-[#1D4ED8]/30'
+                        : 'bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] hover:from-[#6C3AED] hover:to-[#7C4AFF] shadow-[0_0_20px_rgba(108,58,237,0.4)] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-[#6C3AED]/30',
+                    )}
+                  >
+                    <Save size={15} />
+                    {isIncome ? 'Save Income' : isExpense ? 'Save Transaction' : 'Save Transfer'}
                   </button>
                 </div>
               </div>
@@ -359,5 +813,36 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
         </>
       )}
     </AnimatePresence>
+  )
+}
+
+/* ── SummaryRow helper ────────────────────────────────────── */
+
+function SummaryRow({
+  label, value, color, animate: shouldAnimate,
+}: {
+  label: string
+  value: string
+  color?: 'red' | 'green'
+  animate?: boolean
+}) {
+  const textCls =
+    color === 'red'   ? 'text-[#F87171]' :
+    color === 'green' ? 'text-[#4ADE80]' :
+    'text-white'
+
+  const content = (
+    <dd className={cn('text-xs font-semibold tabular-nums', textCls)}>{value}</dd>
+  )
+
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-xs text-[#4A5A75]">{label}</dt>
+      {shouldAnimate ? (
+        <motion.div key={value} initial={{ opacity: 0.6, y: -2 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
+          {content}
+        </motion.div>
+      ) : content}
+    </div>
   )
 }
