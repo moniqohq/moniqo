@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Calendar, ChevronDown, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
   CheckCircle, Building2, PiggyBank, CreditCard, Wallet, TrendingUp,
-  Info, AlertTriangle, ArrowRight,
+  Info, AlertTriangle, ArrowRight, Save,
 } from 'lucide-react'
 import { mockAccounts, mockEnvelopes } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -234,7 +234,6 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                     >
                       <X size={16} />
                     </button>
-                    <h2 className="text-xs font-semibold text-[#5A6A85] uppercase tracking-wider">Edit Transaction</h2>
                   </div>
                 </div>
 
@@ -595,34 +594,21 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
               </div>
 
               {/* ── Footer ──────────────────────────────────── */}
-              <div className="flex items-center justify-between px-6 py-4 mt-5 border-t border-[#111B2D]">
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4 mt-5 border-t border-[#111B2D]">
                 <button
                   onClick={onClose}
                   className="px-6 py-2.5 text-sm font-medium text-[#A8B4CC] bg-transparent border border-[#1E2B42] rounded-xl hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-all"
                 >
                   Cancel
                 </button>
-
-                <div className="flex items-center gap-2.5">
-                  {/* Save Changes */}
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="px-6 py-2.5 text-sm font-medium text-white bg-[#131C2E] border border-[#2A3A54] rounded-xl hover:bg-[#1A2640] hover:border-[#3A4A64] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-all disabled:opacity-50"
-                  >
-                    {saving ? 'Saving…' : 'Save Changes'}
-                  </button>
-
-                  {/* Save & Next */}
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#6C3AED] to-[#8B5CF6] hover:from-[#7C4AFF] hover:to-[#9C6FFF] shadow-[0_0_20px_rgba(108,58,237,0.4)] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-all disabled:opacity-50"
-                  >
-                    {saving ? 'Saving…' : 'Save & Next'}
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#6C3AED] to-[#8B5CF6] hover:from-[#7C4AFF] hover:to-[#9C6FFF] shadow-[0_0_20px_rgba(108,58,237,0.4)] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-all disabled:opacity-50"
+                >
+                  <Save size={14} />
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
               </div>
             </motion.div>
           </div>
