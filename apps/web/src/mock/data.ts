@@ -43,7 +43,7 @@ export const mockAccounts: Account[] = [
   { id: 'a2', budgetId: 'b1', name: 'ICICI Savings',   type: 'savings',    balance: 125000, institution: 'ICICI Bank' },
   { id: 'a3', budgetId: 'b1', name: 'Axis Credit Card', type: 'credit',    balance: -18400,  institution: 'Axis Bank' },
   { id: 'a4', budgetId: 'b1', name: 'Cash Wallet',      type: 'cash',      balance: 4200 },
-  { id: 'a5', budgetId: 'b2', name: 'SBI Joint Account', type: 'checking',  balance: 74000,  institution: 'SBI' },
+  { id: 'a5', budgetId: 'b1', name: 'SBI Joint Account', type: 'checking',  balance: 74000,  institution: 'SBI' },
 ]
 
 export const mockEnvelopes: BudgetEnvelope[] = [
@@ -64,7 +64,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'HDFC Checking', accountInstitution: 'HDFC Bank', accountSubLabel: 'Checking',
     envelopeId: 'e2', envelopeName: 'Food & Dining', envelopeIcon: '🍽', envelopeColor: '#F97316',
     payee: 'Starbucks Coffee', payeeColor: '#22C55E',
-    amount: -650, type: 'expense', date: '2024-05-15', memo: 'Latte and snack',
+    amount: -650, type: 'expense', date: '2026-05-28', memo: 'Latte and snack',
     cleared: true, runningBalance: 458250,
   },
   {
@@ -72,7 +72,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'Axis Credit Card', accountInstitution: 'Axis Bank', accountSubLabel: 'Credit',
     envelopeId: 'e3', envelopeName: 'Transportation', envelopeIcon: '🚌', envelopeColor: '#14B8A6',
     payee: 'Uber Ride', payeeColor: '#1A1A2E',
-    amount: -2230, type: 'expense', date: '2024-05-15', memo: 'Airport drop',
+    amount: -2230, type: 'expense', date: '2026-05-28', memo: 'Airport drop',
     cleared: true, runningBalance: -20630,
   },
   {
@@ -80,7 +80,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'HDFC Checking', accountInstitution: 'HDFC Bank', accountSubLabel: 'Checking',
     envelopeName: 'Income', envelopeIcon: '↑', envelopeColor: '#14B8A6',
     payee: 'Salary Deposit', payeeColor: '#F59E0B',
-    amount: 450000, type: 'income', date: '2024-05-15', memo: 'May salary',
+    amount: 450000, type: 'income', date: '2026-05-26', memo: 'May salary',
     cleared: true, runningBalance: 461130,
   },
   {
@@ -88,7 +88,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'Axis Credit Card', accountInstitution: 'Axis Bank', accountSubLabel: 'Credit',
     envelopeName: 'Shopping', envelopeIcon: '🛍', envelopeColor: '#8B5CF6',
     payee: 'Amazon.co.jp', payeeColor: '#1E2B42',
-    amount: -3980, type: 'expense', date: '2024-05-14', memo: 'Office supplies',
+    amount: -3980, type: 'expense', date: '2026-05-27', memo: 'Office supplies',
     cleared: true, runningBalance: -22860,
   },
   {
@@ -96,7 +96,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'Cash Wallet', accountSubLabel: 'Cash',
     envelopeName: 'Food & Dining', envelopeIcon: '🍽', envelopeColor: '#F97316',
     payee: '7-Eleven', payeeColor: '#EF4444',
-    amount: -1240, type: 'expense', date: '2024-05-14', memo: 'Snacks and water',
+    amount: -1240, type: 'expense', date: '2026-05-27', memo: 'Snacks and water',
     cleared: true, runningBalance: 2960,
   },
   {
@@ -104,7 +104,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'Axis Credit Card', accountInstitution: 'Axis Bank', accountSubLabel: 'Credit',
     envelopeId: 'e5', envelopeName: 'Entertainment', envelopeIcon: '🎬', envelopeColor: '#8B5CF6',
     payee: 'Netflix', payeeColor: '#DC2626',
-    amount: -1490, type: 'expense', date: '2024-05-13', memo: 'Monthly subscription',
+    amount: -1490, type: 'expense', date: '2026-05-25', memo: 'Monthly subscription',
     cleared: true, runningBalance: -18400,
   },
   {
@@ -112,14 +112,14 @@ export const mockTransactions: Transaction[] = [
     accountName: 'HDFC Checking', accountInstitution: 'HDFC Bank', accountSubLabel: 'Checking',
     envelopeName: 'Savings', envelopeIcon: '💰', envelopeColor: '#6C3AED',
     payee: 'Transfer to Savings', payeeColor: '#374151',
-    amount: -20000, type: 'transfer', date: '2024-05-13', memo: 'Monthly savings',
+    amount: -20000, type: 'transfer', date: '2026-05-24', memo: 'Monthly savings',
     cleared: true, runningBalance: 17840,
   },
   {
     id: 't8', budgetId: 'b1', accountId: 'a2',
     accountName: 'ICICI Savings', accountInstitution: 'ICICI Bank', accountSubLabel: 'Savings',
     payee: 'Transfer from Checking', payeeColor: '#374151',
-    amount: 20000, type: 'transfer', date: '2024-05-14', memo: 'Buffer transfer',
+    amount: 20000, type: 'transfer', date: '2026-05-26', memo: 'Buffer transfer',
     cleared: true, runningBalance: 145000,
   },
   {
@@ -127,15 +127,47 @@ export const mockTransactions: Transaction[] = [
     accountName: 'SBI Joint Account', accountInstitution: 'SBI', accountSubLabel: 'Checking',
     envelopeId: 'e1', envelopeName: 'Food & Dining', envelopeIcon: '🍽', envelopeColor: '#F97316',
     payee: 'BigBasket', payeeColor: '#16A34A',
-    amount: -2450, type: 'expense', date: '2024-05-12', memo: 'Groceries',
+    amount: -2450, type: 'expense', date: '2026-05-27', memo: 'Groceries',
     cleared: true, runningBalance: 71550,
+  },
+  {
+    id: 't9b', budgetId: 'b1', accountId: 'a5',
+    accountName: 'SBI Joint Account', accountInstitution: 'SBI', accountSubLabel: 'Checking',
+    envelopeId: 'e2', envelopeName: 'Housing', envelopeIcon: '🏠', envelopeColor: '#EF4444',
+    payee: 'House Rent', payeeColor: '#4B5563',
+    amount: -15000, type: 'expense', date: '2026-05-25', memo: 'May rent',
+    cleared: true, runningBalance: 56550,
+  },
+  {
+    id: 't9c', budgetId: 'b1', accountId: 'a5',
+    accountName: 'SBI Joint Account', accountInstitution: 'SBI', accountSubLabel: 'Checking',
+    envelopeId: 'e5', envelopeName: 'Income', envelopeIcon: '↑', envelopeColor: '#14B8A6',
+    payee: 'Salary Credit', payeeColor: '#16A34A',
+    amount: 40000, type: 'income', date: '2026-05-22', memo: 'Monthly salary',
+    cleared: true, runningBalance: 96550,
+  },
+  {
+    id: 't9d', budgetId: 'b1', accountId: 'a5',
+    accountName: 'SBI Joint Account', accountInstitution: 'SBI', accountSubLabel: 'Checking',
+    envelopeId: 'e3', envelopeName: 'Utilities', envelopeIcon: '💡', envelopeColor: '#F59E0B',
+    payee: 'Jio Broadband', payeeColor: '#1D4ED8',
+    amount: -999, type: 'expense', date: '2026-05-24', memo: 'Monthly internet plan',
+    cleared: true, runningBalance: 55551,
+  },
+  {
+    id: 't9e', budgetId: 'b1', accountId: 'a5',
+    accountName: 'SBI Joint Account', accountInstitution: 'SBI', accountSubLabel: 'Checking',
+    envelopeId: 'e4', envelopeName: 'Shopping', envelopeIcon: '🛍', envelopeColor: '#8B5CF6',
+    payee: 'Amazon', payeeColor: '#F59E0B',
+    amount: -3799, type: 'expense', date: '2026-05-23', memo: 'Electronics order',
+    cleared: true, runningBalance: 51752,
   },
   {
     id: 't10', budgetId: 'b1', accountId: 'a2',
     accountName: 'ICICI Savings', accountInstitution: 'ICICI Bank', accountSubLabel: 'Savings',
     envelopeName: 'Housing', envelopeIcon: '🏠', envelopeColor: '#EF4444',
     payee: 'Electricity Bill', payeeColor: '#4B5563',
-    amount: -3250, type: 'expense', date: '2024-05-11', memo: 'BESCOM',
+    amount: -3250, type: 'expense', date: '2026-05-26', memo: 'BESCOM',
     cleared: true, runningBalance: 121750,
   },
   {
@@ -143,7 +175,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'HDFC Checking', accountInstitution: 'HDFC Bank', accountSubLabel: 'Checking',
     envelopeName: 'Income', envelopeIcon: '↑', envelopeColor: '#14B8A6',
     payee: 'Freelance Income', payeeColor: '#F59E0B',
-    amount: 75650, type: 'income', date: '2024-05-10', memo: 'Project payment',
+    amount: 75650, type: 'income', date: '2026-05-25', memo: 'Project payment',
     cleared: true, runningBalance: 23540,
   },
   {
@@ -151,7 +183,7 @@ export const mockTransactions: Transaction[] = [
     accountName: 'Cash Wallet', accountSubLabel: 'Cash',
     envelopeId: 'e3', envelopeName: 'Transportation', envelopeIcon: '🚌', envelopeColor: '#14B8A6',
     payee: 'Fuel Refill', payeeColor: '#4B5563',
-    amount: -1850, type: 'expense', date: '2024-05-09', memo: 'Car fuel',
+    amount: -1850, type: 'expense', date: '2026-05-23', memo: 'Car fuel',
     cleared: true, runningBalance: 2350,
   },
 ]

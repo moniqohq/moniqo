@@ -3,10 +3,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Building2, PiggyBank, CreditCard, Wallet, TrendingUp,
+  Building2, PiggyBank, CreditCard, Wallet, TrendingUp, TrendingDown,
   Plus, ArrowLeftRight, CheckCircle, Edit2, Archive,
   Search, Filter, ChevronDown, Eye, EyeOff,
-  CalendarDays, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { mockAccounts, mockTransactions, mockBudgets } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -33,89 +32,155 @@ interface AccountMeta {
   notes: string
   clearedBalance: number
   unclearedBalance: number
+  monthChangePct: number
   balanceHistory: ChartPoint[]
 }
 
 const ACCOUNT_META: Record<string, AccountMeta> = {
   a1: {
-    accountNumber: '****1234', createdDate: 'Jan 1, 2026', lastActivity: 'May 15, 2026',
+    accountNumber: '00001234', createdDate: 'Jan 1, 2026', lastActivity: 'May 15, 2026',
     lastReconciled: 'May 1, 2026', onBudget: true, requiresReconciliation: true,
     notes: 'Primary checking account for daily expenses',
-    clearedBalance: 455000, unclearedBalance: 3250,
+    monthChangePct: 3.8,
+    clearedBalance: 448500, unclearedBalance: 9750,
     balanceHistory: [
-      { month: 'Jan', value: 380000 }, { month: 'Feb', value: 425000 },
-      { month: 'Mar', value: 398000 }, { month: 'Apr', value: 441000 },
-      { month: 'May', value: 458250 },
+      { date: 'May 15', value: 432000 }, { date: 'May 16', value: 433300 },
+      { date: 'May 17', value: 434600 }, { date: 'May 18', value: 435900 },
+      { date: 'May 19', value: 437100 }, { date: 'May 20', value: 438400 },
+      { date: 'May 21', value: 439700 }, { date: 'May 22', value: 441000 },
+      { date: 'May 23', value: 440300 }, { date: 'May 24', value: 439600 },
+      { date: 'May 25', value: 438900 }, { date: 'May 26', value: 438100 },
+      { date: 'May 27', value: 437400 }, { date: 'May 28', value: 436700 },
+      { date: 'May 29', value: 436000 }, { date: 'May 30', value: 438100 },
+      { date: 'May 31', value: 440300 }, { date: 'Jun 01', value: 442400 },
+      { date: 'Jun 02', value: 444600 }, { date: 'Jun 03', value: 446700 },
+      { date: 'Jun 04', value: 448900 }, { date: 'Jun 05', value: 451000 },
+      { date: 'Jun 06', value: 452000 }, { date: 'Jun 07', value: 453100 },
+      { date: 'Jun 08', value: 454100 }, { date: 'Jun 09', value: 455100 },
+      { date: 'Jun 10', value: 456200 }, { date: 'Jun 11', value: 457200 },
+      { date: 'Jun 12', value: 458250 },
     ],
   },
   a2: {
-    accountNumber: '****5678', createdDate: 'Jan 1, 2026', lastActivity: 'May 14, 2026',
+    accountNumber: '00005678', createdDate: 'Jan 1, 2026', lastActivity: 'May 14, 2026',
     lastReconciled: 'Apr 30, 2026', onBudget: true, requiresReconciliation: false,
     notes: 'Emergency fund and long-term savings',
-    clearedBalance: 125000, unclearedBalance: 0,
+    monthChangePct: 5.2,
+    clearedBalance: 121500, unclearedBalance: 3500,
     balanceHistory: [
-      { month: 'Jan', value: 100000 }, { month: 'Feb', value: 108000 },
-      { month: 'Mar', value: 112000 }, { month: 'Apr', value: 119000 },
-      { month: 'May', value: 125000 },
+      { date: 'May 15', value: 112000 }, { date: 'May 16', value: 112600 },
+      { date: 'May 17', value: 113100 }, { date: 'May 18', value: 113700 },
+      { date: 'May 19', value: 114300 }, { date: 'May 20', value: 114900 },
+      { date: 'May 21', value: 115400 }, { date: 'May 22', value: 116000 },
+      { date: 'May 23', value: 116400 }, { date: 'May 24', value: 116900 },
+      { date: 'May 25', value: 117300 }, { date: 'May 26', value: 117700 },
+      { date: 'May 27', value: 118100 }, { date: 'May 28', value: 118600 },
+      { date: 'May 29', value: 119000 }, { date: 'May 30', value: 119400 },
+      { date: 'May 31', value: 119900 }, { date: 'Jun 01', value: 120300 },
+      { date: 'Jun 02', value: 120700 }, { date: 'Jun 03', value: 121100 },
+      { date: 'Jun 04', value: 121600 }, { date: 'Jun 05', value: 122000 },
+      { date: 'Jun 06', value: 122400 }, { date: 'Jun 07', value: 122900 },
+      { date: 'Jun 08', value: 123300 }, { date: 'Jun 09', value: 123700 },
+      { date: 'Jun 10', value: 124100 }, { date: 'Jun 11', value: 124600 },
+      { date: 'Jun 12', value: 125000 },
     ],
   },
   a3: {
-    accountNumber: '****9012', createdDate: 'Mar 15, 2026', lastActivity: 'May 13, 2026',
+    accountNumber: '00009012', createdDate: 'Mar 15, 2026', lastActivity: 'May 13, 2026',
     lastReconciled: 'May 1, 2026', onBudget: true, requiresReconciliation: true,
     notes: 'Used for online and subscription payments',
-    clearedBalance: -18400, unclearedBalance: 0,
+    monthChangePct: -2.1,
+    clearedBalance: -15200, unclearedBalance: -3200,
     balanceHistory: [
-      { month: 'Jan', value: -22000 }, { month: 'Feb', value: -19000 },
-      { month: 'Mar', value: -24000 }, { month: 'Apr', value: -21000 },
-      { month: 'May', value: -18400 },
+      { date: 'May 15', value: 2000 }, { date: 'May 16', value: 2400 },
+      { date: 'May 17', value: 2700 }, { date: 'May 18', value: 3100 },
+      { date: 'May 19', value: 3400 }, { date: 'May 20', value: 3800 },
+      { date: 'May 21', value: 4100 }, { date: 'May 22', value: 4500 },
+      { date: 'May 23', value: 4300 }, { date: 'May 24', value: 4100 },
+      { date: 'May 25', value: 3900 }, { date: 'May 26', value: 3600 },
+      { date: 'May 27', value: 3400 }, { date: 'May 28', value: 3200 },
+      { date: 'May 29', value: 3000 }, { date: 'May 30', value: 3400 },
+      { date: 'May 31', value: 3900 }, { date: 'Jun 01', value: 4300 },
+      { date: 'Jun 02', value: 4700 }, { date: 'Jun 03', value: 5100 },
+      { date: 'Jun 04', value: 5600 }, { date: 'Jun 05', value: 6000 },
+      { date: 'Jun 06', value: 6300 }, { date: 'Jun 07', value: 6600 },
+      { date: 'Jun 08', value: 6800 }, { date: 'Jun 09', value: 7100 },
+      { date: 'Jun 10', value: 7400 }, { date: 'Jun 11', value: 7700 },
+      { date: 'Jun 12', value: 8000 },
     ],
   },
   a4: {
     accountNumber: '—', createdDate: 'Jan 1, 2026', lastActivity: 'May 14, 2026',
     lastReconciled: '—', onBudget: true, requiresReconciliation: false,
     notes: 'Petty cash for small purchases',
+    monthChangePct: -8.7,
     clearedBalance: 4200, unclearedBalance: 0,
     balanceHistory: [
-      { month: 'Jan', value: 5000 }, { month: 'Feb', value: 3500 },
-      { month: 'Mar', value: 6000 }, { month: 'Apr', value: 4800 },
-      { month: 'May', value: 4200 },
+      { date: 'May 15', value: 1500 }, { date: 'May 16', value: 1700 },
+      { date: 'May 17', value: 1900 }, { date: 'May 18', value: 2100 },
+      { date: 'May 19', value: 2400 }, { date: 'May 20', value: 2600 },
+      { date: 'May 21', value: 2800 }, { date: 'May 22', value: 3000 },
+      { date: 'May 23', value: 2900 }, { date: 'May 24', value: 2800 },
+      { date: 'May 25', value: 2700 }, { date: 'May 26', value: 2600 },
+      { date: 'May 27', value: 2500 }, { date: 'May 28', value: 2500 },
+      { date: 'May 29', value: 2500 }, { date: 'May 30', value: 2700 },
+      { date: 'May 31', value: 3000 }, { date: 'Jun 01', value: 3200 },
+      { date: 'Jun 02', value: 3400 }, { date: 'Jun 03', value: 3700 },
+      { date: 'Jun 04', value: 3900 }, { date: 'Jun 05', value: 4000 },
+      { date: 'Jun 06', value: 4000 }, { date: 'Jun 07', value: 4100 },
+      { date: 'Jun 08', value: 4100 }, { date: 'Jun 09', value: 4100 },
+      { date: 'Jun 10', value: 4200 }, { date: 'Jun 11', value: 4200 },
+      { date: 'Jun 12', value: 4200 },
     ],
   },
   a5: {
-    accountNumber: '****3456', createdDate: 'Mar 15, 2026', lastActivity: 'May 12, 2026',
+    accountNumber: '00003456', createdDate: 'Mar 15, 2026', lastActivity: 'May 12, 2026',
     lastReconciled: 'Apr 30, 2026', onBudget: true, requiresReconciliation: false,
     notes: 'Shared office account for team expenses',
-    clearedBalance: 74000, unclearedBalance: 0,
+    monthChangePct: 4.6,
+    clearedBalance: 69500, unclearedBalance: 4500,
     balanceHistory: [
-      { month: 'Jan', value: 68000 }, { month: 'Feb', value: 72000 },
-      { month: 'Mar', value: 69000 }, { month: 'Apr', value: 75000 },
-      { month: 'May', value: 74000 },
+      { date: 'May 15', value: 66000 }, { date: 'May 16', value: 66600 },
+      { date: 'May 17', value: 67100 }, { date: 'May 18', value: 67700 },
+      { date: 'May 19', value: 68300 }, { date: 'May 20', value: 68900 },
+      { date: 'May 21', value: 69400 }, { date: 'May 22', value: 70000 },
+      { date: 'May 23', value: 69700 }, { date: 'May 24', value: 69400 },
+      { date: 'May 25', value: 69100 }, { date: 'May 26', value: 68800 },
+      { date: 'May 27', value: 68400 }, { date: 'May 28', value: 68200 },
+      { date: 'May 29', value: 68000 }, { date: 'May 30', value: 68900 },
+      { date: 'May 31', value: 69700 }, { date: 'Jun 01', value: 70600 },
+      { date: 'Jun 02', value: 71400 }, { date: 'Jun 03', value: 71700 },
+      { date: 'Jun 04', value: 71900 }, { date: 'Jun 05', value: 72000 },
+      { date: 'Jun 06', value: 72300 }, { date: 'Jun 07', value: 72600 },
+      { date: 'Jun 08', value: 72900 }, { date: 'Jun 09', value: 73200 },
+      { date: 'Jun 10', value: 73500 }, { date: 'Jun 11', value: 73700 },
+      { date: 'Jun 12', value: 74000 },
     ],
   },
 }
 
 /* ── sub-components ──────────────────────────────────── */
 
-function StatCell({ label, value, color }: { label: string; value: string; color?: string }) {
+function StatCell({ label, value, color, valueSize }: { label: string; value: string; color?: string; valueSize?: string }) {
   return (
     <div>
-      <p className="text-xs text-[#4A5A75] mb-0.5">{label}</p>
-      <p className={cn('text-base font-bold tabular-nums', color ?? 'text-white')}>{value}</p>
+      <p className="text-xs text-[#5A6A85] mb-0.5">{label}</p>
+      <p className={cn(valueSize ?? 'text-base', 'font-bold tabular-nums', color ?? 'text-white')}>{value}</p>
     </div>
   )
 }
 
-function MetaCard({ label, value, masked, showMask, onToggleMask }:
-  { label: string; value: string; masked?: boolean; showMask?: boolean; onToggleMask?: () => void }) {
+function MetaCard({ label, value, masked, showMask, onToggleMask, valueColor, multiline }:
+  { label: string; value: string; masked?: boolean; showMask?: boolean; onToggleMask?: () => void; valueColor?: string; multiline?: boolean }) {
   return (
     <div className="bg-[#0B1120] border border-[#1A2540] rounded-xl p-3">
-      <p className="text-[10px] font-semibold text-[#3A4A60] uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-[10px] font-semibold text-[#5A6A85] uppercase tracking-wider mb-1">{label}</p>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-[#C8D4E8] truncate">
-          {masked && !showMask ? '••••••••' : value}
+        <p className={cn('font-semibold', multiline ? 'text-xs line-clamp-2 leading-relaxed' : 'text-sm truncate')} style={{ color: valueColor ?? '#C8D4E8' }}>
+          {masked && !showMask ? `••••${value.slice(-4)}` : value}
         </p>
         {masked && onToggleMask && (
-          <button onClick={onToggleMask} className="text-[#4A5A75] hover:text-[#A78BFA] transition-colors flex-shrink-0">
+          <button onClick={onToggleMask} className="text-[#5A6A85] hover:text-[#A78BFA] transition-colors flex-shrink-0">
             {showMask ? <EyeOff size={13} /> : <Eye size={13} />}
           </button>
         )}
@@ -131,8 +196,6 @@ interface Props { accountId: string }
 export function AccountDetails({ accountId }: Props) {
   const [search,     setSearch]     = useState('')
   const [showAccNum, setShowAccNum] = useState(false)
-  const [page,       setPage]       = useState(1)
-  const PER_PAGE = 6
 
   const account = mockAccounts.find(a => a.id === accountId) ?? mockAccounts[0]
   const meta    = ACCOUNT_META[account.id] ?? ACCOUNT_META.a1
@@ -144,14 +207,15 @@ export function AccountDetails({ accountId }: Props) {
     !search || t.payee.toLowerCase().includes(search.toLowerCase()) ||
     (t.memo ?? '').toLowerCase().includes(search.toLowerCase()),
   )
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
-  const pageTxns = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+  const pageTxns = filtered.slice(0, 5)
 
   return (
     <div className="space-y-4 min-w-0">
 
-      {/* ── Account Header ───────────────────────── */}
-      <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl p-5">
+      {/* ── Account Header + Balance Overview + Metadata ── */}
+      <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl p-5 space-y-5">
+
+        {/* Account Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <div
@@ -171,11 +235,9 @@ export function AccountDetails({ accountId }: Props) {
                 </span>
               </div>
               {budget && (
-                <p className="text-xs text-[#4A5A75] mt-1">{budget.name}</p>
+                <p className="text-xs text-[#7C4AFF] mt-1 font-medium">{budget.name}</p>
               )}
-              {account.institution && (
-                <p className="text-xs text-[#4A5A75]">{account.institution}</p>
-              )}
+
             </div>
           </div>
 
@@ -191,7 +253,7 @@ export function AccountDetails({ accountId }: Props) {
               <button
                 key={label}
                 title={label}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#A8B4CC] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white hover:bg-[#111B2D] hover:border-[#2A3A54] transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#E2EAF4] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white hover:bg-[#111B2D] hover:border-[#2A3A54] transition-all"
               >
                 {icon}
                 <span className="hidden sm:inline">{label}</span>
@@ -199,51 +261,63 @@ export function AccountDetails({ accountId }: Props) {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* ── Balance Overview ─────────────────────── */}
-      <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl p-5">
-        <div className="flex items-start justify-between mb-5">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3 flex-1">
-            <StatCell label="Current Balance"  value={formatCurrency(account.balance)} color={account.balance < 0 ? 'text-[#F87171]' : 'text-white'} />
-            <StatCell label="Last Reconciled"   value={meta.lastReconciled} />
-            <StatCell label="Cleared Balance"   value={formatCurrency(meta.clearedBalance)} />
-            <StatCell label="Uncleared Balance" value={formatCurrency(meta.unclearedBalance)} />
+        {/* Balance Overview — nested card */}
+        <div className="bg-[#060C18] border border-[#1A2540] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-5 gap-6">
+            <div className="flex items-start gap-14 flex-1 flex-wrap">
+              <div className="flex items-start gap-8">
+                <div>
+                  <p className="text-xs text-[#5A6A85] mb-0.5">Current Balance</p>
+                  <p className={cn('text-2xl font-bold tabular-nums', account.balance < 0 ? 'text-[#F87171]' : 'text-white')}>
+                    {formatCurrency(account.balance)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-1">
+                    {meta.monthChangePct >= 0
+                      ? <TrendingUp size={11} className="text-[#22C55E]" />
+                      : <TrendingDown size={11} className="text-[#F87171]" />}
+                    <span className={cn('text-[10px] font-medium', meta.monthChangePct >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')}>
+                      {meta.monthChangePct >= 0 ? '+' : ''}{meta.monthChangePct}% vs last month
+                    </span>
+                  </div>
+                </div>
+                <div className="w-px self-stretch bg-[#1A2540] mx-1" />
+              </div>
+              <StatCell label="Cleared Balance"   value={formatCurrency(meta.clearedBalance)} color="text-[#4ADE80]" />
+              <StatCell label="Uncleared Balance" value={formatCurrency(meta.unclearedBalance)} color="text-[#F59E0B]" />
+              <StatCell label="Last Reconciled"   value={meta.lastReconciled} valueSize="text-sm" />
+            </div>
+            <div className="flex-shrink-0 flex flex-col items-end gap-1">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[rgba(34,197,94,0.1)] text-[#4ADE80] border border-[rgba(34,197,94,0.2)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
+                Reconciled
+              </span>
+              <p className="text-[10px] text-[#3A4A60]">Up to {meta.lastReconciled}</p>
+            </div>
           </div>
-          <div className="flex-shrink-0 ml-4">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[rgba(34,197,94,0.1)] text-[#4ADE80] border border-[rgba(34,197,94,0.2)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
-              Reconciled
-            </span>
-          </div>
-        </div>
-
-        {/* Balance Chart */}
-        <div className="bg-[#060C18] border border-[#111B2D] rounded-xl p-3">
-          <p className="text-[10px] font-semibold text-[#3A4A60] uppercase tracking-wider mb-3">Balance History (5 months)</p>
           <BalanceChart data={meta.balanceHistory} />
         </div>
-      </div>
 
-      {/* ── Account Metadata Grid ─────────────────── */}
-      <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-white mb-3">Account Information</h3>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          <MetaCard label="Account Type"           value={typeMeta.label} />
-          <MetaCard label="Institution"            value={account.institution ?? 'N/A'} />
-          <MetaCard label="Requires Reconciliation" value={meta.requiresReconciliation ? 'Yes' : 'No'} />
-          <MetaCard label="On Budget"              value={meta.onBudget ? 'Yes' : 'No'} />
-          <MetaCard label="Created Date"           value={meta.createdDate} />
-          <MetaCard label="Last Activity"          value={meta.lastActivity} />
-          <MetaCard label="Notes"                  value={meta.notes} />
-          <MetaCard
-            label="Account Number"
-            value={meta.accountNumber}
-            masked={meta.accountNumber !== '—'}
-            showMask={showAccNum}
-            onToggleMask={() => setShowAccNum(s => !s)}
-          />
+        {/* Account Information */}
+        <div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            <MetaCard label="Account Type"           value={typeMeta.label} />
+            <MetaCard label="Institution"            value={account.institution ?? 'N/A'} />
+            <MetaCard label="Requires Reconciliation" value={meta.requiresReconciliation ? 'Yes' : 'No'} valueColor={meta.requiresReconciliation ? '#86EFAC' : '#FCD34D'} />
+            <MetaCard label="On Budget"              value={meta.onBudget ? 'Yes' : 'No'} valueColor={meta.onBudget ? '#4ADE80' : '#F87171'} />
+            <MetaCard label="Created Date"           value={meta.createdDate} />
+            <MetaCard label="Last Activity"          value={meta.lastActivity} />
+            <MetaCard label="Notes"                  value={meta.notes} multiline />
+            <MetaCard
+              label="Account Number"
+              value={meta.accountNumber}
+              masked={meta.accountNumber !== '—'}
+              showMask={showAccNum}
+              onToggleMask={() => setShowAccNum(s => !s)}
+            />
+          </div>
         </div>
+
       </div>
 
       {/* ── Recent Transactions ───────────────────── */}
@@ -253,10 +327,10 @@ export function AccountDetails({ accountId }: Props) {
           <h3 className="text-sm font-bold text-white flex-shrink-0">Recent Transactions</h3>
           <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
             <div className="relative flex-1 max-w-[220px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5A75] pointer-events-none" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5A6A85] pointer-events-none" />
               <input
                 value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1) }}
+                onChange={e => { setSearch(e.target.value) }}
                 placeholder="Search transactions…"
                 className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#0D1525] border border-[#1A2540] rounded-lg text-white placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40 focus:border-[#6C3AED] transition-all"
               />
@@ -264,11 +338,6 @@ export function AccountDetails({ accountId }: Props) {
             <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#7A8BA8] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white transition-colors flex-shrink-0">
               <Filter size={12} />
               Filter
-            </button>
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#7A8BA8] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white transition-colors flex-shrink-0">
-              <CalendarDays size={12} />
-              May 2026
-              <ChevronDown size={11} />
             </button>
           </div>
         </div>
@@ -279,7 +348,7 @@ export function AccountDetails({ accountId }: Props) {
             <thead>
               <tr className="border-b border-[#111B2D]">
                 {['Date', 'Payee', 'Category', 'Amount', 'Status'].map(col => (
-                  <th key={col} className="px-4 py-2.5 text-left text-[10px] font-bold text-[#3A4A60] uppercase tracking-wider">
+                  <th key={col} className="px-4 py-2.5 text-left text-[10px] font-bold text-[#5A6A85] uppercase tracking-wider">
                     {col}
                   </th>
                 ))}
@@ -300,7 +369,7 @@ export function AccountDetails({ accountId }: Props) {
                     animate={{ opacity: 1 }}
                     className="hover:bg-[#0D1525] transition-colors cursor-pointer"
                   >
-                    <td className="px-4 py-3 text-[#5A6A85] whitespace-nowrap">
+                    <td className="px-4 py-3 text-[#8A9AB5] whitespace-nowrap">
                       {new Date(tx.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </td>
                     <td className="px-4 py-3">
@@ -345,39 +414,6 @@ export function AccountDetails({ accountId }: Props) {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 px-4 py-3 border-t border-[#111B2D]">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 rounded-lg text-[#5A6A85] hover:text-white hover:bg-[#0D1525] disabled:opacity-30 transition-colors"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-              <button
-                key={n}
-                onClick={() => setPage(n)}
-                className={cn(
-                  'w-7 h-7 rounded-lg text-xs font-semibold transition-colors',
-                  page === n
-                    ? 'bg-[#6C3AED] text-white'
-                    : 'text-[#5A6A85] hover:bg-[#0D1525] hover:text-white',
-                )}
-              >
-                {n}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="p-1.5 rounded-lg text-[#5A6A85] hover:text-white hover:bg-[#0D1525] disabled:opacity-30 transition-colors"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        )}
 
         {allTxns.length === 0 && (
           <div className="px-5 py-8 text-center">

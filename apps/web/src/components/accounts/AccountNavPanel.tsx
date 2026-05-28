@@ -54,7 +54,7 @@ function AccountRow({ account, selected, onSelect }: { account: Account; selecte
           {account.name}
         </p>
         {account.institution && (
-          <p className="text-[10px] text-[#3A4A60] truncate">{account.institution}</p>
+          <p className="text-[10px] text-[#5A6A85] truncate">{account.institution}</p>
         )}
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -78,16 +78,16 @@ function AccountGroup({
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-1 py-1.5 group"
       >
-        <span className="text-[10px] font-bold text-[#3A4A60] uppercase tracking-widest group-hover:text-[#5A6A85] transition-colors">
+        <span className="text-[10px] font-bold text-[#5A6A85] uppercase tracking-widest group-hover:text-[#5A6A85] transition-colors">
           {label}
         </span>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold text-[#3A4A60] bg-[#0D1525] border border-[#1A2540] rounded-full px-1.5 py-0.5">
+          <span className="text-[10px] font-semibold text-[#5A6A85] bg-[#0D1525] border border-[#1A2540] rounded-full px-1.5 py-0.5">
             {accounts.length}
           </span>
           <ChevronDown
             size={12}
-            className={cn('text-[#3A4A60] transition-transform', open ? '' : '-rotate-90')}
+            className={cn('text-[#5A6A85] transition-transform', open ? '' : '-rotate-90')}
           />
         </div>
       </button>
@@ -118,10 +118,10 @@ function AccountGroup({
 
 export function AccountNavPanel({ selectedId, onSelect }: Props) {
   return (
-    <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl flex flex-col overflow-hidden">
+    <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl flex flex-col overflow-hidden h-full">
       <div className="px-4 pt-4 pb-3 border-b border-[#1A2540]">
         <h3 className="text-sm font-bold text-white">Accounts</h3>
-        <p className="text-xs text-[#3A4A60] mt-0.5">{mockAccounts.length} total accounts</p>
+        <p className="text-xs text-[#5A6A85] mt-0.5">{mockAccounts.length} total accounts</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
@@ -141,14 +141,14 @@ export function AccountNavPanel({ selectedId, onSelect }: Props) {
         {/* Archived section (empty) */}
         <div>
           <button className="w-full flex items-center justify-between px-1 py-1.5 group">
-            <span className="text-[10px] font-bold text-[#3A4A60] uppercase tracking-widest group-hover:text-[#5A6A85] transition-colors">
+            <span className="text-[10px] font-bold text-[#5A6A85] uppercase tracking-widest group-hover:text-[#5A6A85] transition-colors">
               Archived
             </span>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-[#3A4A60] bg-[#0D1525] border border-[#1A2540] rounded-full px-1.5 py-0.5">
+              <span className="text-[10px] font-semibold text-[#5A6A85] bg-[#0D1525] border border-[#1A2540] rounded-full px-1.5 py-0.5">
                 0
               </span>
-              <ChevronDown size={12} className="text-[#3A4A60] -rotate-90" />
+              <ChevronDown size={12} className="text-[#5A6A85] -rotate-90" />
             </div>
           </button>
         </div>

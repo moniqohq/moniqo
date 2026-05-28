@@ -2,8 +2,8 @@
 
 import {
   Plus, ArrowLeftRight, CheckCircle, Download,
-  BarChart2, Archive, TrendingUp, TrendingDown, Lock,
-  ArrowRight,
+  BarChart2, Archive, Lock, ArrowRight,
+  ArrowUpDown, Receipt, Tag, Clock,
 } from 'lucide-react'
 import { mockTransactions } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -55,8 +55,23 @@ export function AccountInsightsPanel({ accountId }: Props) {
   const outflows = txns.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
   const net      = inflows - outflows
 
+  const largestExpense = txns.filter(t => t.amount < 0).sort((a, b) => a.amount - b.amount)[0]
+
+  const categoryTotals = txns.filter(t => t.amount < 0 && t.envelopeName).reduce<Record<string, { name: string; icon: string; total: number }>>((acc, t) => {
+    const key = t.envelopeName!
+    if (!acc[key]) acc[key] = { name: key, icon: t.envelopeIcon ?? '📁', total: 0 }
+    acc[key].total += Math.abs(t.amount)
+    return acc
+  }, {})
+  const topCategory = Object.values(categoryTotals).sort((a, b) => b.total - a.total)[0]
+
+  const lastTxn = txns.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+  const daysSinceLast = lastTxn
+    ? Math.floor((Date.now() - new Date(lastTxn.date).getTime()) / 86_400_000)
+    : null
+
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full gap-4">
       {/* Quick Actions */}
       <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl overflow-hidden">
         <div className="px-4 pt-4 pb-3 border-b border-[#1A2540]">
@@ -76,7 +91,7 @@ export function AccountInsightsPanel({ accountId }: Props) {
               </div>
               <div className="flex-1 text-left min-w-0">
                 <p className="text-xs font-semibold text-[#C8D4E8] group-hover:text-white transition-colors leading-tight">{title}</p>
-                <p className="text-[10px] text-[#3A4A60] mt-0.5 leading-tight">{desc}</p>
+                <p className="text-[10px] text-[#5A6A85] mt-0.5 leading-tight">{desc}</p>
               </div>
               <ArrowRight size={12} className="text-[#3A4A60] group-hover:text-[#6C3AED] transition-colors flex-shrink-0" />
             </button>
@@ -93,33 +108,71 @@ export function AccountInsightsPanel({ accountId }: Props) {
           </div>
         </div>
         <div className="p-4 space-y-3">
+          {/* Net Cash Flow */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[rgba(34,197,94,0.12)] flex items-center justify-center">
-                <TrendingUp size={12} className="text-[#22C55E]" />
+              <div className="w-6 h-6 rounded-lg bg-[rgba(108,58,237,0.12)] flex items-center justify-center">
+                <ArrowUpDown size={12} className="text-[#A78BFA]" />
               </div>
-              <span className="text-xs text-[#5A6A85]">Total Inflows</span>
+              <span className="text-xs text-[#8A9AB5]">Net Cash Flow</span>
             </div>
-            <span className="text-xs font-bold text-[#4ADE80] tabular-nums">{formatCurrency(inflows)}</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[rgba(239,68,68,0.12)] flex items-center justify-center">
-                <TrendingDown size={12} className="text-[#F87171]" />
-              </div>
-              <span className="text-xs text-[#5A6A85]">Total Outflows</span>
-            </div>
-            <span className="text-xs font-bold text-[#F87171] tabular-nums">{formatCurrency(outflows)}</span>
-          </div>
-
-          <div className="h-px bg-[#111B2D]" />
-
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-[#5A6A85]">Net Change</span>
-            <span className={cn('text-sm font-bold tabular-nums', net >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')}>
+            <span className={cn('text-xs font-bold tabular-nums', net >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')}>
               {net >= 0 ? '+' : ''}{formatCurrency(net)}
             </span>
+          </div>
+
+          {/* Largest Expense */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-[rgba(239,68,68,0.12)] flex items-center justify-center flex-shrink-0">
+                <Receipt size={12} className="text-[#F87171]" />
+              </div>
+              <span className="text-xs text-[#8A9AB5] truncate">Largest Expense</span>
+            </div>
+            {largestExpense ? (
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs font-bold text-[#F87171] tabular-nums">{formatCurrency(Math.abs(largestExpense.amount))}</p>
+                <p className="text-[10px] text-[#3A4A60] truncate max-w-[80px]">{largestExpense.payee}</p>
+              </div>
+            ) : (
+              <span className="text-xs text-[#3A4A60]">—</span>
+            )}
+          </div>
+
+          {/* Top Category */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-[rgba(245,158,11,0.12)] flex items-center justify-center flex-shrink-0">
+                <Tag size={12} className="text-[#F59E0B]" />
+              </div>
+              <span className="text-xs text-[#8A9AB5] truncate">Top Category</span>
+            </div>
+            {topCategory ? (
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs font-bold text-[#C8D4E8]">{topCategory.icon} {topCategory.name}</p>
+                <p className="text-[10px] text-[#3A4A60]">{formatCurrency(topCategory.total)}</p>
+              </div>
+            ) : (
+              <span className="text-xs text-[#3A4A60]">—</span>
+            )}
+          </div>
+
+          {/* Days since last transaction */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-[rgba(6,182,212,0.12)] flex items-center justify-center flex-shrink-0">
+                <Clock size={12} className="text-[#06B6D4]" />
+              </div>
+              <span className="text-xs text-[#8A9AB5] truncate">Last Transaction</span>
+            </div>
+            {daysSinceLast !== null ? (
+              <div className="text-right flex-shrink-0">
+                <p className="text-xs font-bold text-[#C8D4E8] tabular-nums">{daysSinceLast} {daysSinceLast === 1 ? 'day' : 'days'} ago</p>
+                <p className="text-[10px] text-[#3A4A60]">{lastTxn!.payee}</p>
+              </div>
+            ) : (
+              <span className="text-xs text-[#3A4A60]">—</span>
+            )}
           </div>
 
           <button className="w-full mt-1 text-xs text-[#7C3AED] hover:text-[#A78BFA] font-semibold text-right transition-colors">
@@ -129,16 +182,34 @@ export function AccountInsightsPanel({ accountId }: Props) {
       </div>
 
       {/* Immutable notice */}
-      <div className="bg-[rgba(108,58,237,0.06)] border border-[rgba(108,58,237,0.2)] rounded-2xl p-4 shadow-[0_0_20px_rgba(108,58,237,0.06)]">
-        <div className="flex gap-3">
-          <div className="w-7 h-7 rounded-lg bg-[rgba(108,58,237,0.15)] flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Lock size={13} className="text-[#7C3AED]" />
+      <div className="bg-[rgba(108,58,237,0.06)] border border-[rgba(108,58,237,0.2)] rounded-2xl p-5 shadow-[0_0_20px_rgba(108,58,237,0.06)] flex flex-col gap-4">
+        {/* Icon + title */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[rgba(108,58,237,0.18)] flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(108,58,237,0.25)]">
+            <Lock size={16} className="text-[#A78BFA]" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-[#A78BFA] mb-1">Immutable Transactions</p>
-            <p className="text-[10px] text-[#5A6A85] leading-relaxed">
-              Transactions are immutable once recorded. To correct an entry, use a reversing transaction or contact your budget administrator.
-            </p>
+            <p className="text-sm font-bold text-[#C4B5FD]">Immutable Transactions</p>
+            <p className="text-[10px] text-[#5A6A85] mt-0.5">Audit-safe ledger protection</p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-[rgba(108,58,237,0.15)]" />
+
+        {/* Body */}
+        <p className="text-xs text-[#6A7A95] leading-relaxed">
+          Transaction immutability is <span className="text-[#A78BFA] font-medium">enabled</span> for this account.
+        </p>
+
+        <div className="space-y-2">
+          <div className="flex items-start gap-2.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#6C3AED] mt-1.5 flex-shrink-0" />
+            <p className="text-[11px] text-[#5A6A85] leading-snug">Use a <span className="text-[#C4B5FD] font-medium">reversing transaction</span> to correct a mistake.</p>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#6C3AED] mt-1.5 flex-shrink-0" />
+            <p className="text-[11px] text-[#5A6A85] leading-snug">This can be changed in <span className="text-[#C4B5FD] font-medium">Settings</span>.</p>
           </div>
         </div>
       </div>
