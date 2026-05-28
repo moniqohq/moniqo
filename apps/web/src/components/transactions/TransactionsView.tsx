@@ -18,6 +18,7 @@ import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from '@/li
 import { AddTransactionModal } from './AddTransactionModal'
 import { TransactionDetailsModal } from './TransactionDetailsModal'
 import { DeleteTransactionModal } from './DeleteTransactionModal'
+import { EditTransactionModal } from './EditTransactionModal'
 import { DateRangePicker } from './DateRangePicker'
 import type { DateRange } from './DateRangePicker'
 import type { Transaction, AccountType } from '@/types'
@@ -637,6 +638,8 @@ export function TransactionsView() {
   const [modalOpen, setModalOpen] = useState(false)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [editTx, setEditTx] = useState<Transaction | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -954,6 +957,12 @@ export function TransactionsView() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         onDelete={() => detailTx && openDeleteModal(detailTx)}
+        onEdit={() => { if (detailTx) { setEditTx(detailTx); setEditOpen(true); setDetailOpen(false) } }}
+      />
+      <EditTransactionModal
+        tx={editTx}
+        open={editOpen}
+        onClose={() => { setEditOpen(false); setTimeout(() => setEditTx(null), 200) }}
       />
       <DeleteTransactionModal
         tx={deleteTx}

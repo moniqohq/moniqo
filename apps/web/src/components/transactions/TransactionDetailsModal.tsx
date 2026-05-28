@@ -32,9 +32,10 @@ interface Props {
   open: boolean
   onClose: () => void
   onDelete?: () => void
+  onEdit?: () => void
 }
 
-export function TransactionDetailsModal({ tx, open, onClose, onDelete }: Props) {
+export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }: Props) {
   useEffect(() => {
     if (!open) return
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -327,7 +328,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete }: Props) 
                 {/* ── Action buttons ─────────────────────────── */}
                 <div className="h-px bg-[#141F32] mb-4" />
                 <div className="flex items-center gap-2.5">
-                  <ActionBtn>
+                  <ActionBtn onClick={onEdit}>
                     <Edit2 size={14} /> Edit
                   </ActionBtn>
                   <ActionBtn>
