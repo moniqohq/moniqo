@@ -7,7 +7,7 @@ import {
   ArrowLeftRight, Banknote, BadgeCheck, Briefcase, Building2, Calendar,
   CheckCheck, CheckCircle2, ChevronLeft, ChevronRight, CreditCard,
   Download, FileText, Filter, Heart, Landmark, Music, Package,
-  PiggyBank, Plus, RotateCcw, Search, ShieldCheck, ShoppingCart,
+  PiggyBank, Plus, RotateCcw, Search, ShoppingCart,
   SlidersHorizontal, TrendingUp, Wallet, X, Clock, AlertCircle,
   Utensils, Layers,
 } from 'lucide-react'
@@ -460,7 +460,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
       />
 
       {/* ── Scrollable content ── */}
-      <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-5">
+      <div className="layout-page py-6 space-y-5">
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -959,31 +959,6 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                     <span className="text-[10px] text-[#8899AA] leading-tight">{action.label}</span>
                   </button>
                 ))}
-              </div>
-            </motion.div>
-
-            {/* Card 4: Integrity Notice */}
-            <motion.div
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.25 }}
-              className="bg-[#0F1623] border border-[#1E2B42] rounded-2xl p-5"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-6 h-6 rounded-full bg-[#6C3AED] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">4</span>
-                <h3 className="text-sm font-semibold text-white">Integrity Notice</h3>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[rgba(34,197,94,0.1)] border border-[rgba(34,197,94,0.2)] flex items-center justify-center flex-shrink-0">
-                  <ShieldCheck size={18} className="text-[#22C55E]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white mb-1">Transactions are Immutable</p>
-                  <p className="text-[11px] text-[#5A6A85] leading-relaxed">
-                    Reconciliation verifies ledger accuracy without modifying historical transaction integrity.
-                  </p>
-                </div>
               </div>
             </motion.div>
           </div>

@@ -345,20 +345,20 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   }
 
   /* ── Timeline nodes ───────────────────────────────────── */
-  const timelineNodes = [
-    { icon: <Calendar size={16} />,     label: 'Account Created', date: createdDate,   state: 'completed' as const },
-    { icon: <CheckCircle2 size={16} />, label: 'Last Activity',   date: lastActivity,  state: 'current'   as const },
-    { icon: <Archive size={16} />,      label: 'Archive Date',    date: 'Not archived', state: 'future'   as const },
+  type TimelineStage = 'completed' | 'current' | 'future'
+  const timelineNodes: { icon: React.ReactNode; label: string; date: string; meta: string; stage: TimelineStage }[] = [
+    { icon: <Calendar size={16} />,     label: 'Account Created', date: createdDate,    meta: `Opening balance ${formatCurrency(openingBalance)}`, stage: 'completed' },
+    { icon: <RefreshCw size={16} />,    label: 'Last Reconciled', date: lastReconciled, meta: `Balance · ${formatCurrency(balance)}`,              stage: 'completed' },
+    { icon: <CheckCircle2 size={16} />, label: 'Last Activity',   date: lastActivity,   meta: `${lastActivityAgo} · ${txCount} transactions`,      stage: 'current'   },
+    { icon: <Archive size={16} />,      label: 'Archive Date',    date: 'Pending',      meta: 'Not yet archived',                                   stage: 'future'    },
   ]
-  const timelineColors = {
-    completed: { ring: '#22C55E', bg: 'rgba(34,197,94,0.12)',   text: '#22C55E', dashedLine: false },
-    current:   { ring: '#6C3AED', bg: 'rgba(108,58,237,0.15)', text: '#6C3AED', dashedLine: false },
-    future:    { ring: '#2A3A54', bg: 'rgba(42,58,84,0.3)',     text: '#5A6A85', dashedLine: true  },
-  }
+  const tlColor:    Record<TimelineStage, string> = { completed: '#22C55E', current: '#6C3AED', future: '#1E2B42' }
+  const tlBg:       Record<TimelineStage, string> = { completed: 'rgba(34,197,94,0.12)', current: 'rgba(108,58,237,0.15)', future: 'rgba(30,43,66,0.5)' }
+  const tlMetaText: Record<TimelineStage, string> = { completed: '#22C55E', current: '#C4B5FD', future: '#3A4A60' }
 
   return (
     <div className="min-h-screen bg-[#080C14] text-[#E8EEF8]">
-      <div className="max-w-[1400px] mx-auto px-6 py-6 flex flex-col gap-5">
+      <div className="layout-page py-6 flex flex-col gap-5">
 
         {/* ── Header ─────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
@@ -557,45 +557,6 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
               </div>
             </div>
 
-            {/* Account Timeline */}
-            <div className="bg-[#0F1623] border border-[#1E2B42] rounded-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-[#1E2B42]">
-                <h2 className="text-[14px] font-semibold text-[#E8EEF8]">Account Timeline</h2>
-              </div>
-              <div className="p-6">
-                <div className="flex items-start justify-between gap-2">
-                  {timelineNodes.map((node, i) => {
-                    const c = timelineColors[node.state]
-                    const isLast = i === timelineNodes.length - 1
-                    return (
-                      <div key={node.label} className="flex flex-col items-center gap-3 flex-1 relative">
-                        {!isLast && (
-                          <div
-                            className="absolute top-5 left-1/2 w-full h-[2px]"
-                            style={{
-                              background: c.dashedLine
-                                ? 'repeating-linear-gradient(90deg, #2A3A54 0, #2A3A54 6px, transparent 6px, transparent 12px)'
-                                : (node.state === 'completed' ? '#22C55E' : '#6C3AED'),
-                            }}
-                          />
-                        )}
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center z-10 border-2 shrink-0"
-                          style={{ borderColor: c.ring, background: c.bg, color: c.text }}
-                        >
-                          {node.icon}
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[12px] font-semibold text-[#E8EEF8]">{node.label}</p>
-                          <p className="text-[11px] text-[#5A6A85] mt-0.5">{node.date}</p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
           </div>
 
           {/* ── RIGHT COLUMN ────────────────────────────── */}
@@ -706,6 +667,41 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
 
           </div>
         </div>
+
+        {/* ── Account Timeline (full width) ─────────────── */}
+        <div className="bg-[#0F1623] border border-[#1E2B42] rounded-2xl p-6">
+          <h3 className="text-base font-semibold text-white mb-6">Account Timeline</h3>
+          <div className="relative">
+            <div className="absolute top-5 left-0 right-0 h-px bg-[#1E2B42] mx-8" />
+            <div
+              className="absolute top-5 left-0 h-px mx-8 transition-all duration-700"
+              style={{
+                background: 'linear-gradient(90deg, #22C55E 0%, #22C55E 60%, #6C3AED 100%)',
+                right: '25%',
+              }}
+            />
+            <div className="flex justify-between relative">
+              {timelineNodes.map((node) => (
+                <div key={node.label} className="flex flex-col items-center flex-1">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center z-10 border-2 mb-3 transition-all"
+                    style={{
+                      background: tlBg[node.stage],
+                      borderColor: tlColor[node.stage],
+                      color: tlColor[node.stage],
+                    }}
+                  >
+                    {node.icon}
+                  </div>
+                  <p className="text-xs font-medium text-white text-center leading-tight mb-1">{node.label}</p>
+                  <p className="text-[11px] text-[#5A6A85] text-center mb-0.5">{node.date}</p>
+                  <p className={cn('text-[10px] text-center leading-tight', tlMetaText[node.stage])}>{node.meta}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* ── Dialogs ──────────────────────────────────────── */}
