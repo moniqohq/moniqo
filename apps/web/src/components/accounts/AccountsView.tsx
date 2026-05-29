@@ -441,7 +441,7 @@ export function AccountsView() {
             onSelect={setSelectedId}
           />
           <AccountDetails accountId={selectedAccount?.id ?? ''} />
-          <AccountInsightsPanel accountId={selectedAccount?.id ?? ''} />
+          <AccountInsightsPanel accountId={selectedAccount?.id ?? ''} budgetId={selectedAccount?.budgetId ?? ''} />
         </div>
       )}
 

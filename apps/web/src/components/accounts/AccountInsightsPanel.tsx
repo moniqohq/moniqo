@@ -5,10 +5,11 @@ import {
   BarChart2, Archive, Lock, ArrowRight,
   ArrowUpDown, Receipt, Tag, Clock,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { mockTransactions } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
 
-interface Props { accountId: string }
+interface Props { accountId: string; budgetId: string }
 
 const QUICK_ACTIONS = [
   {
@@ -49,7 +50,8 @@ const QUICK_ACTIONS = [
   },
 ]
 
-export function AccountInsightsPanel({ accountId }: Props) {
+export function AccountInsightsPanel({ accountId, budgetId }: Props) {
+  const router = useRouter()
   const txns = mockTransactions.filter(t => t.accountId === accountId)
   const inflows  = txns.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
   const outflows = txns.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
@@ -81,6 +83,7 @@ export function AccountInsightsPanel({ accountId }: Props) {
           {QUICK_ACTIONS.map(({ icon, color, bg, title, desc }) => (
             <button
               key={title}
+              onClick={title === 'Reconcile Balance' ? () => router.push(`/budgets/${budgetId}/accounts/${accountId}/reconcile`) : undefined}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#0D1525] hover:border-[#1A2540] border border-transparent transition-all group"
             >
               <div

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   Building2, PiggyBank, CreditCard, Wallet, TrendingUp, TrendingDown, Landmark,
@@ -198,6 +199,7 @@ function MetaCard({ label, value, masked, showMask, onToggleMask, valueColor, mu
 interface Props { accountId: string }
 
 export function AccountDetails({ accountId }: Props) {
+  const router = useRouter()
   const [search,       setSearch]       = useState('')
   const [showAccNum,   setShowAccNum]   = useState(false)
   const [modifyOpen,   setModifyOpen]   = useState(false)
@@ -281,9 +283,9 @@ export function AccountDetails({ accountId }: Props) {
                 [
                   { icon: <Plus size={14} />, label: 'Add Transaction', onClick: () => { setAddTxDefault('expense'); setAddTxOpen(true) } },
                   { icon: <ArrowLeftRight size={14} />, label: 'Transfer', onClick: () => { setAddTxDefault('transfer'); setAddTxOpen(true) } },
-                  { icon: <CheckCircle size={14} />, label: 'Reconcile', onClick: undefined },
+                  { icon: <CheckCircle size={14} />, label: 'Reconcile', onClick: () => router.push(`/budgets/${account.budgetId}/accounts/${accountId}/reconcile`) },
                   { icon: <Edit2 size={14} />, label: 'Edit', onClick: () => setModifyOpen(true) },
-                  { icon: <Archive size={14} />, label: 'Archive', onClick: undefined },
+                  { icon: <Archive size={14} />, label: 'Archive', onClick: () => router.push(`/budgets/${account.budgetId}/accounts/${accountId}/archive`) },
                 ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
               ).map(({ icon, label, onClick }) => (
                 <button
