@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import {
-  Wallet, CreditCard, PiggyBank, Plus, Upload, Filter, Search, TrendingUp, TrendingDown, ArrowUpRight,
+  Wallet, CreditCard, PiggyBank, Plus, Upload, Filter, Search,
+  TrendingUp, TrendingDown, ArrowUpRight, Check,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts'
 import { mockAccounts } from '@/mock/data'
 import { formatCurrency, formatCurrencyCompact, cn } from '@/lib/utils'
@@ -12,6 +14,150 @@ import { AccountNavPanel } from './AccountNavPanel'
 import { AccountDetails } from './AccountDetails'
 import { AccountInsightsPanel } from './AccountInsightsPanel'
 import { AddAccountModal } from './AddAccountModal'
+import type { AccountType } from '@/types'
+
+/* ── Filter types ─────────────────────────────────────── */
+
+type StatusFilter = 'active' | 'archived' | 'all'
+type TypeFilter   = 'all' | AccountType
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'active',   label: 'Active Accounts' },
+  { value: 'archived', label: 'Archived Accounts' },
+  { value: 'all',      label: 'All Accounts' },
+]
+
+const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
+  { value: 'all',        label: 'All Types' },
+  { value: 'checking',   label: 'Checking' },
+  { value: 'savings',    label: 'Savings' },
+  { value: 'cash',       label: 'Cash' },
+  { value: 'credit',     label: 'Credit Card' },
+  { value: 'loan',       label: 'Loan' },
+]
+
+/* ── Filter dropdown ──────────────────────────────────── */
+
+interface FilterDropdownProps {
+  statusFilter: StatusFilter
+  typeFilter: TypeFilter
+  onStatusChange: (v: StatusFilter) => void
+  onTypeChange: (v: TypeFilter) => void
+}
+
+function FilterDropdown({ statusFilter, typeFilter, onStatusChange, onTypeChange }: FilterDropdownProps) {
+  const [open, setOpen]  = useState(false)
+  const ref              = useRef<HTMLDivElement>(null)
+  const activeCount      = (statusFilter !== 'active' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0)
+
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={cn(
+          'inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-colors',
+          open || activeCount > 0
+            ? 'text-[#C4B5FD] border-[rgba(108,58,237,0.5)] bg-[rgba(108,58,237,0.08)]'
+            : 'text-[#A8B4CC] border-[#1A2540] hover:border-[#2A3A54] hover:text-white',
+        )}
+      >
+        <Filter size={15} />
+        Filter
+        {activeCount > 0 && (
+          <span className="flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-[#6C3AED] text-white leading-none">
+            {activeCount}
+          </span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.12 }}
+            className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-[#0F1623] border border-[#1E2B42] rounded-xl shadow-2xl overflow-hidden"
+          >
+            {/* Account Status section */}
+            <div className="px-3 pt-3 pb-1">
+              <p className="text-[10px] font-bold text-[#3A4A60] uppercase tracking-widest mb-1.5">
+                Account Status
+              </p>
+              {STATUS_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => onStatusChange(opt.value)}
+                  className={cn(
+                    'w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors text-left',
+                    statusFilter === opt.value
+                      ? 'text-white bg-[rgba(108,58,237,0.15)]'
+                      : 'text-[#A8B4CC] hover:text-white hover:bg-[#1A2540]',
+                  )}
+                >
+                  {opt.label}
+                  {statusFilter === opt.value && (
+                    <Check size={13} className="text-[#A78BFA] flex-shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Separator */}
+            <div className="mx-3 my-2 h-px bg-[#1E2B42]" />
+
+            {/* Account Type section */}
+            <div className="px-3 pb-3 pt-1">
+              <p className="text-[10px] font-bold text-[#3A4A60] uppercase tracking-widest mb-1.5">
+                Account Type
+              </p>
+              {TYPE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => onTypeChange(opt.value)}
+                  className={cn(
+                    'w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors text-left',
+                    typeFilter === opt.value
+                      ? 'text-white bg-[rgba(108,58,237,0.15)]'
+                      : 'text-[#A8B4CC] hover:text-white hover:bg-[#1A2540]',
+                  )}
+                >
+                  {opt.label}
+                  {typeFilter === opt.value && (
+                    <Check size={13} className="text-[#A78BFA] flex-shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Clear link */}
+            {activeCount > 0 && (
+              <>
+                <div className="mx-3 h-px bg-[#1E2B42]" />
+                <div className="px-3 py-2">
+                  <button
+                    onClick={() => { onStatusChange('active'); onTypeChange('all') }}
+                    className="text-xs text-[#5A6A85] hover:text-[#A78BFA] transition-colors"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 
 /* ── Summary card ────────────────────────────────────── */
 
@@ -96,57 +242,120 @@ function SummaryCard({ icon, iconColor, iconBg, accentColor = '#6C3AED', label, 
   )
 }
 
+/* ── Empty state ─────────────────────────────────────── */
+
+function EmptyState({ status, hasTypeFilter }: { status: StatusFilter; hasTypeFilter: boolean }) {
+  const content =
+    hasTypeFilter
+      ? { title: 'No matching accounts', desc: 'Try changing your filter selections.' }
+      : status === 'archived'
+        ? { title: 'No archived accounts', desc: 'Archived accounts will appear here when you archive an account.' }
+        : { title: 'No active accounts found', desc: 'Try adjusting your filters or create a new account.' }
+
+  return (
+    <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl flex flex-col items-center justify-center py-16 px-6 text-center">
+      <p className="text-base font-semibold text-[#A8B4CC] mb-1">{content.title}</p>
+      <p className="text-sm text-[#5A6A85]">{content.desc}</p>
+    </div>
+  )
+}
+
 /* ── main view ───────────────────────────────────────── */
 
 export function AccountsView() {
-  const [selectedId, setSelectedId]       = useState(mockAccounts[0].id)
-  const [addModalOpen, setAddModalOpen]   = useState(false)
+  const router       = useRouter()
+  const pathname     = usePathname()
+  const searchParams = useSearchParams()
 
-  /* summary calculations */
-  const cashAndChecking = mockAccounts.filter(a => a.type === 'checking' || a.type === 'cash')
+  const initialStatus = (searchParams.get('status') ?? 'active') as StatusFilter
+  const initialType   = (searchParams.get('type')   ?? 'all')    as TypeFilter
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus)
+  const [typeFilter,   setTypeFilter]   = useState<TypeFilter>(initialType)
+  const [addModalOpen, setAddModalOpen] = useState(false)
+
+  /* Filtered accounts */
+  const filteredAccounts = mockAccounts.filter(account => {
+    const statusMatch =
+      statusFilter === 'all'      ? true :
+      statusFilter === 'archived' ? !!account.archived :
+      !account.archived
+
+    const typeMatch = typeFilter === 'all' || account.type === typeFilter
+
+    return statusMatch && typeMatch
+  })
+
+  const [selectedId, setSelectedId] = useState(
+    filteredAccounts[0]?.id ?? mockAccounts[0].id,
+  )
+
+  /* Auto-select first visible account when filters change */
+  useEffect(() => {
+    if (!filteredAccounts.find(a => a.id === selectedId) && filteredAccounts.length > 0) {
+      setSelectedId(filteredAccounts[0].id)
+    }
+  }, [filteredAccounts, selectedId])
+
+  /* Sync filters to URL */
+  function updateFilter(key: 'status' | 'type', value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    const isDefault = (key === 'status' && value === 'active') || (key === 'type' && value === 'all')
+    if (isDefault) params.delete(key)
+    else params.set(key, value)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
+  function handleStatusChange(v: StatusFilter) {
+    setStatusFilter(v)
+    updateFilter('status', v)
+  }
+
+  function handleTypeChange(v: TypeFilter) {
+    setTypeFilter(v)
+    updateFilter('type', v)
+  }
+
+  /* Summary calculations — always from all active accounts */
+  const allActive       = mockAccounts.filter(a => !a.archived)
+  const cashAndChecking = allActive.filter(a => a.type === 'checking' || a.type === 'cash')
   const totalCash       = cashAndChecking.reduce((s, a) => s + a.balance, 0)
-
-  const creditAccounts  = mockAccounts.filter(a => a.type === 'credit')
+  const creditAccounts  = allActive.filter(a => a.type === 'credit')
   const creditDebt      = Math.abs(creditAccounts.reduce((s, a) => s + Math.min(0, a.balance), 0))
-
-  const savingsAccounts = mockAccounts.filter(a => a.type === 'savings')
+  const savingsAccounts = allActive.filter(a => a.type === 'savings')
   const savingsBalance  = savingsAccounts.reduce((s, a) => s + a.balance, 0)
-
-  const netWorth    = totalCash + savingsBalance - creditDebt
-  const totalAssets = totalCash + savingsBalance
-  const assetPct    = totalAssets > 0 ? Math.round((totalAssets / (totalAssets + creditDebt)) * 100) : 100
+  const netWorth        = totalCash + savingsBalance - creditDebt
+  const totalAssets     = totalCash + savingsBalance
+  const assetPct        = totalAssets > 0 ? Math.round((totalAssets / (totalAssets + creditDebt)) * 100) : 100
 
   const summaryCards: SummaryCardProps[] = [
     {
       icon: <Wallet size={24} />, iconColor: '#22C55E', iconBg: 'rgba(34,197,94,0.15)',
-      accentColor: '#22C55E',
-      label: 'Total Cash Balance',
-      value: formatCurrency(totalCash),
-      changeLabel: '+2.4% from last month', positive: true,
+      accentColor: '#22C55E', label: 'Total Cash Balance',
+      value: formatCurrency(totalCash), changeLabel: '+2.4% from last month', positive: true,
       sparkData: [{ v: 4200 }, { v: 4500 }, { v: 4100 }, { v: 4800 }, { v: 4600 }, { v: 5000 }, { v: 4900 }, { v: 5300 }, { v: 5100 }, { v: 5400 }],
     },
     {
       icon: <CreditCard size={24} />, iconColor: '#F87171', iconBg: 'rgba(239,68,68,0.15)',
-      accentColor: '#F87171',
-      label: 'Credit Card Debt',
-      value: formatCurrency(creditDebt),
-      changeLabel: '−5.2% vs last month', positive: true,
+      accentColor: '#F87171', label: 'Credit Card Debt',
+      value: formatCurrency(creditDebt), changeLabel: '−5.2% vs last month', positive: true,
       sparkData: [{ v: 2100 }, { v: 1950 }, { v: 2200 }, { v: 1850 }, { v: 2050 }, { v: 1980 }, { v: 1900 }, { v: 1820 }, { v: 1750 }, { v: 1680 }],
     },
     {
       icon: <PiggyBank size={24} />, iconColor: '#3B82F6', iconBg: 'rgba(59,130,246,0.15)',
-      accentColor: '#3B82F6',
-      label: 'Savings Balance',
-      value: formatCurrency(savingsBalance),
-      changeLabel: '+8.1% growth MTD', positive: true,
+      accentColor: '#3B82F6', label: 'Savings Balance',
+      value: formatCurrency(savingsBalance), changeLabel: '+8.1% growth MTD', positive: true,
       sparkData: [{ v: 8000 }, { v: 8400 }, { v: 8200 }, { v: 8900 }, { v: 8700 }, { v: 9200 }, { v: 9000 }, { v: 9600 }, { v: 9400 }, { v: 9800 }],
     },
   ]
 
+  const selectedAccount = filteredAccounts.find(a => a.id === selectedId) ?? filteredAccounts[0]
+
   return (
     <div className="layout-page py-6">
 
-      {/* Page title + action */}
+      {/* Page header */}
       <div className="flex items-end justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Accounts</h1>
@@ -161,10 +370,12 @@ export function AccountsView() {
               className="pl-8 pr-3 py-2.5 text-sm text-[#A8B4CC] bg-transparent border border-[#1A2540] rounded-xl w-72 placeholder-[#5A6A85] focus:outline-none focus:border-[#2A3A54] hover:border-[#2A3A54] transition-colors"
             />
           </div>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-[#A8B4CC] rounded-xl border border-[#1A2540] hover:border-[#2A3A54] hover:text-white transition-colors">
-            <Filter size={15} />
-            Filter
-          </button>
+          <FilterDropdown
+            statusFilter={statusFilter}
+            typeFilter={typeFilter}
+            onStatusChange={handleStatusChange}
+            onTypeChange={handleTypeChange}
+          />
           <button className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-[#A8B4CC] rounded-xl border border-[#1A2540] hover:border-[#2A3A54] hover:text-white transition-colors">
             <Upload size={15} />
             Import
@@ -185,7 +396,7 @@ export function AccountsView() {
           <SummaryCard key={card.label} {...card} />
         ))}
 
-        {/* Featured Net Worth card */}
+        {/* Net Worth card */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -206,7 +417,6 @@ export function AccountsView() {
             </div>
           </div>
 
-          {/* Assets vs Liabilities bar */}
           <div>
             <div className="flex justify-between text-[10px] text-[#5A6A85] mb-1.5">
               <span>Assets <span className="text-[#22C55E] font-semibold">{formatCurrency(totalAssets)}</span></span>
@@ -221,11 +431,19 @@ export function AccountsView() {
       </div>
 
       {/* 3-column layout */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr_256px] items-stretch">
-        <AccountNavPanel selectedId={selectedId} onSelect={setSelectedId} />
-        <AccountDetails  accountId={selectedId} />
-        <AccountInsightsPanel accountId={selectedId} />
-      </div>
+      {filteredAccounts.length === 0 ? (
+        <EmptyState status={statusFilter} hasTypeFilter={typeFilter !== 'all'} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr_256px] items-stretch">
+          <AccountNavPanel
+            accounts={filteredAccounts}
+            selectedId={selectedAccount?.id ?? ''}
+            onSelect={setSelectedId}
+          />
+          <AccountDetails accountId={selectedAccount?.id ?? ''} />
+          <AccountInsightsPanel accountId={selectedAccount?.id ?? ''} />
+        </div>
+      )}
 
       <AddAccountModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
     </div>
