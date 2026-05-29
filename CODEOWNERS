@@ -1,0 +1,30 @@
+# Moniqo CODEOWNERS
+# Order matters: the last matching pattern takes precedence.
+
+# Default owner for everything
+*                           @abdul-saqib
+
+# Apps
+/apps/backend/              @abdul-saqib
+/apps/web/                  @abdul-saqib
+/apps/mobile/               @abdul-saqib
+/apps/desktop/              @abdul-saqib
+
+# Shared packages
+/packages/                  @abdul-saqib
+
+# Root config & governance
+/.github/                   @abdul-saqib
+/package.json               @abdul-saqib
+/pnpm-workspace.yaml        @abdul-saqib
+/.gitignore                 @abdul-saqib
+/LICENSE                    @abdul-saqib
+/README.md                  @abdul-saqib
+/ROADMAP.md                 @abdul-saqib
+/CONTRIBUTING.md            @abdul-saqib
+/CODE_OF_CONDUCT.md         @abdul-saqib
+/CLAUDE.md                  @abdul-saqib
+
+# Documentation & agreements
+/docs/                      @abdul-saqib
+/agreements/                @abdul-saqib
