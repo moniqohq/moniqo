@@ -322,7 +322,7 @@ export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) 
     <div className="space-y-4 min-w-0">
 
       {/* ── Header ────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
         {/* Left — icon + title + pills */}
         <div className="flex items-start gap-4 flex-1 min-w-0">
@@ -349,10 +349,10 @@ export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) 
         </div>
 
         {/* Right — action buttons */}
-        <div className="grid grid-cols-2 gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => setAddTxOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all whitespace-nowrap col-span-2 sm:col-span-1"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl transition-all whitespace-nowrap"
             style={{
               background: 'linear-gradient(135deg, #6C3AED 0%, #7C4AFF 100%)',
               boxShadow: '0 0 20px rgba(108,58,237,0.35)',
@@ -363,19 +363,30 @@ export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) 
           </button>
           <button
             onClick={() => setModifyOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[#E2EAF4] bg-[#0D1525] border border-[#1A2540] rounded-xl hover:bg-[#111B2D] hover:border-[#2A3A54] transition-all whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-xl transition-all whitespace-nowrap"
+            style={{
+              background: 'linear-gradient(135deg, #92400E 0%, #B45309 100%)',
+              color: '#fff',
+              boxShadow: '0 0 12px rgba(180,83,9,0.25)',
+              border: '1px solid rgba(180,83,9,0.4)',
+            }}
           >
             <Pencil size={13} />
             Modify Envelope
           </button>
           <button
             onClick={() => setArchiveOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[#E2EAF4] bg-[#0D1525] border border-[#1A2540] rounded-xl hover:bg-[#111B2D] hover:border-[#2A3A54] transition-all whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-xl transition-all whitespace-nowrap"
+            style={{
+              background: 'linear-gradient(135deg, #7F1D1D 0%, #991B1B 100%)',
+              color: '#fff',
+              boxShadow: '0 0 12px rgba(153,27,27,0.25)',
+              border: '1px solid rgba(153,27,27,0.4)',
+            }}
           >
             <Archive size={13} />
             Archive Envelope
           </button>
-          <MoreDropdown />
         </div>
       </div>
 
@@ -579,7 +590,7 @@ export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) 
                 value={search}
                 onChange={e => { setSearch(e.target.value); setPage(1) }}
                 placeholder="Search transactions..."
-                className="pl-8 pr-3 py-2 text-xs bg-[#0D1525] border border-[#1A2540] rounded-lg text-white placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 focus:border-[#6C3AED] transition-all w-48"
+                className="pl-8 pr-3 py-2 text-xs bg-[#0D1525] border border-[#1A2540] rounded-lg text-white placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 focus:border-[#6C3AED] transition-all w-64"
               />
             </div>
             <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-[#7A8BA8] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white hover:border-[#2A3A54] transition-all">

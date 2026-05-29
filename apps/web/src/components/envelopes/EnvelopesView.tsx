@@ -4,10 +4,10 @@ import { useState, useRef, useEffect } from 'react'
 import {
   Plus, Search, ChevronDown, ChevronLeft, ChevronRight,
   LayoutList, LayoutGrid, SlidersHorizontal, ArrowUpDown,
-  Pencil, MoreVertical, PlusCircle,
+  Pencil, PlusCircle, Archive,
   Home, ShoppingCart, Zap, UtensilsCrossed, ShoppingBag,
   Gamepad2, Bus, PiggyBank, CreditCard, TrendingUp,
-  Shield, Star, Heart, AlertTriangle, Eye, Copy, Trash2,
+  Shield, Star, Heart, AlertTriangle,
   ArrowRight,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -15,6 +15,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatCurrency, cn } from '@/lib/utils'
 import { AddEnvelopeModal } from './AddEnvelopeModal'
 import { ModifyEnvelopeModal } from './ModifyEnvelopeModal'
+import { ArchiveEnvelopeModal } from './ArchiveEnvelopeModal'
 import { EnvelopeDetails } from './EnvelopeDetails'
 
 /* ── Local types ────────────────────────────────────────── */
@@ -143,60 +144,23 @@ function EnvelopeProgress({ pct }: { pct: number }) {
 }
 
 /* ── Row actions ────────────────────────────────────────── */
-function RowActions({ onEdit, onView }: { onEdit: () => void; onView?: () => void }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
+function RowActions({ onAddTransaction, onModify, onArchive }: {
+  onAddTransaction: () => void
+  onModify: () => void
+  onArchive: () => void
+}) {
+  const btnCls = "p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
   return (
-    <div className="flex items-center gap-0.5" ref={ref}>
-      <button
-        onClick={onEdit}
-        className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
-      >
-        <Pencil size={13} />
-      </button>
-      <button className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
+    <div className="flex items-center gap-0.5">
+      <button onClick={onAddTransaction} title="Add Transaction" className={btnCls}>
         <PlusCircle size={13} />
       </button>
-      <div className="relative">
-        <button
-          onClick={() => setOpen(o => !o)}
-          className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
-        >
-          <MoreVertical size={13} />
-        </button>
-        {open && (
-          <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-xl z-30 py-1 overflow-hidden">
-            {[
-              { icon: <Eye size={12} />, label: 'View Transactions', action: onView },
-              { icon: <Copy size={12} />, label: 'Duplicate', action: undefined as (() => void) | undefined },
-              { icon: <Pencil size={12} />, label: 'Edit Envelope', action: onEdit },
-            ].map(item => (
-              <button
-                key={item.label}
-                onClick={() => { item.action?.(); setOpen(false) }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#5A6A85] hover:bg-[#131C2E] hover:text-[#A8B4CC] transition-colors"
-              >
-                {item.icon}
-                {item.label}
-              </button>
-            ))}
-            <div className="my-1 border-t border-[#1A2640]" />
-            <button className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#F87171] hover:bg-[rgba(239,68,68,0.08)] transition-colors">
-              <Trash2 size={12} />
-              Delete
-            </button>
-          </div>
-        )}
-      </div>
+      <button onClick={onModify} title="Modify Envelope" className={btnCls}>
+        <Pencil size={13} />
+      </button>
+      <button onClick={onArchive} title="Archive Envelope" className={btnCls}>
+        <Archive size={13} />
+      </button>
     </div>
   )
 }
@@ -556,6 +520,7 @@ function SideCard({ title, children, action }: { title: string; children: React.
 export function EnvelopesView() {
   const [addOpen, setAddOpen] = useState(false)
   const [modifyOpen, setModifyOpen] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'list' | 'grid'>('list')
   const [sort, setSort] = useState('A–Z')
@@ -831,7 +796,11 @@ export function EnvelopesView() {
                           {/* Actions */}
                           <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex justify-end">
-                              <RowActions onEdit={() => setModifyOpen(true)} onView={() => setSelectedId(env.id)} />
+                              <RowActions
+  onAddTransaction={() => {}}
+  onModify={() => setModifyOpen(true)}
+  onArchive={() => setArchiveOpen(true)}
+/>
                             </div>
                           </td>
                         </motion.tr>
@@ -1025,6 +994,7 @@ export function EnvelopesView() {
 
       <AddEnvelopeModal open={addOpen} onClose={() => setAddOpen(false)} />
       <ModifyEnvelopeModal open={modifyOpen} onClose={() => setModifyOpen(false)} />
+      <ArchiveEnvelopeModal open={archiveOpen} onClose={() => setArchiveOpen(false)} />
     </div>
   )
 }
