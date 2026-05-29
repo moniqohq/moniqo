@@ -13,6 +13,9 @@ import {
 import { motion } from 'framer-motion'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatCurrency, cn } from '@/lib/utils'
+import { AddEnvelopeModal } from './AddEnvelopeModal'
+import { ModifyEnvelopeModal } from './ModifyEnvelopeModal'
+import { EnvelopeDetails } from './EnvelopeDetails'
 
 /* ── Local types ────────────────────────────────────────── */
 type Nature = 'Must' | 'Need' | 'Should' | 'Want'
@@ -140,7 +143,7 @@ function EnvelopeProgress({ pct }: { pct: number }) {
 }
 
 /* ── Row actions ────────────────────────────────────────── */
-function RowActions() {
+function RowActions({ onEdit, onView }: { onEdit: () => void; onView?: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -154,7 +157,10 @@ function RowActions() {
 
   return (
     <div className="flex items-center gap-0.5" ref={ref}>
-      <button className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
+      <button
+        onClick={onEdit}
+        className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
+      >
         <Pencil size={13} />
       </button>
       <button className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
@@ -170,12 +176,13 @@ function RowActions() {
         {open && (
           <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-xl z-30 py-1 overflow-hidden">
             {[
-              { icon: <Eye size={12} />, label: 'View Transactions' },
-              { icon: <Copy size={12} />, label: 'Duplicate' },
-              { icon: <Pencil size={12} />, label: 'Edit Envelope' },
+              { icon: <Eye size={12} />, label: 'View Transactions', action: onView },
+              { icon: <Copy size={12} />, label: 'Duplicate', action: undefined as (() => void) | undefined },
+              { icon: <Pencil size={12} />, label: 'Edit Envelope', action: onEdit },
             ].map(item => (
               <button
                 key={item.label}
+                onClick={() => { item.action?.(); setOpen(false) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#5A6A85] hover:bg-[#131C2E] hover:text-[#A8B4CC] transition-colors"
               >
                 {item.icon}
@@ -547,6 +554,8 @@ function SideCard({ title, children, action }: { title: string; children: React.
 
 /* ── Main view ──────────────────────────────────────────── */
 export function EnvelopesView() {
+  const [addOpen, setAddOpen] = useState(false)
+  const [modifyOpen, setModifyOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'list' | 'grid'>('list')
   const [sort, setSort] = useState('A–Z')
@@ -554,6 +563,7 @@ export function EnvelopesView() {
   const [filterStatuses, setFilterStatuses] = useState<Set<Status>>(new Set())
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   /* Filtering + sorting */
   const filtered = MOCK_ENVELOPES.filter(e => {
@@ -582,13 +592,30 @@ export function EnvelopesView() {
   const totalOverspent = overspentRows.reduce((s, e) => s + Math.abs(getRemaining(e)), 0)
   const toBeBudgeted   = 18500
 
+  if (selectedId) {
+    return (
+      <div className="layout-page py-6">
+        <div className="mb-5">
+          <button
+            onClick={() => setSelectedId(null)}
+            className="inline-flex items-center gap-1.5 text-sm text-[#7A8BA8] hover:text-[#E8EEF8] transition-colors"
+          >
+            <ChevronLeft size={15} />
+            Back to Envelopes
+          </button>
+        </div>
+        <EnvelopeDetails envelopeId={selectedId} />
+      </div>
+    )
+  }
+
   return (
     <div className="layout-page py-6">
 
       {/* ── Header ──────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-start gap-4 mb-6">
         <div className="flex-1 min-w-0">
-          <h1 className="text-[22px] font-semibold text-white tracking-tight">Budget Envelopes</h1>
+          <h1 className="text-[22px] font-semibold text-white tracking-tight">Envelopes</h1>
           <p className="text-[13px] text-[#5A6A85] mt-0.5">Plan and track your budget allocations</p>
         </div>
 
@@ -604,7 +631,7 @@ export function EnvelopesView() {
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
               placeholder="Search envelopes..."
-              className="block w-52 py-2 pl-9 pr-3 text-sm text-[#A8B4CC] bg-[#080D1A] border border-[#1A2640] rounded-lg placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25 focus:border-[#6C3AED] transition-colors"
+              className="block w-72 py-2 pl-9 pr-3 text-sm text-[#A8B4CC] bg-[#080D1A] border border-[#1A2640] rounded-lg placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25 focus:border-[#6C3AED] transition-colors"
             />
           </div>
 
@@ -639,7 +666,10 @@ export function EnvelopesView() {
             </button>
           </div>
 
-          <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#6C3AED] rounded-lg border border-[#6C3AED] hover:bg-[#7C4AFF] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-colors shadow-sm whitespace-nowrap">
+          <button
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#6C3AED] rounded-lg border border-[#6C3AED] hover:bg-[#7C4AFF] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-colors shadow-sm whitespace-nowrap"
+          >
             <Plus size={14} />
             Add Envelope
           </button>
@@ -749,7 +779,8 @@ export function EnvelopesView() {
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: i * 0.018 }}
-                          className="group hover:bg-[#0D1828] transition-colors"
+                          onClick={() => setSelectedId(env.id)}
+                          className="group hover:bg-[#0D1828] transition-colors cursor-pointer"
                         >
                           {/* Envelope */}
                           <td className="px-4 py-3">
@@ -798,9 +829,9 @@ export function EnvelopesView() {
                           </td>
 
                           {/* Actions */}
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex justify-end">
-                              <RowActions />
+                              <RowActions onEdit={() => setModifyOpen(true)} onView={() => setSelectedId(env.id)} />
                             </div>
                           </td>
                         </motion.tr>
@@ -874,7 +905,8 @@ export function EnvelopesView() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
-                    className="bg-[#0B1220] border border-[#1A2640] rounded-xl p-4 hover:border-[#2A3A54] transition-colors"
+                    onClick={() => setSelectedId(env.id)}
+                    className="bg-[#0B1220] border border-[#1A2640] rounded-xl p-4 hover:border-[#2A3A54] transition-colors cursor-pointer"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2.5">
@@ -926,9 +958,9 @@ export function EnvelopesView() {
             <HealthRadial score={78} />
           </SideCard>
 
-          {/* Top Overspent */}
+          {/* Top Spend */}
           <SideCard
-            title="Top Overspent"
+            title="Top Spend"
             action={
               <button className="text-xs text-[#6C3AED] hover:text-[#7C4AFF] transition-colors inline-flex items-center gap-1">
                 View all <ArrowRight size={11} />
@@ -936,7 +968,7 @@ export function EnvelopesView() {
             }
           >
             <div className="flex flex-col gap-2.5">
-              {MOCK_ENVELOPES.filter(e => getRemaining(e) < 0).slice(0, 3).map(env => {
+              {[...MOCK_ENVELOPES].sort((a, b) => b.spent - a.spent).slice(0, 2).map(env => {
                 const icon = ICON_MAP[env.iconKey] ?? ICON_MAP.home
                 return (
                   <div key={env.id} className="flex items-center gap-2.5">
@@ -948,15 +980,15 @@ export function EnvelopesView() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-[#A8B4CC] truncate">{env.name}</p>
-                      <p className="text-[11px] text-[#F87171] font-semibold tabular-nums">
-                        {formatCurrency(Math.abs(getRemaining(env)))} over
+                      <p className="text-[11px] text-[#A78BFA] font-semibold tabular-nums">
+                        {formatCurrency(env.spent)} spent
                       </p>
                     </div>
                   </div>
                 )
               })}
-              {MOCK_ENVELOPES.filter(e => getRemaining(e) < 0).length === 0 && (
-                <p className="text-xs text-[#5A6A85]">No overspent envelopes.</p>
+              {MOCK_ENVELOPES.length === 0 && (
+                <p className="text-xs text-[#5A6A85]">No envelopes found.</p>
               )}
             </div>
           </SideCard>
@@ -990,6 +1022,9 @@ export function EnvelopesView() {
 
         </div>
       </div>
+
+      <AddEnvelopeModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <ModifyEnvelopeModal open={modifyOpen} onClose={() => setModifyOpen(false)} />
     </div>
   )
 }

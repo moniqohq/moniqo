@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  LayoutDashboard, ArrowLeftRight, Landmark, Tag,
+  LayoutDashboard, ArrowLeftRight, Landmark, Mail,
   Target, BarChart2, Settings,
   BookOpen, HelpCircle, Sparkles,
   X,
@@ -16,7 +16,7 @@ const mainNavItems = [
   { label: 'Dashboard',    href: '/dashboard',    icon: LayoutDashboard },
   { label: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
   { label: 'Accounts',     href: '/accounts',     icon: Landmark },
-  { label: 'Categories',   href: '/envelopes',    icon: Tag },
+  { label: 'Envelopes',    href: '/envelopes',    icon: Mail },
   { label: 'Goals',        href: '/goals',        icon: Target },
   { label: 'Reports',      href: '/reports',      icon: BarChart2 },
   { label: 'Settings',     href: '/settings',     icon: Settings },
