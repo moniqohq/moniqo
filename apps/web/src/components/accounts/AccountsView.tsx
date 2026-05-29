@@ -11,6 +11,7 @@ import { formatCurrency, formatCurrencyCompact, cn } from '@/lib/utils'
 import { AccountNavPanel } from './AccountNavPanel'
 import { AccountDetails } from './AccountDetails'
 import { AccountInsightsPanel } from './AccountInsightsPanel'
+import { AddAccountModal } from './AddAccountModal'
 
 /* ── Summary card ────────────────────────────────────── */
 
@@ -98,7 +99,8 @@ function SummaryCard({ icon, iconColor, iconBg, accentColor = '#6C3AED', label, 
 /* ── main view ───────────────────────────────────────── */
 
 export function AccountsView() {
-  const [selectedId, setSelectedId] = useState(mockAccounts[0].id)
+  const [selectedId, setSelectedId]       = useState(mockAccounts[0].id)
+  const [addModalOpen, setAddModalOpen]   = useState(false)
 
   /* summary calculations */
   const cashAndChecking = mockAccounts.filter(a => a.type === 'checking' || a.type === 'cash')
@@ -167,7 +169,10 @@ export function AccountsView() {
             <Upload size={15} />
             Import
           </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 mr-2 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] hover:from-[#6C3AED] hover:to-[#7C4AFF] shadow-[0_0_20px_rgba(108,58,237,0.35)] hover:shadow-[0_0_28px_rgba(108,58,237,0.5)] transition-all">
+          <button
+            onClick={() => setAddModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 mr-2 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] hover:from-[#6C3AED] hover:to-[#7C4AFF] shadow-[0_0_20px_rgba(108,58,237,0.35)] hover:shadow-[0_0_28px_rgba(108,58,237,0.5)] transition-all"
+          >
             <Plus size={15} />
             Add Account
           </button>
@@ -221,6 +226,8 @@ export function AccountsView() {
         <AccountDetails  accountId={selectedId} />
         <AccountInsightsPanel accountId={selectedId} />
       </div>
+
+      <AddAccountModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
     </div>
   )
 }

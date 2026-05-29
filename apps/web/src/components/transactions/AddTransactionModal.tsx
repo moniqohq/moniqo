@@ -14,6 +14,7 @@ import type { TransactionType } from '@/types'
 interface AddTransactionModalProps {
   open: boolean
   onClose: () => void
+  defaultType?: TransactionType
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
@@ -45,10 +46,10 @@ const fieldLabel = 'block mb-2 text-sm font-medium text-[#A8B4CC]'
 
 /* ── component ───────────────────────────────────────────── */
 
-export function AddTransactionModal({ open, onClose }: AddTransactionModalProps) {
+export function AddTransactionModal({ open, onClose, defaultType = 'expense' }: AddTransactionModalProps) {
 
   /* core state */
-  const [txType,          setTxType]          = useState<TransactionType>('expense')
+  const [txType,          setTxType]          = useState<TransactionType>(defaultType)
   const [amount,          setAmount]          = useState('')
   const [payee,           setPayee]           = useState('')
   const [selectedAccount, setSelectedAccount] = useState(mockAccounts[0])
@@ -74,6 +75,7 @@ export function AddTransactionModal({ open, onClose }: AddTransactionModalProps)
   /* keyboard + scroll lock */
   useEffect(() => {
     if (!open) return
+    setTxType(defaultType)
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'

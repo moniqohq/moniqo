@@ -11,6 +11,8 @@ import { mockAccounts, mockTransactions, mockBudgets } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
 import type { AccountType } from '@/types'
 import { BalanceChart, type ChartPoint } from './BalanceChart'
+import { ModifyAccountModal } from './ModifyAccountModal'
+import { AddTransactionModal } from '@/components/transactions/AddTransactionModal'
 
 /* ── account metadata & balance history ──────────────── */
 
@@ -194,8 +196,11 @@ function MetaCard({ label, value, masked, showMask, onToggleMask, valueColor, mu
 interface Props { accountId: string }
 
 export function AccountDetails({ accountId }: Props) {
-  const [search,     setSearch]     = useState('')
-  const [showAccNum, setShowAccNum] = useState(false)
+  const [search,       setSearch]       = useState('')
+  const [showAccNum,   setShowAccNum]   = useState(false)
+  const [modifyOpen,   setModifyOpen]   = useState(false)
+  const [addTxOpen,    setAddTxOpen]    = useState(false)
+  const [addTxDefault, setAddTxDefault] = useState<'expense' | 'income' | 'transfer'>('expense')
 
   const account = mockAccounts.find(a => a.id === accountId) ?? mockAccounts[0]
   const meta    = ACCOUNT_META[account.id] ?? ACCOUNT_META.a1
@@ -243,16 +248,19 @@ export function AccountDetails({ accountId }: Props) {
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-            {[
-              { icon: <Plus size={14} />, label: 'Add Transaction' },
-              { icon: <ArrowLeftRight size={14} />, label: 'Transfer' },
-              { icon: <CheckCircle size={14} />, label: 'Reconcile' },
-              { icon: <Edit2 size={14} />, label: 'Edit' },
-              { icon: <Archive size={14} />, label: 'Archive' },
-            ].map(({ icon, label }) => (
+            {(
+              [
+                { icon: <Plus size={14} />, label: 'Add Transaction', onClick: () => { setAddTxDefault('expense'); setAddTxOpen(true) } },
+                { icon: <ArrowLeftRight size={14} />, label: 'Transfer', onClick: () => { setAddTxDefault('transfer'); setAddTxOpen(true) } },
+                { icon: <CheckCircle size={14} />, label: 'Reconcile', onClick: undefined },
+                { icon: <Edit2 size={14} />, label: 'Edit', onClick: () => setModifyOpen(true) },
+                { icon: <Archive size={14} />, label: 'Archive', onClick: undefined },
+              ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
+            ).map(({ icon, label, onClick }) => (
               <button
                 key={label}
                 title={label}
+                onClick={onClick}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#E2EAF4] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white hover:bg-[#111B2D] hover:border-[#2A3A54] transition-all"
               >
                 {icon}
@@ -421,6 +429,17 @@ export function AccountDetails({ accountId }: Props) {
           </div>
         )}
       </div>
+
+      <ModifyAccountModal
+        open={modifyOpen}
+        onClose={() => setModifyOpen(false)}
+        accountId={accountId}
+      />
+      <AddTransactionModal
+        open={addTxOpen}
+        onClose={() => setAddTxOpen(false)}
+        defaultType={addTxDefault}
+      />
     </div>
   )
 }
