@@ -3,14 +3,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Building2, PiggyBank, CreditCard, Wallet, TrendingUp,
-  ChevronDown, Plus,
+  Building2, PiggyBank, CreditCard, Wallet, TrendingUp, Landmark,
+  ChevronDown, Plus, Archive,
 } from 'lucide-react'
-import { mockAccounts } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
 import type { Account, AccountType } from '@/types'
 
 interface Props {
+  accounts: Account[]
   selectedId: string
   onSelect: (id: string) => void
 }
@@ -21,17 +21,25 @@ const TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string; bg:
   credit:     { icon: <CreditCard size={14} />, color: '#F87171', bg: 'rgba(239,68,68,0.15)'  },
   cash:       { icon: <Wallet     size={14} />, color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
   investment: { icon: <TrendingUp size={14} />, color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)' },
+  loan:       { icon: <Landmark   size={14} />, color: '#EC4899', bg: 'rgba(236,72,153,0.15)' },
 }
 
 const GROUPS: { label: string; types: AccountType[] }[] = [
   { label: 'Cash & Checking', types: ['checking', 'cash'] },
   { label: 'Savings',         types: ['savings'] },
   { label: 'Credit Cards',    types: ['credit'] },
+  { label: 'Loans',           types: ['loan'] },
   { label: 'Investments',     types: ['investment'] },
 ]
 
-function AccountRow({ account, selected, onSelect }: { account: Account; selected: boolean; onSelect: () => void }) {
-  const meta = TYPE_META[account.type]
+function AccountRow({
+  account, selected, onSelect,
+}: {
+  account: Account
+  selected: boolean
+  onSelect: () => void
+}) {
+  const meta     = TYPE_META[account.type]
   const negative = account.balance < 0
   return (
     <button
@@ -50,9 +58,17 @@ function AccountRow({ account, selected, onSelect }: { account: Account; selecte
         {meta.icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={cn('text-xs font-semibold truncate', selected ? 'text-[#C4B5FD]' : 'text-[#D1D9E8] group-hover:text-white')}>
-          {account.name}
-        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className={cn('text-xs font-semibold truncate', selected ? 'text-[#C4B5FD]' : 'text-[#D1D9E8] group-hover:text-white')}>
+            {account.name}
+          </p>
+          {account.archived && (
+            <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-[#1A2540] text-[#5A6A85] border border-[#252F45] flex-shrink-0">
+              <Archive size={8} />
+              Archived
+            </span>
+          )}
+        </div>
         {account.institution && (
           <p className="text-[10px] text-[#5A6A85] truncate">{account.institution}</p>
         )}
@@ -68,8 +84,14 @@ function AccountRow({ account, selected, onSelect }: { account: Account; selecte
 }
 
 function AccountGroup({
-  label, accounts, selectedId, onSelect,
-}: { label: string; accounts: Account[]; selectedId: string; onSelect: (id: string) => void }) {
+  label, accounts, selectedId, onSelect, archived,
+}: {
+  label: string
+  accounts: Account[]
+  selectedId: string
+  onSelect: (id: string) => void
+  archived?: boolean
+}) {
   const [open, setOpen] = useState(true)
   if (accounts.length === 0) return null
   return (
@@ -78,7 +100,10 @@ function AccountGroup({
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-1 py-1.5 group"
       >
-        <span className="text-[10px] font-bold text-[#5A6A85] uppercase tracking-widest group-hover:text-[#5A6A85] transition-colors">
+        <span className={cn(
+          'text-[10px] font-bold uppercase tracking-widest transition-colors',
+          archived ? 'text-[#3A4A60]' : 'text-[#5A6A85]',
+        )}>
           {label}
         </span>
         <div className="flex items-center gap-1.5">
@@ -116,42 +141,46 @@ function AccountGroup({
   )
 }
 
-export function AccountNavPanel({ selectedId, onSelect }: Props) {
+export function AccountNavPanel({ accounts, selectedId, onSelect }: Props) {
+  const activeAccounts   = accounts.filter(a => !a.archived)
+  const archivedAccounts = accounts.filter(a => a.archived)
+
   return (
     <div className="bg-[#0B1120] border border-[#1A2540] rounded-2xl flex flex-col overflow-hidden h-full">
       <div className="px-4 pt-4 pb-3 border-b border-[#1A2540]">
         <h3 className="text-sm font-bold text-white">Accounts</h3>
-        <p className="text-xs text-[#5A6A85] mt-0.5">{mockAccounts.length} total accounts</p>
+        <p className="text-xs text-[#5A6A85] mt-0.5">{accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {GROUPS.map(({ label, types }) => {
-          const accounts = mockAccounts.filter(a => types.includes(a.type))
+          const groupAccounts = activeAccounts.filter(a => types.includes(a.type))
           return (
             <AccountGroup
               key={label}
               label={label}
-              accounts={accounts}
+              accounts={groupAccounts}
               selectedId={selectedId}
               onSelect={onSelect}
             />
           )
         })}
 
-        {/* Archived section (empty) */}
-        <div>
-          <button className="w-full flex items-center justify-between px-1 py-1.5 group">
-            <span className="text-[10px] font-bold text-[#5A6A85] uppercase tracking-widest group-hover:text-[#5A6A85] transition-colors">
-              Archived
-            </span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-[#5A6A85] bg-[#0D1525] border border-[#1A2540] rounded-full px-1.5 py-0.5">
-                0
-              </span>
-              <ChevronDown size={12} className="text-[#5A6A85] -rotate-90" />
-            </div>
-          </button>
-        </div>
+        {archivedAccounts.length > 0 && (
+          <AccountGroup
+            label="Archived"
+            accounts={archivedAccounts}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            archived
+          />
+        )}
+
+        {accounts.length === 0 && (
+          <div className="px-2 py-8 text-center">
+            <p className="text-xs text-[#3A4A60]">No accounts to display</p>
+          </div>
+        )}
       </div>
 
       <div className="p-3 border-t border-[#1A2540]">

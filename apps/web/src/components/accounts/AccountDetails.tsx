@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Building2, PiggyBank, CreditCard, Wallet, TrendingUp, TrendingDown,
-  Plus, ArrowLeftRight, CheckCircle, Edit2, Archive,
-  Search, Filter, ChevronDown, Eye, EyeOff,
+  Building2, PiggyBank, CreditCard, Wallet, TrendingUp, TrendingDown, Landmark,
+  Plus, ArrowLeftRight, CheckCircle, Edit2, Archive, RotateCcw, Trash2,
+  Search, Filter, Eye, EyeOff,
 } from 'lucide-react'
 import { mockAccounts, mockTransactions, mockBudgets } from '@/mock/data'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -13,15 +13,17 @@ import type { AccountType } from '@/types'
 import { BalanceChart, type ChartPoint } from './BalanceChart'
 import { ModifyAccountModal } from './ModifyAccountModal'
 import { AddTransactionModal } from '@/components/transactions/AddTransactionModal'
+import { ForceDeleteAccountDialog } from './ForceDeleteAccountDialog'
 
 /* ── account metadata & balance history ──────────────── */
 
 const TYPE_META: Record<AccountType, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
-  checking:   { icon: <Building2 size={22} />, label: 'Checking',   color: '#3B82F6', bg: 'rgba(59,130,246,0.15)'  },
+  checking:   { icon: <Building2 size={22} />, label: 'Checking',    color: '#3B82F6', bg: 'rgba(59,130,246,0.15)'  },
   savings:    { icon: <PiggyBank  size={22} />, label: 'Savings',    color: '#22C55E', bg: 'rgba(34,197,94,0.15)'   },
   credit:     { icon: <CreditCard size={22} />, label: 'Credit Card',color: '#F87171', bg: 'rgba(239,68,68,0.15)'   },
   cash:       { icon: <Wallet     size={22} />, label: 'Cash',       color: '#F59E0B', bg: 'rgba(245,158,11,0.15)'  },
   investment: { icon: <TrendingUp size={22} />, label: 'Investment', color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)'  },
+  loan:       { icon: <Landmark   size={22} />, label: 'Loan',       color: '#EC4899', bg: 'rgba(236,72,153,0.15)'  },
 }
 
 interface AccountMeta {
@@ -201,6 +203,7 @@ export function AccountDetails({ accountId }: Props) {
   const [modifyOpen,   setModifyOpen]   = useState(false)
   const [addTxOpen,    setAddTxOpen]    = useState(false)
   const [addTxDefault, setAddTxDefault] = useState<'expense' | 'income' | 'transfer'>('expense')
+  const [deleteOpen,   setDeleteOpen]   = useState(false)
 
   const account = mockAccounts.find(a => a.id === accountId) ?? mockAccounts[0]
   const meta    = ACCOUNT_META[account.id] ?? ACCOUNT_META.a1
@@ -238,6 +241,12 @@ export function AccountDetails({ accountId }: Props) {
                 >
                   {typeMeta.label}
                 </span>
+                {account.archived && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#1A2540] text-[#5A6A85] border border-[#252F45]">
+                    <Archive size={11} />
+                    Archived
+                  </span>
+                )}
               </div>
               {budget && (
                 <p className="text-xs text-[#7C4AFF] mt-1 font-medium">{budget.name}</p>
@@ -248,25 +257,46 @@ export function AccountDetails({ accountId }: Props) {
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-            {(
-              [
-                { icon: <Plus size={14} />, label: 'Add Transaction', onClick: () => { setAddTxDefault('expense'); setAddTxOpen(true) } },
-                { icon: <ArrowLeftRight size={14} />, label: 'Transfer', onClick: () => { setAddTxDefault('transfer'); setAddTxOpen(true) } },
-                { icon: <CheckCircle size={14} />, label: 'Reconcile', onClick: undefined },
-                { icon: <Edit2 size={14} />, label: 'Edit', onClick: () => setModifyOpen(true) },
-                { icon: <Archive size={14} />, label: 'Archive', onClick: undefined },
-              ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
-            ).map(({ icon, label, onClick }) => (
-              <button
-                key={label}
-                title={label}
-                onClick={onClick}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#E2EAF4] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white hover:bg-[#111B2D] hover:border-[#2A3A54] transition-all"
-              >
-                {icon}
-                <span className="hidden sm:inline">{label}</span>
-              </button>
-            ))}
+            {account.archived ? (
+              <>
+                <button
+                  title="Restore Account"
+                  onClick={undefined}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#4ADE80] bg-[rgba(34,197,94,0.08)] border border-[rgba(34,197,94,0.25)] rounded-lg hover:bg-[rgba(34,197,94,0.15)] hover:border-[rgba(34,197,94,0.4)] transition-all"
+                >
+                  <RotateCcw size={14} />
+                  <span className="hidden sm:inline">Restore Account</span>
+                </button>
+                <button
+                  title="Delete Account"
+                  onClick={() => setDeleteOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#F87171] bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.25)] rounded-lg hover:bg-[rgba(239,68,68,0.15)] hover:border-[rgba(239,68,68,0.4)] transition-all"
+                >
+                  <Trash2 size={14} />
+                  <span className="hidden sm:inline">Delete Account</span>
+                </button>
+              </>
+            ) : (
+              (
+                [
+                  { icon: <Plus size={14} />, label: 'Add Transaction', onClick: () => { setAddTxDefault('expense'); setAddTxOpen(true) } },
+                  { icon: <ArrowLeftRight size={14} />, label: 'Transfer', onClick: () => { setAddTxDefault('transfer'); setAddTxOpen(true) } },
+                  { icon: <CheckCircle size={14} />, label: 'Reconcile', onClick: undefined },
+                  { icon: <Edit2 size={14} />, label: 'Edit', onClick: () => setModifyOpen(true) },
+                  { icon: <Archive size={14} />, label: 'Archive', onClick: undefined },
+                ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
+              ).map(({ icon, label, onClick }) => (
+                <button
+                  key={label}
+                  title={label}
+                  onClick={onClick}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#E2EAF4] bg-[#0D1525] border border-[#1A2540] rounded-lg hover:text-white hover:bg-[#111B2D] hover:border-[#2A3A54] transition-all"
+                >
+                  {icon}
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))
+            )}
           </div>
         </div>
 
@@ -439,6 +469,11 @@ export function AccountDetails({ accountId }: Props) {
         open={addTxOpen}
         onClose={() => setAddTxOpen(false)}
         defaultType={addTxDefault}
+      />
+      <ForceDeleteAccountDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        account={{ id: account.id, name: account.name, type: account.type }}
       />
     </div>
   )
