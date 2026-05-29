@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
-  ShoppingCart, Plus, Pencil, Archive, MoreVertical, ChevronDown,
+  ShoppingCart, Plus, Pencil, Archive, Trash2, MoreVertical, ChevronDown,
   Search, Filter, ArrowUpDown, Download, Shield, Info,
   Building2, Wallet, TrendingUp, Activity, BarChart3,
   ChevronLeft, ChevronRight, Zap, Star, Heart,
@@ -14,6 +14,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { AddTransactionModal } from '@/components/transactions/AddTransactionModal'
 import { ModifyEnvelopeModal } from './ModifyEnvelopeModal'
 import { ArchiveEnvelopeModal } from './ArchiveEnvelopeModal'
+import { ForceDeleteEnvelopeDialog } from './ForceDeleteEnvelopeDialog'
 
 /* ── Types ───────────────────────────────────────────────── */
 type Nature = 'Must' | 'Need' | 'Should' | 'Want'
@@ -291,7 +292,8 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) {
   const [addTxOpen,    setAddTxOpen]    = useState(false)
   const [modifyOpen,   setModifyOpen]   = useState(false)
-  const [archiveOpen,  setArchiveOpen]  = useState(false)
+  const [archiveOpen,      setArchiveOpen]      = useState(false)
+  const [forceDeleteOpen,  setForceDeleteOpen]  = useState(false)
   const [search,       setSearch]       = useState('')
   const [sort,         setSort]         = useState('Newest')
   const [page,         setPage]         = useState(1)
@@ -365,10 +367,10 @@ export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) 
             onClick={() => setModifyOpen(true)}
             className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-xl transition-all whitespace-nowrap"
             style={{
-              background: 'linear-gradient(135deg, #92400E 0%, #B45309 100%)',
+              background: 'linear-gradient(135deg, #854D0E 0%, #CA8A04 100%)',
               color: '#fff',
-              boxShadow: '0 0 12px rgba(180,83,9,0.25)',
-              border: '1px solid rgba(180,83,9,0.4)',
+              boxShadow: '0 0 12px rgba(202,138,4,0.3)',
+              border: '1px solid rgba(202,138,4,0.5)',
             }}
           >
             <Pencil size={13} />
@@ -378,14 +380,27 @@ export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) 
             onClick={() => setArchiveOpen(true)}
             className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-xl transition-all whitespace-nowrap"
             style={{
-              background: 'linear-gradient(135deg, #7F1D1D 0%, #991B1B 100%)',
+              background: 'linear-gradient(135deg, #92400E 0%, #C2651A 100%)',
               color: '#fff',
-              boxShadow: '0 0 12px rgba(153,27,27,0.25)',
-              border: '1px solid rgba(153,27,27,0.4)',
+              boxShadow: '0 0 12px rgba(194,101,26,0.3)',
+              border: '1px solid rgba(194,101,26,0.5)',
             }}
           >
             <Archive size={13} />
             Archive Envelope
+          </button>
+          <button
+            onClick={() => setForceDeleteOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-xl transition-all whitespace-nowrap"
+            style={{
+              background: 'linear-gradient(135deg, #7F1D1D 0%, #DC2626 100%)',
+              color: '#fff',
+              boxShadow: '0 0 12px rgba(220,38,38,0.3)',
+              border: '1px solid rgba(220,38,38,0.5)',
+            }}
+          >
+            <Trash2 size={13} />
+            Force Delete
           </button>
         </div>
       </div>
@@ -808,6 +823,12 @@ export function EnvelopeDetails({ envelopeId = 'e1' }: { envelopeId?: string }) 
         open={archiveOpen}
         onClose={() => setArchiveOpen(false)}
         envelopeId={envelopeId}
+      />
+      <ForceDeleteEnvelopeDialog
+        open={forceDeleteOpen}
+        onOpenChange={setForceDeleteOpen}
+        envelope={{ id: Number(envelopeId), title: 'Groceries' }}
+        budgetId={1}
       />
     </div>
   )
