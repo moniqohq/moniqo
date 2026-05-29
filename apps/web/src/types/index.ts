@@ -2,7 +2,7 @@
 
 export type Role = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER'
 
-export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'investment'
+export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'investment' | 'loan'
 
 export type TransactionType = 'expense' | 'income' | 'transfer'
 
@@ -37,6 +37,7 @@ export interface Account {
   icon?: string
   institution?: string
   lastSynced?: string
+  archived?: boolean
 }
 
 export interface BudgetEnvelope {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, Building2, PiggyBank, CreditCard, Wallet, TrendingUp,
+  X, Building2, PiggyBank, CreditCard, Wallet, TrendingUp, Landmark,
   ChevronDown, Info, RefreshCw, Archive, CalendarDays, Lock, Timer,
 } from 'lucide-react'
 import { mockAccounts } from '@/mock/data'
@@ -26,6 +26,7 @@ const ACCOUNT_TYPES: { type: AccountType; label: string; icon: React.ElementType
   { type: 'credit',     label: 'Credit Card', icon: CreditCard },
   { type: 'cash',       label: 'Cash',        icon: Wallet     },
   { type: 'investment', label: 'Investment',  icon: TrendingUp },
+  { type: 'loan',       label: 'Loan',        icon: Landmark   },
 ]
 
 const TYPE_META: Record<AccountType, { icon: React.ElementType; color: string; bg: string }> = {
@@ -34,6 +35,7 @@ const TYPE_META: Record<AccountType, { icon: React.ElementType; color: string; b
   credit:     { icon: CreditCard, color: '#F87171', bg: 'rgba(248,113,113,0.12)' },
   cash:       { icon: Wallet,     color: '#F59E0B', bg: 'rgba(245,158,11,0.12)'  },
   investment: { icon: TrendingUp, color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)' },
+  loan:       { icon: Landmark,   color: '#EC4899', bg: 'rgba(236,72,153,0.12)'  },
 }
 
 /* ── sub-components ───────────────────────────────────── */

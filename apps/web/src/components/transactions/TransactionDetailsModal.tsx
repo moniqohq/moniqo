@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Building2, Tag, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
   TrendingUp, FileText, User, Calendar, Hash, PiggyBank,
-  CreditCard, Wallet, Edit2, Copy, CheckCircle, Trash2,
+  CreditCard, Wallet, Landmark, Edit2, Copy, CheckCircle, Trash2,
 } from 'lucide-react'
 import type { Transaction, AccountType } from '@/types'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -25,6 +25,7 @@ const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: str
   credit:     { icon: <CreditCard size={14} />,  color: '#F87171' },
   cash:       { icon: <Wallet size={14} />,       color: '#F59E0B' },
   investment: { icon: <TrendingUp size={14} />,  color: '#8B5CF6' },
+  loan:       { icon: <Landmark   size={14} />,  color: '#EC4899' },
 }
 
 interface Props {

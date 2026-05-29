@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Calendar, ChevronDown, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
-  CheckCircle, Building2, PiggyBank, CreditCard, Wallet, TrendingUp,
+  CheckCircle, Building2, PiggyBank, CreditCard, Wallet, TrendingUp, Landmark,
   Info, AlertTriangle, ArrowRight, Save,
 } from 'lucide-react'
 import { mockAccounts, mockEnvelopes } from '@/mock/data'
@@ -27,6 +27,7 @@ const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: str
   credit:     { icon: <CreditCard size={13} />,  color: '#F87171' },
   cash:       { icon: <Wallet size={13} />,       color: '#F59E0B' },
   investment: { icon: <TrendingUp size={13} />,  color: '#8B5CF6' },
+  loan:       { icon: <Landmark   size={13} />,  color: '#EC4899' },
 }
 
 const TX_TYPES: { value: TransactionType; label: string; icon: React.ReactNode; color: string; bg: string }[] = [

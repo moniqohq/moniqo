@@ -42,7 +42,7 @@ export const mockAccounts: Account[] = [
   { id: 'a1', budgetId: 'b1', name: 'HDFC Checking',   type: 'checking',   balance: 458250, institution: 'HDFC Bank' },
   { id: 'a2', budgetId: 'b1', name: 'ICICI Savings',   type: 'savings',    balance: 125000, institution: 'ICICI Bank' },
   { id: 'a3', budgetId: 'b1', name: 'Axis Credit Card', type: 'credit',    balance: -18400,  institution: 'Axis Bank' },
-  { id: 'a4', budgetId: 'b1', name: 'Cash Wallet',      type: 'cash',      balance: 4200 },
+  { id: 'a4', budgetId: 'b1', name: 'Cash Wallet',      type: 'cash',      balance: 4200, archived: true },
   { id: 'a5', budgetId: 'b1', name: 'SBI Joint Account', type: 'checking',  balance: 74000,  institution: 'SBI' },
 ]
 

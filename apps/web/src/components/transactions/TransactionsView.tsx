@@ -5,7 +5,7 @@ import {
   Plus, Upload, ChevronDown, MoreVertical, Search,
   Grid3x3, SlidersHorizontal, Square, CheckSquare,
   ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Building2,
-  CreditCard, PiggyBank, Wallet, TrendingUp,
+  CreditCard, PiggyBank, Wallet, TrendingUp, Landmark,
   ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -228,6 +228,7 @@ const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: str
   credit:     { icon: <CreditCard size={11} />,  color: '#F87171' },
   cash:       { icon: <Wallet size={11} />,       color: '#F59E0B' },
   investment: { icon: <TrendingUp size={11} />,  color: '#8B5CF6' },
+  loan:       { icon: <Landmark   size={11} />,  color: '#EC4899' },
 }
 
 /* ── Account filter dropdown (multi-select) ─────────────── */
