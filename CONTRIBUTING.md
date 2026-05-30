@@ -12,7 +12,7 @@ By submitting code as an individual you agree to the [individual contributor lic
 
 # Security vulnerability disclosure
 
-Please report suspected security vulnerabilities in private to [support@peanutsoftwares.io](mailto:support@peanutsoftwares.io). Please do NOT create publicly viewable issues for suspected security vulnerabilities. You can typically expect a response within two business days, and we typically have fixes out in under a week from the initial disclosure.
+Please report suspected security vulnerabilities in private to [abdulsaqib@proton.me](mailto:abdulsaqib@proton.me). Please do NOT create publicly viewable issues for suspected security vulnerabilities. You can typically expect a response within two business days, and we typically have fixes out in under a week from the initial disclosure.
 
 This obviously varies based on the severity of the security issue and the difficulty in remediation, but those have historically been the timelines we worm around.
 
@@ -28,4 +28,4 @@ Issues and merge requests should be in English and contain appropriate language 
 
 # Have Questions?
 
-If you ever have questions, please don't hesitate to reach out to at [support@peanutsoftwares.io](mailto:support@peanutsoftwares.io)
+If you ever have questions, please don't hesitate to reach out to at [abdulsaqib@proton.me](mailto:abdulsaqib@proton.me)
