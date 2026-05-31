@@ -1,0 +1,35 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+# Allowed conventional commit types:
+# feat, fix, chore, docs, ci, refactor, test, style, perf, build, revert
+
+jobs:
+  conventional-commits:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Validate commit messages against Conventional Commits spec
+        uses: commit-check/commit-check-action@v2
+        with:
+          message: true
+          branch: false
+          author-name: false
+          author-email: false
+          commit-signoff: false
+          merge-base: false
+          imperative: false
+          job-summary: true
+          dry-run: false
+          pr-comments: false
