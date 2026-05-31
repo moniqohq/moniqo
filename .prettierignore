@@ -1,0 +1,30 @@
+# Build artifacts
+**/dist/
+**/build/
+**/.next/
+**/out/
+**/coverage/
+
+# Dependencies
+**/node_modules/
+
+# Generated
+**/*.tsbuildinfo
+apps/web/next-env.d.ts
+
+# Go (handled by gofumpt/goimports via golangci-lint)
+**/*.go
+
+# Lockfiles
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Misc
+.git/
+.DS_Store
+LICENSE
+
+# Markdown / prose docs — formatting is opinionated, keep prose untouched
+**/*.md
+docs/
