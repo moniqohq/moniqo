@@ -1,0 +1,9 @@
+baseURL: "/"
+title: "Up Business"
+summaryLength: 20
+theme: hugo-up-business
+
+# services:
+#   googleAnalytics:
+#     id: G-MEASUREMENT_ID
+
