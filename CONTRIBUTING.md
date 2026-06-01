@@ -26,6 +26,27 @@ Please treat our volunteers with courtesy and respect, it will go a long way tow
 
 Issues and merge requests should be in English and contain appropriate language for audiences of all ages.
 
+# Local development setup
+
+Copy `.env.example` to `.env` at the repo root and fill in values appropriate for your local environment:
+
+```sh
+cp .env.example .env
+```
+
+Never commit `.env` — it is listed in `.gitignore`.
+
+# CI secrets
+
+The following secret names are configured in the repository's CI environment. Only names are listed here; values are never stored in the codebase.
+
+| Secret name | Purpose |
+|---|---|
+| `DB_PASSWORD` | PostgreSQL password used by integration tests |
+| `JWT_SECRET` | Signing key for JWT tokens in CI test runs |
+
+If you need a new CI secret added, open an issue or reach out at [abdulsaqib@proton.me](mailto:abdulsaqib@proton.me).
+
 # Have Questions?
 
 If you ever have questions, please don't hesitate to reach out to at [support@moniqo.in](mailto:support@moniqo.in)
