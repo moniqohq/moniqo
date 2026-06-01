@@ -1,3 +1,3 @@
 ---
-title: "Up Business"
+title: "Moniqo — Zero-based budgeting, envelope method"
 ---

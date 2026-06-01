@@ -1,46 +1,38 @@
 main:
-  - name: "Home"
-    url: "/#hero"
+  - name: "Features"
+    url: "/#features"
     weight: 1
 
-  - name: "How we work"
-    url: "/#"
+  - name: "How it works"
+    url: "/#how-it-works"
     weight: 2
 
-  - name: "Our team"
-    url: "/#"
+  - name: "Pricing"
+    url: "/#pricing"
     weight: 3
 
-  - name: "Pricing"
-    url: "/#"
-    weight: 4
-
   - name: "Blog"
-    url: "/blog"
-    weight: 5
+    url: "/post"
+    weight: 4
 
 buttons:
-  - name: "Book a call"
-    url: "/#"
-    weight: 5
-
-footer:
-  - name: "Home"
-    url: "/#hero"
+  - name: "Get early access"
+    url: "/#early-access"
     weight: 1
 
-  - name: "How we work"
-    url: "/#"
+footer:
+  - name: "Features"
+    url: "/#features"
+    weight: 1
+
+  - name: "How it works"
+    url: "/#how-it-works"
     weight: 2
 
-  - name: "Our team"
-    url: "/#"
+  - name: "Pricing"
+    url: "/#pricing"
     weight: 3
 
-  - name: "Pricing"
-    url: "/#"
-    weight: 4
-
   - name: "Blog"
-    url: "/blog"
-    weight: 5
+    url: "/post"
+    weight: 4

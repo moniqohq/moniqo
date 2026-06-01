@@ -1,9 +1,9 @@
-title: "Up Business"
-description: "We specialize in providing services to desing websites, applications, build and maintain business for customers."
-images: 
+title: "Moniqo"
+description: "Zero-based budgeting with the envelope method. Take full control of your money across every account, every category, every month."
+images:
   - "images/hero-image.png"
 
-logo: "arrow-up.png"
+logo: "images/logo.png"
 
 favicons:
   themeColor: "#FFFFFF"
@@ -11,18 +11,9 @@ favicons:
   faviconColor: "#000000"
 
 social:
-  dribbble: "#"
-  instagram: "#"
-  facebook: "#"
-  twitter: "#"
-
-location:
-  - "3891 Ranchview Dr. Richardson, California 62639"
-  - "4517 Washington Ave. Manchester, Kentucky 39495"
+  github: "https://github.com/moniqohq"
 
 contact:
-  - "trungkienspktnd@gamail.com"
-  - "207.555.0119"
+  - "abdulsaqib@proton.me"
 
-copyright: "© 2022 Up Business All Rights Reserved"
-
+copyright: "© 2025 Moniqo. All Rights Reserved."
