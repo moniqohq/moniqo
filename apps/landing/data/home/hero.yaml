@@ -1,13 +1,13 @@
 enable: true
 
-title: "How to **level up** your business"
-text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Est faucibus tellus leo non pellentesque lorem vel. Arcu magna eros, potenti duis."
+title: "Budget every dollar. **Control every category.**"
+text: "Moniqo brings zero-based budgeting and the envelope method to all your devices. Know exactly where every dollar is going — before you spend it."
 
 buttons:
-  - label: "How we work"
-    link: "#"
+  - label: "See how it works"
+    link: "#how-it-works"
 
-  - label: "Let's talk"
-    link: ""
+  - label: "Get early access"
+    link: "#early-access"
 
 image: "images/hero-image.png"

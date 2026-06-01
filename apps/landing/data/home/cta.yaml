@@ -1,7 +1,7 @@
 enable: true
 
-title: "Start your business now!"
+title: "Take control of your money today"
 image: "images/services-web-development.png"
 button:
-  label: "Let's talk"
-  link: "#"
+  label: "Get early access"
+  link: "#early-access"

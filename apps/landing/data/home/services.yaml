@@ -1,25 +1,26 @@
 enable: true
 
-title: "Our main services"
-text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nec quam nibh elit pellentesque velit netus suspendisse. Sed enim, pretium, montes, in ut dolor urna."
+title: "Everything you need to budget with confidence"
+text: "Moniqo is built on a strict domain model — every feature respects the envelope method and zero-based budgeting principles, with no compromises."
+
 cards:
   - image: "images/services-web-development.png"
-    title: "Web development"
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Molestie in malesuada eget fames purus ligula luctus tellus. Habitant condimentum sit gravida praesent. "
+    title: "Envelope budgeting"
+    text: "Allocate every dollar to a category before you spend it. Moniqo keeps your envelopes and account balances mathematically consistent at all times."
     button:
       label: "Learn more"
-      link: "#"
+      link: "#features"
 
   - image: "images/services-web-development.png"
-    title: "Web development"
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Molestie in malesuada eget fames purus ligula luctus tellus. Habitant condimentum sit gravida praesent. "
+    title: "Shared budgets"
+    text: "Invite partners, housemates, or teammates into a budget. Fine-grained roles (Owner, Admin, Editor, Viewer) keep everyone in their lane."
     button:
       label: "Learn more"
-      link: "#"
+      link: "#features"
 
   - image: "images/services-web-development.png"
-    title: "Web development"
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Molestie in malesuada eget fames purus ligula luctus tellus. Habitant condimentum sit gravida praesent. "
+    title: "Cross-platform"
+    text: "Native desktop app via Tauri, mobile via React Native, and a full web interface — all synced through a single Go backend with real-time consistency."
     button:
       label: "Learn more"
-      link: "#"
+      link: "#features"
