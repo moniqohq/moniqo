@@ -1,3 +1,5 @@
+[![CI](https://github.com/moniqohq/moniqo/actions/workflows/ci.yml/badge.svg)](https://github.com/moniqohq/moniqo/actions/workflows/ci.yml)
+
 **Moniqo** is a modern financial software project focused on clarity, control, and long-term usability.
 
 The goal is to build tools that help individuals understand, manage, and reason about their money without unnecessary complexity.
