@@ -1,0 +1,94 @@
+{{ define "main" }}
+<article>
+
+  <!-- ── Hero ─────────────────────────────────────────────────────── -->
+  <section class="relative overflow-hidden">
+
+    <!-- Ambient glows -->
+    <div class="absolute pointer-events-none" aria-hidden="true"
+         style="top:-5%;left:50%;transform:translateX(-50%);width:800px;height:600px;
+                background:radial-gradient(ellipse,rgba(124,58,237,.2) 0%,transparent 65%);
+                filter:blur(60px);animation:mnq-glow 6s ease-in-out infinite;">
+    </div>
+    <div class="absolute pointer-events-none" aria-hidden="true"
+         style="bottom:0;left:-5%;width:400px;height:400px;
+                background:radial-gradient(ellipse,rgba(79,70,229,.1) 0%,transparent 70%);
+                filter:blur(60px);">
+    </div>
+    <div class="absolute pointer-events-none" aria-hidden="true"
+         style="bottom:0;right:-5%;width:400px;height:400px;
+                background:radial-gradient(ellipse,rgba(124,58,237,.1) 0%,transparent 70%);
+                filter:blur(60px);">
+    </div>
+
+    <!-- Dot grid -->
+    <div class="absolute inset-0 pointer-events-none dot-grid opacity-40" aria-hidden="true"></div>
+
+    <!-- Wave lines -->
+    <div class="absolute bottom-0 inset-x-0 pointer-events-none overflow-hidden" aria-hidden="true"
+         style="height:180px;opacity:.18;">
+      <svg viewBox="0 0 1440 180" fill="none" preserveAspectRatio="none"
+           class="absolute bottom-0 w-full h-full">
+        <path class="animate-wave"
+              d="M0,80 C240,20 480,140 720,80 C960,20 1200,140 1440,80 L1440,180 L0,180 Z"
+              fill="url(#fwg1)" fill-opacity=".6"/>
+        <path class="animate-wave-b"
+              d="M0,110 C200,50 440,160 720,100 C1000,40 1240,150 1440,100 L1440,180 L0,180 Z"
+              fill="url(#fwg2)" fill-opacity=".4"/>
+        <defs>
+          <linearGradient id="fwg1" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#7C3AED" stop-opacity=".0"/>
+            <stop offset="50%"  stop-color="#8B5CF6" stop-opacity=".3"/>
+            <stop offset="100%" stop-color="#7C3AED" stop-opacity=".0"/>
+          </linearGradient>
+          <linearGradient id="fwg2" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#4F46E5" stop-opacity=".0"/>
+            <stop offset="50%"  stop-color="#7C3AED" stop-opacity=".2"/>
+            <stop offset="100%" stop-color="#4F46E5" stop-opacity=".0"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <!-- Content -->
+    <div class="relative mx-auto max-w-4xl px-6 lg:px-8 text-center" style="padding-top:6rem;padding-bottom:5rem;">
+
+      <h1 class="anim-0 font-extrabold text-white mb-6"
+          style="font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(2.2rem,4.5vw,3.75rem);line-height:1.08;letter-spacing:-.02em;">
+        {{ .Title | replaceRE `(Clarity|Last)` `<span class="gradient-text">$1</span>` | safeHTML }}
+      </h1>
+
+      <p class="anim-1 text-lg text-gray-400 leading-relaxed mx-auto" style="max-width:640px;">
+        {{ .Description }}
+      </p>
+
+    </div>
+  </section>
+
+  <!-- ── Feature Content ───────────────────────────────────────────── -->
+  <div class="mx-auto max-w-7xl px-6 lg:px-8 pb-24">
+    <div class="prose prose-lg mx-auto">
+      {{ .Content }}
+    </div>
+  </div>
+
+</article>
+<script>
+(function () {
+  function equaliseFeatureRows() {
+    document.querySelectorAll('.not-prose > div').forEach(function (row) {
+      var textCol = row.querySelector('.lg\\:self-start');
+      var imgContainer = row.querySelector('.rounded-2xl');
+      if (!textCol || !imgContainer) return;
+      imgContainer.style.height = '';
+      var h = textCol.getBoundingClientRect().height;
+      if (window.innerWidth >= 1024 && h > 0) {
+        imgContainer.style.height = Math.round(h * 1.0) + 'px';
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', equaliseFeatureRows);
+  window.addEventListener('resize', equaliseFeatureRows);
+})();
+</script>
+{{ end }}

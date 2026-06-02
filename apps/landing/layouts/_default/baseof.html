@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.Language.Lang | default "en" }}" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  {{ partial "google-tag-manager" . }}
+  {{ partial "google-analytics" . }}
+
+  <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | {{ .Site.Title }}{{ end }}</title>
+
+  <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ with .Site.Params.description }}{{ . }}{{ end }}{{ end }}">
+  <meta name="author"  content="{{ .Site.Params.author | default .Site.Title }}">
+  <meta name="robots" content="{{ with .Params.robots }}{{ . }}{{ else }}index, follow{{ end }}">
+
+  <meta property="og:title"       content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | {{ .Site.Title }}{{ end }}">
+  <meta property="og:description" content="{{ with .Description }}{{ . }}{{ else }}{{ with .Site.Params.description }}{{ . }}{{ end }}{{ end }}">
+  <meta property="og:type"        content="{{ if .IsHome }}website{{ else }}article{{ end }}">
+  <meta property="og:url"         content="{{ .Permalink }}">
+  <meta property="og:site_name"   content="{{ .Site.Title }}">
+  {{ with .Params.image }}<meta property="og:image" content="{{ . | absURL }}">
+  {{ else }}{{ with .Site.Params.image }}<meta property="og:image" content="{{ . | absURL }}">{{ end }}{{ end }}
+
+  <meta name="twitter:card"        content="summary_large_image">
+  <meta name="twitter:title"       content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} | {{ .Site.Title }}{{ end }}">
+  <meta name="twitter:description" content="{{ with .Description }}{{ . }}{{ else }}{{ with .Site.Params.description }}{{ . }}{{ end }}{{ end }}">
+  {{ with .Site.Params.twitter }}<meta name="twitter:site" content="@{{ . }}">{{ end }}
+  {{ with .Params.image }}<meta name="twitter:image" content="{{ . | absURL }}">
+  {{ else }}{{ with .Site.Params.image }}<meta property="twitter:image" content="{{ . | absURL }}">{{ end }}{{ end }}
+
+  <link rel="icon"      type="image/x-icon" href="{{ .Site.Params.favicon | default "images/favicon.ico" | relURL }}">
+  <link rel="canonical" href="{{ .Permalink }}">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS -->
+  {{ $css := resources.Get "css/main.css" }}
+  {{ $css = $css | css.PostCSS }}
+  {{ if hugo.IsProduction }}
+    {{ $css = $css | minify | fingerprint | resources.PostProcess }}
+  {{ end }}
+  <link rel="stylesheet" href="{{ $css.RelPermalink }}">
+
+  {{ with .Params.customMeta }}
+    {{ range . }}<meta {{ range $k,$v := . }} {{ $k }}="{{ $v }}"{{ end }}>{{ end }}
+  {{ end }}
+
+  {{ partial "custom-head" . }}
+</head>
+
+<body class="min-h-screen flex flex-col" style="background:#050816;">
+
+  {{ if and hugo.IsProduction .Site.Params.googleTagManager }}
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ .Site.Params.googleTagManager }}"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  {{ end }}
+
+  <!-- Global background layers -->
+  <div class="fixed inset-0 pointer-events-none" aria-hidden="true" style="z-index:0;">
+    <!-- Dot grid -->
+    <div class="absolute inset-0 dot-grid"></div>
+    <!-- Top-center purple radial glow -->
+    <div class="absolute animate-glow"
+         style="top:-10%;left:50%;transform:translateX(-50%);
+                width:900px;height:700px;
+                background:radial-gradient(ellipse at center,rgba(124,58,237,.18) 0%,transparent 65%);
+                filter:blur(1px);"></div>
+    <!-- Right blue glow -->
+    <div class="absolute"
+         style="top:20%;right:-5%;width:500px;height:500px;
+                background:radial-gradient(ellipse,rgba(79,70,229,.1) 0%,transparent 70%);
+                filter:blur(40px);"></div>
+  </div>
+
+  <!-- Fixed header -->
+  <div class="fixed top-0 inset-x-0 z-50">
+    {{ partial "header" . }}
+  </div>
+
+  <!-- Main -->
+  <main class="relative flex-1" style="z-index:1;padding-top:72px;">
+    {{ block "main" . }}{{ end }}
+  </main>
+
+  {{ partial "footer" . }}
+
+  {{ if hugo.IsMultilingual }}
+  {{ if .Site.Params.visitorapi_pid }}
+  <script>window.HUGO_VISITOR_API_PID = "{{ .Site.Params.visitorapi_pid }}";</script>
+  {{ end }}
+  <script src="{{ "js/language-preference.js" | relURL }}"></script>
+  {{ end }}
+
+  <script>
+  (function(){
+    var btn = document.getElementById('mobile-menu-button');
+    if(btn){btn.addEventListener('click',function(){var m=document.getElementById('mobile-menu');if(m)m.classList.toggle('hidden');});}
+  })();
+  </script>
+</body>
+</html>

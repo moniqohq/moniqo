@@ -1,0 +1,328 @@
+{{ define "main" }}
+<article>
+
+  <!-- Hero -->
+  <section class="relative overflow-hidden">
+    <div class="absolute pointer-events-none" aria-hidden="true"
+         style="top:-5%;left:50%;transform:translateX(-50%);width:800px;height:600px;
+                background:radial-gradient(ellipse,rgba(124,58,237,.2) 0%,transparent 65%);
+                filter:blur(60px);">
+    </div>
+    <div class="absolute inset-0 pointer-events-none dot-grid opacity-40" aria-hidden="true"></div>
+    <div class="relative mx-auto max-w-4xl px-6 lg:px-8 text-center" style="padding-top:6rem;padding-bottom:4rem;">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-6"
+           style="background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);color:#A78BFA;">
+        Documentation
+      </div>
+      <h1 class="font-extrabold text-white mb-5"
+          style="font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(2.2rem,4.5vw,3.5rem);line-height:1.08;letter-spacing:-.02em;">
+        {{ .Title }}
+      </h1>
+      <p class="text-lg text-gray-400 leading-relaxed mx-auto" style="max-width:600px;">
+        {{ .Description }}
+      </p>
+    </div>
+  </section>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-7xl px-6 lg:px-8 pb-28" style="padding-top:1rem;">
+    <div class="flex gap-12 lg:gap-16">
+
+      <!-- Sidebar -->
+      <aside class="hidden lg:block shrink-0 w-56">
+        <div class="sticky top-24 space-y-1">
+          <p class="text-xs font-semibold uppercase tracking-widest mb-4" style="color:#A855F7;letter-spacing:.12em;">On this page</p>
+          <a href="#getting-started"     class="block text-sm text-gray-500 hover:text-white py-1.5 transition-colors duration-150 border-l-2 pl-3" style="border-color:rgba(124,58,237,.3);">Getting Started</a>
+          <a href="#create-budget"       class="block text-sm text-gray-500 hover:text-white py-1.5 transition-colors duration-150 border-l-2 pl-3" style="border-color:rgba(124,58,237,.3);">Create Your Budget</a>
+          <a href="#add-accounts"        class="block text-sm text-gray-500 hover:text-white py-1.5 transition-colors duration-150 border-l-2 pl-3" style="border-color:rgba(124,58,237,.3);">Add Accounts</a>
+          <a href="#set-up-envelopes"    class="block text-sm text-gray-500 hover:text-white py-1.5 transition-colors duration-150 border-l-2 pl-3" style="border-color:rgba(124,58,237,.3);">Set Up Envelopes</a>
+          <a href="#record-transactions" class="block text-sm text-gray-500 hover:text-white py-1.5 transition-colors duration-150 border-l-2 pl-3" style="border-color:rgba(124,58,237,.3);">Record Transactions</a>
+          <a href="#month-end"           class="block text-sm text-gray-500 hover:text-white py-1.5 transition-colors duration-150 border-l-2 pl-3" style="border-color:rgba(124,58,237,.3);">End of Month</a>
+          <a href="#reports"             class="block text-sm text-gray-500 hover:text-white py-1.5 transition-colors duration-150 border-l-2 pl-3" style="border-color:rgba(124,58,237,.3);">Reports</a>
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <div class="flex-1 min-w-0 space-y-16">
+
+        <!-- Getting Started -->
+        <section id="getting-started">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0"
+                  style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 16px rgba(124,58,237,.4);">01</span>
+            <h2 class="text-2xl font-bold text-white" style="font-family:'Plus Jakarta Sans',sans-serif;">Getting Started</h2>
+          </div>
+          <p class="text-gray-400 leading-relaxed mb-6">Moniqo is built around one idea: every rupee you have should be assigned a purpose before you spend it. This is the zero-based budgeting principle. Once you see it working, you will never want to budget any other way.</p>
+          <div class="rounded-2xl p-6 space-y-4" style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);">
+            <p class="text-sm font-semibold text-white mb-3">Before you open Moniqo, have these ready:</p>
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style="background:#7C3AED;">1</div>
+              <div>
+                <p class="text-sm font-medium text-gray-200">Your current account balances</p>
+                <p class="text-xs text-gray-500 mt-0.5">Check your bank app or passbook for today's balance in each account.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style="background:#7C3AED;">2</div>
+              <div>
+                <p class="text-sm font-medium text-gray-200">Your monthly income figure</p>
+                <p class="text-xs text-gray-500 mt-0.5">Use your take-home pay, not gross. If income is irregular, use a conservative average.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white" style="background:#7C3AED;">3</div>
+              <div>
+                <p class="text-sm font-medium text-gray-200">A rough list of your spending categories</p>
+                <p class="text-xs text-gray-500 mt-0.5">Rent, groceries, transport, utilities, eating out — whatever applies to you.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Create Budget -->
+        <section id="create-budget">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0"
+                  style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 16px rgba(124,58,237,.4);">02</span>
+            <h2 class="text-2xl font-bold text-white" style="font-family:'Plus Jakarta Sans',sans-serif;">Create Your Budget</h2>
+          </div>
+          <p class="text-gray-400 leading-relaxed mb-6">A budget in Moniqo is your financial workspace. Think of it as a single household's finances. Most people need just one budget. If you manage money separately from a partner or want to track a side project independently, you can create a second budget.</p>
+          <div class="space-y-3 mb-6">
+            <div class="flex items-start gap-4 rounded-xl p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+              <svg class="w-5 h-5 shrink-0 mt-0.5" style="color:#7C3AED;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+              <div>
+                <p class="text-sm font-medium text-white">Tap "New Budget" from the home screen</p>
+                <p class="text-xs text-gray-500 mt-1">Give it a name like "My Budget" or "Family Budget 2026". You can rename it later.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4 rounded-xl p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+              <svg class="w-5 h-5 shrink-0 mt-0.5" style="color:#7C3AED;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <div>
+                <p class="text-sm font-medium text-white">Select the month you want to start from</p>
+                <p class="text-xs text-gray-500 mt-1">You can start mid-month. Use whatever cash you have available today as your starting point.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4 rounded-xl p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+              <svg class="w-5 h-5 shrink-0 mt-0.5" style="color:#7C3AED;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div>
+                <p class="text-sm font-medium text-white">Your budget is created and ready to fill</p>
+                <p class="text-xs text-gray-500 mt-1">The "To Be Budgeted" figure shows how much money you have left to assign. Aim to reach zero.</p>
+              </div>
+            </div>
+          </div>
+          <!-- Tip box -->
+          <div class="flex items-start gap-3 rounded-xl p-4" style="background:rgba(79,70,229,.08);border:1px solid rgba(79,70,229,.2);">
+            <svg class="w-4 h-4 mt-0.5 shrink-0" style="color:#818CF8;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-sm text-gray-400"><span class="text-indigo-400 font-medium">Tip:</span> Do not try to make your first budget perfect. You will adjust it after the first week once you see how you actually spend.</p>
+          </div>
+        </section>
+
+        <!-- Add Accounts -->
+        <section id="add-accounts">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0"
+                  style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 16px rgba(124,58,237,.4);">03</span>
+            <h2 class="text-2xl font-bold text-white" style="font-family:'Plus Jakarta Sans',sans-serif;">Add Accounts</h2>
+          </div>
+          <p class="text-gray-400 leading-relaxed mb-6">Accounts in Moniqo represent real-world financial accounts: your savings account, current account, cash wallet, or credit card. Moniqo does not connect to your bank, you enter balances and transactions manually. This keeps your data private and makes you more conscious of every transaction.</p>
+          <div class="overflow-hidden rounded-2xl mb-6" style="border:1px solid rgba(255,255,255,.08);">
+            <table class="w-full text-sm">
+              <thead>
+                <tr style="background:rgba(124,58,237,.12);border-bottom:1px solid rgba(255,255,255,.07);">
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-300 uppercase tracking-wider">Account type</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-300 uppercase tracking-wider">Example</th>
+                  <th class="text-left px-5 py-3 text-xs font-semibold text-gray-300 uppercase tracking-wider">Starting balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.01);">
+                  <td class="px-5 py-3 text-gray-300">Savings</td>
+                  <td class="px-5 py-3 text-gray-500">SBI Savings 4521</td>
+                  <td class="px-5 py-3 text-gray-500">Current balance in your passbook</td>
+                </tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+                  <td class="px-5 py-3 text-gray-300">Current</td>
+                  <td class="px-5 py-3 text-gray-500">HDFC Current 8831</td>
+                  <td class="px-5 py-3 text-gray-500">Current balance in your bank app</td>
+                </tr>
+                <tr style="border-bottom:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.01);">
+                  <td class="px-5 py-3 text-gray-300">Credit card</td>
+                  <td class="px-5 py-3 text-gray-500">Axis Flipkart Card</td>
+                  <td class="px-5 py-3 text-gray-500">Outstanding balance as a negative number</td>
+                </tr>
+                <tr>
+                  <td class="px-5 py-3 text-gray-300">Cash</td>
+                  <td class="px-5 py-3 text-gray-500">Wallet</td>
+                  <td class="px-5 py-3 text-gray-500">Notes and coins you currently hold</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex items-start gap-3 rounded-xl p-4" style="background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.18);">
+            <svg class="w-4 h-4 mt-0.5 shrink-0" style="color:#EAB308;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <p class="text-sm text-gray-400"><span class="text-yellow-400 font-medium">Note:</span> For credit cards, enter the outstanding balance as a negative starting balance. As you record purchases, the balance will grow. Your credit card envelope should cover the payment when it is due.</p>
+          </div>
+        </section>
+
+        <!-- Set Up Envelopes -->
+        <section id="set-up-envelopes">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0"
+                  style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 16px rgba(124,58,237,.4);">04</span>
+            <h2 class="text-2xl font-bold text-white" style="font-family:'Plus Jakarta Sans',sans-serif;">Set Up Envelopes</h2>
+          </div>
+          <p class="text-gray-400 leading-relaxed mb-6">Envelopes are named spending categories. You allocate a portion of your income to each envelope at the start of the month. When you spend, money leaves the envelope. The goal is that by the 31st, every envelope is at zero or slightly positive.</p>
+          <p class="text-sm font-semibold text-gray-300 mb-4">A typical starter envelope setup:</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+            {{ $envelopes := slice
+              (dict "group" "Fixed Expenses" "color" "#7C3AED" "items" (slice "Rent / EMI" "Electricity" "Internet" "Mobile plan"))
+              (dict "group" "Food" "color" "#059669" "items" (slice "Groceries" "Eating out" "Swiggy / Zomato" "Tea & snacks"))
+              (dict "group" "Transport" "color" "#2563EB" "items" (slice "Fuel" "Metro / Bus pass" "Ola / Uber" "Vehicle maintenance"))
+              (dict "group" "Savings & Goals" "color" "#D97706" "items" (slice "Emergency fund" "Vacation" "New laptop" "SIP top-up"))
+            }}
+            {{ range $envelopes }}
+            {{ $color := .color }}
+            <div class="rounded-xl p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background:{{ $color }};"></span>
+                <p class="text-sm font-semibold text-white">{{ .group }}</p>
+              </div>
+              <ul class="space-y-1.5">
+                {{ range .items }}
+                <li class="text-xs text-gray-500 flex items-center gap-2">
+                  <svg class="w-3 h-3 shrink-0" style="color:{{ $color }};opacity:.7;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                  {{ . }}
+                </li>
+                {{ end }}
+              </ul>
+            </div>
+            {{ end }}
+          </div>
+          <div class="flex items-start gap-3 rounded-xl p-4" style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.18);">
+            <svg class="w-4 h-4 mt-0.5 shrink-0" style="color:#A78BFA;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            <p class="text-sm text-gray-400"><span class="text-purple-400 font-medium">Start simple.</span> You can always split an envelope later. Six to ten envelopes is a better starting point than thirty.</p>
+          </div>
+        </section>
+
+        <!-- Record Transactions -->
+        <section id="record-transactions">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0"
+                  style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 16px rgba(124,58,237,.4);">05</span>
+            <h2 class="text-2xl font-bold text-white" style="font-family:'Plus Jakarta Sans',sans-serif;">Record Transactions</h2>
+          </div>
+          <p class="text-gray-400 leading-relaxed mb-6">Every purchase or income event becomes a transaction in Moniqo. Recording transactions manually takes under ten seconds once you are used to it, and the habit of noting every expense is itself a powerful behaviour change.</p>
+          <div class="rounded-2xl overflow-hidden mb-6" style="border:1px solid rgba(124,58,237,.2);background:rgba(124,58,237,.04);">
+            <div class="px-5 py-3 text-xs font-semibold uppercase tracking-wider" style="background:rgba(124,58,237,.12);color:#C4B5FD;border-bottom:1px solid rgba(124,58,237,.15);">Example: Recording a grocery purchase</div>
+            <div class="p-5 space-y-3">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-500">Date</span>
+                <span class="text-gray-200 font-medium">2 June 2026</span>
+              </div>
+              <div class="flex items-center justify-between text-sm" style="border-top:1px solid rgba(255,255,255,.05);padding-top:.75rem;">
+                <span class="text-gray-500">Payee</span>
+                <span class="text-gray-200 font-medium">Big Bazaar</span>
+              </div>
+              <div class="flex items-center justify-between text-sm" style="border-top:1px solid rgba(255,255,255,.05);padding-top:.75rem;">
+                <span class="text-gray-500">Envelope</span>
+                <span class="inline-flex items-center gap-1.5 text-gray-200 font-medium">
+                  <span class="h-2 w-2 rounded-full" style="background:#059669;"></span>Groceries
+                </span>
+              </div>
+              <div class="flex items-center justify-between text-sm" style="border-top:1px solid rgba(255,255,255,.05);padding-top:.75rem;">
+                <span class="text-gray-500">Account</span>
+                <span class="text-gray-200 font-medium">HDFC Current 8831</span>
+              </div>
+              <div class="flex items-center justify-between text-sm" style="border-top:1px solid rgba(255,255,255,.05);padding-top:.75rem;">
+                <span class="text-gray-500">Amount</span>
+                <span class="font-semibold" style="color:#F87171;">- ₹1,340</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-gray-400 text-sm leading-relaxed">After saving the transaction, your Groceries envelope balance drops by ₹1,340 and your HDFC account balance drops by the same amount. Both stay in sync automatically.</p>
+        </section>
+
+        <!-- End of Month -->
+        <section id="month-end">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0"
+                  style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 16px rgba(124,58,237,.4);">06</span>
+            <h2 class="text-2xl font-bold text-white" style="font-family:'Plus Jakarta Sans',sans-serif;">End of Month</h2>
+          </div>
+          <p class="text-gray-400 leading-relaxed mb-6">At the end of each month, Moniqo helps you roll over your budget. Any unspent money in an envelope can be carried forward into the next month, moved to a savings goal, or returned to "To Be Budgeted".</p>
+          <div class="space-y-3">
+            <div class="flex items-start gap-4 rounded-xl p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+              <svg class="w-5 h-5 shrink-0 mt-0.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div>
+                <p class="text-sm font-medium text-white">Carry forward surplus</p>
+                <p class="text-xs text-gray-500 mt-1">Leftover grocery money rolls into next month's grocery envelope by default. It builds a small buffer.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4 rounded-xl p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+              <svg class="w-5 h-5 shrink-0 mt-0.5" style="color:#A78BFA;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+              <div>
+                <p class="text-sm font-medium text-white">Move surplus to a goal</p>
+                <p class="text-xs text-gray-500 mt-1">Redirecting ₹500 of unspent eating-out money to your vacation goal is one click.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4 rounded-xl p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+              <svg class="w-5 h-5 shrink-0 mt-0.5" style="color:#EAB308;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div>
+                <p class="text-sm font-medium text-white">Return to "To Be Budgeted"</p>
+                <p class="text-xs text-gray-500 mt-1">Useful when an envelope consistently has too much allocated. Reallocate it more accurately next month.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Reports -->
+        <section id="reports">
+          <div class="flex items-center gap-4 mb-6">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0"
+                  style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 16px rgba(124,58,237,.4);">07</span>
+            <h2 class="text-2xl font-bold text-white" style="font-family:'Plus Jakarta Sans',sans-serif;">Reports</h2>
+          </div>
+          <p class="text-gray-400 leading-relaxed mb-6">After a few months of using Moniqo, the Reports section becomes genuinely useful. You will see patterns you could not see before: which categories creep up over time, which are well controlled, and where your income actually goes.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="rounded-xl p-5 text-center" style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);">
+              <svg class="w-7 h-7 mx-auto mb-3" style="color:#A78BFA;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              <p class="text-sm font-semibold text-white mb-1">Spending by Category</p>
+              <p class="text-xs text-gray-500">See which envelopes consume the most over any period</p>
+            </div>
+            <div class="rounded-xl p-5 text-center" style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);">
+              <svg class="w-7 h-7 mx-auto mb-3" style="color:#A78BFA;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+              <p class="text-sm font-semibold text-white mb-1">Cash Flow</p>
+              <p class="text-xs text-gray-500">Income vs expenses charted by month</p>
+            </div>
+            <div class="rounded-xl p-5 text-center" style="background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.18);">
+              <svg class="w-7 h-7 mx-auto mb-3" style="color:#A78BFA;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg>
+              <p class="text-sm font-semibold text-white mb-1">Goal Progress</p>
+              <p class="text-xs text-gray-500">Track contributions to each savings goal over time</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- CTA -->
+        <div class="rounded-2xl p-8 text-center" style="background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(79,70,229,.1));border:1px solid rgba(124,58,237,.25);">
+          <h3 class="text-xl font-bold text-white mb-3" style="font-family:'Plus Jakarta Sans',sans-serif;">Ready to start budgeting?</h3>
+          <p class="text-sm text-gray-400 mb-6">Moniqo is open source and free to get started. No credit card required.</p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="/get-started"
+               class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all duration-200"
+               style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 20px rgba(124,58,237,.35);">
+              Get Started Free
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+            <a href="/contact" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white transition-colors duration-150">
+              Ask a question
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</article>
+{{ end }}
