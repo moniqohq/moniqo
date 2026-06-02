@@ -1,0 +1,3 @@
+[submodule "apps/landing/themes/hugo-saasify-theme"]
+	path = apps/landing/themes/hugo-saasify-theme
+	url = https://github.com/chaoming/hugo-saasify-theme
