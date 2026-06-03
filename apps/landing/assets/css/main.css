@@ -163,7 +163,7 @@
     @apply pl-4 py-1 rounded-r my-6;
     color: #E5E7EB;
   }
-  .prose img { @apply rounded-xl my-8; }
+  .prose img { @apply rounded-xl mb-8; }
   .prose code:not(pre code) {
     background: rgba(124,58,237,.12);
     color: #C084FC;

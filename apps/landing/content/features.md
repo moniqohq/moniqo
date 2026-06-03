@@ -35,7 +35,7 @@ badgeColor: "#7c3aed"
 
   <!-- 02 Envelope Method -->
   <div class="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:items-center">
-    <div class="relative mt-8">
+    <div class="relative">
       <div class="absolute -inset-3 rounded-3xl opacity-10 blur-2xl" style="background-color:#7c3aed;"></div>
       <div class="relative overflow-hidden rounded-2xl" style="border:1px solid rgba(124,58,237,.35);aspect-ratio:4/3;">
         <img src="/images/feature-envelope-method.png" alt="Envelope Method" class="absolute inset-0 w-full h-full object-cover">
