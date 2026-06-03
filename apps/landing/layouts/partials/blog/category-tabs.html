@@ -1,0 +1,34 @@
+{{/* Hardcoded category list — update slugs if categories change */}}
+{{ $cats := slice
+  (dict "name" "All Posts"       "slug" "all")
+  (dict "name" "Budgeting 101"   "slug" "budgeting-101")
+  (dict "name" "Tips & Tricks"   "slug" "tips-tricks")
+  (dict "name" "Product Updates" "slug" "product-updates")
+  (dict "name" "Community"       "slug" "community")
+}}
+
+<div class="flex items-center justify-between gap-4 py-3 overflow-x-auto scrollbar-hide">
+  {{/* Category pills */}}
+  <nav class="flex items-center gap-2 flex-nowrap" aria-label="Blog categories">
+    {{ range $i, $cat := $cats }}
+    <button
+      data-filter="{{ $cat.slug }}"
+      data-active="{{ if eq $i 0 }}1{{ else }}0{{ end }}"
+      class="flex-none px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+      style="{{ if eq $i 0 }}background:#7C3AED;color:white;{{ else }}color:rgb(156,163,175);{{ end }}"
+      aria-label="Filter by {{ $cat.name }}"
+    >{{ $cat.name }}</button>
+    {{ end }}
+  </nav>
+
+  {{/* Sort label (decorative — posts already sorted by date) */}}
+  <div class="flex items-center gap-2 text-sm text-gray-500 flex-none ml-auto">
+    <span>Sort by:</span>
+    <span class="text-white font-medium flex items-center gap-1">
+      Latest
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </span>
+  </div>
+</div>

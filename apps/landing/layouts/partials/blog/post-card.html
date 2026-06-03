@@ -1,0 +1,81 @@
+{{ $catName := "" }}
+{{ $catSlug := "" }}
+{{ with .Params.categories }}
+  {{ $catName = index . 0 }}
+  {{ $catSlug = index . 0 | urlize }}
+{{ end }}
+
+{{/* Category color map */}}
+{{ $textColor := "#C084FC" }}
+{{ $bgColor   := "rgba(124,58,237,.15)" }}
+{{ if eq $catSlug "tips-tricks" }}
+  {{ $textColor = "#34D399" }}
+  {{ $bgColor   = "rgba(16,185,129,.15)" }}
+{{ else if eq $catSlug "product-updates" }}
+  {{ $textColor = "#FCD34D" }}
+  {{ $bgColor   = "rgba(245,158,11,.15)" }}
+{{ else if eq $catSlug "community" }}
+  {{ $textColor = "#60A5FA" }}
+  {{ $bgColor   = "rgba(59,130,246,.15)" }}
+{{ else if eq $catSlug "financial-wellness" }}
+  {{ $textColor = "#2DD4BF" }}
+  {{ $bgColor   = "rgba(20,184,166,.15)" }}
+{{ end }}
+
+{{/* Author initials for avatar */}}
+{{ $author   := .Params.author | default "Moniqo Team" }}
+{{ $words    := split $author " " }}
+{{ $initials := "" }}
+{{ if gt (len $words) 0 }}{{ $initials = substr (index $words 0) 0 1 | upper }}{{ end }}
+{{ if gt (len $words) 1 }}{{ $initials = printf "%s%s" $initials (substr (index $words 1) 0 1 | upper) }}{{ end }}
+
+<article
+  class="card group"
+  data-post-card
+  data-category="{{ $catSlug }}"
+  data-title="{{ .Title | lower }}"
+  data-desc="{{ .Description | lower }}"
+>
+  <a href="{{ .RelPermalink }}" class="flex gap-5 p-5 sm:p-6 items-start" aria-label="{{ .Title }}">
+
+    {{/* Post illustration */}}
+    <div class="w-36 h-28 sm:w-44 sm:h-32 shrink-0 rounded-xl overflow-hidden">
+      {{ partial "blog/post-image.html" (dict "category" $catSlug) }}
+    </div>
+
+    {{/* Content */}}
+    <div class="flex-1 min-w-0 py-0.5">
+      {{/* Category label */}}
+      {{ with $catName }}
+      <span class="inline-block text-xs font-bold tracking-widest uppercase mb-2"
+            style="color:{{ $textColor }};">{{ . }}</span>
+      {{ end }}
+
+      {{/* Title */}}
+      <h2 class="text-[1.05rem] sm:text-lg font-bold text-white leading-snug mb-2 line-clamp-2
+                 group-hover:text-purple-300 transition-colors duration-200">
+        {{ .Title }}
+      </h2>
+
+      {{/* Excerpt */}}
+      <p class="text-gray-400 text-sm leading-relaxed line-clamp-2 mb-4">
+        {{ with .Description }}{{ . }}{{ else }}{{ .Summary | truncate 120 }}{{ end }}
+      </p>
+
+      {{/* Meta row */}}
+      <div class="flex items-center gap-2.5 text-xs text-gray-500 flex-wrap">
+        {{/* Author avatar */}}
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[9px] font-bold text-white flex-none"
+              style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">{{ $initials }}</span>
+        <span class="text-gray-400 font-medium">{{ $author }}</span>
+        <span class="text-gray-600">·</span>
+        <time datetime="{{ .Date.Format "2006-01-02" }}" class="text-gray-500">
+          {{ .Date.Format "Jan 2, 2006" }}
+        </time>
+        <span class="text-gray-600">·</span>
+        <span>{{ .ReadingTime }} min read</span>
+      </div>
+    </div>
+
+  </a>
+</article>

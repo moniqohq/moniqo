@@ -1,0 +1,52 @@
+<section class="relative overflow-hidden" style="background:linear-gradient(180deg,#050816 0%,#080B1E 60%,#050816 100%);min-height:340px;">
+  {{/* Background decorations */}}
+  <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+    <div class="absolute dot-grid inset-0 opacity-25"></div>
+    <div class="absolute animate-glow" style="top:-8%;left:45%;transform:translateX(-50%);width:700px;height:600px;background:radial-gradient(ellipse,rgba(124,58,237,.18) 0%,transparent 65%);filter:blur(2px);"></div>
+    <div class="absolute" style="top:30%;right:8%;width:380px;height:380px;background:radial-gradient(ellipse,rgba(79,70,229,.12) 0%,transparent 70%);filter:blur(40px);"></div>
+  </div>
+
+  <div class="container relative z-10 py-14 lg:py-20">
+    <div class="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+
+      {{/* Left: text content */}}
+      <div class="flex-1 max-w-lg">
+        <div class="anim-0 mb-5">
+          <span class="section-badge">BLOG</span>
+        </div>
+        <h1 class="text-5xl lg:text-6xl font-extrabold text-white leading-[1.08] mb-5 anim-1"
+            style="font-family:'Plus Jakarta Sans',sans-serif;">
+          Insights for Smarter Budgeting
+        </h1>
+        <p class="text-gray-400 text-lg leading-relaxed mb-9 anim-2">
+          Tips, guides, and updates to help you take control of your money and build a better financial life.
+        </p>
+
+        {{/* Search */}}
+        <div class="relative anim-3">
+          <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+            </svg>
+          </div>
+          <input
+            type="search"
+            id="blog-search"
+            placeholder="Search blog posts..."
+            autocomplete="off"
+            class="w-full pl-12 pr-5 py-3.5 text-sm text-white placeholder-gray-500 rounded-xl outline-none transition-all duration-200"
+            style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);"
+            onfocus="this.style.borderColor='rgba(124,58,237,.6)'"
+            onblur="this.style.borderColor='rgba(255,255,255,.1)'"
+          />
+        </div>
+      </div>
+
+      {{/* Right: SVG illustration */}}
+      <div class="flex-1 flex justify-center lg:justify-end anim-r select-none" aria-hidden="true">
+        {{ partial "blog/hero-illustration.html" . }}
+      </div>
+
+    </div>
+  </div>
+</section>

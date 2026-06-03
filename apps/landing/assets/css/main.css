@@ -204,6 +204,12 @@
 @layer utilities {
   .rounded-lg { border-radius: 1rem; }
 
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
   .text-gradient {
     background: linear-gradient(135deg, #C084FC, #7C3AED);
     -webkit-background-clip: text;

@@ -1,0 +1,109 @@
+{{/* ── About Widget ── */}}
+<div class="card p-5">
+  <h3 class="text-base font-bold text-white mb-3">About Moniqo Blog</h3>
+  <p class="text-sm text-gray-400 leading-relaxed mb-4">
+    We share practical budgeting advice, product updates, and stories from our community to help you on your financial journey.
+  </p>
+  <a href="/features" class="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors duration-150"
+     style="color:#A855F7;" onmouseover="this.style.color='#C084FC'" onmouseout="this.style.color='#A855F7'">
+    Learn more about Moniqo
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+    </svg>
+  </a>
+</div>
+
+{{/* ── Popular Posts Widget ── */}}
+<div class="card p-5">
+  <h3 class="text-base font-bold text-white mb-4">Popular Posts</h3>
+  <div class="space-y-4">
+    {{ $posts := where .Site.RegularPages "Type" "blog" }}
+    {{ range first 5 $posts }}
+      {{ $slug := "" }}
+      {{ with .Params.categories }}{{ $slug = index . 0 | urlize }}{{ end }}
+      {{ $iconBg := "#1E1250" }}
+      {{ $iconStroke := "#7C3AED" }}
+      {{ if eq $slug "tips-tricks" }}{{ $iconBg = "#0E3328" }}{{ $iconStroke = "#10B981" }}
+      {{ else if eq $slug "product-updates" }}{{ $iconBg = "#1a1200" }}{{ $iconStroke = "#F59E0B" }}
+      {{ else if eq $slug "community" }}{{ $iconBg = "#060e1e" }}{{ $iconStroke = "#3B82F6" }}
+      {{ else if eq $slug "financial-wellness" }}{{ $iconBg = "#060e15" }}{{ $iconStroke = "#14B8A6" }}
+      {{ end }}
+      <a href="{{ .RelPermalink }}" class="flex items-start gap-3 group">
+        <div class="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center overflow-hidden"
+             style="background:{{ $iconBg }};border:1px solid {{ $iconStroke }}22;">
+          {{ partial "blog/post-image.html" (dict "category" $slug) }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-300 group-hover:text-white line-clamp-2 leading-snug transition-colors duration-150">
+            {{ .Title }}
+          </p>
+          <time class="text-xs text-gray-600 mt-0.5 block" datetime="{{ .Date.Format "2006-01-02" }}">
+            {{ .Date.Format "Jan 2, 2006" }}
+          </time>
+        </div>
+      </a>
+    {{ end }}
+  </div>
+</div>
+
+{{/* ── Categories Widget ── */}}
+{{ $sidebarCats := slice
+  (dict "name" "Budgeting 101"   "slug" "budgeting-101")
+  (dict "name" "Tips & Tricks"   "slug" "tips-tricks")
+  (dict "name" "Product Updates" "slug" "product-updates")
+  (dict "name" "Community"       "slug" "community")
+  (dict "name" "Financial Wellness" "slug" "financial-wellness")
+}}
+<div class="card p-5">
+  <h3 class="text-base font-bold text-white mb-4">Categories</h3>
+  <ul class="space-y-2.5">
+    {{ range $sidebarCats }}
+      {{ $count := 0 }}
+      {{ with index $.Site.Taxonomies.categories .slug }}{{ $count = .Count }}{{ end }}
+      {{ $iconColor := "#7C3AED" }}
+      {{ if eq .slug "tips-tricks"         }}{{ $iconColor = "#10B981" }}
+      {{ else if eq .slug "product-updates" }}{{ $iconColor = "#F59E0B" }}
+      {{ else if eq .slug "community"       }}{{ $iconColor = "#3B82F6" }}
+      {{ else if eq .slug "financial-wellness" }}{{ $iconColor = "#14B8A6" }}
+      {{ end }}
+      <li>
+        <a href="/categories/{{ .slug }}"
+           class="flex items-center justify-between text-sm text-gray-400 hover:text-white transition-colors duration-150 py-0.5 group">
+          <span class="flex items-center gap-2.5">
+            <span class="w-1.5 h-1.5 rounded-full flex-none" style="background:{{ $iconColor }};"></span>
+            {{ .name }}
+          </span>
+          <span class="text-xs text-gray-600 group-hover:text-gray-400 transition-colors duration-150">{{ $count }}</span>
+        </a>
+      </li>
+    {{ end }}
+  </ul>
+</div>
+
+{{/* ── Newsletter Widget ── */}}
+<div class="card p-5">
+  <h3 class="text-base font-bold text-white mb-2">Stay in the loop</h3>
+  <p class="text-sm text-gray-400 leading-relaxed mb-4">
+    Get the latest articles and updates straight to your inbox.
+  </p>
+  <form onsubmit="return false;" class="space-y-3">
+    <input
+      type="email"
+      placeholder="Enter your email"
+      class="w-full px-3.5 py-2.5 rounded-lg text-sm text-white placeholder-gray-600 outline-none transition-all duration-200"
+      style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);"
+      onfocus="this.style.borderColor='rgba(124,58,237,.55)'"
+      onblur="this.style.borderColor='rgba(255,255,255,.1)'"
+    />
+    <button
+      type="submit"
+      class="btn btn-primary w-full justify-center py-2.5 text-sm rounded-lg"
+    >Subscribe</button>
+  </form>
+  <p class="flex items-center gap-1.5 text-xs text-gray-600 mt-3">
+    <svg class="w-3.5 h-3.5 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+    </svg>
+    We respect your privacy. Unsubscribe anytime.
+  </p>
+</div>
