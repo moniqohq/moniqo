@@ -37,9 +37,8 @@ badgeColor: "#7c3aed"
   <div class="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:items-center">
     <div class="relative mt-8">
       <div class="absolute -inset-3 rounded-3xl opacity-10 blur-2xl" style="background-color:#7c3aed;"></div>
-      <div class="relative overflow-hidden rounded-2xl ring-1 ring-gray-200 min-h-44 flex flex-col items-center justify-center" style="background-color: color-mix(in srgb, #7c3aed 6%, white);">
-        <svg class="h-10 w-10 opacity-20" style="color:#7c3aed;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        <span class="mt-4 text-xs font-medium" style="color:rgba(124,58,237,.35);">Envelope Method</span>
+      <div class="relative overflow-hidden rounded-2xl" style="border:1px solid rgba(124,58,237,.35);aspect-ratio:4/3;">
+        <img src="/images/feature-envelope-method.png" alt="Envelope Method" class="absolute inset-0 w-full h-full object-cover">
       </div>
     </div>
     <div class="lg:self-start">
