@@ -1,0 +1,335 @@
+{{ define "main" }}
+
+<style>
+/* ── Docs layout ─────────────────────────────────────────── */
+.docs-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  gap: 2rem;
+  align-items: start;
+}
+@media (max-width: 1280px) {
+  .docs-layout { grid-template-columns: 260px 1fr; }
+  .docs-right-sidebar { display: none; }
+}
+@media (max-width: 1024px) {
+  .docs-layout { grid-template-columns: 1fr; }
+  .docs-left-sidebar { display: none; }
+}
+
+/* ── Mobile nav toggle ───────────────────────────────────── */
+.mobile-nav-btn {
+  display: none;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  border-radius: .75rem;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  color: #d1d5db;
+  font-size: .8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+  margin-bottom: 1rem;
+}
+.mobile-nav-btn:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.2); }
+@media (max-width: 1024px) { .mobile-nav-btn { display: flex; } }
+
+/* ── Slide-in mobile sidebar ─────────────────────────────── */
+.mobile-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+.mobile-sidebar-overlay.open { display: block; }
+.mobile-sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(4px);
+}
+.mobile-sidebar-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 300px;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background: #0b1220;
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+</style>
+
+<article>
+
+<!-- ═══════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════ -->
+<section class="relative overflow-hidden" style="background:linear-gradient(180deg,#050816 0%,#080B1E 60%,#050816 100%);min-height:260px;">
+  <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+    <div class="absolute dot-grid inset-0 opacity-25"></div>
+    <div class="absolute animate-glow" style="top:-8%;left:45%;transform:translateX(-50%);width:700px;height:600px;background:radial-gradient(ellipse,rgba(124,58,237,.18) 0%,transparent 65%);filter:blur(2px);"></div>
+  </div>
+
+  <div class="container relative z-10 py-14 lg:py-20">
+    <div class="mb-5">
+      <span class="section-badge">USER GUIDE</span>
+    </div>
+    <h1 class="text-5xl lg:text-6xl font-extrabold text-white leading-[1.08] mb-5"
+        style="font-family:'Plus Jakarta Sans',sans-serif;">
+      FAQ
+    </h1>
+    <p class="text-gray-400 text-lg leading-relaxed max-w-xl">
+      Answers to common questions about Moniqo — budgeting, accounts, sharing, and more.
+    </p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════
+     3-COLUMN LAYOUT
+═══════════════════════════════════════════════ -->
+<div class="container py-10 pb-28">
+
+  <!-- Mobile nav toggle -->
+  <button class="mobile-nav-btn" onclick="toggleMobileSidebar()" aria-expanded="false" id="mobile-nav-btn">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+    </svg>
+    Browse Topics
+  </button>
+
+  <div class="docs-layout">
+
+    <!-- ════════════════════════════════════════
+         LEFT SIDEBAR
+    ════════════════════════════════════════ -->
+    <aside class="docs-left-sidebar">
+      <div class="sticky" style="top:88px;">
+        {{ partial "docs/nav-sidebar" . }}
+      </div>
+    </aside>
+
+
+    <!-- ════════════════════════════════════════
+         MAIN CONTENT
+    ════════════════════════════════════════ -->
+    <main id="docs-content" class="min-w-0">
+
+      <!-- ── General ── -->
+      <section id="faq-general" class="mb-10">
+        <h2 class="text-xl font-bold text-white mb-4"
+            style="font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.015em;">
+          General
+        </h2>
+        <div class="space-y-3">
+          {{ $general := slice
+            (dict "q" "Can I share my budget with a partner or family member?"
+                  "a" "Yes. Moniqo supports multi-user budgets. The budget owner can invite others and assign them roles: Admin, Editor, or Viewer. Each person accesses the same financial universe with permissions appropriate to their role.")
+            (dict "q" "Can I use Moniqo for a business budget?"
+                  "a" "Moniqo is designed for personal and household budgeting. You can create a separate budget for a side project, but it is not optimized for corporate accounting workflows.")
+            (dict "q" "Is my data backed up?"
+                  "a" "All data is stored securely server-side. You can export a full JSON backup of your budget at any time from Settings.")
+          }}
+          {{ range $general }}
+          <details class="rounded-xl group" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+            <summary class="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer list-none text-sm font-semibold text-white select-none" style="outline:none;">
+              {{ .q }}
+              <svg class="w-4 h-4 shrink-0 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </summary>
+            <div class="px-5 pb-4">
+              <p class="text-sm text-gray-400 leading-relaxed">{{ .a }}</p>
+            </div>
+          </details>
+          {{ end }}
+        </div>
+      </section>
+
+      <!-- ── Accounts & Data ── -->
+      <section id="faq-accounts" class="mb-10">
+        <h2 class="text-xl font-bold text-white mb-4"
+            style="font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.015em;">
+          Accounts &amp; Data
+        </h2>
+        <div class="space-y-3">
+          {{ $accounts := slice
+            (dict "q" "Does Moniqo connect to my bank automatically?"
+                  "a" "No. Moniqo is designed for manual entry. You log your own transactions, which keeps your financial data private and builds a more conscious budgeting habit.")
+          }}
+          {{ range $accounts }}
+          <details class="rounded-xl group" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+            <summary class="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer list-none text-sm font-semibold text-white select-none" style="outline:none;">
+              {{ .q }}
+              <svg class="w-4 h-4 shrink-0 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </summary>
+            <div class="px-5 pb-4">
+              <p class="text-sm text-gray-400 leading-relaxed">{{ .a }}</p>
+            </div>
+          </details>
+          {{ end }}
+        </div>
+      </section>
+
+      <!-- ── Budgeting ── -->
+      <section id="faq-budgeting" class="mb-10">
+        <h2 class="text-xl font-bold text-white mb-4"
+            style="font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.015em;">
+          Budgeting
+        </h2>
+        <div class="space-y-3">
+          {{ $budgeting := slice
+            (dict "q" "What happens if I overspend an envelope?"
+                  "a" "Your envelope balance goes negative, shown clearly in red. You can cover it by moving money from another envelope. Moniqo never blocks you from recording reality.")
+            (dict "q" "How is allocation different from spending?"
+                  "a" "Allocation moves money from \"To Be Budgeted\" into envelopes. Spending reduces an envelope balance when you record a transaction. These are distinct steps, both required for zero-based budgeting to work correctly.")
+          }}
+          {{ range $budgeting }}
+          <details class="rounded-xl group" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
+            <summary class="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer list-none text-sm font-semibold text-white select-none" style="outline:none;">
+              {{ .q }}
+              <svg class="w-4 h-4 shrink-0 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </summary>
+            <div class="px-5 pb-4">
+              <p class="text-sm text-gray-400 leading-relaxed">{{ .a }}</p>
+            </div>
+          </details>
+          {{ end }}
+        </div>
+      </section>
+
+    </main>
+
+
+    <!-- ════════════════════════════════════════
+         RIGHT SIDEBAR
+    ════════════════════════════════════════ -->
+    <aside class="docs-right-sidebar">
+      <div class="sticky space-y-4" style="top:88px;">
+
+        <!-- On This Page -->
+        <div class="rounded-2xl p-5" style="background:rgba(11,18,32,.8);border:1px solid rgba(255,255,255,.08);">
+          <p class="text-xs font-semibold uppercase tracking-widest mb-4 text-gray-400" style="letter-spacing:.1em;">On this page</p>
+          <nav class="space-y-1" aria-label="Page sections">
+            <a href="#faq-general"   class="toc-link block text-sm py-1.5 transition-colors duration-150" style="color:#a78bfa;">General</a>
+            <a href="#faq-accounts"  class="toc-link block text-sm py-1.5 text-gray-500 hover:text-white transition-colors duration-150">Accounts &amp; Data</a>
+            <a href="#faq-budgeting" class="toc-link block text-sm py-1.5 text-gray-500 hover:text-white transition-colors duration-150">Budgeting</a>
+          </nav>
+        </div>
+
+        <!-- Back to User Guide -->
+        <div class="rounded-2xl p-5" style="background:rgba(11,18,32,.8);border:1px solid rgba(255,255,255,.08);">
+          <p class="text-sm font-bold text-white mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">User Guide</p>
+          <p class="text-xs text-gray-400 mb-4 leading-relaxed">Return to the full guide for step-by-step tutorials and tips.</p>
+          <a href="/user-guide/"
+             class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all duration-200"
+             style="background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.35);"
+             onmouseover="this.style.background='rgba(139,92,246,.35)';"
+             onmouseout="this.style.background='rgba(139,92,246,.2)';">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            Back to User Guide
+          </a>
+        </div>
+
+        <!-- Need More Help -->
+        <div class="rounded-2xl p-5" style="background:rgba(11,18,32,.8);border:1px solid rgba(255,255,255,.08);">
+          <p class="text-sm font-bold text-white mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">Need more help?</p>
+          <p class="text-xs text-gray-400 mb-4 leading-relaxed">Join our community or reach out to our team.</p>
+          <div class="space-y-2">
+            <a href="https://github.com/moniqohq/moniqo/discussions" target="_blank" rel="noopener noreferrer"
+               class="support-link flex items-center justify-between text-sm text-gray-400 py-1.5">
+              GitHub Discussions
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+            <a href="/contact" class="support-link flex items-center justify-between text-sm text-gray-400 py-1.5">
+              Contact Support
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+  </div><!-- /.docs-layout -->
+</div><!-- /.container -->
+
+
+<!-- ═══════════════════════════════════════════════
+     MOBILE SIDEBAR OVERLAY
+═══════════════════════════════════════════════ -->
+<div id="mobile-sidebar-overlay" class="mobile-sidebar-overlay" role="dialog" aria-modal="true" aria-label="Documentation navigation">
+  <div class="mobile-sidebar-backdrop" onclick="closeMobileSidebar()"></div>
+  <div class="mobile-sidebar-panel">
+    <div class="flex items-center justify-between mb-6">
+      <p class="text-sm font-semibold text-white">Topics</p>
+      <button onclick="closeMobileSidebar()" class="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors" aria-label="Close navigation">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    {{ partial "docs/nav-sidebar" . }}
+  </div>
+</div>
+
+
+<script>
+function toggleMobileSidebar() {
+  var overlay = document.getElementById('mobile-sidebar-overlay');
+  var btn     = document.getElementById('mobile-nav-btn');
+  var open    = overlay.classList.toggle('open');
+  document.body.style.overflow = open ? 'hidden' : '';
+  btn.setAttribute('aria-expanded', open.toString());
+}
+function closeMobileSidebar() {
+  var overlay = document.getElementById('mobile-sidebar-overlay');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('mobile-nav-btn').setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeMobileSidebar();
+});
+
+/* TOC active section */
+(function() {
+  var tocLinks = document.querySelectorAll('.toc-link');
+  var sections = ['faq-general','faq-accounts','faq-budgeting'].map(function(id) {
+    return document.getElementById(id);
+  }).filter(Boolean);
+
+  function setActive(id) {
+    tocLinks.forEach(function(l) {
+      var active = l.getAttribute('href') === '#' + id;
+      l.classList.toggle('active', active);
+      l.style.color = active ? '#a78bfa' : '';
+    });
+  }
+
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) setActive(entry.target.id);
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(function(s) { observer.observe(s); });
+})();
+</script>
+
+</article>
+{{ end }}

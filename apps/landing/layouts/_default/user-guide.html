@@ -516,50 +516,6 @@
       </section>
 
 
-      <!-- ── FAQ ── -->
-      <section id="faq" class="fadein fadein-d3">
-        <h2 class="text-2xl font-bold text-white mb-6"
-            style="font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.015em;">
-          FAQ
-        </h2>
-
-        <div class="space-y-3">
-
-          {{ $faqs := slice
-            (dict "q" "Can I share my budget with a partner or family member?"
-                  "a" "Yes. Moniqo supports multi-user budgets. The budget owner can invite others and assign them roles: Admin, Editor, or Viewer. Each person accesses the same financial universe with permissions appropriate to their role.")
-            (dict "q" "Does Moniqo connect to my bank automatically?"
-                  "a" "No. Moniqo is designed for manual entry. You log your own transactions, which keeps your financial data private and builds a more conscious budgeting habit.")
-            (dict "q" "What happens if I overspend an envelope?"
-                  "a" "Your envelope balance goes negative, shown clearly in red. You can cover it by moving money from another envelope. Moniqo never blocks you from recording reality.")
-            (dict "q" "How is allocation different from spending?"
-                  "a" "Allocation moves money from \"To Be Budgeted\" into envelopes. Spending reduces an envelope balance when you record a transaction. These are distinct steps, both required for zero-based budgeting to work correctly.")
-            (dict "q" "Can I use Moniqo for a business budget?"
-                  "a" "Moniqo is designed for personal and household budgeting. You can create a separate budget for a side project, but it is not optimized for corporate accounting workflows.")
-            (dict "q" "Is my data backed up?"
-                  "a" "All data is stored securely server-side. You can export a full JSON backup of your budget at any time from Settings.")
-          }}
-
-          {{ range $faqs }}
-          <details class="rounded-xl group" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);">
-            <summary class="flex items-center justify-between gap-4 px-5 py-4 cursor-pointer list-none
-                            text-sm font-semibold text-white select-none"
-                     style="outline:none;">
-              {{ .q }}
-              <svg class="w-4 h-4 shrink-0 text-gray-500 transition-transform duration-200 group-open:rotate-180"
-                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </summary>
-            <div class="px-5 pb-4">
-              <p class="text-sm text-gray-400 leading-relaxed">{{ .a }}</p>
-            </div>
-          </details>
-          {{ end }}
-
-        </div>
-      </section>
-
     </main>
 
 
@@ -580,8 +536,6 @@
               Popular Topics</a>
             <a href="#tips" class="toc-link block text-sm py-1.5 text-gray-500 hover:text-white transition-colors duration-150">
               Tips &amp; Best Practices</a>
-            <a href="#faq" class="toc-link block text-sm py-1.5 text-gray-500 hover:text-white transition-colors duration-150">
-              FAQ</a>
           </nav>
         </div>
 
@@ -686,7 +640,7 @@ document.addEventListener('keydown', function(e) {
 /* ── TOC active section ─────────────────── */
 (function() {
   var tocLinks = document.querySelectorAll('.toc-link');
-  var sections = ['getting-started','popular-topics','tips','faq'].map(function(id) {
+  var sections = ['getting-started','popular-topics','tips'].map(function(id) {
     return document.getElementById(id);
   }).filter(Boolean);
 
