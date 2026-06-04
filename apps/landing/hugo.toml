@@ -1,4 +1,4 @@
-baseURL = "https://moniqo.app/"
+baseURL = "https://moniqo.in/"
 title = "Moniqo"
 defaultContentLanguage = "en"
 theme = "hugo-saasify-theme"
