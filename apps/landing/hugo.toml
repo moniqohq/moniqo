@@ -65,7 +65,7 @@ enableGitInfo = true
         url = "/signin"
       [params.header.buttons.getStarted]
         text = "Get Started"
-        url = "/get-started"
+        url = "/download"
 
   [params.blog]
     enable = true
@@ -124,17 +124,21 @@ enableGitInfo = true
     url = "/features"
     weight = 2
   [[menu.main]]
+    name = "Download"
+    url = "/download"
+    weight = 3
+  [[menu.main]]
     name = "User Guide"
     url = "/user-guide"
-    weight = 3
+    weight = 4
   [[menu.main]]
     name = "Blog"
     url = "/blog"
-    weight = 4
+    weight = 5
   [[menu.main]]
     name = "Contact Us"
     url = "/contact"
-    weight = 5
+    weight = 6
 
   [[menu.footer_column_1]]
     name = "Features"
