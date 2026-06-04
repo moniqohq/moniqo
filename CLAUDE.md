@@ -57,5 +57,5 @@ All endpoint specs in `docs/apis/` follow the same conventions — preserve them
 ## Working with Contributions
 
 - The project requires a CLA: individual contributors agree to `agreements/individual_contributor.md`, corporate contributors to `agreements/corporate_contributor.md`. Mention this if a user asks about contributing or opening a PR.
-- Security disclosures go to `abdulsaqib@proton.me` privately — never recommend filing public issues for security bugs.
+- Security disclosures go to `support@moniqo.in` privately — never recommend filing public issues for security bugs.
 - The project license is GPL v3 (see `LICENSE`). Be mindful when suggesting dependencies or copying code from incompatible sources.

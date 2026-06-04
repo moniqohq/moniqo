@@ -12,7 +12,7 @@ Only the latest release on the `main` branch receives security fixes. Older rele
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Report vulnerabilities privately by emailing **abdulsaqib@proton.me** with:
+Report vulnerabilities privately by emailing **support@moniqo.in** with:
 
 - A description of the vulnerability and its potential impact
 - Steps to reproduce or a proof-of-concept

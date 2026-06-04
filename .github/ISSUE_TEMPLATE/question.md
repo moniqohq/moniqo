@@ -16,4 +16,4 @@ What have you already read or tried? Link to relevant docs, code, or prior
 issues so others can pick up where you left off.
 
 > Security disclosures should NOT be filed here. Email
-> `abdulsaqib@proton.me` privately instead.
+> `support@moniqo.in` privately instead.
