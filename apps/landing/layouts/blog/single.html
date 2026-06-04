@@ -1,0 +1,161 @@
+{{ define "main" }}
+<style>
+/* Prevent backdrop-filter from bleeding white article text into sidebar cards */
+.blog-post-sidebar .card {
+  background: #0b1220;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: rgba(255,255,255,.08);
+}
+.blog-post-sidebar .card:hover {
+  background: #0f1628;
+}
+/* TOC nav links */
+.toc-nav a { color: #9ca3af; font-size: .875rem; line-height: 1.75; display: block; }
+.toc-nav a:hover { color: #fff; }
+.toc-nav ul { margin-left: 1rem; list-style: none; }
+.toc-nav > ul { margin-left: 0; }
+</style>
+
+{{ $catName := "" }}
+{{ $catSlug := "" }}
+{{ with .Params.categories }}
+  {{ $catName = index . 0 }}
+  {{ $catSlug = index . 0 | urlize }}
+{{ end }}
+
+{{ $textColor := "#C084FC" }}
+{{ $bgColor   := "rgba(124,58,237,.15)" }}
+{{ if eq $catSlug "tips-tricks" }}
+  {{ $textColor = "#34D399" }}
+  {{ $bgColor   = "rgba(16,185,129,.15)" }}
+{{ else if eq $catSlug "product-updates" }}
+  {{ $textColor = "#FCD34D" }}
+  {{ $bgColor   = "rgba(245,158,11,.15)" }}
+{{ else if eq $catSlug "community" }}
+  {{ $textColor = "#60A5FA" }}
+  {{ $bgColor   = "rgba(59,130,246,.15)" }}
+{{ else if eq $catSlug "financial-wellness" }}
+  {{ $textColor = "#2DD4BF" }}
+  {{ $bgColor   = "rgba(20,184,166,.15)" }}
+{{ end }}
+
+{{ $author := .Params.author | default "Moniqo Team" }}
+{{ $words  := split $author " " }}
+{{ $initials := "" }}
+{{ if gt (len $words) 0 }}{{ $initials = substr (index $words 0) 0 1 | upper }}{{ end }}
+{{ if gt (len $words) 1 }}{{ $initials = printf "%s%s" $initials (substr (index $words 1) 0 1 | upper) }}{{ end }}
+
+{{/* ── Post header ── */}}
+<section class="relative overflow-hidden" style="background:linear-gradient(180deg,#050816 0%,#080B1E 60%,#050816 100%);">
+  <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+    <div class="absolute dot-grid inset-0 opacity-25"></div>
+    <div class="absolute animate-glow" style="top:-8%;left:45%;transform:translateX(-50%);width:700px;height:600px;background:radial-gradient(ellipse,rgba(124,58,237,.18) 0%,transparent 65%);filter:blur(2px);"></div>
+  </div>
+
+  <div class="container relative z-10 py-10 lg:py-14">
+    <a href="/blog/" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors duration-150 mb-3">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to Blog
+    </a>
+
+    {{ with $catName }}
+    <div class="mb-4">
+      <span class="inline-block text-xs font-bold tracking-widest uppercase"
+            style="color:{{ $textColor }};">{{ . }}</span>
+    </div>
+    {{ end }}
+
+    <h1 class="text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white leading-[1.1] mb-5 max-w-3xl"
+        style="font-family:'Plus Jakarta Sans',sans-serif;">
+      {{ .Title }}
+    </h1>
+
+    {{ with .Description }}
+    <p class="text-gray-400 text-lg leading-relaxed mb-7 max-w-2xl">{{ . }}</p>
+    {{ end }}
+
+    <div class="flex items-center gap-2.5 text-sm text-gray-500 flex-wrap">
+      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold text-white flex-none"
+            style="background:linear-gradient(135deg,#7C3AED,#5B21B6);">{{ $initials }}</span>
+      <span class="text-gray-300 font-medium">{{ $author }}</span>
+      <span class="text-gray-600">·</span>
+      <time datetime="{{ .Date.Format "2006-01-02" }}" class="text-gray-500">
+        {{ .Date.Format "Jan 2, 2006" }}
+      </time>
+      <span class="text-gray-600">·</span>
+      <span>{{ .ReadingTime }} min read</span>
+    </div>
+  </div>
+</section>
+
+{{/* ── Main content ── */}}
+<section class="container py-10 lg:py-14">
+  <div class="flex gap-8 items-start">
+
+    {{/* Article */}}
+    <article class="flex-1 min-w-0">
+      <div class="card p-7 lg:p-10">
+        <div class="prose">
+          {{ .Content }}
+        </div>
+      </div>
+
+      {{/* Tags */}}
+      {{ with .Params.tags }}
+      <div class="flex flex-wrap gap-2 mt-6">
+        {{ range . }}
+        <span class="text-xs font-medium px-3 py-1 rounded-full"
+              style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#9ca3af;">
+          {{ . }}
+        </span>
+        {{ end }}
+      </div>
+      {{ end }}
+
+      {{/* Prev / Next navigation */}}
+      {{ $pages := where .Site.RegularPages "Type" "blog" }}
+      {{ $idx   := 0 }}
+      {{ range $i, $p := $pages }}{{ if eq $p.RelPermalink $.RelPermalink }}{{ $idx = $i }}{{ end }}{{ end }}
+      {{ $prev := index $pages (sub $idx 1) }}
+      {{ $next := index $pages (add $idx 1) }}
+
+      {{ if or $prev $next }}
+      <div class="grid grid-cols-2 gap-4 mt-8">
+        {{ if and $prev (gt $idx 0) }}
+        <a href="{{ $prev.RelPermalink }}"
+           class="card p-4 group hover:border-purple-600/40 transition-colors duration-200">
+          <p class="text-xs text-gray-500 mb-1.5">Previous</p>
+          <p class="text-sm font-semibold text-gray-300 group-hover:text-white line-clamp-2 transition-colors duration-150">
+            {{ $prev.Title }}
+          </p>
+        </a>
+        {{ else }}
+        <div></div>
+        {{ end }}
+
+        {{ $lastIdx := sub (len $pages) 1 }}
+        {{ if and $next (lt $idx $lastIdx) }}
+        <a href="{{ $next.RelPermalink }}"
+           class="card p-4 text-right group hover:border-purple-600/40 transition-colors duration-200">
+          <p class="text-xs text-gray-500 mb-1.5">Next</p>
+          <p class="text-sm font-semibold text-gray-300 group-hover:text-white line-clamp-2 transition-colors duration-150">
+            {{ $next.Title }}
+          </p>
+        </a>
+        {{ end }}
+      </div>
+      {{ end }}
+    </article>
+
+    {{/* Sidebar */}}
+    <aside class="blog-post-sidebar w-[292px] shrink-0 hidden lg:block space-y-5">
+      {{ partial "blog/sidebar.html" . }}
+    </aside>
+
+  </div>
+</section>
+
+{{ end }}
