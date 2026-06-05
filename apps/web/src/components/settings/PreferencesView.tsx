@@ -378,7 +378,7 @@ export function PreferencesView() {
               <p className="text-[13px] font-semibold text-white leading-tight">Preferences sync across devices</p>
             </div>
             <p className="text-[12px] text-[#5A6A85] leading-relaxed">
-              Your display, regional, and budgeting preferences are automatically saved and applied across all devices where you're signed in to Moniqo.
+              Your display, regional, and budgeting preferences are automatically saved and applied across all devices where you&apos;re signed in to Moniqo.
             </p>
           </div>
 

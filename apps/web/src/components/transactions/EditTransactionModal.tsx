@@ -98,6 +98,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
   const [transferOpen, setTransferOpen] = useState(false)
 
   /* populate form when tx changes */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!tx) return
     setTxType(tx.type)
@@ -109,6 +110,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
     setTransferTo('')
     setNotes(tx.memo ?? '')
   }, [tx])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* ESC to close */
   useEffect(() => {

@@ -374,7 +374,7 @@ function WhatsNextCard({ onCreateNewGoal }: { onCreateNewGoal?: () => void }) {
     >
       <span className="text-[36px] flex-shrink-0 select-none">🥳</span>
       <div className="flex-1 min-w-0">
-        <p className="text-[16px] font-bold text-white">What's next?</p>
+        <p className="text-[16px] font-bold text-white">What&apos;s next?</p>
         <p className="text-[13px] text-[#5A6A85] mt-0.5">Set a new goal and keep your momentum going.</p>
       </div>
       <button
@@ -424,7 +424,7 @@ function GoalCompletionActions({ onViewSummary, onCelebrate }: {
           animate={{ x: ['-100%', '200%'] }}
           transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1.5, ease: 'easeInOut' }}
         />
-        <span className="relative z-10">Awesome! Let's Celebrate 🎉</span>
+        <span className="relative z-10">Awesome! Let&apos;s Celebrate 🎉</span>
       </motion.button>
     </motion.div>
   )
@@ -548,7 +548,7 @@ export function GoalCompletionDialog({
                       transition={{ delay: 1.05, duration: 0.4 }}
                       className="text-[15px] text-[#7A8BA8] leading-relaxed max-w-[500px] mx-auto"
                     >
-                      You've reached your goal.{' '}
+                      You&apos;ve reached your goal.{' '}
                       <span className="block">Your discipline today will take you to more amazing places.</span>
                     </motion.p>
                   </div>

@@ -46,7 +46,7 @@ const sparkCount = [
 ]
 
 /* ── Tooltip shared across sparklines ── */
-function SparkTooltip({ active, payload, formatter }: any) {
+function SparkTooltip({ active, payload, formatter }: { active?: boolean; payload?: Array<{ value: number; dataKey?: string; name?: string }>; formatter: (v: number) => string }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-[#131C2E] border border-[#1E2B42] rounded px-2 py-1 text-[11px] text-white shadow-xl">

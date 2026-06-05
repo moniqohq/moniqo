@@ -36,6 +36,48 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   )
 }
 
+// ── Password Field ────────────────────────────────────────────────
+
+function PasswordField({
+  value,
+  onChange,
+  show,
+  onToggleShow,
+  placeholder = '••••••••••',
+}: {
+  value: string
+  onChange: (v: string) => void
+  show: boolean
+  onToggleShow: () => void
+  placeholder?: string
+}) {
+  return (
+    <div className="relative">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2">
+        <Lock size={12} className="text-[#5A6A85]" />
+      </div>
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={cn(
+          'w-full h-8 pl-8 pr-8 rounded-lg border border-[#1E2B42] bg-[#0D1520]',
+          'text-[12px] text-[#A8B4CC] placeholder:text-[#3A4A60] outline-none',
+          'focus:border-[#6C3AED] focus:ring-2 focus:ring-[rgba(108,58,237,0.2)] transition-all',
+        )}
+      />
+      <button
+        type="button"
+        onClick={onToggleShow}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5A6A85] hover:text-[#A8B4CC] transition-colors"
+      >
+        {show ? <EyeOff size={12} /> : <Eye size={12} />}
+      </button>
+    </div>
+  )
+}
+
 // ── Password Card ─────────────────────────────────────────────────
 
 function PasswordCard() {
@@ -45,46 +87,6 @@ function PasswordCard() {
   const [currentPw, setCurrentPw]         = useState('')
   const [newPw, setNewPw]                 = useState('')
   const [confirmPw, setConfirmPw]         = useState('')
-
-  function PasswordField({
-    value,
-    onChange,
-    show,
-    onToggleShow,
-    placeholder = '••••••••••',
-  }: {
-    value: string
-    onChange: (v: string) => void
-    show: boolean
-    onToggleShow: () => void
-    placeholder?: string
-  }) {
-    return (
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2">
-          <Lock size={12} className="text-[#5A6A85]" />
-        </div>
-        <input
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={cn(
-            'w-full h-8 pl-8 pr-8 rounded-lg border border-[#1E2B42] bg-[#0D1520]',
-            'text-[12px] text-[#A8B4CC] placeholder:text-[#3A4A60] outline-none',
-            'focus:border-[#6C3AED] focus:ring-2 focus:ring-[rgba(108,58,237,0.2)] transition-all',
-          )}
-        />
-        <button
-          type="button"
-          onClick={onToggleShow}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5A6A85] hover:text-[#A8B4CC] transition-colors"
-        >
-          {show ? <EyeOff size={12} /> : <Eye size={12} />}
-        </button>
-      </div>
-    )
-  }
 
   return (
     <div className="bg-[#0F1623] border border-[#1E2B42] rounded-xl overflow-hidden">

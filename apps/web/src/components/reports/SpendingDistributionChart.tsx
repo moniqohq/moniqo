@@ -7,7 +7,7 @@ interface Props {
   envelopes: EnvelopeReport[]
 }
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ value: number; name?: string }> }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-[#131C2E] border border-[#1E2B42] rounded-lg px-3 py-2 text-xs text-white shadow-xl">

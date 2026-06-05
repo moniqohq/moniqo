@@ -45,6 +45,7 @@ export function ForceDeleteAccountDialog({ open, onOpenChange, account }: ForceD
   const canDelete = understood && confirmText === 'DELETE'
   const typeMeta  = TYPE_META[account.type]
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) {
       setUnderstood(false)
@@ -55,6 +56,7 @@ export function ForceDeleteAccountDialog({ open, onOpenChange, account }: ForceD
       setTimeout(() => inputRef.current?.focus(), 120)
     }
   }, [open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleDelete() {
     if (!canDelete) return

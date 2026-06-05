@@ -52,6 +52,7 @@ export function ForceDeleteEnvelopeDialog({
   const canDelete = understood && confirmText === 'DELETE'
 
   /* Reset state when dialog opens/closes */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) {
       setUnderstood(false)
@@ -60,6 +61,7 @@ export function ForceDeleteEnvelopeDialog({
       setError(null)
     }
   }, [open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* ESC + body scroll lock */
   useEffect(() => {

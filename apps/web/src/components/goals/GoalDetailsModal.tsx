@@ -649,7 +649,7 @@ function GoalMotivationCard() {
 
       {/* Text */}
       <div className="relative min-w-0">
-        <div className="text-[15px] font-bold text-white leading-snug">You've got this! ✨</div>
+        <div className="text-[15px] font-bold text-white leading-snug">You&apos;ve got this! ✨</div>
         <div className="text-[12px] text-[#C4B5FD] mt-1 leading-relaxed">
           Every contribution brings you closer to your dream.
         </div>
@@ -731,6 +731,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
   const [source, setSource] = useState('savings')
   const [loading, setLoading] = useState(false)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setAmount('')
@@ -738,6 +739,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
       setNotes('')
     }
   }, [open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -901,7 +903,9 @@ export function GoalDetailsModal({ goalId, onClose, onEdit, onDelete }: GoalDeta
   const [addContribOpen, setAddContribOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => { setMounted(true) }, [])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!goalId) return

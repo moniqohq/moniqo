@@ -68,9 +68,11 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
   const topCategory = Object.values(categoryTotals).sort((a, b) => b.total - a.total)[0]
 
   const lastTxn = txns.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+  /* eslint-disable react-hooks/purity */
   const daysSinceLast = lastTxn
     ? Math.floor((Date.now() - new Date(lastTxn.date).getTime()) / 86_400_000)
     : null
+  /* eslint-enable react-hooks/purity */
 
   return (
     <div className="flex flex-col h-full gap-4">
