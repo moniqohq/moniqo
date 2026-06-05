@@ -10,8 +10,8 @@ export interface ChartPoint { date: string; value: number }
 
 interface Props { data: ChartPoint[] }
 
-function CustomDot(props: { cx: number; cy: number; [key: string]: unknown }) {
-  const { cx, cy } = props
+function CustomDot(props: { cx?: number; cy?: number; [key: string]: unknown }) {
+  const { cx = 0, cy = 0 } = props
   return (
     <g>
       <circle cx={cx} cy={cy} r={4} fill="#0B1120" stroke="#7C3AED" strokeWidth={1.5} />
