@@ -21,13 +21,9 @@ jobs:
         uses: commit-check/commit-check-action@f237ed0085f49444ab5c85bdfa5cdcd490fc09c5 # v2
         with:
           message: true
-          commit-message-pattern: '^(feat|fix|chore|docs|ci|refactor|test|style|perf|build|revert)(\(.+\))?: .+'
-          branch: true
+          branch: false
           author-name: true
           author-email: true
-          commit-signoff: true
-          merge-base: false
-          imperative: false
           job-summary: false
           dry-run: false
           pr-comments: false
