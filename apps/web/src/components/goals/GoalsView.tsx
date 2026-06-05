@@ -600,7 +600,7 @@ function SavingsForecastCard() {
         <div className="w-2 h-2 rounded-full bg-[#2A3A55]" />
       </div>
       <p className="text-[12px] text-[#5A6A85] mb-3 leading-relaxed">
-        You're on track to reach ₹4,50,000 by Dec 2026
+        You&apos;re on track to reach ₹4,50,000 by Dec 2026
       </p>
       <div className="h-[130px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -926,7 +926,7 @@ export function GoalsView() {
   const filterActive = statusFilter !== 'all'
 
   const filteredGoals = useMemo(() => {
-    let goals = MOCK_GOALS.filter(g => {
+    const goals = MOCK_GOALS.filter(g => {
       if (search) {
         const q = search.toLowerCase()
         if (!g.name.toLowerCase().includes(q) && !g.displayName.toLowerCase().includes(q)) return false

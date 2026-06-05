@@ -10,7 +10,7 @@ export interface ChartPoint { date: string; value: number }
 
 interface Props { data: ChartPoint[] }
 
-function CustomDot(props: any) {
+function CustomDot(props: { cx: number; cy: number; [key: string]: unknown }) {
   const { cx, cy } = props
   return (
     <g>
@@ -20,7 +20,7 @@ function CustomDot(props: any) {
   )
 }
 
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey?: string; name?: string }>; label?: string }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-[#131C2E] border border-[#1E2B42] rounded-lg px-3 py-2 text-xs shadow-xl">
