@@ -22,13 +22,13 @@ jobs:
         with:
           message: true
           commit-message-pattern: '^(feat|fix|chore|docs|ci|refactor|test|style|perf|build|revert)(\(.+\))?: .+'
-          branch: false
-          author-name: false
-          author-email: false
-          commit-signoff: false
+          branch: true
+          author-name: true
+          author-email: true
+          commit-signoff: true
           merge-base: false
           imperative: false
-          job-summary: true
+          job-summary: false
           dry-run: false
           pr-comments: false
 
