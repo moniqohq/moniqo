@@ -62,3 +62,8 @@ pnpm-debug.log*
 
 # Tauri
 apps/desktop/src-tauri/target/
+
+# Hugo
+apps/landing/public/
+apps/landing/resources/
+apps/landing/.hugo_build.lock
