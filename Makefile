@@ -1,66 +1,68 @@
 # Primary developer interface for the Moniqo monorepo.
 # All targets delegate to Mage internally.
-#
-# Install Mage: go install github.com/magefile/mage@latest
+# Mage is installed automatically via `go install` if not found on PATH.
 
 MAGE := mage
 
-.PHONY: docker-compose-up docker-compose-down lint fmt \
+.PHONY: _mage-install docker-compose-up docker-compose-down lint fmt \
         build build-backend build-web build-desktop build-mobile \
         dev dev-backend dev-web \
         test generate \
         migrate-up migrate-down \
         clean help
 
-docker-compose-up:    ## Start Docker Compose stack
+_mage-install:
+	@which mage > /dev/null 2>&1 || (echo "mage not found, installing..." && go install github.com/magefile/mage@latest)
+
+docker-compose-up: _mage-install    ## Start Docker Compose stack
 	@$(MAGE) dockerComposeUp
 
-docker-compose-down:  ## Stop Docker Compose stack
+docker-compose-down: _mage-install  ## Stop Docker Compose stack
 	@$(MAGE) dockerComposeDown
 
-lint:           ## Run all linters
+lint: _mage-install           ## Run all linters
 	@$(MAGE) lint
 
-fmt:            ## Auto-format all code
+fmt: _mage-install            ## Auto-format all code
 	@$(MAGE) fmt
 
-build:          ## Build all apps
+build: _mage-install          ## Build all apps
 	@$(MAGE) build
 
-build-backend:  ## Build the Go backend
+build-backend: _mage-install  ## Build the Go backend
 	@$(MAGE) buildBackend
 
-build-web:      ## Build the Next.js web app
+build-web: _mage-install      ## Build the Next.js web app
 	@$(MAGE) buildWeb
 
-build-desktop:  ## Build the Tauri desktop app
+build-desktop: _mage-install  ## Build the Tauri desktop app
 	@$(MAGE) buildDesktop
 
-build-mobile:   ## Build the React Native mobile app
+build-mobile: _mage-install   ## Build the React Native mobile app
 	@$(MAGE) buildMobile
 
-dev:            ## Start all apps in dev/watch mode
+dev: _mage-install            ## Start all apps in dev/watch mode
 	@$(MAGE) dev
 
-dev-backend:    ## Start the backend in dev mode
+dev-backend: _mage-install    ## Start the backend in dev mode
 	@$(MAGE) devBackend
 
-dev-web:        ## Start the Next.js web app in dev mode
+dev-web: _mage-install        ## Start the Next.js web app in dev mode
 	@$(MAGE) devWeb
 
-test:           ## Run all tests
+test: _mage-install           ## Run all tests
 	@$(MAGE) test
 
-generate:       ## Run all code generators (sqlc, openapi, etc.)
+generate: _mage-install       ## Run all code generators (sqlc, openapi, etc.)
 	@$(MAGE) generate
 
-migrate-up:     ## Apply pending DB migrations
+migrate-up: _mage-install     ## Apply pending DB migrations
 	@$(MAGE) migrateUp
 
-migrate-down:   ## Roll back the last DB migration
+migrate-down: _mage-install   ## Roll back the last DB migration
 	@$(MAGE) migrateDown
 
-clean:          ## Remove all build artifacts
+clean: _mage-install          ## Remove all build artifacts
 	@$(MAGE) clean
 
 help:           ## List all available targets with descriptions
