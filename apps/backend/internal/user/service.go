@@ -15,9 +15,13 @@ type RegisterRequest struct {
 	Name     *string
 }
 
+type userRepository interface {
+	Create(ctx context.Context, p createParams) (db.CreateUserRow, error)
+}
+
 // Service implements the business logic for user operations.
 type Service struct {
-	repo       *UserRepo
+	repo       userRepository
 	bcryptCost int
 }
 
