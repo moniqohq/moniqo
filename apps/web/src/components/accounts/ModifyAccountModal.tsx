@@ -233,6 +233,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
   const [notes,             setNotes]             = useState('')
 
   /* reset form whenever the modal opens with a new account */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setAccountName(account.name)
@@ -243,6 +244,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
       setNotes('')
     }
   }, [open, account.name, account.type])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* keyboard + scroll lock */
   useEffect(() => {

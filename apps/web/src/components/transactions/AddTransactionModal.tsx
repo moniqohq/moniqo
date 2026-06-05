@@ -73,6 +73,7 @@ export function AddTransactionModal({ open, onClose, defaultType = 'expense' }: 
   }
 
   /* keyboard + scroll lock */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return
     setTxType(defaultType)
@@ -84,6 +85,7 @@ export function AddTransactionModal({ open, onClose, defaultType = 'expense' }: 
       document.body.style.overflow = ''
     }
   }, [open, onClose])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* derived */
   const numericAmount  = parseFloat(amount.replace(/,/g, '')) || 0

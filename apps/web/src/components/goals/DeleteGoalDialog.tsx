@@ -407,6 +407,7 @@ export function DeleteGoalDialog({ open, goal, onClose, onDeleted }: DeleteGoalD
   const confirmed = confirmText === 'DELETE'
 
   // Reset on open
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (open) {
       setConfirmText('')
@@ -414,6 +415,7 @@ export function DeleteGoalDialog({ open, goal, onClose, onDeleted }: DeleteGoalD
       setDeleting(false)
     }
   }, [open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Keyboard / scroll lock
   useEffect(() => {

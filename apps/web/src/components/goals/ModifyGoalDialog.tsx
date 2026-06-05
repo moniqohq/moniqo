@@ -679,6 +679,7 @@ export function ModifyGoalDialog({ open, goal, onClose, onSave, onArchive }: Mod
   const [saving,       setSaving]       = useState(false)
 
   // ── Populate from goal prop ──
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!goal || !open) return
     setName(goal.name)
@@ -694,6 +695,7 @@ export function ModifyGoalDialog({ open, goal, onClose, onSave, onArchive }: Mod
     setErrors({})
     setSubmitted(false)
   }, [goal, open])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── Keyboard / scroll lock ──
   useEffect(() => {

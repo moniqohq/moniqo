@@ -1,0 +1,15 @@
+[commit]
+conventional_commits = true
+subject_capitalized = false
+subject_imperative = false
+subject_max_length = 100
+subject_min_length = 5
+allow_commit_types = ["feat", "fix", "chore", "docs", "ci", "refactor", "test", "style", "perf", "build", "revert"]
+allow_merge_commits = true
+allow_revert_commits = true
+allow_empty_commits = false
+allow_fixup_commits = false
+allow_wip_commits = false
+require_body = false
+require_signed_off_by = true
+ignore_authors = ["dependabot[bot]"]

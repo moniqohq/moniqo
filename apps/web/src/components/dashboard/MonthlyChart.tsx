@@ -22,11 +22,11 @@ const chartData = mockWeeklyCashFlow.map(d => ({
   expensesNeg: -d.expenses,
 }))
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey?: string; name?: string }>; label?: string }) => {
   if (!active || !payload?.length) return null
-  const income   = payload.find((p: any) => p.dataKey === 'income')
-  const expenses = payload.find((p: any) => p.dataKey === 'expensesNeg')
-  const savings  = payload.find((p: any) => p.dataKey === 'savings')
+  const income   = payload.find((p: { dataKey?: string; value: number }) => p.dataKey === 'income')
+  const expenses = payload.find((p: { dataKey?: string; value: number }) => p.dataKey === 'expensesNeg')
+  const savings  = payload.find((p: { dataKey?: string; value: number }) => p.dataKey === 'savings')
   return (
     <div className="bg-[#131C2E] border border-[#1E2B42] rounded-lg px-3 py-2.5 shadow-xl text-[12px] min-w-[170px]">
       <div className="text-[#A8B4CC] mb-2 font-medium">{label}</div>

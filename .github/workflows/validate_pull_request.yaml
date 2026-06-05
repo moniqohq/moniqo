@@ -1,0 +1,51 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  conventional-commits:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Validate commit messages against Conventional Commits spec
+        uses: commit-check/commit-check-action@f237ed0085f49444ab5c85bdfa5cdcd490fc09c5 # v2
+        with:
+          message: true
+          branch: false
+          author-name: true
+          author-email: true
+          job-summary: false
+          dry-run: false
+          pr-comments: false
+
+  pr-title:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - name: Validate PR title against Conventional Commits spec
+        uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            ci
+            refactor
+            test
+            style
+            perf
+            build
+            revert

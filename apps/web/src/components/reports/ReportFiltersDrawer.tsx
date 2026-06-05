@@ -102,7 +102,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
                 { value: 'income',  label: 'Income' },
                 { value: 'expense', label: 'Expense' },
               ]}
-              selected={filters.types as any}
+              selected={filters.types}
               onChange={v => set('types', v)}
             />
           </div>
@@ -117,7 +117,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
                 { value: 'need',   label: 'Need' },
                 { value: 'must',   label: 'Must' },
               ]}
-              selected={filters.natures as any}
+              selected={filters.natures}
               onChange={v => set('natures', v)}
             />
           </div>
@@ -131,7 +131,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
                 { value: 'near',  label: 'Near Budget' },
                 { value: 'over',  label: 'Over Budget' },
               ]}
-              selected={filters.statuses as any}
+              selected={filters.statuses}
               onChange={v => set('statuses', v as BudgetStatus[])}
             />
           </div>
