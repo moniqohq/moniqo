@@ -16,15 +16,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for go.mod
+        id: gomod
+        run: |
+          [ -f apps/backend/go.mod ] && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
+        working-directory: .
+
       - uses: actions/setup-go@v5
+        if: steps.gomod.outputs.exists == 'true'
         with:
           go-version-file: apps/backend/go.mod
           cache: true
 
       - name: Build
+        if: steps.gomod.outputs.exists == 'true'
         run: go build ./...
 
       - name: Vet
+        if: steps.gomod.outputs.exists == 'true'
         run: go vet ./...
 
   web-typecheck:
