@@ -34,7 +34,7 @@ jobs:
 
       - name: Vet
         if: steps.gomod.outputs.exists == 'true'
-        run: go vet ./...
+        run: go list ./... | xargs -r go vet
 
   web-typecheck:
     name: Web — type check
