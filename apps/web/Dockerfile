@@ -16,6 +16,8 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 
+RUN adduser -D -u 1001 appuser
+
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -23,6 +25,10 @@ ENV NODE_ENV=production
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+RUN chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 3000
 
