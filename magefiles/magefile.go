@@ -14,12 +14,12 @@ import (
 
 // DockerComposeUp starts the Docker Compose stack.
 func DockerComposeUp() error {
-	return sh.RunV("docker-compose", "up", "-d")
+	return sh.RunV("docker", "compose", "up", "-d")
 }
 
 // DockerComposeDown stops the Docker Compose stack.
 func DockerComposeDown() error {
-	return sh.RunV("docker-compose", "down")
+	return sh.RunV("docker", "compose", "down")
 }
 
 // Lint runs all linters across the monorepo.
@@ -89,7 +89,7 @@ func Dev() error {
 
 // DevBackend starts the Go backend in dev mode.
 func DevBackend() error {
-	return runInDir("apps/backend", "go", "run", "./...")
+	return runInDir("apps/backend", "go", "run", "./cmd/server")
 }
 
 // DevWeb starts the Next.js web app in dev mode.
