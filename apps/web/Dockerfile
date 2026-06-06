@@ -2,6 +2,7 @@ FROM node:22-alpine AS deps
 
 WORKDIR /app
 
+# TODO: in the monorepo layout the lockfile lives at the repo root, not here — revisit this COPY when the web app is scaffolded
 COPY package.json package-lock.json ./
 RUN npm ci
 

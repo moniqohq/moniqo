@@ -30,11 +30,11 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-moniqo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-moniqo}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRY: ${JWT_EXPIRY:-24h}
-      PORT: ${BACKEND_PORT:-8080}
+      PORT: "8080"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${BACKEND_PORT:-8080}/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,7 +45,9 @@ services:
     networks:
       - moniqo
 
-  # Stub Dockerfile at apps/web/Dockerfile -- requires output: standalone in next.config; replace with full implementation when web scaffolding lands
+  # Stub Dockerfile at apps/web/Dockerfile — requires output: standalone in next.config; replace with full implementation when web scaffolding lands.
+  # NOTE: NEXT_PUBLIC_API_URL is baked in at image build time by Next.js (NEXT_PUBLIC_* vars are inlined by webpack).
+  # Setting it here only affects server-side code; pass it as a build arg when building the image for different environments.
   web:
     profiles: [app]
     build:
