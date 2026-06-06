@@ -2,5 +2,16 @@
   "name": "moniqo",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@10.33.2"
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "lint": "pnpm run lint:go && pnpm run lint:js",
+    "lint:go": "golangci-lint run ./...",
+    "lint:js": "pnpm --recursive --if-present run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.6.8"
+  }
 }
