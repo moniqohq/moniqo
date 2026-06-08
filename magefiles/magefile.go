@@ -60,8 +60,12 @@ func BuildMobile() error {
 	return pnpm("--filter", "@moniqo/mobile", "run", "build")
 }
 
-// Dev starts the backend and web app in dev/watch mode concurrently.
+// Dev starts the database, backend, and web app in dev/watch mode concurrently.
 func Dev() error {
+	if err := DockerComposeUp(); err != nil {
+		return err
+	}
+
 	var wg sync.WaitGroup
 	errCh := make(chan error, 2)
 
