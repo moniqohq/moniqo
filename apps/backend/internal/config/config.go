@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -14,6 +16,8 @@ type Config struct {
 }
 
 func Load() Config {
+	_ = godotenv.Load("../../.env")
+
 	cost := 12
 	if v := os.Getenv("BCRYPT_COST"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 4 && n <= 31 {
