@@ -28,140 +28,172 @@ func errFields(errs []httpx.FieldError) map[string]string {
 	return m
 }
 
-func TestValidateRegister_Success(t *testing.T) {
+func TestValidateRegister(t *testing.T) {
 	t.Parallel()
 
-	cases := []struct {
-		label string
-		input validator.RegisterInput
+	tests := []struct {
+		name      string
+		input     validator.RegisterInput
+		wantField string
+		wantMsg   string
 	}{
-		{"all required fields", validInput()},
-		{"with optional name", func() validator.RegisterInput { i := validInput(); i.Name = strPtr("Saqib Abdul"); return i }()},
-		{"username 8 chars (min)", func() validator.RegisterInput { i := validInput(); i.Username = "abcde123"; return i }()},
-		{"username 12 chars (max)", func() validator.RegisterInput { i := validInput(); i.Username = "abcde1234567"; return i }()},
-		{"username with hyphen", func() validator.RegisterInput { i := validInput(); i.Username = "my-user01"; return i }()},
-		{"username with underscore", func() validator.RegisterInput { i := validInput(); i.Username = "my_user01"; return i }()},
-		{"password 8 bytes (min)", func() validator.RegisterInput { i := validInput(); i.Password = "Secure1!"; return i }()},
-		{"password 72 bytes (max)", func() validator.RegisterInput { i := validInput(); i.Password = strings.Repeat("a", 72); return i }()},
+		// --- success cases ---
+		{
+			name:  "all required fields",
+			input: validInput(),
+		},
+		{
+			name:  "with optional name",
+			input: func() validator.RegisterInput { i := validInput(); i.Name = strPtr("Saqib Abdul"); return i }(),
+		},
+		{
+			name:  "username 8 chars (min)",
+			input: func() validator.RegisterInput { i := validInput(); i.Username = "abcde123"; return i }(),
+		},
+		{
+			name:  "username 12 chars (max)",
+			input: func() validator.RegisterInput { i := validInput(); i.Username = "abcde1234567"; return i }(),
+		},
+		{
+			name:  "username with hyphen",
+			input: func() validator.RegisterInput { i := validInput(); i.Username = "my-user01"; return i }(),
+		},
+		{
+			name:  "username with underscore",
+			input: func() validator.RegisterInput { i := validInput(); i.Username = "my_user01"; return i }(),
+		},
+		{
+			name:  "password 8 bytes (min)",
+			input: func() validator.RegisterInput { i := validInput(); i.Password = "Secure1!"; return i }(),
+		},
+		{
+			name:  "password 72 bytes (max)",
+			input: func() validator.RegisterInput { i := validInput(); i.Password = strings.Repeat("a", 72); return i }(),
+		},
+		{
+			name:  "nil name is valid",
+			input: func() validator.RegisterInput { i := validInput(); i.Name = nil; return i }(),
+		},
+		{
+			name:  "exactly 100 char name is valid",
+			input: func() validator.RegisterInput { i := validInput(); i.Name = strPtr(strings.Repeat("a", 100)); return i }(),
+		},
+		// --- username errors ---
+		{
+			name:      "username too short (7 chars)",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "short1a"; return i }(),
+			wantField: "username",
+			wantMsg:   "must be between 8 and 12 characters",
+		},
+		{
+			name:      "username too long (13 chars)",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "toolongusrname"; return i }(),
+			wantField: "username",
+			wantMsg:   "must be between 8 and 12 characters",
+		},
+		{
+			name:      "username starts with digit",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "1startdig1"; return i }(),
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		{
+			name:      "username trailing underscore",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "username_"; return i }(),
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		{
+			name:      "username trailing hyphen",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "username-"; return i }(),
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		{
+			name:      "username consecutive separators",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "ab__cdefgh"; return i }(),
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		{
+			name:      "username special char @",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "user@name1"; return i }(),
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		{
+			name:      "username spaces not allowed",
+			input:     func() validator.RegisterInput { i := validInput(); i.Username = "user name1"; return i }(),
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		// --- password errors ---
+		{
+			name:      "password empty",
+			input:     func() validator.RegisterInput { i := validInput(); i.Password = ""; return i }(),
+			wantField: "password",
+			wantMsg:   "must be at least 8 characters",
+		},
+		{
+			name:      "password too short (7 chars)",
+			input:     func() validator.RegisterInput { i := validInput(); i.Password = "Short1!"; return i }(),
+			wantField: "password",
+			wantMsg:   "must be at least 8 characters",
+		},
+		{
+			name:      "password too long (73 bytes)",
+			input:     func() validator.RegisterInput { i := validInput(); i.Password = strings.Repeat("a", 73); return i }(),
+			wantField: "password",
+			wantMsg:   "must not exceed 72 characters",
+		},
+		// --- email errors ---
+		{
+			name:      "email empty",
+			input:     func() validator.RegisterInput { i := validInput(); i.Email = ""; return i }(),
+			wantField: "email",
+			wantMsg:   "required",
+		},
+		{
+			name:      "email invalid format no @",
+			input:     func() validator.RegisterInput { i := validInput(); i.Email = "notanemail"; return i }(),
+			wantField: "email",
+			wantMsg:   "invalid email format",
+		},
+		{
+			name:      "email invalid format bare @",
+			input:     func() validator.RegisterInput { i := validInput(); i.Email = "user@"; return i }(),
+			wantField: "email",
+			wantMsg:   "invalid email format",
+		},
+		{
+			name:      "email exceeds 254 chars",
+			input:     func() validator.RegisterInput { i := validInput(); i.Email = strings.Repeat("a", 250) + "@b.co"; return i }(),
+			wantField: "email",
+			wantMsg:   "must not exceed 254 characters",
+		},
+		// --- name errors ---
+		{
+			name:      "name empty string is invalid",
+			input:     func() validator.RegisterInput { i := validInput(); i.Name = new(string); return i }(),
+			wantField: "name",
+			wantMsg:   "must not be empty if provided",
+		},
+		{
+			name:      "name exceeds 100 chars",
+			input:     func() validator.RegisterInput { i := validInput(); i.Name = strPtr(strings.Repeat("a", 101)); return i }(),
+			wantField: "name",
+			wantMsg:   "must not exceed 100 characters",
+		},
 	}
 
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.label, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Empty(t, validator.ValidateRegister(tc.input))
-		})
-	}
-}
-
-func TestValidateRegister_Username(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		label    string
-		username string
-		wantMsg  string
-	}{
-		{"too short (7 chars)", "short1a", "must be between 8 and 12 characters"},
-		{"too long (13 chars)", "toolongusrname", "must be between 8 and 12 characters"},
-		{"starts with digit", "1startdig1", "must start with a letter"},
-		{"trailing underscore", "username_", "must start with a letter"},
-		{"trailing hyphen", "username-", "must start with a letter"},
-		{"consecutive separators", "ab__cdefgh", "must start with a letter"},
-		{"special char @", "user@name1", "must start with a letter"},
-		{"spaces not allowed", "user name1", "must start with a letter"},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.label, func(t *testing.T) {
-			t.Parallel()
-			in := validInput()
-			in.Username = tc.username
-			fields := errFields(validator.ValidateRegister(in))
-			assert.Contains(t, fields["username"], tc.wantMsg)
-		})
-	}
-}
-
-func TestValidateRegister_Password(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		label    string
-		password string
-		wantMsg  string
-	}{
-		{"empty", "", "must be at least 8 characters"},
-		{"too short (7)", "Short1!", "must be at least 8 characters"},
-		{"too long (73 bytes)", strings.Repeat("a", 73), "must not exceed 72 characters"},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.label, func(t *testing.T) {
-			t.Parallel()
-			in := validInput()
-			in.Password = tc.password
-			fields := errFields(validator.ValidateRegister(in))
-			assert.Contains(t, fields["password"], tc.wantMsg)
-		})
-	}
-}
-
-func TestValidateRegister_Email(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		label   string
-		email   string
-		wantMsg string
-	}{
-		{"empty", "", "required"},
-		{"invalid format no @", "notanemail", "invalid email format"},
-		{"invalid format bare @", "user@", "invalid email format"},
-		{"exceeds 254 chars", strings.Repeat("a", 250) + "@b.co", "must not exceed 254 characters"},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.label, func(t *testing.T) {
-			t.Parallel()
-			in := validInput()
-			in.Email = tc.email
-			fields := errFields(validator.ValidateRegister(in))
-			assert.Contains(t, fields["email"], tc.wantMsg)
-		})
-	}
-}
-
-func TestValidateRegister_Name(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		label   string
-		name    *string
-		wantErr bool
-		wantMsg string
-	}{
-		{"nil (omitted) is valid", nil, false, ""},
-		{"non-empty string is valid", strPtr("Saqib"), false, ""},
-		{"empty string is invalid", strPtr(""), true, "must not be empty if provided"},
-		{"exceeds 100 chars", strPtr(strings.Repeat("a", 101)), true, "must not exceed 100 characters"},
-		{"exactly 100 chars is valid", strPtr(strings.Repeat("a", 100)), false, ""},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.label, func(t *testing.T) {
-			t.Parallel()
-			in := validInput()
-			in.Name = tc.name
-			fields := errFields(validator.ValidateRegister(in))
-			if tc.wantErr {
-				assert.Contains(t, fields["name"], tc.wantMsg)
+			fields := errFields(validator.ValidateRegister(tc.input))
+			if tc.wantField == "" {
+				assert.Empty(t, fields)
 			} else {
-				assert.NotContains(t, fields, "name")
+				assert.Contains(t, fields[tc.wantField], tc.wantMsg)
 			}
 		})
 	}
@@ -180,13 +212,4 @@ func TestValidateRegister_AggregatesAllErrors(t *testing.T) {
 	assert.Contains(t, fields, "username")
 	assert.Contains(t, fields, "password")
 	assert.Contains(t, fields, "email")
-}
-
-func TestValidateRegister_NilNameNotFlagged(t *testing.T) {
-	t.Parallel()
-
-	// Nil name means the field was omitted — must not produce an error.
-	in := validInput()
-	in.Name = nil
-	assert.Empty(t, validator.ValidateRegister(in))
 }
