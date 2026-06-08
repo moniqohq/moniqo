@@ -3,16 +3,19 @@ package config
 import (
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port        string
-	DatabaseURL string
-	BcryptCost  int
-	Env         string // "development" | "staging" | "production"
-	LogLevel    string // "debug" | "info" | "warn" | "error"
+	Port           string
+	DatabaseURL    string
+	BcryptCost     int
+	Env            string // "development" | "staging" | "production"
+	LogLevel       string // "debug" | "info" | "warn" | "error"
+	JWTSecret      string
+	AccessTokenTTL time.Duration
 }
 
 func Load() Config {
@@ -40,11 +43,20 @@ func Load() Config {
 		logLevel = "info"
 	}
 
+	ttl := 15 * time.Minute
+	if v := os.Getenv("ACCESS_TOKEN_TTL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			ttl = d
+		}
+	}
+
 	return Config{
-		Port:        port,
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		BcryptCost:  cost,
-		Env:         env,
-		LogLevel:    logLevel,
+		Port:           port,
+		DatabaseURL:    os.Getenv("DATABASE_URL"),
+		BcryptCost:     cost,
+		Env:            env,
+		LogLevel:       logLevel,
+		JWTSecret:      os.Getenv("JWT_SECRET"),
+		AccessTokenTTL: ttl,
 	}
 }
