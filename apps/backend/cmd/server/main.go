@@ -4,50 +4,62 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
-	echolog "github.com/labstack/echo/v4/middleware"
+	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/pressly/goose/v3"
+	"go.uber.org/zap"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
+	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-
 	cfg := config.Load()
+
+	log, err := logger.New(logger.Config{
+		Level:       cfg.LogLevel,
+		Development: cfg.Env == "development",
+		ServiceName: "moniqo-api",
+		Env:         cfg.Env,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer log.Sync() //nolint:errcheck
+
 	if cfg.DatabaseURL == "" {
-		slog.Error("DATABASE_URL is required")
+		log.Error("DATABASE_URL is required")
 		os.Exit(1)
 	}
 
 	if err := runMigrations(cfg.DatabaseURL); err != nil {
-		slog.Error("migration failed", "error", err)
+		log.Error("migration failed", zap.Error(err))
 		os.Exit(1)
 	}
 
 	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
-		slog.Error("failed to connect to database", "error", err)
+		log.Error("failed to connect to database", zap.Error(err))
 		os.Exit(1)
 	}
 	defer pool.Close()
 
 	e := echo.New()
 	e.HideBanner = true
-	e.Use(appmw.Recover())
-	e.Use(echolog.RequestID())
-	e.Use(echolog.Logger())
+	e.Use(echomw.RequestID())
+	e.Use(appmw.Recover(log))
+	e.Use(appmw.RequestLogger(log))
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
-	slog.Info("starting server", "addr", addr)
+	log.Info("starting server", zap.String("addr", addr))
 	if err := e.Start(addr); err != nil {
-		slog.Error("server stopped", "error", err)
+		log.Error("server stopped", zap.Error(err))
 	}
 }
 
