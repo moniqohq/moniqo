@@ -37,17 +37,32 @@ Represents an authenticated identity in the system.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `id` | Integer | Yes | Auto-generated serial numeric ID |
-| `name` | String | No | Real name of the user |
-| `username` | String | Yes | Unique username |
-| `hash` | String | Yes | bcrypt password hash (never exposed) |
-| `email` | String | No | Unique email address |
-| `picture` | String | No | Stored avatar reference (URL or server UUID) |
-| `last_login` | Time | No | Timestamp of most recent successful authentication |
+| `name` | String | No | Real name of the user (max 100 chars) |
+| `username` | String | Yes | Unique username (8–12 chars, see constraints) |
+| `hash` | String | Yes | bcrypt password hash — **never returned in any response** |
+| `email` | String | Yes | Unique email address (RFC 5321, required at registration) |
+| `picture` | String | Yes | Avatar reference; empty string `""` when not set, never `null` |
+| `status` | Enum | Yes | Account lifecycle state: `pending_verification` or `active` |
+| `last_login` | Timestamp | No | Most recent successful authentication; `null` before first login |
+| `created_at` | Timestamp | Yes | Server-side creation timestamp |
+| `updated_at` | Timestamp | Yes | Last modification timestamp (internal audit, never returned) |
+| `deleted_at` | Timestamp | No | Soft-delete timestamp (internal audit, never returned) |
+
+> `hash`, `updated_at`, and `deleted_at` are stripped at the serialization boundary and never appear in any API response — not as a field, not as `null`.
+
+### Account Lifecycle
+
+| Status | Meaning |
+|---|---|
+| `pending_verification` | Account created; email not yet verified; cannot authenticate |
+| `active` | Email verified; can authenticate |
+
+Registration always produces `pending_verification`. Email verification is handled by a separate flow.
 
 ### Security Constraints
 
-- `hash` stores a bcrypt password hash.
-- Raw passwords are never stored.
+- `hash` stores a bcrypt password hash at cost factor 12 (configurable via `BCRYPT_COST` env var).
+- Raw passwords are never stored or logged.
 - `hash` must never be returned in any API response.
 - Even when fields are empty, they must be included in responses (`null` or empty string as appropriate).
 - Password reset for unauthenticated users is handled in a separate flow.
@@ -68,13 +83,15 @@ Represents an authenticated identity in the system.
 ### User-Specific Rules
 
 - `id` is numeric, serial, auto-generated.
-- `username` must be unique.
+- `username` must be unique (case-insensitive, uniqueness enforced on soft-deleted records too).
 - `username` constraints:
-  - Alphanumeric
-  - May contain `_`, `-`, `^`
-  - Cannot start with a number
-  - Maximum length: 12 characters
-- `email` must be unique if provided.
+  - Must start with a letter (`a-z`, `A-Z`)
+  - Alphanumeric body; hyphens (`-`) and underscores (`_`) allowed as inner separators
+  - Cannot start or end with `-` or `_`; no consecutive separators
+  - Minimum length: 8 characters; maximum length: 12 characters
+  - Note: `^` is no longer a valid character (removed for stricter validation)
+- `email` is required and must be unique globally (including soft-deleted accounts).
+- Uniqueness for both `username` and `email` is enforced at the database level via unique indexes, not application-level check-then-insert.
 
 ### Security Rules
 
@@ -99,21 +116,29 @@ Represents an authenticated identity in the system.
 
 ### Register User
 
-Creates a new user account.
+Creates a new user account. This is the entry point into the system — no authentication required.
 
 **`POST /api/v1/users`**
 **Authentication:** Not required
+**Rate limit:** 10 requests per IP per minute
 
 **Request Payload**
 
 ```json
 {
-  "username": "saqib",
+  "username": "saqibtest",
   "password": "securePassword123",
   "name": "Saqib Abdul",
   "email": "saqib@example.com"
 }
 ```
+
+| Field | Required | Constraints |
+|---|---|---|
+| `username` | Yes | 8–12 chars; starts with a letter; alphanumeric + inner `-`/`_` only |
+| `password` | Yes | 8–72 bytes (bcrypt truncates beyond 72) |
+| `email` | Yes | RFC 5321 format; max 254 chars |
+| `name` | No | If provided, non-empty string; max 100 chars |
 
 **Response — 201 Created**
 
@@ -123,42 +148,56 @@ Creates a new user account.
   "data": {
     "id": 1,
     "name": "Saqib Abdul",
-    "username": "saqib",
+    "username": "saqibtest",
     "email": "saqib@example.com",
     "picture": "",
-    "last_login": null
+    "status": "pending_verification",
+    "last_login": null,
+    "created_at": "2026-06-05T12:00:00Z"
   },
   "msg": "user created successfully"
 }
 ```
 
-> ⚠️ `hash` is never returned.
+> `hash`, `updated_at`, and `deleted_at` are never present in this or any other response.
 
 **Business Rules**
 
-- Username uniqueness enforced.
-- Email uniqueness enforced (if provided).
-- Password must be hashed before persistence.
+- Username uniqueness enforced globally, including soft-deleted accounts.
+- Email uniqueness enforced globally, including soft-deleted accounts.
+- Password hashed with bcrypt at cost factor 12 (configurable via `BCRYPT_COST`).
+- `status` is always `pending_verification` on creation.
+- `last_login` is always `null` on creation.
+- `picture` is always `""` (empty string) when not set, never `null`.
+- All writes occur within a single DB transaction; any failure rolls back.
+- Concurrent duplicate registrations: exactly one request succeeds with `201`; the rest receive `409`.
 
-**Validation Rules**
+**Validation Error Format**
 
-- Username format validation.
-- Username length ≤ 12.
-- Password minimum strength rules.
-- Valid email format (if provided).
+Validation failures return `400` with field-level details:
 
-**Side Effects**
+```json
+{
+  "success": false,
+  "data": {
+    "fields": [
+      { "field": "username", "error": "must be between 8 and 12 characters" },
+      { "field": "email", "error": "invalid email format" }
+    ]
+  },
+  "msg": "validation failed"
+}
+```
 
-- User record created.
-- Password hashed and stored.
-- Initial `last_login = null`.
+All field errors are aggregated and returned in a single response.
 
 **Error Scenarios**
 
 | HTTP | Code | Description |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid input |
-| 409 | `CONFLICT` | Username or email exists |
+| 400 | `VALIDATION_ERROR` | Invalid input; `data.fields` contains per-field errors |
+| 409 | `CONFLICT` | `"username or email already exists"` (generic; does not reveal which field) |
+| 429 | `RATE_LIMITED` | Too many requests from this IP |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
 
 ---
