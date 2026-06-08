@@ -30,7 +30,7 @@ func NewHandler(svc *UserSvc, log *zap.Logger) *Handler {
 func (h *Handler) Register(c echo.Context) error {
 	h.log.Debug("received registration request")
 
-	var req registerRequest
+	var req RegisterRequest
 	if err := c.Bind(&req); err != nil {
 		h.log.Debug("failed to bind registration request body", zap.Error(err))
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: "body", Error: "invalid json"}})
@@ -48,12 +48,7 @@ func (h *Handler) Register(c echo.Context) error {
 	}
 
 	h.log.Info("dispatching registration to service", zap.String("username", req.Username), zap.String("email", req.Email))
-	pub, err := h.svc.Register(c.Request().Context(), RegisterRequest{
-		Username: req.Username,
-		Password: req.Password,
-		Email:    req.Email,
-		Name:     req.Name,
-	})
+	pub, err := h.svc.Register(c.Request().Context(), req)
 	if errors.Is(err, ErrConflict) {
 		h.log.Debug("registration conflict: username or email already taken", zap.String("username", req.Username), zap.String("email", req.Email))
 		return httpx.Conflict(c, "username or email already exists")
