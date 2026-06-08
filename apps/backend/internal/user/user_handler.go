@@ -1,29 +1,29 @@
 package user
 
 import (
+	"context"
 	"errors"
 
 	"github.com/labstack/echo/v4"
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
+	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 	"go.uber.org/zap"
 )
 
+// UserService is the service contract required by Handler.
+type UserService interface {
+	Register(ctx context.Context, req RegisterRequest) (models.User, error)
+}
+
 // Handler holds HTTP handlers for user endpoints.
 type Handler struct {
-	svc *Service
+	svc UserService
 	log *zap.Logger
 }
 
-func NewHandler(svc *Service, log *zap.Logger) *Handler {
+func NewHandler(svc *UserSvc, log *zap.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
-}
-
-type registerRequest struct {
-	Username string  `json:"username"`
-	Password string  `json:"password"`
-	Email    string  `json:"email"`
-	Name     *string `json:"name"`
 }
 
 // Register handles POST /api/v1/users.

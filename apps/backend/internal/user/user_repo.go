@@ -8,13 +8,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
+	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"go.uber.org/zap"
 )
 
 // ErrConflict is returned when a unique constraint is violated (username or email).
 var ErrConflict = errors.New("username or email already exists")
 
-type createParams struct {
+type CreateParams struct {
 	Username string
 	Email    string
 	Hash     string
@@ -27,13 +28,13 @@ type UserRepo struct {
 	log  *zap.Logger
 }
 
-func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *UserRepo {
+func NewUserRepo(pool *pgxpool.Pool, log *zap.Logger) *UserRepo {
 	return &UserRepo{pool: pool, log: log}
 }
 
 // create inserts a user row within the provided transaction and returns the
-// public-safe row. Callers are responsible for commit/rollback.
-func (r *UserRepo) create(ctx context.Context, tx pgx.Tx, p createParams) (db.CreateUserRow, error) {
+// public-safe model. Callers are responsible for commit/rollback.
+func (r *UserRepo) create(ctx context.Context, tx pgx.Tx, p CreateParams) (models.User, error) {
 	r.log.Debug("executing CreateUser query", zap.String("username", p.Username), zap.String("email", p.Email))
 
 	q := db.New(tx)
@@ -47,39 +48,52 @@ func (r *UserRepo) create(ctx context.Context, tx pgx.Tx, p createParams) (db.Cr
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			r.log.Debug("unique constraint violation on user insert", zap.String("username", p.Username), zap.String("email", p.Email))
-			return db.CreateUserRow{}, ErrConflict
+			return models.User{}, ErrConflict
 		}
 		r.log.Error("CreateUser query failed", zap.String("username", p.Username), zap.Error(err))
-		return db.CreateUserRow{}, err
+		return models.User{}, err
 	}
 
 	r.log.Debug("CreateUser query succeeded", zap.Int64("user_id", row.ID))
-	return row, nil
+	return rowToPublic(row), nil
 }
 
 // Create opens a transaction, inserts the user, and commits. Any failure rolls
 // back and returns the original error (or ErrConflict for unique violations).
-func (r *UserRepo) Create(ctx context.Context, p createParams) (db.CreateUserRow, error) {
+func (r *UserRepo) Create(ctx context.Context, p CreateParams) (models.User, error) {
 	r.log.Debug("beginning transaction for user insert")
 
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		r.log.Error("failed to begin transaction", zap.Error(err))
-		return db.CreateUserRow{}, err
+		return models.User{}, err
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	row, err := r.create(ctx, tx, p)
+	pub, err := r.create(ctx, tx, p)
 	if err != nil {
-		return db.CreateUserRow{}, err
+		return models.User{}, err
 	}
 
-	r.log.Debug("committing transaction", zap.Int64("user_id", row.ID))
+	r.log.Debug("committing transaction", zap.Int64("user_id", pub.ID))
 	if err := tx.Commit(ctx); err != nil {
-		r.log.Error("failed to commit user insert transaction", zap.Int64("user_id", row.ID), zap.Error(err))
-		return db.CreateUserRow{}, err
+		r.log.Error("failed to commit user insert transaction", zap.Int64("user_id", pub.ID), zap.Error(err))
+		return models.User{}, err
 	}
 
-	r.log.Info("user row committed to database", zap.Int64("user_id", row.ID), zap.String("username", row.Username))
-	return row, nil
+	r.log.Info("user row committed to database", zap.Int64("user_id", pub.ID), zap.String("username", pub.Username))
+	return pub, nil
+}
+
+func rowToPublic(row db.CreateUserRow) models.User {
+	return models.User{
+		ID:        row.ID,
+		Name:      row.Name,
+		Username:  row.Username,
+		Email:     row.Email,
+		Picture:   row.Picture,
+		Status:    models.UserStatus(row.Status),
+		LastLogin: nil,
+		CreatedAt: row.CreatedAt.Time,
+	}
 }

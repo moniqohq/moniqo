@@ -3,13 +3,17 @@ package user
 import (
 	"context"
 
-	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// RegisterRequest is the input to Service.Register.
+// UserRepository is the persistence contract required by UserSvc.
+type UserRepository interface {
+	Create(ctx context.Context, p CreateParams) (models.User, error)
+}
+
+// RegisterRequest is the input to UserSvc.Register.
 type RegisterRequest struct {
 	Username string
 	Password string
@@ -17,20 +21,20 @@ type RegisterRequest struct {
 	Name     *string
 }
 
-// Service implements the business logic for user operations.
-type Service struct {
-	repo       *UserRepo
+// UserSvc implements the business logic for user operations.
+type UserSvc struct {
+	repo       UserRepository
 	bcryptCost int
 	log        *zap.Logger
 }
 
-func NewService(repo *UserRepo, bcryptCost int, log *zap.Logger) *Service {
-	return &Service{repo: repo, bcryptCost: bcryptCost, log: log}
+func NewUserSvc(repo UserRepository, bcryptCost int, log *zap.Logger) *UserSvc {
+	return &UserSvc{repo: repo, bcryptCost: bcryptCost, log: log}
 }
 
 // Register hashes the password and persists the new user, returning a
 // public-safe representation on success.
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (models.User, error) {
+func (s *UserSvc) Register(ctx context.Context, req RegisterRequest) (models.User, error) {
 	s.log.Info("registering new user", zap.String("username", req.Username), zap.String("email", req.Email))
 
 	s.log.Debug("hashing password", zap.String("username", req.Username), zap.Int("bcrypt_cost", s.bcryptCost))
@@ -41,7 +45,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (models.Use
 	}
 
 	s.log.Debug("persisting user via repo", zap.String("username", req.Username))
-	row, err := s.repo.Create(ctx, createParams{
+	pub, err := s.repo.Create(ctx, CreateParams{
 		Username: req.Username,
 		Email:    req.Email,
 		Hash:     string(hash),
@@ -56,20 +60,6 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (models.Use
 		return models.User{}, err
 	}
 
-	s.log.Info("user registered successfully", zap.Int64("user_id", row.ID), zap.String("username", row.Username))
-	return rowToPublic(row), nil
-}
-
-func rowToPublic(row db.CreateUserRow) models.User {
-	pub := models.User{
-		ID:        row.ID,
-		Name:      row.Name,
-		Username:  row.Username,
-		Email:     row.Email,
-		Picture:   row.Picture,
-		Status:    models.UserStatus(row.Status),
-		LastLogin: nil, // always null on creation
-		CreatedAt: row.CreatedAt.Time,
-	}
-	return pub
+	s.log.Info("user registered successfully", zap.Int64("user_id", pub.ID), zap.String("username", pub.Username))
+	return pub, nil
 }

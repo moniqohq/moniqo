@@ -63,8 +63,8 @@ func main() {
 	auth := e.Group("/api/v1/auth")
 	auth.Use(appmw.RegisterRateLimiter())
 
-	repo := user.NewRepo(pool, log)
-	svc := user.NewService(repo, cfg.BcryptCost, log)
+	repo := user.NewUserRepo(pool, log)
+	svc := user.NewUserSvc(repo, cfg.BcryptCost, log)
 	h := user.NewHandler(svc, log)
 
 	reg := e.Group("/api/v1")
