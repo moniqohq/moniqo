@@ -22,6 +22,10 @@ go.work
 ### GoLand ###
 
 .idea/
+
+### VSCode ###
+
+.vscode/
 *.iws
 .idea_modules/
 atlassian-ide-plugin.xml
