@@ -19,7 +19,9 @@ func Recover(log *zap.Logger) echo.MiddlewareFunc {
 						zap.String("panic", fmt.Sprintf("%v", r)),
 						zap.String("request_id", c.Response().Header().Get(echo.HeaderXRequestID)),
 					)
-					err = httpx.InternalError(c)
+					if !c.Response().Committed {
+						err = httpx.InternalError(c)
+					}
 				}
 			}()
 			return next(c)
