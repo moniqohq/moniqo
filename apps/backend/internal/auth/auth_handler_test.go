@@ -1,4 +1,4 @@
-package auth
+package auth_test
 
 import (
 	"context"
@@ -17,22 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
+	"github.com/moniqohq/moniqo/apps/backend/internal/mock"
 )
-
-// mockAuthService is a test double for AuthService.
-type mockAuthService struct {
-	loginFn  func(ctx context.Context, req LoginRequest) (LoginResult, error)
-	logoutFn func(ctx context.Context, params LogoutParams) error
-}
-
-func (m *mockAuthService) Login(ctx context.Context, req LoginRequest) (LoginResult, error) {
-	return m.loginFn(ctx, req)
-}
-
-func (m *mockAuthService) Logout(ctx context.Context, params LogoutParams) error {
-	return m.logoutFn(ctx, params)
-}
 
 func newLoginCtx(e *echo.Echo, body string) (echo.Context, *httptest.ResponseRecorder) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(body))
@@ -55,15 +43,15 @@ func parseEnvelope(t *testing.T, body string) (httpx.Response, map[string]any) {
 	return resp, dataMap
 }
 
-func fixedClaims() *Claims {
+func fixedClaims() *auth.Claims {
 	now := time.Now()
-	return &Claims{
+	return &auth.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   "1",
 			ID:        uuid.New().String(),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(15 * time.Minute)),
-			Issuer:    issuer,
+			Issuer:    auth.Issuer,
 		},
 	}
 }
@@ -74,16 +62,16 @@ func TestHandler_Login(t *testing.T) {
 	log := zap.NewNop()
 	e := echo.New()
 
-	successSvc := &mockAuthService{
-		loginFn: func(_ context.Context, _ LoginRequest) (LoginResult, error) {
-			return LoginResult{AccessToken: "tok.en.value", TokenType: "Bearer"}, nil
+	successSvc := &mock.MockAuthService{
+		LoginFn: func(_ context.Context, _ auth.LoginRequest) (auth.LoginResult, error) {
+			return auth.LoginResult{AccessToken: "tok.en.value", TokenType: "Bearer"}, nil
 		},
 	}
 
 	tests := []struct {
 		name        string
 		body        string
-		svc         AuthService
+		svc         auth.AuthService
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string
@@ -129,9 +117,9 @@ func TestHandler_Login(t *testing.T) {
 		{
 			name: "invalid credentials returns generic 401",
 			body: `{"email":"user@example.com","password":"WrongPass1"}`,
-			svc: &mockAuthService{
-				loginFn: func(_ context.Context, _ LoginRequest) (LoginResult, error) {
-					return LoginResult{}, ErrInvalidCredentials
+			svc: &mock.MockAuthService{
+				LoginFn: func(_ context.Context, _ auth.LoginRequest) (auth.LoginResult, error) {
+					return auth.LoginResult{}, auth.ErrInvalidCredentials
 				},
 			},
 			wantStatus:  http.StatusUnauthorized,
@@ -141,9 +129,9 @@ func TestHandler_Login(t *testing.T) {
 		{
 			name: "pending verification returns 403",
 			body: `{"email":"user@example.com","password":"SecurePass1"}`,
-			svc: &mockAuthService{
-				loginFn: func(_ context.Context, _ LoginRequest) (LoginResult, error) {
-					return LoginResult{}, ErrPendingVerification
+			svc: &mock.MockAuthService{
+				LoginFn: func(_ context.Context, _ auth.LoginRequest) (auth.LoginResult, error) {
+					return auth.LoginResult{}, auth.ErrPendingVerification
 				},
 			},
 			wantStatus:  http.StatusForbidden,
@@ -153,9 +141,9 @@ func TestHandler_Login(t *testing.T) {
 		{
 			name: "service error returns 500",
 			body: `{"email":"user@example.com","password":"SecurePass1"}`,
-			svc: &mockAuthService{
-				loginFn: func(_ context.Context, _ LoginRequest) (LoginResult, error) {
-					return LoginResult{}, errors.New("db unavailable")
+			svc: &mock.MockAuthService{
+				LoginFn: func(_ context.Context, _ auth.LoginRequest) (auth.LoginResult, error) {
+					return auth.LoginResult{}, errors.New("db unavailable")
 				},
 			},
 			wantStatus:  http.StatusInternalServerError,
@@ -180,13 +168,13 @@ func TestHandler_Login(t *testing.T) {
 		{
 			name: "service receives correct input fields",
 			body: `{"email":"user@example.com","password":"SecurePass1"}`,
-			svc: func() AuthService {
-				var captured LoginRequest
-				return &mockAuthService{
-					loginFn: func(_ context.Context, req LoginRequest) (LoginResult, error) {
+			svc: func() auth.AuthService {
+				var captured auth.LoginRequest
+				return &mock.MockAuthService{
+					LoginFn: func(_ context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
 						captured = req
 						_ = captured
-						return LoginResult{AccessToken: "t", TokenType: "Bearer"}, nil
+						return auth.LoginResult{AccessToken: "t", TokenType: "Bearer"}, nil
 					},
 				}
 			}(),
@@ -201,7 +189,7 @@ func TestHandler_Login(t *testing.T) {
 			t.Parallel()
 
 			c, rec := newLoginCtx(e, tc.body)
-			h := &Handler{svc: tc.svc, log: log}
+			h := auth.NewHandler(tc.svc, log)
 
 			err := h.Login(c)
 			require.NoError(t, err)
@@ -227,16 +215,16 @@ func TestHandler_Login_InputForwarding(t *testing.T) {
 	log := zap.NewNop()
 	e := echo.New()
 
-	var captured LoginRequest
-	svc := &mockAuthService{
-		loginFn: func(_ context.Context, req LoginRequest) (LoginResult, error) {
+	var captured auth.LoginRequest
+	svc := &mock.MockAuthService{
+		LoginFn: func(_ context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
 			captured = req
-			return LoginResult{AccessToken: "t", TokenType: "Bearer"}, nil
+			return auth.LoginResult{AccessToken: "t", TokenType: "Bearer"}, nil
 		},
 	}
 
 	c, _ := newLoginCtx(e, `{"email":"user@example.com","password":"SecurePass1"}`)
-	h := &Handler{svc: svc, log: log}
+	h := auth.NewHandler(svc, log)
 	require.NoError(t, h.Login(c))
 
 	assert.Equal(t, "user@example.com", captured.Email)
@@ -252,7 +240,7 @@ func TestHandler_Logout(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupCtx    func(c echo.Context)
-		svc         AuthService
+		svc         auth.AuthService
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string
@@ -268,10 +256,10 @@ func TestHandler_Logout(t *testing.T) {
 		{
 			name: "service error returns 500",
 			setupCtx: func(c echo.Context) {
-				setClaimsInContext(c, fixedClaims())
+				auth.SetClaimsInContext(c, fixedClaims())
 			},
-			svc: &mockAuthService{
-				logoutFn: func(_ context.Context, _ LogoutParams) error {
+			svc: &mock.MockAuthService{
+				LogoutFn: func(_ context.Context, _ auth.LogoutParams) error {
 					return errors.New("db unavailable")
 				},
 			},
@@ -282,10 +270,10 @@ func TestHandler_Logout(t *testing.T) {
 		{
 			name: "success returns 200 with null data",
 			setupCtx: func(c echo.Context) {
-				setClaimsInContext(c, fixedClaims())
+				auth.SetClaimsInContext(c, fixedClaims())
 			},
-			svc: &mockAuthService{
-				logoutFn: func(_ context.Context, _ LogoutParams) error {
+			svc: &mock.MockAuthService{
+				LogoutFn: func(_ context.Context, _ auth.LogoutParams) error {
 					return nil
 				},
 			},
@@ -302,7 +290,7 @@ func TestHandler_Logout(t *testing.T) {
 
 			c, rec := newLogoutCtx(e)
 			tc.setupCtx(c)
-			h := &Handler{svc: tc.svc, log: log}
+			h := auth.NewHandler(tc.svc, log)
 
 			err := h.Logout(c)
 			require.NoError(t, err)
@@ -327,17 +315,17 @@ func TestHandler_Logout_ParamsForwarding(t *testing.T) {
 	e := echo.New()
 
 	claims := fixedClaims()
-	var captured LogoutParams
-	svc := &mockAuthService{
-		logoutFn: func(_ context.Context, p LogoutParams) error {
+	var captured auth.LogoutParams
+	svc := &mock.MockAuthService{
+		LogoutFn: func(_ context.Context, p auth.LogoutParams) error {
 			captured = p
 			return nil
 		},
 	}
 
 	c, _ := newLogoutCtx(e)
-	setClaimsInContext(c, claims)
-	h := &Handler{svc: svc, log: log}
+	auth.SetClaimsInContext(c, claims)
+	h := auth.NewHandler(svc, log)
 	require.NoError(t, h.Logout(c))
 
 	parsedJTI, err := uuid.Parse(claims.ID)

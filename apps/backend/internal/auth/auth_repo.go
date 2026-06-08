@@ -14,15 +14,6 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
-// AuthRepository is the persistence contract for authentication operations.
-type AuthRepository interface {
-	GetUserByEmail(ctx context.Context, email string) (UserCredentials, error)
-	UpdateLastLogin(ctx context.Context, userID int64) error
-	InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error
-	IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error)
-	UserExistsByID(ctx context.Context, userID int64) (bool, error)
-}
-
 // AuthRepo implements AuthRepository using PostgreSQL.
 type AuthRepo struct {
 	pool *pgxpool.Pool

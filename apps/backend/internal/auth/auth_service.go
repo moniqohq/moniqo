@@ -12,10 +12,13 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
-// AuthService is the service contract required by Handler.
-type AuthService interface {
-	Login(ctx context.Context, req LoginRequest) (LoginResult, error)
-	Logout(ctx context.Context, params LogoutParams) error
+// AuthRepository is the persistence contract for authentication operations.
+type AuthRepository interface {
+	GetUserByEmail(ctx context.Context, email string) (UserCredentials, error)
+	UpdateLastLogin(ctx context.Context, userID int64) error
+	InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error
+	IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error)
+	UserExistsByID(ctx context.Context, userID int64) (bool, error)
 }
 
 // AuthSvc implements authentication business logic.

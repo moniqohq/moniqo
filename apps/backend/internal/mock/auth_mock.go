@@ -9,6 +9,20 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 )
 
+// MockAuthService is a test double for auth.AuthService.
+type MockAuthService struct {
+	LoginFn  func(ctx context.Context, req auth.LoginRequest) (auth.LoginResult, error)
+	LogoutFn func(ctx context.Context, params auth.LogoutParams) error
+}
+
+func (m *MockAuthService) Login(ctx context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
+	return m.LoginFn(ctx, req)
+}
+
+func (m *MockAuthService) Logout(ctx context.Context, params auth.LogoutParams) error {
+	return m.LogoutFn(ctx, params)
+}
+
 // MockAuthRepository is a testify mock for auth.AuthRepository.
 type MockAuthRepository struct {
 	mock.Mock

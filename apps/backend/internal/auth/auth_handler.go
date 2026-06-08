@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"strconv"
 
@@ -12,13 +13,19 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 )
 
+// AuthService is the service contract required by Handler.
+type AuthService interface {
+	Login(ctx context.Context, req LoginRequest) (LoginResult, error)
+	Logout(ctx context.Context, params LogoutParams) error
+}
+
 // Handler holds HTTP handlers for auth endpoints.
 type Handler struct {
 	svc AuthService
 	log *zap.Logger
 }
 
-func NewHandler(svc *AuthSvc, log *zap.Logger) *Handler {
+func NewHandler(svc AuthService, log *zap.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
 }
 
