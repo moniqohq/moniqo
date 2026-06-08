@@ -15,7 +15,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 
-	"github.com/moniqohq/moniqo/apps/backend/db"
+	"github.com/moniqohq/moniqo/apps/backend/db/migrations"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
@@ -77,9 +77,9 @@ func runMigrations(dsn string) error {
 	}
 	defer conn.Close()
 
-	goose.SetBaseFS(db.Migrations)
+	goose.SetBaseFS(migrations.Migrations)
 	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
-	return goose.Up(conn, "migrations")
+	return goose.Up(conn, ".")
 }
