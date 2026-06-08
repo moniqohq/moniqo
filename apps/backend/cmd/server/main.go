@@ -19,6 +19,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
+	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
 
 func main() {
@@ -61,6 +62,14 @@ func main() {
 
 	auth := e.Group("/api/v1/auth")
 	auth.Use(appmw.RegisterRateLimiter())
+
+	repo := user.NewRepo(pool, log)
+	svc := user.NewService(repo, cfg.BcryptCost, log)
+	h := user.NewHandler(svc, log)
+
+	reg := e.Group("/api/v1")
+	reg.Use(appmw.RegisterRateLimiter())
+	reg.POST("/users", h.Register)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Info("starting server", zap.String("addr", addr))
