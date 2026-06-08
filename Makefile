@@ -2,7 +2,8 @@
 # All targets delegate to Mage internally.
 # Mage is installed automatically via `go install` if not found on PATH.
 
-MAGE := mage
+GOPATH := $(shell go env GOPATH)
+MAGE := $(GOPATH)/bin/mage
 
 .PHONY: _mage-install docker-compose-up docker-compose-down lint fmt \
         build build-backend build-web build-desktop build-mobile \
@@ -12,7 +13,7 @@ MAGE := mage
         clean help
 
 _mage-install:
-	@which mage > /dev/null 2>&1 || (echo "mage not found, installing..." && go install github.com/magefile/mage@latest)
+	@test -f $(MAGE) || (echo "mage not found, installing..." && go install github.com/magefile/mage@latest)
 
 docker-compose-up: _mage-install    ## Start Docker Compose stack
 	@$(MAGE) dockerComposeUp
