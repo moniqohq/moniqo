@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -13,6 +15,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 
+	"github.com/moniqohq/moniqo/apps/backend/db"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
@@ -56,22 +59,27 @@ func main() {
 	e.Use(appmw.Recover(log))
 	e.Use(appmw.RequestLogger(log))
 
+	auth := e.Group("/api/v1/auth")
+	auth.Use(appmw.RegisterRateLimiter())
+
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Info("starting server", zap.String("addr", addr))
-	if err := e.Start(addr); err != nil {
-		log.Error("server stopped", zap.Error(err))
+	if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Error("server error", zap.Error(err))
+		os.Exit(1)
 	}
 }
 
 func runMigrations(dsn string) error {
-	db, err := sql.Open("pgx", dsn)
+	conn, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer conn.Close()
 
+	goose.SetBaseFS(db.Migrations)
 	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
-	return goose.Up(db, "db/migrations")
+	return goose.Up(conn, "migrations")
 }
