@@ -1,0 +1,70 @@
+package auth
+
+import (
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+)
+
+var (
+	ErrInvalidCredentials  = errors.New("invalid credentials")
+	ErrPendingVerification = errors.New("account pending verification")
+	ErrUserNotFound        = errors.New("user not found")
+)
+
+// -----------------------------------------------------------------------------
+// Handler layer
+// -----------------------------------------------------------------------------
+
+// LoginRequest is the HTTP request body for POST /auth/login and the
+// service-layer input to AuthSvc.Login.
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// LoginResponseData is the HTTP response body for a successful login.
+type LoginResponseData struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+}
+
+// -----------------------------------------------------------------------------
+// Service layer
+// -----------------------------------------------------------------------------
+
+// LoginResult holds the data returned on a successful login.
+type LoginResult struct {
+	AccessToken string
+	TokenType   string
+}
+
+// LogoutParams carries the claims extracted from the current access token.
+type LogoutParams struct {
+	JTI       uuid.UUID
+	UserID    int64
+	ExpiresAt time.Time
+}
+
+// -----------------------------------------------------------------------------
+// Repository layer
+// -----------------------------------------------------------------------------
+
+// UserCredentials bundles the public-safe user model with the bcrypt hash
+// needed for password verification. The hash is never forwarded beyond the
+// service layer.
+type UserCredentials struct {
+	User models.User
+	Hash string
+}
+
+// InsertRevokedTokenParams carries the values for a new blocklist entry.
+type InsertRevokedTokenParams struct {
+	JTI       pgtype.UUID
+	UserID    int64
+	ExpiresAt time.Time
+}
