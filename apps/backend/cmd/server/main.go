@@ -63,13 +63,13 @@ func main() {
 	auth := e.Group("/api/v1/auth")
 	auth.Use(appmw.RegisterRateLimiter())
 
-	repo := user.NewRepo(pool)
-	svc := user.NewService(repo, cfg.BcryptCost)
-	h := user.NewHandler(svc)
+	repo := user.NewRepo(pool, log)
+	svc := user.NewService(repo, cfg.BcryptCost, log)
+	h := user.NewHandler(svc, log)
 
-	reg := e.Group("/api/v1/users")
+	reg := e.Group("/api/v1")
 	reg.Use(appmw.RegisterRateLimiter())
-	reg.POST("", h.Register)
+	reg.POST("/users", h.Register)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Info("starting server", zap.String("addr", addr))

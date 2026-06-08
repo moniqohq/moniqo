@@ -2,20 +2,21 @@ package user
 
 import (
 	"errors"
-	"log/slog"
 
 	"github.com/labstack/echo/v4"
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
+	"go.uber.org/zap"
 )
 
 // Handler holds HTTP handlers for user endpoints.
 type Handler struct {
 	svc *Service
+	log *zap.Logger
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, log *zap.Logger) *Handler {
+	return &Handler{svc: svc, log: log}
 }
 
 type registerRequest struct {
@@ -51,7 +52,7 @@ func (h *Handler) Register(c echo.Context) error {
 		return httpx.Conflict(c, "username or email already exists")
 	}
 	if err != nil {
-		slog.ErrorContext(c.Request().Context(), "registration failed", "error", err)
+		h.log.Error("registration failed", zap.Error(err))
 		return httpx.InternalError(c)
 	}
 
