@@ -13,7 +13,6 @@ import (
 	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 )
 
-// stubRepo is an in-package stub implementing userRepository.
 type stubRepo struct {
 	row db.CreateUserRow
 	err error
@@ -21,6 +20,16 @@ type stubRepo struct {
 
 func (s *stubRepo) Create(_ context.Context, _ createParams) (db.CreateUserRow, error) {
 	return s.row, s.err
+}
+
+type captureRepo struct {
+	row     db.CreateUserRow
+	capture func(createParams)
+}
+
+func (c *captureRepo) Create(_ context.Context, p createParams) (db.CreateUserRow, error) {
+	c.capture(p)
+	return c.row, nil
 }
 
 func makeRow(username, email string) db.CreateUserRow {
@@ -36,76 +45,57 @@ func makeRow(username, email string) db.CreateUserRow {
 	}
 }
 
-func TestService_Register_Success(t *testing.T) {
-	stub := &stubRepo{row: makeRow("saqibtest", "saqib@example.com")}
-	svc := &Service{repo: stub, bcryptCost: 4}
-
-	pub, err := svc.Register(context.Background(), RegisterRequest{
+func TestUserService_Register(t *testing.T) {
+	validReq := RegisterRequest{
 		Username: "saqibtest",
 		Password: "SecurePass1",
 		Email:    "saqib@example.com",
-	})
-
-	require.NoError(t, err)
-	assert.Equal(t, "saqibtest", pub.Username)
-	assert.Equal(t, "saqib@example.com", pub.Email)
-	assert.Equal(t, StatusPendingVerification, pub.Status)
-	assert.Nil(t, pub.LastLogin)
-}
-
-func TestService_Register_PropagatesConflict(t *testing.T) {
-	stub := &stubRepo{err: ErrConflict}
-	svc := &Service{repo: stub, bcryptCost: 4}
-
-	_, err := svc.Register(context.Background(), RegisterRequest{
-		Username: "saqibtest",
-		Password: "SecurePass1",
-		Email:    "saqib@example.com",
-	})
-
-	assert.True(t, errors.Is(err, ErrConflict))
-}
-
-func TestService_Register_PropagatesRepoError(t *testing.T) {
-	repoErr := errors.New("db unavailable")
-	stub := &stubRepo{err: repoErr}
-	svc := &Service{repo: stub, bcryptCost: 4}
-
-	_, err := svc.Register(context.Background(), RegisterRequest{
-		Username: "saqibtest",
-		Password: "SecurePass1",
-		Email:    "saqib@example.com",
-	})
-
-	assert.ErrorIs(t, err, repoErr)
-}
-
-func TestService_Register_HashIsNotPassword(t *testing.T) {
-	var capturedParams createParams
-	stub := &captureRepo{
-		row: makeRow("saqibtest", "saqib@example.com"),
-		capture: func(p createParams) { capturedParams = p },
 	}
-	svc := &Service{repo: stub, bcryptCost: 4}
 
-	_, err := svc.Register(context.Background(), RegisterRequest{
-		Username: "saqibtest",
-		Password: "SecurePass1",
-		Email:    "saqib@example.com",
+	t.Run("success", func(t *testing.T) {
+		stub := &stubRepo{row: makeRow("saqibtest", "saqib@example.com")}
+		svc := &Service{repo: stub, bcryptCost: 4}
+
+		pub, err := svc.Register(context.Background(), validReq)
+
+		require.NoError(t, err)
+		assert.Equal(t, "saqibtest", pub.Username)
+		assert.Equal(t, "saqib@example.com", pub.Email)
+		assert.Equal(t, StatusPendingVerification, pub.Status)
+		assert.Nil(t, pub.LastLogin)
 	})
 
-	require.NoError(t, err)
-	assert.NotEqual(t, "SecurePass1", capturedParams.Hash, "plaintext password must not be stored")
-	assert.NotEmpty(t, capturedParams.Hash)
-}
+	t.Run("email already exists", func(t *testing.T) {
+		stub := &stubRepo{err: ErrConflict}
+		svc := &Service{repo: stub, bcryptCost: 4}
 
-// captureRepo records the createParams passed to Create.
-type captureRepo struct {
-	row     db.CreateUserRow
-	capture func(createParams)
-}
+		_, err := svc.Register(context.Background(), validReq)
 
-func (c *captureRepo) Create(_ context.Context, p createParams) (db.CreateUserRow, error) {
-	c.capture(p)
-	return c.row, nil
+		assert.ErrorIs(t, err, ErrConflict)
+	})
+
+	t.Run("password is hashed before storage", func(t *testing.T) {
+		var capturedParams createParams
+		stub := &captureRepo{
+			row:     makeRow("saqibtest", "saqib@example.com"),
+			capture: func(p createParams) { capturedParams = p },
+		}
+		svc := &Service{repo: stub, bcryptCost: 4}
+
+		_, err := svc.Register(context.Background(), validReq)
+
+		require.NoError(t, err)
+		assert.NotEqual(t, "SecurePass1", capturedParams.Hash, "plaintext password must not be stored")
+		assert.NotEmpty(t, capturedParams.Hash)
+	})
+
+	t.Run("repository error", func(t *testing.T) {
+		repoErr := errors.New("db unavailable")
+		stub := &stubRepo{err: repoErr}
+		svc := &Service{repo: stub, bcryptCost: 4}
+
+		_, err := svc.Register(context.Background(), validReq)
+
+		assert.ErrorIs(t, err, repoErr)
+	})
 }
