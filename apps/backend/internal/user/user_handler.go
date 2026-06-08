@@ -22,7 +22,7 @@ type Handler struct {
 	log *zap.Logger
 }
 
-func NewHandler(svc *UserSvc, log *zap.Logger) *Handler {
+func NewHandler(svc UserService, log *zap.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
 }
 
