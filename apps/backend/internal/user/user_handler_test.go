@@ -1,4 +1,4 @@
-package user
+package user_test
 
 import (
 	"context"
@@ -16,19 +16,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
+	"github.com/moniqohq/moniqo/apps/backend/internal/mock"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
-
-func ptr[T any](v T) *T { return &v }
-
-// mockRegistrar is a test double for the UserService interface.
-type mockRegistrar struct {
-	registerFn func(ctx context.Context, req RegisterRequest) (models.User, error)
-}
-
-func (m *mockRegistrar) Register(ctx context.Context, req RegisterRequest) (models.User, error) {
-	return m.registerFn(ctx, req)
-}
 
 // newEchoCtx builds an Echo context with a JSON body for POST /api/v1/users.
 func newEchoCtx(e *echo.Echo, body string) (echo.Context, *httptest.ResponseRecorder) {
@@ -66,7 +57,7 @@ func TestHandler_Register(t *testing.T) {
 	tests := []struct {
 		name        string
 		body        string
-		svc         UserService
+		svc         user.UserService
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string
@@ -110,9 +101,9 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "service conflict returns 409",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com"}`,
-			svc: &mockRegistrar{
-				registerFn: func(_ context.Context, _ RegisterRequest) (models.User, error) {
-					return models.User{}, ErrConflict
+			svc: &mock.MockUserService{
+				RegisterFn: func(_ context.Context, _ user.RegisterRequest) (models.User, error) {
+					return models.User{}, user.ErrConflict
 				},
 			},
 			wantStatus:  http.StatusConflict,
@@ -122,8 +113,8 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "service generic error returns 500",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com"}`,
-			svc: &mockRegistrar{
-				registerFn: func(_ context.Context, _ RegisterRequest) (models.User, error) {
+			svc: &mock.MockUserService{
+				RegisterFn: func(_ context.Context, _ user.RegisterRequest) (models.User, error) {
 					return models.User{}, errors.New("unexpected db failure")
 				},
 			},
@@ -134,8 +125,8 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "success returns 201 with user payload",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com","name":"Saqib"}`,
-			svc: &mockRegistrar{
-				registerFn: func(_ context.Context, _ RegisterRequest) (models.User, error) {
+			svc: &mock.MockUserService{
+				RegisterFn: func(_ context.Context, _ user.RegisterRequest) (models.User, error) {
 					return fixedUser(), nil
 				},
 			},
@@ -154,10 +145,10 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "service receives correct input fields",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com","name":"Saqib"}`,
-			svc: func() UserService {
-				var captured RegisterRequest
-				return &mockRegistrar{
-					registerFn: func(_ context.Context, req RegisterRequest) (models.User, error) {
+			svc: func() user.UserService {
+				var captured user.RegisterRequest
+				return &mock.MockUserService{
+					RegisterFn: func(_ context.Context, req user.RegisterRequest) (models.User, error) {
 						captured = req
 						_ = captured
 						return fixedUser(), nil
@@ -175,7 +166,7 @@ func TestHandler_Register(t *testing.T) {
 			t.Parallel()
 
 			c, rec := newEchoCtx(e, tc.body)
-			h := &Handler{svc: tc.svc, log: log}
+			h := user.NewHandler(tc.svc, log)
 
 			err := h.Register(c)
 			require.NoError(t, err)
@@ -201,16 +192,16 @@ func TestHandler_Register_InputForwarding(t *testing.T) {
 	log := zap.NewNop()
 	e := echo.New()
 
-	var captured RegisterRequest
-	svc := &mockRegistrar{
-		registerFn: func(_ context.Context, req RegisterRequest) (models.User, error) {
+	var captured user.RegisterRequest
+	svc := &mock.MockUserService{
+		RegisterFn: func(_ context.Context, req user.RegisterRequest) (models.User, error) {
 			captured = req
 			return fixedUser(), nil
 		},
 	}
 
 	c, _ := newEchoCtx(e, `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com","name":"Saqib"}`)
-	h := &Handler{svc: svc, log: log}
+	h := user.NewHandler(svc, log)
 	require.NoError(t, h.Register(c))
 
 	assert.Equal(t, "saqibtest", captured.Username)

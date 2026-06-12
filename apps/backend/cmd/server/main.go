@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/moniqohq/moniqo/apps/backend/db/migrations"
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
@@ -42,6 +43,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cfg.JWTSecret == "" {
+		log.Error("JWT_SECRET is required")
+		os.Exit(1)
+	}
+
 	if err := runMigrations(cfg.DatabaseURL); err != nil {
 		log.Error("migration failed", zap.Error(err))
 		os.Exit(1)
@@ -60,16 +66,29 @@ func main() {
 	e.Use(appmw.Recover(log))
 	e.Use(appmw.RequestLogger(log))
 
-	auth := e.Group("/api/v1/auth")
-	auth.Use(appmw.RegisterRateLimiter())
-
-	repo := user.NewUserRepo(pool, log)
-	svc := user.NewUserSvc(repo, cfg.BcryptCost, log)
-	h := user.NewHandler(svc, log)
+	// User registration
+	userRepo := user.NewUserRepo(pool, log)
+	userSvc := user.NewUserSvc(userRepo, cfg.BcryptCost, log)
+	userHandler := user.NewHandler(userSvc, log)
 
 	reg := e.Group("/api/v1")
 	reg.Use(appmw.RegisterRateLimiter())
-	reg.POST("/users", h.Register)
+	reg.POST("/users", userHandler.Register)
+
+	// Auth: login (rate-limited, public) and logout (JWT-protected)
+	jwtSecret := []byte(cfg.JWTSecret)
+	authRepo := auth.NewAuthRepo(pool, log)
+	authSvc := auth.NewAuthSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, log)
+	authHandler := auth.NewHandler(authSvc, log)
+	authMW := auth.Middleware(authRepo, jwtSecret, log)
+
+	loginGroup := e.Group("/api/v1/auth")
+	loginGroup.Use(appmw.LoginRateLimiter())
+	loginGroup.POST("/login", authHandler.Login)
+
+	logoutGroup := e.Group("/api/v1/auth")
+	logoutGroup.Use(authMW)
+	logoutGroup.POST("/logout", authHandler.Logout)
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Info("starting server", zap.String("addr", addr))

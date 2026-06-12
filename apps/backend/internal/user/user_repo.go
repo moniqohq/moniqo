@@ -12,16 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// ErrConflict is returned when a unique constraint is violated (username or email).
-var ErrConflict = errors.New("username or email already exists")
-
-type CreateParams struct {
-	Username string
-	Email    string
-	Hash     string
-	Name     *string
-}
-
 // UserRepo wraps sqlc queries for the users table.
 type UserRepo struct {
 	pool *pgxpool.Pool

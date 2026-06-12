@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"golang.org/x/time/rate"
+
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
@@ -9,10 +11,20 @@ import (
 // RegisterRateLimiter returns a rate limiter middleware scoped to the registration
 // endpoint: 10 requests per IP per minute, in-memory token bucket.
 func RegisterRateLimiter() echo.MiddlewareFunc {
+	return newIPRateLimiter(10.0/60, 10)
+}
+
+// LoginRateLimiter returns a rate limiter middleware scoped to the login
+// endpoint: 10 requests per IP per minute, in-memory token bucket.
+func LoginRateLimiter() echo.MiddlewareFunc {
+	return newIPRateLimiter(10.0/60, 10)
+}
+
+func newIPRateLimiter(r float64, burst int) echo.MiddlewareFunc {
 	store := echomw.NewRateLimiterMemoryStoreWithConfig(
 		echomw.RateLimiterMemoryStoreConfig{
-			Rate:  10.0 / 60, // 10 requests per minute expressed as tokens/second
-			Burst: 10,
+			Rate:  rate.Limit(r),
+			Burst: burst,
 		},
 	)
 	return echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{

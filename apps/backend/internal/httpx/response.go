@@ -50,6 +50,22 @@ func InternalError(c echo.Context) error {
 	})
 }
 
+func Unauthorized(c echo.Context, msg string) error {
+	return c.JSON(http.StatusUnauthorized, Response{
+		Success: false,
+		Data:    nil,
+		Msg:     msg,
+	})
+}
+
+func Forbidden(c echo.Context, msg string) error {
+	return c.JSON(http.StatusForbidden, Response{
+		Success: false,
+		Data:    nil,
+		Msg:     msg,
+	})
+}
+
 func TooManyRequests(c echo.Context) error {
 	return c.JSON(http.StatusTooManyRequests, Response{
 		Success: false,

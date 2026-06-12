@@ -13,14 +13,6 @@ type UserRepository interface {
 	Create(ctx context.Context, p CreateParams) (models.User, error)
 }
 
-// RegisterRequest is the input to UserSvc.Register.
-type RegisterRequest struct {
-	Username string
-	Password string
-	Email    string
-	Name     *string
-}
-
 // UserSvc implements the business logic for user operations.
 type UserSvc struct {
 	repo       UserRepository
