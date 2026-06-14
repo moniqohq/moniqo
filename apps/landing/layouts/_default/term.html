@@ -1,0 +1,17 @@
+{{ define "main" }}
+{{ $paginator := .Paginate .Pages 10 }}
+<section class="container py-10 lg:py-14">
+  <h1 class="text-3xl font-extrabold text-white mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">
+    {{ .Title }}
+  </h1>
+  <p class="text-gray-400 text-sm mb-8">{{ len .Pages }} post{{ if ne (len .Pages) 1 }}s{{ end }}</p>
+  <div class="space-y-5">
+    {{ range $paginator.Pages }}
+      {{ partial "blog/post-card.html" . }}
+    {{ end }}
+  </div>
+  {{ if gt $paginator.TotalPages 1 }}
+    {{ partial "blog/pagination.html" $paginator }}
+  {{ end }}
+</section>
+{{ end }}
