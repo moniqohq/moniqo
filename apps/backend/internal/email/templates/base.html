@@ -1,0 +1,33 @@
+{{define "base"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{template "subject" .}}</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; }
+    .wrapper { max-width: 560px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .header { background: #1a1a2e; padding: 28px 32px; }
+    .header a { color: #ffffff; font-size: 20px; font-weight: 700; text-decoration: none; letter-spacing: -0.3px; }
+    .body { padding: 32px; }
+    .body h1 { font-size: 22px; font-weight: 700; margin: 0 0 16px; }
+    .body p { font-size: 15px; line-height: 1.6; margin: 0 0 16px; color: #444; }
+    .btn { display: inline-block; padding: 12px 24px; background: #6366f1; color: #fff; border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: 600; }
+    .footer { padding: 20px 32px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <a href="https://moniqo.in">Moniqo</a>
+    </div>
+    <div class="body">
+      {{template "content" .}}
+    </div>
+    <div class="footer">
+      &copy; Moniqo &mdash; open-source budgeting. You received this because you signed up.
+    </div>
+  </div>
+</body>
+</html>
+{{end}}

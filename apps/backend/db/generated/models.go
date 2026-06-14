@@ -66,3 +66,63 @@ type User struct {
 	UpdatedAt pgtype.Timestamptz
 	DeletedAt pgtype.Timestamptz
 }
+
+type EmailJobStatus string
+
+const (
+	EmailJobStatusPending EmailJobStatus = "pending"
+	EmailJobStatusFailed  EmailJobStatus = "failed"
+	EmailJobStatusDead    EmailJobStatus = "dead"
+	EmailJobStatusSent    EmailJobStatus = "sent"
+)
+
+func (e *EmailJobStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = EmailJobStatus(s)
+	case string:
+		*e = EmailJobStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for EmailJobStatus: %T", src)
+	}
+	return nil
+}
+
+type NullEmailJobStatus struct {
+	EmailJobStatus EmailJobStatus
+	Valid          bool
+}
+
+func (ns *NullEmailJobStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.EmailJobStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.EmailJobStatus.Scan(value)
+}
+
+func (ns NullEmailJobStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.EmailJobStatus), nil
+}
+
+type EmailJob struct {
+	ID             pgtype.UUID
+	IdempotencyKey string
+	Status         EmailJobStatus
+	TemplateName   string
+	RecipientEmail string
+	RecipientName  string
+	Payload        []byte
+	MaxAttempts    int32
+	AttemptCount   int32
+	LastError      *string
+	NextAttemptAt  pgtype.Timestamptz
+	LockedBy       *string
+	SentAt         pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}

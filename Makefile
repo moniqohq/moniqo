@@ -5,7 +5,9 @@
 GOPATH := $(shell go env GOPATH)
 MAGE := $(GOPATH)/bin/mage
 
-.PHONY: _mage-install docker-compose-up docker-compose-down lint fmt \
+.PHONY: _mage-install docker-compose-up docker-compose-down \
+        mailpit-up mailpit-down \
+        lint fmt \
         build build-backend build-web build-desktop build-mobile \
         dev dev-backend dev-web \
         test generate \
@@ -20,6 +22,12 @@ docker-compose-up: _mage-install    ## Start Docker Compose stack
 
 docker-compose-down: _mage-install  ## Stop Docker Compose stack
 	@$(MAGE) dockerComposeDown
+
+mailpit-up: _mage-install           ## Start Mailpit email testing service
+	@$(MAGE) mailpitUp
+
+mailpit-down: _mage-install         ## Stop Mailpit email testing service
+	@$(MAGE) mailpitDown
 
 lint: _mage-install           ## Run all linters
 	@$(MAGE) lint

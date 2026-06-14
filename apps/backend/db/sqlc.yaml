@@ -1,7 +1,10 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "queries/users.sql"
+    queries:
+      - "queries/users.sql"
+      - "queries/auth.sql"
+      - "queries/email_jobs.sql"
     schema: "migrations"
     gen:
       go:
