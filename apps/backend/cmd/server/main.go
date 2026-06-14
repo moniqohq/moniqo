@@ -71,7 +71,7 @@ func main() {
 	e.Use(appmw.RequestLogger(log))
 
 	// Email subsystem
-	emailRepo := email.NewRepo(pool)
+	emailRepo := email.NewRepo(pool, log)
 	var emailProvider providers.Provider
 	if cfg.Email.Provider == "smtp" {
 		emailProvider = providers.NewSMTP(providers.SMTPConfig{

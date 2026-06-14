@@ -7,9 +7,11 @@ import (
 	"math"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 
 	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 )
@@ -18,10 +20,11 @@ import (
 // service and worker need.
 type Repo struct {
 	pool *pgxpool.Pool
+	log  *zap.Logger
 }
 
-func NewRepo(pool *pgxpool.Pool) *Repo {
-	return &Repo{pool: pool}
+func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
+	return &Repo{pool: pool, log: log}
 }
 
 // Enqueue inserts an email job.  ON CONFLICT DO NOTHING makes this idempotent:
@@ -29,18 +32,37 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 	raw, err := json.Marshal(p.Payload)
 	if err != nil {
+		r.log.Error("failed to marshal email payload",
+			zap.String("idempotency_key", p.IdempotencyKey),
+			zap.String("template", string(p.Template)),
+			zap.Error(err),
+		)
 		return fmt.Errorf("marshal email payload: %w", err)
 	}
 
 	q := db.New(r.pool)
-	return q.EnqueueEmailJob(ctx, db.EnqueueEmailJobParams{
+	if err := q.EnqueueEmailJob(ctx, db.EnqueueEmailJobParams{
 		IdempotencyKey: p.IdempotencyKey,
 		TemplateName:   string(p.Template),
 		RecipientEmail: p.To,
 		RecipientName:  p.ToName,
 		Payload:        raw,
 		MaxAttempts:    3,
-	})
+	}); err != nil {
+		r.log.Error("failed to enqueue email job",
+			zap.String("idempotency_key", p.IdempotencyKey),
+			zap.String("template", string(p.Template)),
+			zap.String("to", p.To),
+			zap.Error(err),
+		)
+		return err
+	}
+	r.log.Debug("email job enqueued",
+		zap.String("idempotency_key", p.IdempotencyKey),
+		zap.String("template", string(p.Template)),
+		zap.String("to", p.To),
+	)
+	return nil
 }
 
 // claimedJob is the internal representation returned by ClaimBatch.
@@ -61,6 +83,7 @@ func (r *Repo) ClaimBatch(ctx context.Context, tx pgx.Tx, n int32) ([]claimedJob
 	q := db.New(tx)
 	rows, err := q.ClaimEmailJobs(ctx, n)
 	if err != nil {
+		r.log.Error("failed to claim email jobs", zap.Int32("limit", n), zap.Error(err))
 		return nil, err
 	}
 	jobs := make([]claimedJob, len(rows))
@@ -75,12 +98,21 @@ func (r *Repo) ClaimBatch(ctx context.Context, tx pgx.Tx, n int32) ([]claimedJob
 			MaxAttempts:    row.MaxAttempts,
 		}
 	}
+	r.log.Debug("claimed email jobs", zap.Int("count", len(jobs)), zap.Int32("limit", n))
 	return jobs, nil
 }
 
 // MarkSent transitions a job to the sent state.
 func (r *Repo) MarkSent(ctx context.Context, tx pgx.Tx, id pgtype.UUID) error {
-	return db.New(tx).MarkEmailJobSent(ctx, id)
+	if err := db.New(tx).MarkEmailJobSent(ctx, id); err != nil {
+		r.log.Error("failed to mark email job sent",
+			zap.String("job_id", uuid.UUID(id.Bytes).String()),
+			zap.Error(err),
+		)
+		return err
+	}
+	r.log.Debug("email job marked sent", zap.String("job_id", uuid.UUID(id.Bytes).String()))
+	return nil
 }
 
 // MarkFailed increments the attempt counter and schedules the next retry using
@@ -90,14 +122,33 @@ func (r *Repo) MarkFailed(ctx context.Context, tx pgx.Tx, id pgtype.UUID, errMsg
 	delay := time.Duration(float64(baseBackoff) * math.Pow(2, float64(attempt)))
 	next := pgtype.Timestamptz{Time: time.Now().Add(delay), Valid: true}
 	errStr := errMsg
-	return db.New(tx).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{
+	if err := db.New(tx).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{
 		ID:            id,
 		LastError:     &errStr,
 		NextAttemptAt: next,
-	})
+	}); err != nil {
+		r.log.Error("failed to mark email job failed",
+			zap.String("job_id", uuid.UUID(id.Bytes).String()),
+			zap.Int32("attempt", attempt),
+			zap.Error(err),
+		)
+		return err
+	}
+	r.log.Debug("email job marked failed",
+		zap.String("job_id", uuid.UUID(id.Bytes).String()),
+		zap.Int32("attempt", attempt),
+		zap.Duration("retry_delay", delay),
+		zap.String("error", errMsg),
+	)
+	return nil
 }
 
 // BeginTx opens a new transaction on the pool.
 func (r *Repo) BeginTx(ctx context.Context) (pgx.Tx, error) {
-	return r.pool.Begin(ctx)
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		r.log.Error("failed to begin transaction", zap.Error(err))
+		return nil, err
+	}
+	return tx, nil
 }
