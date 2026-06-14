@@ -12,24 +12,33 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+// runCompose runs a docker compose / podman-compose command.
+// Set COMPOSE_TOOL=podman-compose to use Podman; defaults to "docker compose".
+func runCompose(args ...string) error {
+	if os.Getenv("COMPOSE_TOOL") == "podman-compose" {
+		return sh.RunV("podman-compose", args...)
+	}
+	return sh.RunV("docker", append([]string{"compose"}, args...)...)
+}
+
 // DockerComposeUp starts the Docker Compose stack.
 func DockerComposeUp() error {
-	return sh.RunV("podman-compose", "up", "-d")
+	return runCompose("up", "-d")
 }
 
 // DockerComposeDown stops the Docker Compose stack.
 func DockerComposeDown() error {
-	return sh.RunV("podman-compose", "down")
+	return runCompose("down")
 }
 
 // MailpitUp starts the Mailpit email testing service.
 func MailpitUp() error {
-	return sh.RunV("podman-compose", "up", "mailpit", "-d")
+	return runCompose("up", "mailpit", "-d")
 }
 
 // MailpitDown stops the Mailpit email testing service.
 func MailpitDown() error {
-	return sh.RunV("podman-compose", "stop", "mailpit")
+	return runCompose("stop", "mailpit")
 }
 
 // Lint runs all linters across the monorepo.
