@@ -85,7 +85,7 @@ func main() {
 	} else {
 		emailProvider = providers.NewNoop(log)
 	}
-	emailSvc := email.NewService(emailRepo, log)
+	emailSvc := email.NewService(emailRepo)
 	emailWorker := email.NewWorker(emailRepo, emailProvider, email.WorkerConfig{
 		PollInterval: cfg.Email.WorkerInterval,
 		BatchSize:    cfg.Email.WorkerBatch,
@@ -100,7 +100,7 @@ func main() {
 
 	// User registration
 	userRepo := user.NewUserRepo(pool, log)
-	userSvc := user.NewUserSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, log)
+	userSvc := user.NewUserSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, []byte(cfg.JWTSecret), log)
 	userHandler := user.NewHandler(userSvc, log)
 
 	reg := e.Group("/api/v1")
@@ -133,6 +133,7 @@ func main() {
 		<-quit
 		log.Info("shutting down server")
 		workerCancel()
+		emailWorker.Wait() // drain the in-flight tick before closing the pool
 		if err := e.Shutdown(context.Background()); err != nil {
 			log.Error("server shutdown error", zap.Error(err))
 		}
