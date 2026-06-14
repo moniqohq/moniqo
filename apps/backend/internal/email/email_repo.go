@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -40,6 +39,11 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 		return fmt.Errorf("marshal email payload: %w", err)
 	}
 
+	maxAttempts := p.MaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 3
+	}
+
 	q := db.New(r.pool)
 	if err := q.EnqueueEmailJob(ctx, db.EnqueueEmailJobParams{
 		IdempotencyKey: p.IdempotencyKey,
@@ -47,7 +51,7 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 		RecipientEmail: p.To,
 		RecipientName:  p.ToName,
 		Payload:        raw,
-		MaxAttempts:    3,
+		MaxAttempts:    maxAttempts,
 	}); err != nil {
 		r.log.Error("failed to enqueue email job",
 			zap.String("idempotency_key", p.IdempotencyKey),
@@ -65,7 +69,7 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 	return nil
 }
 
-// claimedJob is the internal representation returned by ClaimBatch.
+// claimedJob is the internal representation returned by LockBatch.
 type claimedJob struct {
 	ID             pgtype.UUID
 	TemplateName   TemplateName
@@ -76,14 +80,19 @@ type claimedJob struct {
 	MaxAttempts    int32
 }
 
-// ClaimBatch claims up to n jobs for processing using FOR UPDATE SKIP LOCKED
-// inside a single transaction.  The caller is responsible for calling MarkSent
-// or MarkFailed within the same transaction before committing.
-func (r *Repo) ClaimBatch(ctx context.Context, tx pgx.Tx, n int32) ([]claimedJob, error) {
-	q := db.New(tx)
-	rows, err := q.ClaimEmailJobs(ctx, n)
+// LockBatch atomically claims up to n jobs for this worker by setting
+// locked_by = workerID.  The UPDATE runs as a single implicit transaction so no
+// long-lived lock is held during subsequent SMTP sends.  Jobs whose locked_by was
+// set but never cleared more than 10 minutes ago are also eligible (crash
+// recovery).
+func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]claimedJob, error) {
+	q := db.New(r.pool)
+	rows, err := q.LockEmailJobs(ctx, db.LockEmailJobsParams{
+		Limit:    n,
+		LockedBy: workerID,
+	})
 	if err != nil {
-		r.log.Error("failed to claim email jobs", zap.Int32("limit", n), zap.Error(err))
+		r.log.Error("failed to lock email jobs", zap.Int32("limit", n), zap.Error(err))
 		return nil, err
 	}
 	jobs := make([]claimedJob, len(rows))
@@ -98,13 +107,13 @@ func (r *Repo) ClaimBatch(ctx context.Context, tx pgx.Tx, n int32) ([]claimedJob
 			MaxAttempts:    row.MaxAttempts,
 		}
 	}
-	r.log.Debug("claimed email jobs", zap.Int("count", len(jobs)), zap.Int32("limit", n))
+	r.log.Debug("locked email jobs", zap.Int("count", len(jobs)), zap.Int32("limit", n))
 	return jobs, nil
 }
 
-// MarkSent transitions a job to the sent state.
-func (r *Repo) MarkSent(ctx context.Context, tx pgx.Tx, id pgtype.UUID) error {
-	if err := db.New(tx).MarkEmailJobSent(ctx, id); err != nil {
+// MarkSent transitions a job to the sent state and clears locked_by.
+func (r *Repo) MarkSent(ctx context.Context, id pgtype.UUID) error {
+	if err := db.New(r.pool).MarkEmailJobSent(ctx, id); err != nil {
 		r.log.Error("failed to mark email job sent",
 			zap.String("job_id", uuid.UUID(id.Bytes).String()),
 			zap.Error(err),
@@ -115,14 +124,14 @@ func (r *Repo) MarkSent(ctx context.Context, tx pgx.Tx, id pgtype.UUID) error {
 	return nil
 }
 
-// MarkFailed increments the attempt counter and schedules the next retry using
-// exponential backoff (base * 2^attempt).  Once attempts are exhausted the job
-// transitions to dead.
-func (r *Repo) MarkFailed(ctx context.Context, tx pgx.Tx, id pgtype.UUID, errMsg string, attempt int32, baseBackoff time.Duration) error {
+// MarkFailed increments the attempt counter, schedules the next retry using
+// exponential backoff (base * 2^attempt), and clears locked_by.  Once attempts
+// are exhausted the job transitions to dead.
+func (r *Repo) MarkFailed(ctx context.Context, id pgtype.UUID, errMsg string, attempt int32, baseBackoff time.Duration) error {
 	delay := time.Duration(float64(baseBackoff) * math.Pow(2, float64(attempt)))
 	next := pgtype.Timestamptz{Time: time.Now().Add(delay), Valid: true}
 	errStr := errMsg
-	if err := db.New(tx).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{
+	if err := db.New(r.pool).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{
 		ID:            id,
 		LastError:     &errStr,
 		NextAttemptAt: next,
@@ -141,14 +150,4 @@ func (r *Repo) MarkFailed(ctx context.Context, tx pgx.Tx, id pgtype.UUID, errMsg
 		zap.String("error", errMsg),
 	)
 	return nil
-}
-
-// BeginTx opens a new transaction on the pool.
-func (r *Repo) BeginTx(ctx context.Context) (pgx.Tx, error) {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		r.log.Error("failed to begin transaction", zap.Error(err))
-		return nil, err
-	}
-	return tx, nil
 }

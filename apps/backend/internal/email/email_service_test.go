@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/email"
 )
@@ -32,7 +31,7 @@ func TestService_Enqueue_Success(t *testing.T) {
 
 	// Service satisfies the Enqueuer interface; verify at compile time.
 	var _ email.Enqueuer = (*testableService)(nil)
-	svc := newTestableService(repo, zap.NewNop())
+	svc := newTestableService(repo)
 
 	err := svc.Enqueue(context.Background(), email.EnqueueParams{
 		IdempotencyKey: "verification:1",
@@ -52,7 +51,7 @@ func TestService_Enqueue_PropagatesRepoError(t *testing.T) {
 	repo := &mockRepo{}
 	repo.On("Enqueue", mock.AnythingOfType("email.EnqueueParams")).Return(errors.New("db down"))
 
-	svc := newTestableService(repo, zap.NewNop())
+	svc := newTestableService(repo)
 	err := svc.Enqueue(context.Background(), email.EnqueueParams{
 		IdempotencyKey: "verification:2",
 		Template:       email.TemplateVerification,
@@ -73,11 +72,10 @@ type repoEnqueuer interface {
 
 type testableService struct {
 	repo repoEnqueuer
-	log  *zap.Logger
 }
 
-func newTestableService(repo repoEnqueuer, log *zap.Logger) *testableService {
-	return &testableService{repo: repo, log: log}
+func newTestableService(repo repoEnqueuer) *testableService {
+	return &testableService{repo: repo}
 }
 
 func (s *testableService) Enqueue(ctx context.Context, p email.EnqueueParams) error {

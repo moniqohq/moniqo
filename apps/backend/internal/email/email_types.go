@@ -23,6 +23,9 @@ type EnqueueParams struct {
 	// Payload holds template variables. Keys must match the {{.Field}} names
 	// used in the template files.
 	Payload map[string]any
+
+	// MaxAttempts overrides the default retry limit (3). Zero means use the default.
+	MaxAttempts int32
 }
 
 // Enqueuer is the only email dependency that UserService (and other callers) hold.

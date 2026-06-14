@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/email/providers"
@@ -31,22 +33,34 @@ type Worker struct {
 	repo     *Repo
 	provider providers.Provider
 	cfg      WorkerConfig
+	workerID string
 	log      *zap.Logger
+	wg       sync.WaitGroup
 }
 
 func NewWorker(repo *Repo, provider providers.Provider, cfg WorkerConfig, log *zap.Logger) *Worker {
-	return &Worker{repo: repo, provider: provider, cfg: cfg, log: log}
+	return &Worker{
+		repo:     repo,
+		provider: provider,
+		cfg:      cfg,
+		workerID: fmt.Sprintf("worker-%d", os.Getpid()),
+		log:      log,
+	}
 }
 
 // Run starts the poll loop and blocks until ctx is cancelled.  Call it in a
-// goroutine from main.go; the loop drains any in-flight batch before returning.
+// goroutine from main.go.  The current tick (if any) drains before Run returns.
 func (w *Worker) Run(ctx context.Context) {
+	w.wg.Add(1)
+	defer w.wg.Done()
+
 	ticker := time.NewTicker(w.cfg.PollInterval)
 	defer ticker.Stop()
 
 	w.log.Info("email worker started",
 		zap.Duration("poll_interval", w.cfg.PollInterval),
 		zap.Int32("batch_size", w.cfg.BatchSize),
+		zap.String("worker_id", w.workerID),
 	)
 
 	for {
@@ -60,20 +74,18 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 }
 
-// tick claims a batch and processes each job within a single transaction.
-// If the process crashes mid-flight the transaction rolls back automatically
-// (connection drop = implicit rollback), leaving jobs in their prior state.
-func (w *Worker) tick(ctx context.Context) {
-	tx, err := w.repo.BeginTx(ctx)
-	if err != nil {
-		w.log.Error("email worker: begin tx", zap.Error(err))
-		return
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck
+// Wait blocks until the current tick finishes after Run returns.
+func (w *Worker) Wait() {
+	w.wg.Wait()
+}
 
-	jobs, err := w.repo.ClaimBatch(ctx, tx, w.cfg.BatchSize)
+// tick claims a batch via a short UPDATE (no long lock), then processes each
+// job independently.  DB locks are held only for the brief LockBatch statement,
+// not across SMTP I/O.
+func (w *Worker) tick(ctx context.Context) {
+	jobs, err := w.repo.LockBatch(ctx, w.cfg.BatchSize, w.workerID)
 	if err != nil {
-		w.log.Error("email worker: claim batch", zap.Error(err))
+		w.log.Error("email worker: lock batch", zap.Error(err))
 		return
 	}
 	if len(jobs) == 0 {
@@ -81,17 +93,13 @@ func (w *Worker) tick(ctx context.Context) {
 	}
 
 	for i := range jobs {
-		w.processJob(ctx, tx, &jobs[i])
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		w.log.Error("email worker: commit tx", zap.Error(err))
+		w.processJob(ctx, &jobs[i])
 	}
 }
 
-func (w *Worker) processJob(ctx context.Context, tx pgx.Tx, job *claimedJob) {
+func (w *Worker) processJob(ctx context.Context, job *claimedJob) {
 	log := w.log.With(
-		zap.String("job_id", pgxUUIDString(job.ID.Bytes)),
+		zap.String("job_id", uuid.UUID(job.ID.Bytes).String()),
 		zap.String("template", string(job.TemplateName)),
 		zap.String("to", job.RecipientEmail),
 	)
@@ -99,14 +107,14 @@ func (w *Worker) processJob(ctx context.Context, tx pgx.Tx, job *claimedJob) {
 	var payload map[string]any
 	if err := json.Unmarshal(job.Payload, &payload); err != nil {
 		log.Error("email worker: unmarshal payload", zap.Error(err))
-		w.failJob(ctx, tx, job, err.Error(), log)
+		w.failJob(ctx, job, err.Error(), log)
 		return
 	}
 
 	out, err := renderTemplate(job.TemplateName, payload)
 	if err != nil {
 		log.Error("email worker: render template", zap.Error(err))
-		w.failJob(ctx, tx, job, err.Error(), log)
+		w.failJob(ctx, job, err.Error(), log)
 		return
 	}
 
@@ -122,19 +130,19 @@ func (w *Worker) processJob(ctx context.Context, tx pgx.Tx, job *claimedJob) {
 			zap.Int32("max_attempts", job.MaxAttempts),
 			zap.Error(err),
 		)
-		w.failJob(ctx, tx, job, err.Error(), log)
+		w.failJob(ctx, job, err.Error(), log)
 		return
 	}
 
-	if err := w.repo.MarkSent(ctx, tx, job.ID); err != nil {
+	if err := w.repo.MarkSent(ctx, job.ID); err != nil {
 		log.Error("email worker: mark sent", zap.Error(err))
 		return
 	}
 	log.Info("email sent successfully")
 }
 
-func (w *Worker) failJob(ctx context.Context, tx pgx.Tx, job *claimedJob, errMsg string, log *zap.Logger) {
-	if err := w.repo.MarkFailed(ctx, tx, job.ID, errMsg, job.AttemptCount, w.cfg.BaseBackoff); err != nil {
+func (w *Worker) failJob(ctx context.Context, job *claimedJob, errMsg string, log *zap.Logger) {
+	if err := w.repo.MarkFailed(ctx, job.ID, errMsg, job.AttemptCount, w.cfg.BaseBackoff); err != nil {
 		log.Error("email worker: mark failed", zap.Error(err))
 	}
 	if job.AttemptCount+1 >= job.MaxAttempts {
@@ -142,6 +150,3 @@ func (w *Worker) failJob(ctx context.Context, tx pgx.Tx, job *claimedJob, errMsg
 	}
 }
 
-func pgxUUIDString(b [16]byte) string {
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}

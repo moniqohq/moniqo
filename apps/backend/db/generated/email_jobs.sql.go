@@ -40,62 +40,58 @@ func (q *Queries) EnqueueEmailJob(ctx context.Context, arg EnqueueEmailJobParams
 	return err
 }
 
-const claimEmailJobs = `-- name: ClaimEmailJobs :many
-SELECT id, idempotency_key, status, template_name, recipient_email, recipient_name,
-       payload, max_attempts, attempt_count, last_error, next_attempt_at, locked_by,
-       sent_at, created_at, updated_at
-FROM email_jobs
-WHERE status IN ('pending', 'failed')
-  AND next_attempt_at <= NOW()
-ORDER BY next_attempt_at, id
-LIMIT $1
-FOR UPDATE SKIP LOCKED
+const lockEmailJobs = `-- name: LockEmailJobs :many
+UPDATE email_jobs
+SET locked_by  = $2,
+    updated_at = NOW()
+WHERE id IN (
+    SELECT id FROM email_jobs
+    WHERE (
+        (status IN ('pending', 'failed') AND locked_by IS NULL     AND next_attempt_at <= NOW())
+        OR
+        (status IN ('pending', 'failed') AND locked_by IS NOT NULL AND updated_at < NOW() - INTERVAL '10 minutes')
+    )
+    ORDER BY next_attempt_at, id
+    LIMIT $1
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING id, template_name, recipient_email, recipient_name,
+          payload, max_attempts, attempt_count
 `
 
-type ClaimEmailJobsRow struct {
+type LockEmailJobsParams struct {
+	Limit    int32
+	LockedBy string
+}
+
+type LockEmailJobsRow struct {
 	ID             pgtype.UUID
-	IdempotencyKey string
-	Status         EmailJobStatus
 	TemplateName   string
 	RecipientEmail string
 	RecipientName  string
 	Payload        []byte
 	MaxAttempts    int32
 	AttemptCount   int32
-	LastError      *string
-	NextAttemptAt  pgtype.Timestamptz
-	LockedBy       *string
-	SentAt         pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
 }
 
-func (q *Queries) ClaimEmailJobs(ctx context.Context, limit int32) ([]ClaimEmailJobsRow, error) {
-	rows, err := q.db.Query(ctx, claimEmailJobs, limit)
+func (q *Queries) LockEmailJobs(ctx context.Context, arg LockEmailJobsParams) ([]LockEmailJobsRow, error) {
+	rows, err := q.db.Query(ctx, lockEmailJobs, arg.Limit, arg.LockedBy)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var items []ClaimEmailJobsRow
+	var items []LockEmailJobsRow
 	for rows.Next() {
-		var i ClaimEmailJobsRow
+		var i LockEmailJobsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.IdempotencyKey,
-			&i.Status,
 			&i.TemplateName,
 			&i.RecipientEmail,
 			&i.RecipientName,
 			&i.Payload,
 			&i.MaxAttempts,
 			&i.AttemptCount,
-			&i.LastError,
-			&i.NextAttemptAt,
-			&i.LockedBy,
-			&i.SentAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -111,6 +107,7 @@ const markEmailJobSent = `-- name: MarkEmailJobSent :exec
 UPDATE email_jobs
 SET status     = 'sent',
     sent_at    = NOW(),
+    locked_by  = NULL,
     updated_at = NOW()
 WHERE id = $1
 `
@@ -129,6 +126,7 @@ SET status          = CASE
     attempt_count   = attempt_count + 1,
     last_error      = $2,
     next_attempt_at = $3,
+    locked_by       = NULL,
     updated_at      = NOW()
 WHERE id = $1
 `
