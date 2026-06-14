@@ -35,7 +35,10 @@ func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	type result struct{ err error }
 	ch := make(chan result, 1)
 	go func() {
-		auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
+		var auth smtp.Auth
+		if s.cfg.Username != "" {
+			auth = smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
+		}
 		addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
 		body := buildMIMEMessage(s.cfg.From, s.cfg.FromName, msg)
 		ch <- result{smtp.SendMail(addr, auth, s.cfg.From, []string{msg.To}, body)}
