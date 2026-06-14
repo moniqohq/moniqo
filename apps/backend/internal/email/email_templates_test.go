@@ -8,66 +8,70 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenderTemplate_Verification(t *testing.T) {
+func TestRenderTemplate(t *testing.T) {
 	t.Parallel()
 
-	data := map[string]any{
-		"Name":            "Alice",
-		"VerificationURL": "https://app.moniqo.in/verify?token=abc123",
-		"ExpiresIn":       "24 hours",
-	}
+	t.Run("Verification", func(t *testing.T) {
+		t.Parallel()
 
-	out, err := renderTemplate(TemplateVerification, data)
-	require.NoError(t, err)
+		data := map[string]any{
+			"Name":            "Alice",
+			"VerificationURL": "https://app.moniqo.in/verify?token=abc123",
+			"ExpiresIn":       "24 hours",
+		}
 
-	assert.Equal(t, "Verify your Moniqo account", out.Subject)
+		out, err := renderTemplate(TemplateVerification, data)
+		require.NoError(t, err)
 
-	assert.True(t, strings.Contains(out.HTMLBody, "Alice"), "HTML body should include recipient name")
-	assert.True(t, strings.Contains(out.HTMLBody, "https://app.moniqo.in/verify?token=abc123"), "HTML body should include verification URL")
-	assert.True(t, strings.Contains(out.HTMLBody, "24 hours"), "HTML body should include expiry")
-	assert.True(t, strings.Contains(out.HTMLBody, "<!DOCTYPE html"), "HTML body should be a full HTML document")
+		assert.Equal(t, "Verify your Moniqo account", out.Subject)
 
-	assert.True(t, strings.Contains(out.TextBody, "Alice"), "text body should include recipient name")
-	assert.True(t, strings.Contains(out.TextBody, "https://app.moniqo.in/verify?token=abc123"), "text body should include verification URL")
-}
+		assert.True(t, strings.Contains(out.HTMLBody, "Alice"), "HTML body should include recipient name")
+		assert.True(t, strings.Contains(out.HTMLBody, "https://app.moniqo.in/verify?token=abc123"), "HTML body should include verification URL")
+		assert.True(t, strings.Contains(out.HTMLBody, "24 hours"), "HTML body should include expiry")
+		assert.True(t, strings.Contains(out.HTMLBody, "<!DOCTYPE html"), "HTML body should be a full HTML document")
 
-func TestRenderTemplate_PasswordReset(t *testing.T) {
-	t.Parallel()
+		assert.True(t, strings.Contains(out.TextBody, "Alice"), "text body should include recipient name")
+		assert.True(t, strings.Contains(out.TextBody, "https://app.moniqo.in/verify?token=abc123"), "text body should include verification URL")
+	})
 
-	data := map[string]any{
-		"Name":      "Bob",
-		"ResetURL":  "https://app.moniqo.in/reset?token=xyz789",
-		"ExpiresIn": "1 hour",
-	}
+	t.Run("PasswordReset", func(t *testing.T) {
+		t.Parallel()
 
-	out, err := renderTemplate(TemplatePasswordReset, data)
-	require.NoError(t, err)
+		data := map[string]any{
+			"Name":      "Bob",
+			"ResetURL":  "https://app.moniqo.in/reset?token=xyz789",
+			"ExpiresIn": "1 hour",
+		}
 
-	assert.Equal(t, "Reset your Moniqo password", out.Subject)
-	assert.True(t, strings.Contains(out.HTMLBody, "Bob"))
-	assert.True(t, strings.Contains(out.HTMLBody, "https://app.moniqo.in/reset?token=xyz789"))
-	assert.True(t, strings.Contains(out.TextBody, "https://app.moniqo.in/reset?token=xyz789"))
-}
+		out, err := renderTemplate(TemplatePasswordReset, data)
+		require.NoError(t, err)
 
-func TestRenderTemplate_NoName(t *testing.T) {
-	t.Parallel()
+		assert.Equal(t, "Reset your Moniqo password", out.Subject)
+		assert.True(t, strings.Contains(out.HTMLBody, "Bob"))
+		assert.True(t, strings.Contains(out.HTMLBody, "https://app.moniqo.in/reset?token=xyz789"))
+		assert.True(t, strings.Contains(out.TextBody, "https://app.moniqo.in/reset?token=xyz789"))
+	})
 
-	data := map[string]any{
-		"Name":            "",
-		"VerificationURL": "https://example.com/verify",
-		"ExpiresIn":       "24 hours",
-	}
+	t.Run("NoName", func(t *testing.T) {
+		t.Parallel()
 
-	out, err := renderTemplate(TemplateVerification, data)
-	require.NoError(t, err)
+		data := map[string]any{
+			"Name":            "",
+			"VerificationURL": "https://example.com/verify",
+			"ExpiresIn":       "24 hours",
+		}
 
-	// Should not include a comma-then-empty-name
-	assert.False(t, strings.Contains(out.HTMLBody, ", !"), "should not render ', !' when name is empty")
-}
+		out, err := renderTemplate(TemplateVerification, data)
+		require.NoError(t, err)
 
-func TestRenderTemplate_UnknownTemplate(t *testing.T) {
-	t.Parallel()
+		// Should not include a comma-then-empty-name
+		assert.False(t, strings.Contains(out.HTMLBody, ", !"), "should not render ', !' when name is empty")
+	})
 
-	_, err := renderTemplate("nonexistent", map[string]any{})
-	assert.Error(t, err)
+	t.Run("UnknownTemplate", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := renderTemplate("nonexistent", map[string]any{})
+		assert.Error(t, err)
+	})
 }
