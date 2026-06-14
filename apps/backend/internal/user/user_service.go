@@ -2,7 +2,9 @@ package user
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/moniqohq/moniqo/apps/backend/internal/email"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -16,16 +18,19 @@ type UserRepository interface {
 // UserSvc implements the business logic for user operations.
 type UserSvc struct {
 	repo       UserRepository
+	mailer     email.Enqueuer
 	bcryptCost int
+	appBaseURL string
 	log        *zap.Logger
 }
 
-func NewUserSvc(repo UserRepository, bcryptCost int, log *zap.Logger) *UserSvc {
-	return &UserSvc{repo: repo, bcryptCost: bcryptCost, log: log}
+func NewUserSvc(repo UserRepository, mailer email.Enqueuer, bcryptCost int, appBaseURL string, log *zap.Logger) *UserSvc {
+	return &UserSvc{repo: repo, mailer: mailer, bcryptCost: bcryptCost, appBaseURL: appBaseURL, log: log}
 }
 
-// Register hashes the password and persists the new user, returning a
-// public-safe representation on success.
+// Register hashes the password, persists the new user, and enqueues a
+// verification email.  The 201 response is returned before the email is sent;
+// failures to enqueue are logged but do not fail registration.
 func (s *UserSvc) Register(ctx context.Context, req RegisterRequest) (models.User, error) {
 	s.log.Info("registering new user", zap.String("username", req.Username), zap.String("email", req.Email))
 
@@ -53,5 +58,32 @@ func (s *UserSvc) Register(ctx context.Context, req RegisterRequest) (models.Use
 	}
 
 	s.log.Info("user registered successfully", zap.Int64("user_id", pub.ID), zap.String("username", pub.Username))
+	s.enqueueVerification(ctx, pub)
 	return pub, nil
+}
+
+func (s *UserSvc) enqueueVerification(ctx context.Context, u models.User) {
+	name := ""
+	if u.Name != nil {
+		name = *u.Name
+	}
+	verURL := fmt.Sprintf("%s/verify?token=PLACEHOLDER_%d", s.appBaseURL, u.ID)
+
+	err := s.mailer.Enqueue(ctx, email.EnqueueParams{
+		IdempotencyKey: fmt.Sprintf("verification:%d", u.ID),
+		Template:       email.TemplateVerification,
+		To:             u.Email,
+		ToName:         name,
+		Payload: map[string]any{
+			"Name":            name,
+			"VerificationURL": verURL,
+			"ExpiresIn":       "24 hours",
+		},
+	})
+	if err != nil {
+		s.log.Error("failed to enqueue verification email",
+			zap.Int64("user_id", u.ID),
+			zap.Error(err),
+		)
+	}
 }

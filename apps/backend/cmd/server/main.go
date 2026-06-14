@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,6 +20,8 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/db/migrations"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
+	"github.com/moniqohq/moniqo/apps/backend/internal/email"
+	"github.com/moniqohq/moniqo/apps/backend/internal/email/providers"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
@@ -66,9 +70,37 @@ func main() {
 	e.Use(appmw.Recover(log))
 	e.Use(appmw.RequestLogger(log))
 
+	// Email subsystem
+	emailRepo := email.NewRepo(pool)
+	var emailProvider providers.Provider
+	if cfg.Email.Provider == "smtp" {
+		emailProvider = providers.NewSMTP(providers.SMTPConfig{
+			Host:     cfg.Email.SMTPHost,
+			Port:     cfg.Email.SMTPPort,
+			Username: cfg.Email.SMTPUser,
+			Password: cfg.Email.SMTPPassword,
+			From:     cfg.Email.FromAddress,
+			FromName: cfg.Email.FromName,
+		})
+	} else {
+		emailProvider = providers.NewNoop(log)
+	}
+	emailSvc := email.NewService(emailRepo, log)
+	emailWorker := email.NewWorker(emailRepo, emailProvider, email.WorkerConfig{
+		PollInterval: cfg.Email.WorkerInterval,
+		BatchSize:    cfg.Email.WorkerBatch,
+		BaseBackoff:  cfg.Email.BaseBackoff,
+		FromAddress:  cfg.Email.FromAddress,
+		FromName:     cfg.Email.FromName,
+	}, log)
+
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	go emailWorker.Run(workerCtx)
+
 	// User registration
 	userRepo := user.NewUserRepo(pool, log)
-	userSvc := user.NewUserSvc(userRepo, cfg.BcryptCost, log)
+	userSvc := user.NewUserSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, log)
 	userHandler := user.NewHandler(userSvc, log)
 
 	reg := e.Group("/api/v1")
@@ -90,8 +122,22 @@ func main() {
 	logoutGroup.Use(authMW)
 	logoutGroup.POST("/logout", authHandler.Logout)
 
+	// Graceful shutdown on SIGINT / SIGTERM
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
 	addr := fmt.Sprintf(":%s", cfg.Port)
 	log.Info("starting server", zap.String("addr", addr))
+
+	go func() {
+		<-quit
+		log.Info("shutting down server")
+		workerCancel()
+		if err := e.Shutdown(context.Background()); err != nil {
+			log.Error("server shutdown error", zap.Error(err))
+		}
+	}()
+
 	if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Error("server error", zap.Error(err))
 		os.Exit(1)
