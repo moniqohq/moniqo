@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17-alpine
+    image: docker.io/library/postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-moniqo}
@@ -20,7 +20,7 @@ services:
       - moniqo
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: docker.io/axllent/mailpit:latest
     restart: unless-stopped
     ports:
       - "${MAILPIT_UI_PORT:-8025}:8025"

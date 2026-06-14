@@ -14,12 +14,22 @@ import (
 
 // DockerComposeUp starts the Docker Compose stack.
 func DockerComposeUp() error {
-	return sh.RunV("docker", "compose", "up", "-d")
+	return sh.RunV("podman-compose", "up", "-d")
 }
 
 // DockerComposeDown stops the Docker Compose stack.
 func DockerComposeDown() error {
-	return sh.RunV("docker", "compose", "down")
+	return sh.RunV("podman-compose", "down")
+}
+
+// MailpitUp starts the Mailpit email testing service.
+func MailpitUp() error {
+	return sh.RunV("podman-compose", "up", "mailpit", "-d")
+}
+
+// MailpitDown stops the Mailpit email testing service.
+func MailpitDown() error {
+	return sh.RunV("podman-compose", "stop", "mailpit")
 }
 
 // Lint runs all linters across the monorepo.
