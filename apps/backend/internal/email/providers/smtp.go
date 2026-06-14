@@ -61,6 +61,19 @@ func sanitizeHeader(s string) string {
 	}, s)
 }
 
+// quoteDisplayName sanitizes and RFC-5322-quotes a display name when it
+// contains any specials ( ) < > [ ] : ; @ \ , . " so that a colon or angle
+// bracket in the name cannot be misread as header structure.
+func quoteDisplayName(name string) string {
+	name = sanitizeHeader(name)
+	if name == "" || !strings.ContainsAny(name, `()<>[]:;@\,."`) {
+		return name
+	}
+	name = strings.ReplaceAll(name, `\`, `\\`)
+	name = strings.ReplaceAll(name, `"`, `\"`)
+	return `"` + name + `"`
+}
+
 // mimeRandBoundary returns a cryptographically random boundary string.
 func mimeRandBoundary() string {
 	b := make([]byte, 16)
@@ -76,8 +89,8 @@ func buildMIMEMessage(from, fromName string, msg Message) []byte {
 	boundary := mimeRandBoundary()
 
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "From: %s <%s>\r\n", sanitizeHeader(fromName), sanitizeHeader(from))
-	fmt.Fprintf(&buf, "To: %s <%s>\r\n", sanitizeHeader(msg.ToName), sanitizeHeader(msg.To))
+	fmt.Fprintf(&buf, "From: %s <%s>\r\n", quoteDisplayName(fromName), sanitizeHeader(from))
+	fmt.Fprintf(&buf, "To: %s <%s>\r\n", quoteDisplayName(msg.ToName), sanitizeHeader(msg.To))
 	fmt.Fprintf(&buf, "Subject: %s\r\n", sanitizeHeader(msg.Subject))
 	buf.WriteString("MIME-Version: 1.0\r\n")
 	fmt.Fprintf(&buf, "Content-Type: multipart/alternative; boundary=%q\r\n", boundary)
