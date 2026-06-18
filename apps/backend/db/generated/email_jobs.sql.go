@@ -61,7 +61,7 @@ RETURNING id, template_name, recipient_email, recipient_name,
 
 type LockEmailJobsParams struct {
 	Limit    int32
-	LockedBy string
+	LockedBy *string
 }
 
 type LockEmailJobsRow struct {
@@ -74,13 +74,16 @@ type LockEmailJobsRow struct {
 	AttemptCount   int32
 }
 
+// Claims up to $1 pending/failed jobs by setting locked_by=$2.
+// Also re-claims abandoned jobs whose locked_by was set but never cleared (worker
+// crashed) by treating any job with locked_by IS NOT NULL and updated_at older
+// than 10 minutes as eligible for retry.
 func (q *Queries) LockEmailJobs(ctx context.Context, arg LockEmailJobsParams) ([]LockEmailJobsRow, error) {
 	rows, err := q.db.Query(ctx, lockEmailJobs, arg.Limit, arg.LockedBy)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var items []LockEmailJobsRow
 	for rows.Next() {
 		var i LockEmailJobsRow
@@ -101,20 +104,6 @@ func (q *Queries) LockEmailJobs(ctx context.Context, arg LockEmailJobsParams) ([
 		return nil, err
 	}
 	return items, nil
-}
-
-const markEmailJobSent = `-- name: MarkEmailJobSent :exec
-UPDATE email_jobs
-SET status     = 'sent',
-    sent_at    = NOW(),
-    locked_by  = NULL,
-    updated_at = NOW()
-WHERE id = $1
-`
-
-func (q *Queries) MarkEmailJobSent(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, markEmailJobSent, id)
-	return err
 }
 
 const markEmailJobFailed = `-- name: MarkEmailJobFailed :exec
@@ -139,5 +128,19 @@ type MarkEmailJobFailedParams struct {
 
 func (q *Queries) MarkEmailJobFailed(ctx context.Context, arg MarkEmailJobFailedParams) error {
 	_, err := q.db.Exec(ctx, markEmailJobFailed, arg.ID, arg.LastError, arg.NextAttemptAt)
+	return err
+}
+
+const markEmailJobSent = `-- name: MarkEmailJobSent :exec
+UPDATE email_jobs
+SET status     = 'sent',
+    sent_at    = NOW(),
+    locked_by  = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) MarkEmailJobSent(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markEmailJobSent, id)
 	return err
 }

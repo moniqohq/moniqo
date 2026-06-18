@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type EmailJobStatus string
+
+const (
+	EmailJobStatusPending EmailJobStatus = "pending"
+	EmailJobStatusFailed  EmailJobStatus = "failed"
+	EmailJobStatusDead    EmailJobStatus = "dead"
+	EmailJobStatusSent    EmailJobStatus = "sent"
+)
+
+func (e *EmailJobStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = EmailJobStatus(s)
+	case string:
+		*e = EmailJobStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for EmailJobStatus: %T", src)
+	}
+	return nil
+}
+
+type NullEmailJobStatus struct {
+	EmailJobStatus EmailJobStatus
+	Valid          bool // Valid is true if EmailJobStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullEmailJobStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.EmailJobStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.EmailJobStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullEmailJobStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.EmailJobStatus), nil
+}
+
 type UserStatus string
 
 const (
@@ -53,62 +97,6 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 	return string(ns.UserStatus), nil
 }
 
-type User struct {
-	ID        int64
-	Username  string
-	Email     string
-	Hash      string
-	Name      *string
-	Picture   string
-	Status    UserStatus
-	LastLogin pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
-}
-
-type EmailJobStatus string
-
-const (
-	EmailJobStatusPending EmailJobStatus = "pending"
-	EmailJobStatusFailed  EmailJobStatus = "failed"
-	EmailJobStatusDead    EmailJobStatus = "dead"
-	EmailJobStatusSent    EmailJobStatus = "sent"
-)
-
-func (e *EmailJobStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = EmailJobStatus(s)
-	case string:
-		*e = EmailJobStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for EmailJobStatus: %T", src)
-	}
-	return nil
-}
-
-type NullEmailJobStatus struct {
-	EmailJobStatus EmailJobStatus
-	Valid          bool
-}
-
-func (ns *NullEmailJobStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.EmailJobStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.EmailJobStatus.Scan(value)
-}
-
-func (ns NullEmailJobStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.EmailJobStatus), nil
-}
-
 type EmailJob struct {
 	ID             pgtype.UUID
 	IdempotencyKey string
@@ -125,4 +113,37 @@ type EmailJob struct {
 	SentAt         pgtype.Timestamptz
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+}
+
+type RefreshToken struct {
+	ID                pgtype.UUID
+	FamilyID          pgtype.UUID
+	UserID            int64
+	TokenHash         string
+	IssuedAt          pgtype.Timestamptz
+	ExpiresAt         pgtype.Timestamptz
+	AbsoluteExpiresAt pgtype.Timestamptz
+	UsedAt            pgtype.Timestamptz
+	RevokedAt         pgtype.Timestamptz
+	RevokedReason     *string
+}
+
+type RevokedAccessToken struct {
+	Jti       pgtype.UUID
+	UserID    int64
+	ExpiresAt pgtype.Timestamptz
+}
+
+type User struct {
+	ID        int64
+	Username  string
+	Email     string
+	Hash      string
+	Name      *string
+	Picture   string
+	Status    UserStatus
+	LastLogin pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
 }

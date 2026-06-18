@@ -30,8 +30,8 @@ type GetUserByEmailRow struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, email)
+func (q *Queries) GetUserByEmail(ctx context.Context, lower string) (GetUserByEmailRow, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, lower)
 	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
@@ -45,19 +45,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const updateLastLogin = `-- name: UpdateLastLogin :exec
-UPDATE users
-SET last_login = now(),
-    updated_at = now()
-WHERE id = $1
-  AND deleted_at IS NULL
-`
-
-func (q *Queries) UpdateLastLogin(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, updateLastLogin, id)
-	return err
 }
 
 const insertRevokedAccessToken = `-- name: InsertRevokedAccessToken :exec
@@ -88,4 +75,17 @@ func (q *Queries) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bo
 	var revoked bool
 	err := row.Scan(&revoked)
 	return revoked, err
+}
+
+const updateLastLogin = `-- name: UpdateLastLogin :exec
+UPDATE users
+SET last_login = now(),
+    updated_at = now()
+WHERE id = $1
+  AND deleted_at IS NULL
+`
+
+func (q *Queries) UpdateLastLogin(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, updateLastLogin, id)
+	return err
 }

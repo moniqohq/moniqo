@@ -7,3 +7,24 @@ RETURNING id, username, email, name, picture, status, last_login, created_at, up
 SELECT id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at
 FROM users
 WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: GetUserHashByID :one
+SELECT hash
+FROM users
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: UpdateUserProfile :one
+UPDATE users
+SET name = $2, username = $3, email = $4, picture = $5, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET hash = $2, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: SoftDeleteUser :exec
+UPDATE users
+SET deleted_at = now()
+WHERE id = $1 AND deleted_at IS NULL;

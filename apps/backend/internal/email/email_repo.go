@@ -89,7 +89,7 @@ func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]claim
 	q := db.New(r.pool)
 	rows, err := q.LockEmailJobs(ctx, db.LockEmailJobsParams{
 		Limit:    n,
-		LockedBy: workerID,
+		LockedBy: &workerID,
 	})
 	if err != nil {
 		r.log.Error("failed to lock email jobs", zap.Int32("limit", n), zap.Error(err))
