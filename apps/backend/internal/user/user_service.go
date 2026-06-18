@@ -17,6 +17,11 @@ import (
 // UserRepository is the persistence contract required by UserSvc.
 type UserRepository interface {
 	Create(ctx context.Context, p CreateParams) (models.User, error)
+	GetByID(ctx context.Context, id int64) (models.User, error)
+	UpdateProfile(ctx context.Context, p UpdateProfileParams) (models.User, error)
+	UpdatePassword(ctx context.Context, id int64, hash string) error
+	SoftDelete(ctx context.Context, id int64) error
+	GetHashByID(ctx context.Context, id int64) (string, error)
 }
 
 // UserSvc implements the business logic for user operations.
@@ -89,6 +94,91 @@ func (s *UserSvc) verificationToken(userID int64) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(payload)) +
 		"." +
 		base64.RawURLEncoding.EncodeToString(sig)
+}
+
+// GetByID returns the public-safe profile for the given user id.
+func (s *UserSvc) GetByID(ctx context.Context, id int64) (models.User, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+// ReplaceProfile performs a full profile replacement (PUT semantics).
+// Absent name becomes nil; absent picture becomes "".
+func (s *UserSvc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error) {
+	s.log.Info("replacing user profile", zap.Int64("user_id", id))
+	return s.repo.UpdateProfile(ctx, UpdateProfileParams{
+		ID:       id,
+		Name:     req.Name,
+		Username: req.Username,
+		Email:    req.Email,
+		Picture:  req.Picture,
+	})
+}
+
+// PatchProfile applies only the non-nil fields from req to the current profile.
+// If both CurrentPassword and NewPassword are set, it also changes the password
+// after verifying the current one.
+func (s *UserSvc) PatchProfile(ctx context.Context, id int64, req PatchProfileRequest) (models.User, error) {
+	s.log.Info("patching user profile", zap.Int64("user_id", id))
+
+	current, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	// Merge only present fields onto current values.
+	name := current.Name
+	if req.Name != nil {
+		name = req.Name
+	}
+	username := current.Username
+	if req.Username != nil {
+		username = *req.Username
+	}
+	email := current.Email
+	if req.Email != nil {
+		email = *req.Email
+	}
+	picture := current.Picture
+	if req.Picture != nil {
+		picture = *req.Picture
+	}
+
+	updated, err := s.repo.UpdateProfile(ctx, UpdateProfileParams{
+		ID:       id,
+		Name:     name,
+		Username: username,
+		Email:    email,
+		Picture:  picture,
+	})
+	if err != nil {
+		return models.User{}, err
+	}
+
+	if req.CurrentPassword != nil && req.NewPassword != nil {
+		hash, err := s.repo.GetHashByID(ctx, id)
+		if err != nil {
+			return models.User{}, err
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(*req.CurrentPassword)); err != nil {
+			return models.User{}, ErrWrongPassword
+		}
+		newHash, err := bcrypt.GenerateFromPassword([]byte(*req.NewPassword), s.bcryptCost)
+		if err != nil {
+			s.log.Error("failed to hash new password", zap.Int64("user_id", id), zap.Error(err))
+			return models.User{}, err
+		}
+		if err := s.repo.UpdatePassword(ctx, id, string(newHash)); err != nil {
+			return models.User{}, err
+		}
+	}
+
+	return updated, nil
+}
+
+// Delete soft-deletes the user. It is idempotent.
+func (s *UserSvc) Delete(ctx context.Context, id int64) error {
+	s.log.Info("soft-deleting user", zap.Int64("user_id", id))
+	return s.repo.SoftDelete(ctx, id)
 }
 
 func (s *UserSvc) enqueueVerification(ctx context.Context, u models.User) {

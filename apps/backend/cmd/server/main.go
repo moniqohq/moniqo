@@ -122,6 +122,13 @@ func main() {
 	logoutGroup.Use(authMW)
 	logoutGroup.POST("/logout", authHandler.Logout)
 
+	usersGroup := e.Group("/api/v1/users")
+	usersGroup.Use(authMW)
+	usersGroup.GET("/:id", userHandler.GetProfile)
+	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
+	usersGroup.PATCH("/:id", userHandler.PatchProfile)
+	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
+
 	// Graceful shutdown on SIGINT / SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

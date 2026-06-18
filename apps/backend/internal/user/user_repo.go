@@ -3,9 +3,11 @@ package user
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
@@ -20,6 +22,33 @@ type UserRepo struct {
 
 func NewUserRepo(pool *pgxpool.Pool, log *zap.Logger) *UserRepo {
 	return &UserRepo{pool: pool, log: log}
+}
+
+// toPublicUser converts the common set of scanned columns into a public-safe model.
+// It accepts individual fields rather than a specific generated row type so it can
+// be reused across CreateUserRow, GetUserByIDRow, and UpdateUserProfileRow.
+func toPublicUser(
+	id int64,
+	name *string,
+	username, email, picture string,
+	status db.UserStatus,
+	lastLogin, createdAt pgtype.Timestamptz,
+) models.User {
+	var ll *time.Time
+	if lastLogin.Valid {
+		t := lastLogin.Time
+		ll = &t
+	}
+	return models.User{
+		ID:        id,
+		Name:      name,
+		Username:  username,
+		Email:     email,
+		Picture:   picture,
+		Status:    models.UserStatus(status),
+		LastLogin: ll,
+		CreatedAt: createdAt.Time,
+	}
 }
 
 // create inserts a user row within the provided transaction and returns the
@@ -76,14 +105,79 @@ func (r *UserRepo) Create(ctx context.Context, p CreateParams) (models.User, err
 }
 
 func rowToPublic(row db.CreateUserRow) models.User {
-	return models.User{
-		ID:        row.ID,
-		Name:      row.Name,
-		Username:  row.Username,
-		Email:     row.Email,
-		Picture:   row.Picture,
-		Status:    models.UserStatus(row.Status),
-		LastLogin: nil,
-		CreatedAt: row.CreatedAt.Time,
+	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt)
+}
+
+// GetByID returns the public-safe user model for the given id.
+// Returns ErrNotFound if the user does not exist or has been soft-deleted.
+func (r *UserRepo) GetByID(ctx context.Context, id int64) (models.User, error) {
+	r.log.Debug("executing GetUserByID query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	row, err := q.GetUserByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.User{}, ErrNotFound
+		}
+		r.log.Error("GetUserByID query failed", zap.Int64("user_id", id), zap.Error(err))
+		return models.User{}, err
 	}
+	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt), nil
+}
+
+// UpdateProfile updates name, username, email and picture for the given user.
+// Returns ErrNotFound if the user is gone, ErrConflict on a unique violation.
+func (r *UserRepo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models.User, error) {
+	r.log.Debug("executing UpdateUserProfile query", zap.Int64("user_id", p.ID))
+	q := db.New(r.pool)
+	row, err := q.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
+		ID:       p.ID,
+		Name:     p.Name,
+		Username: p.Username,
+		Email:    p.Email,
+		Picture:  p.Picture,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.User{}, ErrNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			r.log.Debug("unique constraint violation on profile update", zap.Int64("user_id", p.ID))
+			return models.User{}, ErrConflict
+		}
+		r.log.Error("UpdateUserProfile query failed", zap.Int64("user_id", p.ID), zap.Error(err))
+		return models.User{}, err
+	}
+	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt), nil
+}
+
+// UpdatePassword replaces the bcrypt hash for the given user.
+func (r *UserRepo) UpdatePassword(ctx context.Context, id int64, hash string) error {
+	r.log.Debug("executing UpdateUserPassword query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	return q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{ID: id, Hash: hash})
+}
+
+// SoftDelete sets deleted_at on the user row. It is idempotent: if the user is
+// already soft-deleted the UPDATE matches zero rows and no error is returned.
+func (r *UserRepo) SoftDelete(ctx context.Context, id int64) error {
+	r.log.Debug("executing SoftDeleteUser query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	return q.SoftDeleteUser(ctx, id)
+}
+
+// GetHashByID returns the bcrypt hash for the given user.
+// Returns ErrNotFound if the user is gone or soft-deleted.
+func (r *UserRepo) GetHashByID(ctx context.Context, id int64) (string, error) {
+	r.log.Debug("executing GetUserHashByID query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	hash, err := q.GetUserHashByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		r.log.Error("GetUserHashByID query failed", zap.Int64("user_id", id), zap.Error(err))
+		return "", err
+	}
+	return hash, nil
 }

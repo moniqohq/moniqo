@@ -66,6 +66,14 @@ func Forbidden(c echo.Context, msg string) error {
 	})
 }
 
+func NotFound(c echo.Context, msg string) error {
+	return c.JSON(http.StatusNotFound, Response{
+		Success: false,
+		Data:    nil,
+		Msg:     msg,
+	})
+}
+
 func TooManyRequests(c echo.Context) error {
 	return c.JSON(http.StatusTooManyRequests, Response{
 		Success: false,
