@@ -14,6 +14,10 @@ var (
 	ErrInvalidCredentials  = errors.New("invalid credentials")
 	ErrPendingVerification = errors.New("account pending verification")
 	ErrUserNotFound        = errors.New("user not found")
+	// ErrRefreshTokenInvalid is the single generic error returned for any
+	// refresh token failure (absent, expired, revoked, malformed, reuse). The
+	// handler maps it to 401 without revealing the specific cause.
+	ErrRefreshTokenInvalid = errors.New("refresh token invalid")
 )
 
 // -----------------------------------------------------------------------------
@@ -39,8 +43,22 @@ type LoginResponseData struct {
 
 // LoginResult holds the data returned on a successful login.
 type LoginResult struct {
+	AccessToken  string
+	TokenType    string
+	RefreshToken string
+}
+
+// RefreshIssue holds the raw refresh token and its expiry returned by IssueRefreshToken.
+type RefreshIssue struct {
+	RawToken  string
+	ExpiresAt time.Time
+}
+
+// RefreshResult is returned by RefreshAccessToken on a successful rotation.
+type RefreshResult struct {
 	AccessToken string
 	TokenType   string
+	Refresh     RefreshIssue
 }
 
 // LogoutParams carries the claims extracted from the current access token.
