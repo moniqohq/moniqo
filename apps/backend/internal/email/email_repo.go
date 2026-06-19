@@ -129,7 +129,8 @@ func (r *Repo) MarkSent(ctx context.Context, id pgtype.UUID) error {
 // exponential backoff (base * 2^attempt), and clears locked_by.  Once attempts
 // are exhausted the job transitions to dead.
 func (r *Repo) MarkFailed(ctx context.Context, id pgtype.UUID, errMsg string, attempt int32, baseBackoff time.Duration) error {
-	delay := time.Duration(float64(baseBackoff) * math.Pow(2, float64(attempt)))
+	const expBackoffBase = 2
+	delay := time.Duration(float64(baseBackoff) * math.Pow(expBackoffBase, float64(attempt)))
 	next := pgtype.Timestamptz{Time: time.Now().Add(delay), Valid: true}
 	errStr := errMsg
 	if err := db.New(r.pool).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{

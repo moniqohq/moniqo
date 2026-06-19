@@ -8,18 +8,30 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	defaultBcryptCost = 12
+	defaultSMTPPort   = 587
+
+	defaultAccessTokenTTL           = 15 * time.Minute
+	defaultRefreshTokenTTL          = 168 * time.Hour // 7d
+	defaultRefreshTokenMaxAge       = 720 * time.Hour // 30d
+	defaultWorkerInterval           = 5 * time.Second
+	defaultWorkerBatch        int32 = 10
+	defaultBaseBackoff              = 30 * time.Second
+)
+
 type Config struct {
-	Port              string
-	DatabaseURL       string
-	BcryptCost        int
-	Env               string // "development" | "staging" | "production"
-	LogLevel          string // "debug" | "info" | "warn" | "error"
-	JWTSecret         string
-	AccessTokenTTL    time.Duration
-	RefreshTokenTTL   time.Duration
+	Port               string
+	DatabaseURL        string
+	BcryptCost         int
+	Env                string // "development" | "staging" | "production"
+	LogLevel           string // "debug" | "info" | "warn" | "error"
+	JWTSecret          string
+	AccessTokenTTL     time.Duration
+	RefreshTokenTTL    time.Duration
 	RefreshTokenMaxAge time.Duration
-	AppBaseURL        string
-	Email             EmailConfig
+	AppBaseURL         string
+	Email              EmailConfig
 }
 
 // EmailConfig groups all email-related settings.
@@ -40,7 +52,7 @@ type EmailConfig struct {
 func Load() Config {
 	_ = godotenv.Load("../../.env")
 
-	cost := 12
+	cost := defaultBcryptCost
 	if v := os.Getenv("BCRYPT_COST"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 4 && n <= 31 {
 			cost = n
@@ -62,21 +74,21 @@ func Load() Config {
 		logLevel = "info"
 	}
 
-	ttl := 15 * time.Minute
+	ttl := defaultAccessTokenTTL
 	if v := os.Getenv("ACCESS_TOKEN_TTL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			ttl = d
 		}
 	}
 
-	refreshTTL := 168 * time.Hour // 7d
+	refreshTTL := defaultRefreshTokenTTL
 	if v := os.Getenv("REFRESH_TOKEN_TTL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			refreshTTL = d
 		}
 	}
 
-	refreshMaxAge := 720 * time.Hour // 30d
+	refreshMaxAge := defaultRefreshTokenMaxAge
 	if v := os.Getenv("REFRESH_TOKEN_MAX_AGE"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			refreshMaxAge = d
@@ -102,28 +114,28 @@ func Load() Config {
 		fromName = "Moniqo"
 	}
 
-	smtpPort := 587
+	smtpPort := defaultSMTPPort
 	if v := os.Getenv("EMAIL_SMTP_PORT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			smtpPort = n
 		}
 	}
 
-	workerInterval := 5 * time.Second
+	workerInterval := defaultWorkerInterval
 	if v := os.Getenv("EMAIL_WORKER_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			workerInterval = d
 		}
 	}
 
-	workerBatch := int32(10)
+	workerBatch := defaultWorkerBatch
 	if v := os.Getenv("EMAIL_WORKER_BATCH"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			workerBatch = int32(n)
 		}
 	}
 
-	baseBackoff := 30 * time.Second
+	baseBackoff := defaultBaseBackoff
 	if v := os.Getenv("EMAIL_BASE_BACKOFF"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			baseBackoff = d

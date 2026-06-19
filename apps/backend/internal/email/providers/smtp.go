@@ -76,7 +76,8 @@ func quoteDisplayName(name string) string {
 
 // mimeRandBoundary returns a cryptographically random boundary string.
 func mimeRandBoundary() string {
-	b := make([]byte, 16)
+	const mimeBoundaryLen = 16
+	b := make([]byte, mimeBoundaryLen)
 	if _, err := rand.Read(b); err != nil {
 		panic("crypto/rand unavailable: " + err.Error())
 	}
