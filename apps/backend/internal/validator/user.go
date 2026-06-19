@@ -163,16 +163,15 @@ func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
 	}
 
 	// Password change: both fields must be present together.
-	if in.CurrentPassword != nil || in.NewPassword != nil {
-		if in.CurrentPassword == nil {
-			errs = append(errs, httpx.FieldError{Field: "current_password", Error: "required when changing password"})
-		}
-		if in.NewPassword == nil {
-			errs = append(errs, httpx.FieldError{Field: "new_password", Error: "required when changing password"})
-		} else {
-			if fe := validatePassword("new_password", *in.NewPassword); fe != nil {
-				errs = append(errs, *fe)
-			}
+	if in.CurrentPassword == nil && in.NewPassword != nil {
+		errs = append(errs, httpx.FieldError{Field: "current_password", Error: "required when changing password"})
+	}
+	if in.NewPassword == nil && in.CurrentPassword != nil {
+		errs = append(errs, httpx.FieldError{Field: "new_password", Error: "required when changing password"})
+	}
+	if in.NewPassword != nil {
+		if fe := validatePassword("new_password", *in.NewPassword); fe != nil {
+			errs = append(errs, *fe)
 		}
 	}
 
