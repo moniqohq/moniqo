@@ -14,8 +14,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
-	internalmock "github.com/moniqohq/moniqo/apps/backend/internal/mock"
+	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
+	internalmock "github.com/moniqohq/moniqo/apps/backend/internal/mock"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
@@ -43,20 +44,22 @@ func TestAuthSvc_Login(t *testing.T) {
 		Password: "SecurePass1",
 	}
 
-	t.Run("success returns access token and Bearer type", func(t *testing.T) {
+	t.Run("success returns access token, refresh token and Bearer type", func(t *testing.T) {
 		t.Parallel()
 
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
+		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		result, err := svc.Login(context.Background(), validReq)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, result.AccessToken)
 		assert.Equal(t, "Bearer", result.TokenType)
+		assert.NotEmpty(t, result.RefreshToken)
 		repo.AssertExpectations(t)
 	})
 
@@ -66,7 +69,7 @@ func TestAuthSvc_Login(t *testing.T) {
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).Return(auth.UserCredentials{}, auth.ErrUserNotFound)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, auth.ErrInvalidCredentials)
@@ -81,7 +84,7 @@ func TestAuthSvc_Login(t *testing.T) {
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, "DifferentPass1", models.UserStatusActive), nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		req := validReq
 		req.Password = "WrongPassXX"
 		_, err := svc.Login(context.Background(), req)
@@ -98,7 +101,7 @@ func TestAuthSvc_Login(t *testing.T) {
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusPendingVerification), nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, auth.ErrPendingVerification)
@@ -113,9 +116,10 @@ func TestAuthSvc_Login(t *testing.T) {
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
+		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(dbErr)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, dbErr)
@@ -129,7 +133,7 @@ func TestAuthSvc_Login(t *testing.T) {
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).Return(auth.UserCredentials{}, dbErr)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, dbErr)
@@ -142,9 +146,10 @@ func TestAuthSvc_Login(t *testing.T) {
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
+		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 30*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 30*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		result, err := svc.Login(context.Background(), validReq)
 		require.NoError(t, err)
 
@@ -162,9 +167,10 @@ func TestAuthSvc_Login(t *testing.T) {
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
+		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		require.NoError(t, err)
@@ -190,7 +196,7 @@ func TestAuthSvc_Logout(t *testing.T) {
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)
 
 		require.NoError(t, err)
@@ -209,7 +215,7 @@ func TestAuthSvc_Logout(t *testing.T) {
 				assert.Equal(t, int64(42), p.UserID)
 			})
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)
 
 		require.NoError(t, err)
@@ -223,10 +229,159 @@ func TestAuthSvc_Logout(t *testing.T) {
 		repo := &internalmock.MockAuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(dbErr)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, log)
+		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)
 
 		assert.ErrorIs(t, err, dbErr)
+		repo.AssertExpectations(t)
+	})
+}
+
+// makeRefreshTokenRow builds a db.RefreshToken for use in repo mocks.
+func makeRefreshTokenRow(familyID, tokenID [16]byte, userID int64, now time.Time, ttl, maxAge time.Duration) db.RefreshToken {
+	return db.RefreshToken{
+		ID:                pgtype.UUID{Bytes: tokenID, Valid: true},
+		FamilyID:          pgtype.UUID{Bytes: familyID, Valid: true},
+		UserID:            userID,
+		TokenHash:         "hash",
+		IssuedAt:          pgtype.Timestamptz{Time: now, Valid: true},
+		ExpiresAt:         pgtype.Timestamptz{Time: now.Add(ttl), Valid: true},
+		AbsoluteExpiresAt: pgtype.Timestamptz{Time: now.Add(maxAge), Valid: true},
+	}
+}
+
+func TestAuthSvc_RefreshAccessToken(t *testing.T) {
+	t.Parallel()
+
+	log := zap.NewNop()
+	const rawToken = "raw-token-value"
+	familyID := uuid.New()
+	tokenID := uuid.New()
+	userID := int64(1)
+	ttl := 168 * time.Hour
+	maxAge := 720 * time.Hour
+
+	newSvc := func(repo *internalmock.MockAuthRepository) *auth.AuthSvc {
+		return auth.NewAuthSvc(repo, testSecret, 15*time.Minute, ttl, maxAge, log)
+	}
+
+	t.Run("happy path returns new access token and refresh token", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Now()
+		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
+
+		repo := &internalmock.MockAuthRepository{}
+		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
+		repo.On("RotateRefreshToken", [16]byte(tokenID), mock.Anything).Return([16]byte{}, nil)
+
+		result, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, result.AccessToken)
+		assert.Equal(t, "Bearer", result.TokenType)
+		assert.NotEmpty(t, result.Refresh.RawToken)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("unknown token hash returns ErrRefreshTokenInvalid", func(t *testing.T) {
+		t.Parallel()
+
+		repo := &internalmock.MockAuthRepository{}
+		repo.On("GetRefreshTokenByHash", mock.Anything).Return(db.RefreshToken{}, auth.ErrRefreshTokenInvalid)
+
+		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
+
+		assert.ErrorIs(t, err, auth.ErrRefreshTokenInvalid)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("revoked token returns ErrRefreshTokenInvalid", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Now()
+		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
+		row.RevokedAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
+
+		repo := &internalmock.MockAuthRepository{}
+		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
+
+		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
+
+		assert.ErrorIs(t, err, auth.ErrRefreshTokenInvalid)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("expired token returns ErrRefreshTokenInvalid", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Now()
+		row := makeRefreshTokenRow(familyID, tokenID, userID, now.Add(-2*ttl), ttl, maxAge)
+		row.ExpiresAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
+
+		repo := &internalmock.MockAuthRepository{}
+		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
+
+		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
+
+		assert.ErrorIs(t, err, auth.ErrRefreshTokenInvalid)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("absolute cap exceeded returns ErrRefreshTokenInvalid", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Now()
+		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
+		row.AbsoluteExpiresAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
+
+		repo := &internalmock.MockAuthRepository{}
+		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
+
+		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
+
+		assert.ErrorIs(t, err, auth.ErrRefreshTokenInvalid)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("reuse detection revokes family and returns ErrRefreshTokenInvalid", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Now()
+		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
+		row.UsedAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
+
+		repo := &internalmock.MockAuthRepository{}
+		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
+		repo.On("RevokeRefreshTokenFamily", [16]byte(familyID), "reuse_detected").Return(nil)
+
+		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
+
+		assert.ErrorIs(t, err, auth.ErrRefreshTokenInvalid)
+		repo.AssertCalled(t, "RevokeRefreshTokenFamily", [16]byte(familyID), "reuse_detected")
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("new expires_at clamped to absolute cap", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Now()
+		// Absolute cap is only 1 hour away — less than the full TTL (168h).
+		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
+		row.AbsoluteExpiresAt = pgtype.Timestamptz{Time: now.Add(time.Hour), Valid: true}
+
+		repo := &internalmock.MockAuthRepository{}
+		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
+		repo.On("RotateRefreshToken", [16]byte(tokenID), mock.MatchedBy(func(p auth.InsertRefreshTokenRepoParams) bool {
+			// ExpiresAt must not exceed the absolute cap (now+1h).
+			return !p.ExpiresAt.After(now.Add(time.Hour + time.Second))
+		})).Return([16]byte{}, nil)
+
+		result, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
+
+		require.NoError(t, err)
+		assert.True(t, result.Refresh.ExpiresAt.Before(now.Add(time.Hour+time.Second)),
+			"new ExpiresAt should be clamped to absolute cap")
 		repo.AssertExpectations(t)
 	})
 }
