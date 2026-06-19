@@ -11,6 +11,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
+SELECT id, family_id, user_id, token_hash, issued_at, expires_at, absolute_expires_at, used_at, revoked_at, revoked_reason
+FROM refresh_tokens
+WHERE token_hash = $1
+`
+
+func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error) {
+	row := q.db.QueryRow(ctx, getRefreshTokenByHash, tokenHash)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.FamilyID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.AbsoluteExpiresAt,
+		&i.UsedAt,
+		&i.RevokedAt,
+		&i.RevokedReason,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, username, email, hash, name, picture, status, last_login, created_at
 FROM users
@@ -47,6 +71,33 @@ func (q *Queries) GetUserByEmail(ctx context.Context, lower string) (GetUserByEm
 	return i, err
 }
 
+const insertRefreshToken = `-- name: InsertRefreshToken :one
+INSERT INTO refresh_tokens (family_id, user_id, token_hash, expires_at, absolute_expires_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id
+`
+
+type InsertRefreshTokenParams struct {
+	FamilyID          pgtype.UUID
+	UserID            int64
+	TokenHash         string
+	ExpiresAt         pgtype.Timestamptz
+	AbsoluteExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, insertRefreshToken,
+		arg.FamilyID,
+		arg.UserID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+		arg.AbsoluteExpiresAt,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertRevokedAccessToken = `-- name: InsertRevokedAccessToken :exec
 INSERT INTO revoked_access_tokens (jti, user_id, expires_at)
 VALUES ($1, $2, $3)
@@ -75,6 +126,36 @@ func (q *Queries) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bo
 	var revoked bool
 	err := row.Scan(&revoked)
 	return revoked, err
+}
+
+const markRefreshTokenUsed = `-- name: MarkRefreshTokenUsed :exec
+UPDATE refresh_tokens
+SET used_at = now()
+WHERE id = $1
+  AND used_at IS NULL
+`
+
+func (q *Queries) MarkRefreshTokenUsed(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markRefreshTokenUsed, id)
+	return err
+}
+
+const revokeRefreshTokenFamily = `-- name: RevokeRefreshTokenFamily :exec
+UPDATE refresh_tokens
+SET revoked_at     = now(),
+    revoked_reason = $2
+WHERE family_id  = $1
+  AND revoked_at IS NULL
+`
+
+type RevokeRefreshTokenFamilyParams struct {
+	FamilyID      pgtype.UUID
+	RevokedReason *string
+}
+
+func (q *Queries) RevokeRefreshTokenFamily(ctx context.Context, arg RevokeRefreshTokenFamilyParams) error {
+	_, err := q.db.Exec(ctx, revokeRefreshTokenFamily, arg.FamilyID, arg.RevokedReason)
+	return err
 }
 
 const updateLastLogin = `-- name: UpdateLastLogin :exec
