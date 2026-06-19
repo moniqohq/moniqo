@@ -1,0 +1,168 @@
+pull_request_rules:
+  # Assign PR to its author
+  - name: Assign PR to author
+    conditions:
+      - "-assignee~=.*"
+    actions:
+      assign:
+        add_users:
+          - "{{ author }}"
+
+  # Auto-squash merge after 1 approval and all CI checks pass
+  - name: Auto-squash merge after approval and CI
+    conditions:
+      - base=main
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - "#review-requested=0"
+      - "check-success=CI / build"
+      - "check-success=CI / test-backend"
+      - "check-success=CI / lint-backend"
+      - "check-success=CI / lint-frontend"
+      - "check-success=CI / format"
+      - "check-success=CI / security-scan"
+      - "check-success=CI / dependency-scan"
+      - "check-success=Validate Pull Request / conventional-commits"
+      - "check-success=Validate Pull Request / pr-title"
+      - "author!=dependabot[bot]"
+    actions:
+      squash:
+        commit_message_template: |
+          {{ title }} (#{{ number }})
+
+          {{ body }}
+      delete_head_branch: {}
+
+  # Auto-merge Dependabot PRs after CI (no human approval required)
+  - name: Auto-merge Dependabot patch/minor updates
+    conditions:
+      - base=main
+      - "author=dependabot[bot]"
+      - "check-success=CI / build"
+      - "check-success=CI / test-backend"
+      - "check-success=CI / lint-backend"
+      - "check-success=CI / lint-frontend"
+      - "check-success=CI / security-scan"
+      - "check-success=CI / dependency-scan"
+      - "label=dependencies"
+    actions:
+      squash:
+        commit_message_template: |
+          {{ title }} (#{{ number }})
+
+          {{ body }}
+      delete_head_branch: {}
+
+  # Delete branch after merge
+  - name: Delete head branch after merge
+    conditions:
+      - merged
+    actions:
+      delete_head_branch: {}
+
+  # Automatically update PR branch when main changes
+  - name: Keep PR branch up to date with main
+    conditions:
+      - base=main
+      - "-draft"
+      - "#commits-behind>=1"
+    actions:
+      update: {}
+
+  # Rebase stale PRs (open > 7 days with no activity)
+  - name: Rebase stale PRs
+    conditions:
+      - base=main
+      - "-draft"
+      - "updated-at<7 days ago"
+      - "#commits-behind>=1"
+    actions:
+      rebase: {}
+
+  # Label: backend
+  - name: Label backend changes
+    conditions:
+      - "files~=^apps/backend/"
+    actions:
+      label:
+        add:
+          - backend
+
+  # Label: web
+  - name: Label web changes
+    conditions:
+      - "files~=^apps/web/"
+    actions:
+      label:
+        add:
+          - web
+
+  # Label: mobile
+  - name: Label mobile changes
+    conditions:
+      - "files~=^apps/mobile/"
+    actions:
+      label:
+        add:
+          - mobile
+
+  # Label: desktop
+  - name: Label desktop changes
+    conditions:
+      - "files~=^apps/desktop/"
+    actions:
+      label:
+        add:
+          - desktop
+
+  # Label: packages
+  - name: Label shared package changes
+    conditions:
+      - "files~=^packages/"
+    actions:
+      label:
+        add:
+          - packages
+
+  # Label: ci
+  - name: Label CI/CD changes
+    conditions:
+      - "files~=^(\\.github/|\\.mergify\\.yaml|Makefile|magefiles/|docker-compose)"
+    actions:
+      label:
+        add:
+          - ci
+
+  # Label: documentation
+  - name: Label documentation-only PRs
+    conditions:
+      - "files~=^(docs/|.*\\.md$|CONTRIBUTING\\.md|README\\.md|ROADMAP\\.md|SECURITY\\.md|CODE_OF_CONDUCT\\.md)"
+      - "files!~=^apps/"
+      - "files!~=^packages/"
+    actions:
+      label:
+        add:
+          - documentation
+
+  # Label: dependencies (Dependabot)
+  - name: Label dependency PRs
+    conditions:
+      - "author=dependabot[bot]"
+    actions:
+      label:
+        add:
+          - dependencies
+
+  # Prevent self-merge
+  - name: Prevent author from merging their own PR
+    conditions:
+      - "#approved-reviews-by>=1"
+      - "approved-reviews-by={{ author }}"
+      - "#approved-reviews-by<2"
+    actions:
+      comment:
+        message: |
+          @{{ author }}, self-approval is not permitted. A second reviewer must approve this PR before it can be merged.
+      label:
+        add:
+          - needs-review

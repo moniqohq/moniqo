@@ -7,41 +7,76 @@ on:
     branches: [main]
 
 jobs:
-  backend:
-    name: Backend — build & vet
+  build:
+    name: build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/backend
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for go.mod
-        id: gomod
-        run: |
-          [ -f apps/backend/go.mod ] && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
-        working-directory: .
-
       - uses: actions/setup-go@v5
-        if: steps.gomod.outputs.exists == 'true'
         with:
           go-version-file: apps/backend/go.mod
           cache: true
+          cache-dependency-path: apps/backend/go.sum
 
-      - name: Build
-        if: steps.gomod.outputs.exists == 'true'
+      - name: Build backend
+        working-directory: apps/backend
         run: go build ./...
 
-      - name: Vet
-        if: steps.gomod.outputs.exists == 'true'
-        run: go list ./... | xargs -r go vet
+      - uses: pnpm/action-setup@v4
 
-  web-typecheck:
-    name: Web — type check
-    runs-on: ubuntu-latest
-    defaults:
-      run:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install web dependencies
         working-directory: apps/web
+        run: pnpm install
+
+      - name: Type check web
+        working-directory: apps/web
+        run: pnpm exec tsc --noEmit
+
+  test-backend:
+    name: test-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache: true
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: Run tests
+        working-directory: apps/backend
+        run: go test -race -count=1 ./...
+
+  lint-backend:
+    name: lint-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache: true
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: apps/backend
+          args: --config ../../.golangci.yaml
+
+  lint-frontend:
+    name: lint-frontend
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -51,63 +86,76 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: apps/web/package.json
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install
-
-      - name: Type check
-        run: pnpm exec tsc --noEmit
-
-  mobile-typecheck:
-    name: Mobile — type check
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/mobile
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for tsconfig
-        id: tsconfig
-        run: |
-          [ -f tsconfig.json ] && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
-
-      - uses: pnpm/action-setup@v4
-        if: steps.tsconfig.outputs.exists == 'true'
-
-      - uses: actions/setup-node@v4
-        if: steps.tsconfig.outputs.exists == 'true'
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        if: steps.tsconfig.outputs.exists == 'true'
-        run: pnpm install
-
-      - name: Type check
-        if: steps.tsconfig.outputs.exists == 'true'
-        run: pnpm exec tsc --noEmit
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
         working-directory: apps/web
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: apps/web/package.json
-
-      - name: Install dependencies
         run: pnpm install
 
-      - name: Lint (web)
+      - name: Lint
+        working-directory: apps/web
         run: pnpm lint
+
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Check formatting
+        run: pnpm format:check
+
+  security-scan:
+    name: security-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache: true
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: apps/backend/go.mod
+          work-dir: apps/backend
+
+  dependency-scan:
+    name: dependency-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Audit web dependencies
+        working-directory: apps/web
+        run: pnpm audit --audit-level=high
+
+      - name: Audit mobile dependencies
+        working-directory: apps/mobile
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
