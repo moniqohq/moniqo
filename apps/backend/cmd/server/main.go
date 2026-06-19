@@ -110,7 +110,7 @@ func main() {
 	// Auth: login (rate-limited, public) and logout (JWT-protected)
 	jwtSecret := []byte(cfg.JWTSecret)
 	authRepo := auth.NewAuthRepo(pool, log)
-	authSvc := auth.NewAuthSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, log)
+	authSvc := auth.NewAuthSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
 	authHandler := auth.NewHandler(authSvc, log)
 	authMW := auth.Middleware(authRepo, jwtSecret, log)
 

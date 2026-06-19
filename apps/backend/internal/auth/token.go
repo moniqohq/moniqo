@@ -1,6 +1,10 @@
 package auth
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -40,6 +44,26 @@ func GenerateAccessToken(userID int64, secret []byte, ttl time.Duration) (string
 		return "", nil, err
 	}
 	return signed, claims, nil
+}
+
+// GenerateRefreshToken produces a cryptographically random 32-byte token,
+// returning both the raw base64url value (sent to the client) and its SHA-256
+// hex hash (stored in the DB — the raw value is never persisted).
+func GenerateRefreshToken() (raw string, hash string, err error) {
+	buf := make([]byte, 32)
+	if _, err = rand.Read(buf); err != nil {
+		return "", "", err
+	}
+	raw = base64.RawURLEncoding.EncodeToString(buf)
+	hash = HashRefreshToken(raw)
+	return raw, hash, nil
+}
+
+// HashRefreshToken returns the SHA-256 hex digest of a raw refresh token.
+// Used for both storing and looking up tokens without persisting the raw value.
+func HashRefreshToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
 }
 
 // ParseAccessToken validates a JWT string and returns the embedded claims.
