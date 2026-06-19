@@ -24,6 +24,7 @@ pull_request_rules:
       - "check-success=CI / dependency-scan"
       - "check-success=Validate Pull Request / conventional-commits"
       - "check-success=Validate Pull Request / pr-title"
+      - "check-success=Validate Pull Request / DCO"
       - "author!=dependabot[bot]"
     actions:
       squash:
