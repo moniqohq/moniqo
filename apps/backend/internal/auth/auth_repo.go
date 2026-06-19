@@ -86,15 +86,6 @@ func (r *AuthRepo) UserExistsByID(ctx context.Context, userID int64) (bool, erro
 	return true, nil
 }
 
-// InsertRefreshTokenParams carries the values for a new refresh token row.
-type InsertRefreshTokenRepoParams struct {
-	FamilyID          [16]byte
-	UserID            int64
-	TokenHash         string
-	ExpiresAt         time.Time
-	AbsoluteExpiresAt time.Time
-}
-
 func (r *AuthRepo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error) {
 	q := db.New(r.pool)
 	id, err := q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{

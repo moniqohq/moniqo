@@ -65,8 +65,9 @@ func (h *Handler) Login(c echo.Context) error {
 
 	h.log.Info("login request completed", zap.String("email", req.Email))
 	return httpx.OK(c, LoginResponseData{
-		AccessToken: result.AccessToken,
-		TokenType:   result.TokenType,
+		AccessToken:  result.AccessToken,
+		TokenType:    result.TokenType,
+		RefreshToken: result.RefreshToken,
 	}, "login successful")
 }
 

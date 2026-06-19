@@ -33,8 +33,9 @@ type LoginRequest struct {
 
 // LoginResponseData is the HTTP response body for a successful login.
 type LoginResponseData struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // -----------------------------------------------------------------------------
@@ -85,4 +86,13 @@ type InsertRevokedTokenParams struct {
 	JTI       pgtype.UUID
 	UserID    int64
 	ExpiresAt time.Time
+}
+
+// InsertRefreshTokenRepoParams carries the values for a new refresh token row.
+type InsertRefreshTokenRepoParams struct {
+	FamilyID          [16]byte
+	UserID            int64
+	TokenHash         string
+	ExpiresAt         time.Time
+	AbsoluteExpiresAt time.Time
 }
