@@ -31,10 +31,16 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-// LoginResponseData is the HTTP response body for a successful login.
+// LoginResponseData is the HTTP response body for a successful login or token refresh.
 type LoginResponseData struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+// RefreshRequest is the HTTP request body for POST /auth/refresh.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
 }
 
 // -----------------------------------------------------------------------------

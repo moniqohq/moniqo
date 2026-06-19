@@ -17,6 +17,7 @@ import (
 type AuthService interface {
 	Login(ctx context.Context, req LoginRequest) (LoginResult, error)
 	Logout(ctx context.Context, params LogoutParams) error
+	RefreshAccessToken(ctx context.Context, rawToken string) (RefreshResult, error)
 }
 
 // Handler holds HTTP handlers for auth endpoints.
@@ -65,8 +66,9 @@ func (h *Handler) Login(c echo.Context) error {
 
 	h.log.Info("login request completed", zap.String("email", req.Email))
 	return httpx.OK(c, LoginResponseData{
-		AccessToken: result.AccessToken,
-		TokenType:   result.TokenType,
+		AccessToken:  result.AccessToken,
+		TokenType:    result.TokenType,
+		RefreshToken: result.RefreshToken,
 	}, "login successful")
 }
 
@@ -102,4 +104,34 @@ func (h *Handler) Logout(c echo.Context) error {
 
 	h.log.Info("logout request completed", zap.Int64("user_id", userID))
 	return httpx.OK(c, nil, "logged out successfully")
+}
+
+// Refresh handles POST /api/v1/auth/refresh.
+func (h *Handler) Refresh(c echo.Context) error {
+	h.log.Debug("received refresh request")
+
+	var req RefreshRequest
+	if err := c.Bind(&req); err != nil {
+		return httpx.Unauthorized(c, "invalid request")
+	}
+	if req.RefreshToken == "" {
+		return httpx.Unauthorized(c, "invalid request")
+	}
+
+	result, err := h.svc.RefreshAccessToken(c.Request().Context(), req.RefreshToken)
+	if errors.Is(err, ErrRefreshTokenInvalid) {
+		h.log.Debug("refresh rejected: invalid token")
+		return httpx.Unauthorized(c, "invalid request")
+	}
+	if err != nil {
+		h.log.Error("refresh failed", zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	h.log.Info("token refreshed successfully")
+	return httpx.OK(c, LoginResponseData{
+		AccessToken:  result.AccessToken,
+		TokenType:    result.TokenType,
+		RefreshToken: result.Refresh.RawToken,
+	}, "token refreshed")
 }

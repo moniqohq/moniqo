@@ -117,6 +117,7 @@ func main() {
 	loginGroup := e.Group("/api/v1/auth")
 	loginGroup.Use(appmw.LoginRateLimiter())
 	loginGroup.POST("/login", authHandler.Login)
+	loginGroup.POST("/refresh", authHandler.Refresh)
 
 	logoutGroup := e.Group("/api/v1/auth")
 	logoutGroup.Use(authMW)

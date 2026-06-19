@@ -64,7 +64,7 @@ func TestHandler_Login(t *testing.T) {
 
 	successSvc := &mock.MockAuthService{
 		LoginFn: func(_ context.Context, _ auth.LoginRequest) (auth.LoginResult, error) {
-			return auth.LoginResult{AccessToken: "tok.en.value", TokenType: "Bearer"}, nil
+			return auth.LoginResult{AccessToken: "tok.en.value", TokenType: "Bearer", RefreshToken: "raw-refresh-tok"}, nil
 		},
 	}
 
@@ -151,7 +151,7 @@ func TestHandler_Login(t *testing.T) {
 			wantMsg:     "internal server error",
 		},
 		{
-			name:        "success returns 200 with access token",
+			name:        "success returns 200 with access and refresh tokens",
 			body:        `{"email":"user@example.com","password":"SecurePass1"}`,
 			svc:         successSvc,
 			wantStatus:  http.StatusOK,
@@ -161,6 +161,7 @@ func TestHandler_Login(t *testing.T) {
 				t.Helper()
 				assert.Equal(t, "tok.en.value", data["access_token"])
 				assert.Equal(t, "Bearer", data["token_type"])
+				assert.Equal(t, "raw-refresh-tok", data["refresh_token"])
 				_, hasHash := data["hash"]
 				assert.False(t, hasHash, "hash must never appear in the response")
 			},
@@ -174,7 +175,7 @@ func TestHandler_Login(t *testing.T) {
 					LoginFn: func(_ context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
 						captured = req
 						_ = captured
-						return auth.LoginResult{AccessToken: "t", TokenType: "Bearer"}, nil
+						return auth.LoginResult{AccessToken: "t", TokenType: "Bearer", RefreshToken: "r"}, nil
 					},
 				}
 			}(),
@@ -219,7 +220,7 @@ func TestHandler_Login_InputForwarding(t *testing.T) {
 	svc := &mock.MockAuthService{
 		LoginFn: func(_ context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
 			captured = req
-			return auth.LoginResult{AccessToken: "t", TokenType: "Bearer"}, nil
+			return auth.LoginResult{AccessToken: "t", TokenType: "Bearer", RefreshToken: "r"}, nil
 		},
 	}
 
@@ -333,4 +334,113 @@ func TestHandler_Logout_ParamsForwarding(t *testing.T) {
 	assert.Equal(t, parsedJTI, captured.JTI)
 	assert.Equal(t, int64(1), captured.UserID)
 	assert.WithinDuration(t, claims.ExpiresAt.Time, captured.ExpiresAt, time.Second)
+}
+
+func newRefreshCtx(e *echo.Echo, body string) (echo.Context, *httptest.ResponseRecorder) {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	return e.NewContext(req, rec), rec
+}
+
+func TestHandler_Refresh(t *testing.T) {
+	t.Parallel()
+
+	log := zap.NewNop()
+	e := echo.New()
+
+	tests := []struct {
+		name        string
+		body        string
+		svc         auth.AuthService
+		wantStatus  int
+		wantSuccess bool
+		wantMsg     string
+		checkData   func(t *testing.T, data map[string]any)
+	}{
+		{
+			name:        "missing refresh_token returns 401",
+			body:        `{}`,
+			svc:         nil,
+			wantStatus:  http.StatusUnauthorized,
+			wantSuccess: false,
+		},
+		{
+			name:        "empty refresh_token returns 401",
+			body:        `{"refresh_token":""}`,
+			svc:         nil,
+			wantStatus:  http.StatusUnauthorized,
+			wantSuccess: false,
+		},
+		{
+			name: "invalid token returns generic 401",
+			body: `{"refresh_token":"bad-token"}`,
+			svc: &mock.MockAuthService{
+				RefreshAccessTokenFn: func(_ context.Context, _ string) (auth.RefreshResult, error) {
+					return auth.RefreshResult{}, auth.ErrRefreshTokenInvalid
+				},
+			},
+			wantStatus:  http.StatusUnauthorized,
+			wantSuccess: false,
+			wantMsg:     "invalid request",
+		},
+		{
+			name: "service error returns 500",
+			body: `{"refresh_token":"some-token"}`,
+			svc: &mock.MockAuthService{
+				RefreshAccessTokenFn: func(_ context.Context, _ string) (auth.RefreshResult, error) {
+					return auth.RefreshResult{}, errors.New("db unavailable")
+				},
+			},
+			wantStatus:  http.StatusInternalServerError,
+			wantSuccess: false,
+			wantMsg:     "internal server error",
+		},
+		{
+			name: "success returns new access_token and refresh_token",
+			body: `{"refresh_token":"valid-raw-token"}`,
+			svc: &mock.MockAuthService{
+				RefreshAccessTokenFn: func(_ context.Context, _ string) (auth.RefreshResult, error) {
+					return auth.RefreshResult{
+						AccessToken: "new.access.token",
+						TokenType:   "Bearer",
+						Refresh:     auth.RefreshIssue{RawToken: "new-refresh-token"},
+					}, nil
+				},
+			},
+			wantStatus:  http.StatusOK,
+			wantSuccess: true,
+			wantMsg:     "token refreshed",
+			checkData: func(t *testing.T, data map[string]any) {
+				t.Helper()
+				assert.Equal(t, "new.access.token", data["access_token"])
+				assert.Equal(t, "Bearer", data["token_type"])
+				assert.Equal(t, "new-refresh-token", data["refresh_token"])
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, rec := newRefreshCtx(e, tc.body)
+			h := auth.NewHandler(tc.svc, log)
+
+			err := h.Refresh(c)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.wantStatus, rec.Code)
+
+			resp, dataMap := parseEnvelope(t, rec.Body.String())
+			assert.Equal(t, tc.wantSuccess, resp.Success)
+			if tc.wantMsg != "" {
+				assert.Equal(t, tc.wantMsg, resp.Msg)
+			}
+			if tc.checkData != nil {
+				tc.checkData(t, dataMap)
+			}
+		})
+	}
 }
