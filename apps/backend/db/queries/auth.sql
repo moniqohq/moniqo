@@ -20,3 +20,26 @@ ON CONFLICT (jti) DO NOTHING;
 SELECT EXISTS (
     SELECT 1 FROM revoked_access_tokens WHERE jti = $1
 ) AS revoked;
+
+-- name: InsertRefreshToken :one
+INSERT INTO refresh_tokens (family_id, user_id, token_hash, expires_at, absolute_expires_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id;
+
+-- name: GetRefreshTokenByHash :one
+SELECT id, family_id, user_id, token_hash, issued_at, expires_at, absolute_expires_at, used_at, revoked_at, revoked_reason
+FROM refresh_tokens
+WHERE token_hash = $1;
+
+-- name: MarkRefreshTokenUsed :exec
+UPDATE refresh_tokens
+SET used_at = now()
+WHERE id = $1
+  AND used_at IS NULL;
+
+-- name: RevokeRefreshTokenFamily :exec
+UPDATE refresh_tokens
+SET revoked_at     = now(),
+    revoked_reason = $2
+WHERE family_id  = $1
+  AND revoked_at IS NULL;

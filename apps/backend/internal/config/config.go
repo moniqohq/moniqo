@@ -9,15 +9,17 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DatabaseURL    string
-	BcryptCost     int
-	Env            string // "development" | "staging" | "production"
-	LogLevel       string // "debug" | "info" | "warn" | "error"
-	JWTSecret      string
-	AccessTokenTTL time.Duration
-	AppBaseURL     string
-	Email          EmailConfig
+	Port              string
+	DatabaseURL       string
+	BcryptCost        int
+	Env               string // "development" | "staging" | "production"
+	LogLevel          string // "debug" | "info" | "warn" | "error"
+	JWTSecret         string
+	AccessTokenTTL    time.Duration
+	RefreshTokenTTL   time.Duration
+	RefreshTokenMaxAge time.Duration
+	AppBaseURL        string
+	Email             EmailConfig
 }
 
 // EmailConfig groups all email-related settings.
@@ -64,6 +66,20 @@ func Load() Config {
 	if v := os.Getenv("ACCESS_TOKEN_TTL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			ttl = d
+		}
+	}
+
+	refreshTTL := 168 * time.Hour // 7d
+	if v := os.Getenv("REFRESH_TOKEN_TTL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			refreshTTL = d
+		}
+	}
+
+	refreshMaxAge := 720 * time.Hour // 30d
+	if v := os.Getenv("REFRESH_TOKEN_MAX_AGE"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			refreshMaxAge = d
 		}
 	}
 
@@ -115,14 +131,16 @@ func Load() Config {
 	}
 
 	return Config{
-		Port:           port,
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		BcryptCost:     cost,
-		Env:            env,
-		LogLevel:       logLevel,
-		JWTSecret:      os.Getenv("JWT_SECRET"),
-		AccessTokenTTL: ttl,
-		AppBaseURL:     appBaseURL,
+		Port:               port,
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		BcryptCost:         cost,
+		Env:                env,
+		LogLevel:           logLevel,
+		JWTSecret:          os.Getenv("JWT_SECRET"),
+		AccessTokenTTL:     ttl,
+		RefreshTokenTTL:    refreshTTL,
+		RefreshTokenMaxAge: refreshMaxAge,
+		AppBaseURL:         appBaseURL,
 		Email: EmailConfig{
 			Provider:       emailProvider,
 			FromAddress:    os.Getenv("EMAIL_FROM_ADDRESS"),
