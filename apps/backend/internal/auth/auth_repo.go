@@ -86,6 +86,87 @@ func (r *AuthRepo) UserExistsByID(ctx context.Context, userID int64) (bool, erro
 	return true, nil
 }
 
+func (r *AuthRepo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error) {
+	q := db.New(r.pool)
+	id, err := q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
+		FamilyID:          pgtype.UUID{Bytes: p.FamilyID, Valid: true},
+		UserID:            p.UserID,
+		TokenHash:         p.TokenHash,
+		ExpiresAt:         pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
+		AbsoluteExpiresAt: pgtype.Timestamptz{Time: p.AbsoluteExpiresAt, Valid: true},
+	})
+	if err != nil {
+		r.log.Error("InsertRefreshToken query failed", zap.Error(err))
+		return [16]byte{}, err
+	}
+	return id.Bytes, nil
+}
+
+func (r *AuthRepo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.RefreshToken, error) {
+	q := db.New(r.pool)
+	row, err := q.GetRefreshTokenByHash(ctx, hash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return db.RefreshToken{}, ErrRefreshTokenInvalid
+	}
+	if err != nil {
+		r.log.Error("GetRefreshTokenByHash query failed", zap.Error(err))
+		return db.RefreshToken{}, err
+	}
+	return row, nil
+}
+
+func (r *AuthRepo) MarkRefreshTokenUsed(ctx context.Context, id [16]byte) error {
+	q := db.New(r.pool)
+	if err := q.MarkRefreshTokenUsed(ctx, pgtype.UUID{Bytes: id, Valid: true}); err != nil {
+		r.log.Error("MarkRefreshTokenUsed query failed", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (r *AuthRepo) RevokeRefreshTokenFamily(ctx context.Context, familyID [16]byte, reason string) error {
+	q := db.New(r.pool)
+	if err := q.RevokeRefreshTokenFamily(ctx, db.RevokeRefreshTokenFamilyParams{
+		FamilyID:      pgtype.UUID{Bytes: familyID, Valid: true},
+		RevokedReason: &reason,
+	}); err != nil {
+		r.log.Error("RevokeRefreshTokenFamily query failed", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+// RotateRefreshToken atomically marks oldID as used and inserts a new token row.
+func (r *AuthRepo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertRefreshTokenRepoParams) ([16]byte, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return [16]byte{}, err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
+	if err := q.MarkRefreshTokenUsed(ctx, pgtype.UUID{Bytes: oldID, Valid: true}); err != nil {
+		return [16]byte{}, err
+	}
+
+	newID, err := q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
+		FamilyID:          pgtype.UUID{Bytes: p.FamilyID, Valid: true},
+		UserID:            p.UserID,
+		TokenHash:         p.TokenHash,
+		ExpiresAt:         pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
+		AbsoluteExpiresAt: pgtype.Timestamptz{Time: p.AbsoluteExpiresAt, Valid: true},
+	})
+	if err != nil {
+		return [16]byte{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return [16]byte{}, err
+	}
+	return newID.Bytes, nil
+}
+
 func rowToPublic(row db.GetUserByEmailRow) models.User {
 	var lastLogin *time.Time
 	if row.LastLogin.Valid {
