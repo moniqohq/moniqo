@@ -22,6 +22,7 @@ type Repo struct {
 	log  *zap.Logger
 }
 
+// NewRepo returns a Repo backed by the given connection pool.
 func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
 	return &Repo{pool: pool, log: log}
 }

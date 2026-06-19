@@ -7,6 +7,7 @@ type Service struct {
 	repo *Repo
 }
 
+// NewService returns a Service that enqueues email jobs via repo.
 func NewService(repo *Repo) *Service {
 	return &Service{repo: repo}
 }
