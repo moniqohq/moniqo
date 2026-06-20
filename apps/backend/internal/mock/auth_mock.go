@@ -1,3 +1,4 @@
+// Package mock provides testify-based test doubles for service and repository interfaces.
 package mock
 
 import (
@@ -17,10 +18,12 @@ type MockAuthService struct {
 	RefreshAccessTokenFn func(ctx context.Context, rawToken string) (auth.RefreshResult, error)
 }
 
+// Login delegates to LoginFn.
 func (m *MockAuthService) Login(ctx context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
 	return m.LoginFn(ctx, req)
 }
 
+// Logout delegates to LogoutFn.
 func (m *MockAuthService) Logout(ctx context.Context, params auth.LogoutParams) error {
 	return m.LogoutFn(ctx, params)
 }
@@ -34,11 +37,13 @@ type MockAuthRepository struct {
 	mock.Mock
 }
 
+// GetUserByEmail records the call and returns the stubbed credentials.
 func (m *MockAuthRepository) GetUserByEmail(_ context.Context, email string) (auth.UserCredentials, error) {
 	args := m.Called(email)
 	return args.Get(0).(auth.UserCredentials), args.Error(1)
 }
 
+// UpdateLastLogin records the call and returns the stubbed error.
 func (m *MockAuthRepository) UpdateLastLogin(_ context.Context, userID int64) error {
 	args := m.Called(userID)
 	return args.Error(0)

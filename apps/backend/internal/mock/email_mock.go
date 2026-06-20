@@ -13,6 +13,7 @@ type MockEmailEnqueuer struct {
 	mock.Mock
 }
 
+// Enqueue records the call and returns the stubbed error.
 func (m *MockEmailEnqueuer) Enqueue(_ context.Context, p email.EnqueueParams) error {
 	args := m.Called(p)
 	return args.Error(0)
