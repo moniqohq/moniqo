@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// Response is the standard JSON envelope returned by all API endpoints.
 type Response struct {
 	Success bool   `json:"success"`
 	Data    any    `json:"data"`

@@ -49,16 +49,19 @@ func (m *MockAuthRepository) UpdateLastLogin(_ context.Context, userID int64) er
 	return args.Error(0)
 }
 
+// InsertRevokedAccessToken is a mock implementation of AuthRepository.InsertRevokedAccessToken.
 func (m *MockAuthRepository) InsertRevokedAccessToken(_ context.Context, p auth.InsertRevokedTokenParams) error {
 	args := m.Called(p)
 	return args.Error(0)
 }
 
+// IsAccessTokenRevoked is a mock implementation of AuthRepository.IsAccessTokenRevoked.
 func (m *MockAuthRepository) IsAccessTokenRevoked(_ context.Context, jti pgtype.UUID) (bool, error) {
 	args := m.Called(jti)
 	return args.Bool(0), args.Error(1)
 }
 
+// UserExistsByID is a mock implementation of AuthRepository.UserExistsByID.
 func (m *MockAuthRepository) UserExistsByID(_ context.Context, userID int64) (bool, error) {
 	args := m.Called(userID)
 	return args.Bool(0), args.Error(1)

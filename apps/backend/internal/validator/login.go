@@ -1,9 +1,11 @@
+// Package validator provides input validation helpers for HTTP request payloads.
 package validator
 
 import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 )
 
+// LoginInput holds the credentials extracted from a login request body.
 type LoginInput struct {
 	Email    string
 	Password string
