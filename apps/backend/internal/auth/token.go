@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -86,7 +87,7 @@ func ParseAccessToken(tokenString string, secret []byte) (*Claims, error) {
 
 	claims, ok := token.Claims.(*Claims)
 	if !ok {
-		return nil, fmt.Errorf("invalid claims type")
+		return nil, errors.New("invalid claims type")
 	}
 	return claims, nil
 }
