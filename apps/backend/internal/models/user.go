@@ -1,3 +1,4 @@
+// Package models defines the API-facing data transfer types returned by handlers.
 package models
 
 import "time"

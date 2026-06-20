@@ -1,3 +1,4 @@
+// Package config loads and exposes application configuration from environment variables.
 package config
 
 import (
@@ -20,6 +21,7 @@ const (
 	defaultBaseBackoff              = 30 * time.Second
 )
 
+// Config holds all runtime settings for the backend server.
 type Config struct {
 	Port               string
 	DatabaseURL        string

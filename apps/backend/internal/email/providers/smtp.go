@@ -23,14 +23,17 @@ type SMTPConfig struct {
 	FromName string
 }
 
+// SMTPProvider sends email via a standard SMTP submission endpoint.
 type SMTPProvider struct {
 	cfg SMTPConfig
 }
 
+// NewSMTP constructs an SMTPProvider from the given config.
 func NewSMTP(cfg SMTPConfig) *SMTPProvider {
 	return &SMTPProvider{cfg: cfg}
 }
 
+// Send delivers msg using SMTP, honouring ctx for cancellation.
 func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	type result struct{ err error }
 	ch := make(chan result, 1)
