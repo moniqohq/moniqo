@@ -9,7 +9,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
 
-// MockUserService is a test double for user.UserService.
+// MockUserService is a test double for user.Service.
 type MockUserService struct {
 	RegisterFn       func(ctx context.Context, req user.RegisterRequest) (models.User, error)
 	GetByIDFn        func(ctx context.Context, id int64) (models.User, error)

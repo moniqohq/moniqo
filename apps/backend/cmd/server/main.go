@@ -1,3 +1,4 @@
+// Package main is the entry point for the Moniqo backend server.
 package main
 
 import (
@@ -99,8 +100,8 @@ func main() {
 	go emailWorker.Run(workerCtx)
 
 	// User registration
-	userRepo := user.NewUserRepo(pool, log)
-	userSvc := user.NewUserSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, []byte(cfg.JWTSecret), log)
+	userRepo := user.NewRepo(pool, log)
+	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, []byte(cfg.JWTSecret), log)
 	userHandler := user.NewHandler(userSvc, log)
 
 	reg := e.Group("/api/v1")

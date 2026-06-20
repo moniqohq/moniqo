@@ -57,7 +57,7 @@ func TestHandler_Register(t *testing.T) {
 	tests := []struct {
 		name        string
 		body        string
-		svc         user.UserService
+		svc         user.Service
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string
@@ -145,7 +145,7 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "service receives correct input fields",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com","name":"Saqib"}`,
-			svc: func() user.UserService {
+			svc: func() user.Service {
 				var captured user.RegisterRequest
 				return &mock.MockUserService{
 					RegisterFn: func(_ context.Context, req user.RegisterRequest) (models.User, error) {

@@ -1,3 +1,4 @@
+// Package user provides HTTP handlers, service logic, and repository access for user management.
 package user
 
 import (
@@ -13,8 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// UserService is the service contract required by Handler.
-type UserService interface {
+// Service is the service contract required by Handler.
+type Service interface {
 	Register(ctx context.Context, req RegisterRequest) (models.User, error)
 	GetByID(ctx context.Context, id int64) (models.User, error)
 	ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error)
@@ -24,11 +25,11 @@ type UserService interface {
 
 // Handler holds HTTP handlers for user endpoints.
 type Handler struct {
-	svc UserService
+	svc Service
 	log *zap.Logger
 }
 
-func NewHandler(svc UserService, log *zap.Logger) *Handler {
+func NewHandler(svc Service, log *zap.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
 }
 

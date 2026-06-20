@@ -79,7 +79,7 @@ func TestHandler_GetProfile(t *testing.T) {
 		name        string
 		pathID      string
 		authedAs    int64
-		svc         user.UserService
+		svc         user.Service
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string
@@ -169,7 +169,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 		pathID      string
 		authedAs    int64
 		body        string
-		svc         user.UserService
+		svc         user.Service
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string
@@ -271,7 +271,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 		pathID      string
 		authedAs    int64
 		body        string
-		svc         user.UserService
+		svc         user.Service
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string
@@ -402,7 +402,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 		name        string
 		pathID      string
 		authedAs    int64
-		svc         user.UserService
+		svc         user.Service
 		wantStatus  int
 		wantSuccess bool
 		wantMsg     string

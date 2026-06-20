@@ -15,8 +15,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// UserRepository is the persistence contract required by UserSvc.
-type UserRepository interface {
+// Repository is the persistence contract required by UserSvc.
+type Repository interface {
 	Create(ctx context.Context, p CreateParams) (models.User, error)
 	GetByID(ctx context.Context, id int64) (models.User, error)
 	UpdateProfile(ctx context.Context, p UpdateProfileParams) (models.User, error)
@@ -27,7 +27,7 @@ type UserRepository interface {
 
 // UserSvc implements the business logic for user operations.
 type UserSvc struct {
-	repo        UserRepository
+	repo        Repository
 	mailer      email.Enqueuer
 	bcryptCost  int
 	appBaseURL  string
@@ -35,7 +35,7 @@ type UserSvc struct {
 	log         *zap.Logger
 }
 
-func NewUserSvc(repo UserRepository, mailer email.Enqueuer, bcryptCost int, appBaseURL string, tokenSecret []byte, log *zap.Logger) *UserSvc {
+func NewSvc(repo Repository, mailer email.Enqueuer, bcryptCost int, appBaseURL string, tokenSecret []byte, log *zap.Logger) *UserSvc {
 	return &UserSvc{
 		repo:        repo,
 		mailer:      mailer,
@@ -135,9 +135,9 @@ func (s *UserSvc) PatchProfile(ctx context.Context, id int64, req PatchProfileRe
 	if req.Username != nil {
 		username = *req.Username
 	}
-	email := current.Email
+	emailAddr := current.Email
 	if req.Email != nil {
-		email = *req.Email
+		emailAddr = *req.Email
 	}
 	picture := current.Picture
 	if req.Picture != nil {
@@ -148,7 +148,7 @@ func (s *UserSvc) PatchProfile(ctx context.Context, id int64, req PatchProfileRe
 		ID:       id,
 		Name:     name,
 		Username: username,
-		Email:    email,
+		Email:    emailAddr,
 		Picture:  picture,
 	})
 	if err != nil {
