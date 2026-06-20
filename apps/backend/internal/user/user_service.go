@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"crypto/hmac"
+	"errors"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -66,7 +67,7 @@ func (s *UserSvc) Register(ctx context.Context, req RegisterRequest) (models.Use
 		Name:     req.Name,
 	})
 	if err != nil {
-		if err == ErrConflict {
+		if errors.Is(err, ErrConflict) {
 			s.log.Debug("registration rejected: username or email already taken", zap.String("username", req.Username), zap.String("email", req.Email))
 		} else {
 			s.log.Error("failed to persist user", zap.String("username", req.Username), zap.Error(err))
