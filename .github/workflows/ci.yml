@@ -103,7 +103,6 @@ jobs:
         with:
           version: latest
           working-directory: apps/backend
-          args: --config ../../.golangci.yaml
 
   lint-frontend:
     name: lint-frontend
