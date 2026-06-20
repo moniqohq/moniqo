@@ -76,7 +76,7 @@ linters:
           exclude:
             - '**/*.go'
         - name: line-length-limit
-          arguments: [ 120 ]
+          arguments: [ 140 ]
         - name: max-public-structs
           arguments: [ 10 ]
     wrapcheck:
@@ -121,7 +121,7 @@ formatters:
           replacement: a[b:]
     golines:
       tab-len: 4
-      max-len: 120
+      max-len: 140
       chain-split-dots: true
       shorten-comments: false
 issues:
