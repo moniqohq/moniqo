@@ -1,3 +1,4 @@
+// Package email provides email job enqueueing and repository access for async email delivery.
 package email
 
 import (

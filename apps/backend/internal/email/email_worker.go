@@ -38,6 +38,7 @@ type Worker struct {
 	wg       sync.WaitGroup
 }
 
+// NewWorker returns a Worker wired to the given repository, email provider, and configuration.
 func NewWorker(repo *Repo, provider providers.Provider, cfg WorkerConfig, log *zap.Logger) *Worker {
 	return &Worker{
 		repo:     repo,

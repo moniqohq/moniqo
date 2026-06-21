@@ -20,10 +20,12 @@ type AuthRepo struct {
 	log  *zap.Logger
 }
 
+// NewAuthRepo returns an AuthRepo backed by the given connection pool.
 func NewAuthRepo(pool *pgxpool.Pool, log *zap.Logger) *AuthRepo {
 	return &AuthRepo{pool: pool, log: log}
 }
 
+// GetUserByEmail fetches a user's public fields and password hash by email address.
 func (r *AuthRepo) GetUserByEmail(ctx context.Context, email string) (UserCredentials, error) {
 	q := db.New(r.pool)
 	row, err := q.GetUserByEmail(ctx, email)
@@ -40,6 +42,7 @@ func (r *AuthRepo) GetUserByEmail(ctx context.Context, email string) (UserCreden
 	}, nil
 }
 
+// UpdateLastLogin records the current timestamp as the user's last successful login.
 func (r *AuthRepo) UpdateLastLogin(ctx context.Context, userID int64) error {
 	q := db.New(r.pool)
 	if err := q.UpdateLastLogin(ctx, userID); err != nil {
@@ -49,6 +52,7 @@ func (r *AuthRepo) UpdateLastLogin(ctx context.Context, userID int64) error {
 	return nil
 }
 
+// InsertRevokedAccessToken adds a JWT JTI to the revocation list so it cannot be reused after logout.
 func (r *AuthRepo) InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error {
 	q := db.New(r.pool)
 	err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
@@ -63,6 +67,7 @@ func (r *AuthRepo) InsertRevokedAccessToken(ctx context.Context, p InsertRevoked
 	return nil
 }
 
+// IsAccessTokenRevoked reports whether the given JTI appears in the revocation list.
 func (r *AuthRepo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error) {
 	q := db.New(r.pool)
 	revoked, err := q.IsAccessTokenRevoked(ctx, jti)
@@ -73,6 +78,7 @@ func (r *AuthRepo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (b
 	return revoked, nil
 }
 
+// UserExistsByID reports whether a user row with the given ID exists in the database.
 func (r *AuthRepo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
 	q := db.New(r.pool)
 	_, err := q.GetUserByID(ctx, userID)

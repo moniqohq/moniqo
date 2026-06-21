@@ -39,6 +39,7 @@ type AuthSvc struct {
 	log                *zap.Logger
 }
 
+// NewAuthSvc returns an AuthSvc wired to the given repository and JWT configuration.
 func NewAuthSvc(
 	repo AuthRepository,
 	jwtSecret []byte,

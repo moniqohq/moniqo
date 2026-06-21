@@ -10,6 +10,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
+// Sentinel errors returned by the auth service and repository layers.
 var (
 	ErrInvalidCredentials  = errors.New("invalid credentials")
 	ErrPendingVerification = errors.New("account pending verification")

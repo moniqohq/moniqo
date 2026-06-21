@@ -29,6 +29,7 @@ type Handler struct {
 	log *zap.Logger
 }
 
+// NewHandler returns a user Handler wired to the given service.
 func NewHandler(svc Service, log *zap.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
 }

@@ -12,6 +12,7 @@ func NewService(repo *Repo) *Service {
 	return &Service{repo: repo}
 }
 
+// Enqueue persists an email job to PostgreSQL for async delivery.
 func (s *Service) Enqueue(ctx context.Context, p EnqueueParams) error {
 	return s.repo.Enqueue(ctx, p)
 }
