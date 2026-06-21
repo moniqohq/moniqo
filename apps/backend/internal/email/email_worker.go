@@ -98,7 +98,7 @@ func (w *Worker) tick(ctx context.Context) {
 	}
 }
 
-func (w *Worker) processJob(ctx context.Context, job *claimedJob) {
+func (w *Worker) processJob(ctx context.Context, job *ClaimedJob) {
 	log := w.log.With(
 		zap.String("job_id", uuid.UUID(job.ID.Bytes).String()),
 		zap.String("template", string(job.TemplateName)),
@@ -142,7 +142,7 @@ func (w *Worker) processJob(ctx context.Context, job *claimedJob) {
 	log.Info("email sent successfully")
 }
 
-func (w *Worker) failJob(ctx context.Context, job *claimedJob, errMsg string, log *zap.Logger) {
+func (w *Worker) failJob(ctx context.Context, job *ClaimedJob, errMsg string, log *zap.Logger) {
 	if err := w.repo.MarkFailed(ctx, job.ID, errMsg, job.AttemptCount, w.cfg.BaseBackoff); err != nil {
 		log.Error("email worker: mark failed", zap.Error(err))
 	}

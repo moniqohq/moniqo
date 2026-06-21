@@ -71,8 +71,8 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 	return nil
 }
 
-// claimedJob is the internal representation returned by LockBatch.
-type claimedJob struct {
+// ClaimedJob is the internal representation returned by LockBatch.
+type ClaimedJob struct {
 	ID             pgtype.UUID
 	TemplateName   TemplateName
 	RecipientEmail string
@@ -87,7 +87,7 @@ type claimedJob struct {
 // long-lived lock is held during subsequent SMTP sends.  Jobs whose locked_by was
 // set but never cleared more than 10 minutes ago are also eligible (crash
 // recovery).
-func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]claimedJob, error) {
+func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]ClaimedJob, error) {
 	q := db.New(r.pool)
 	rows, err := q.LockEmailJobs(ctx, db.LockEmailJobsParams{
 		Limit:    n,
@@ -97,9 +97,9 @@ func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]claim
 		r.log.Error("failed to lock email jobs", zap.Int32("limit", n), zap.Error(err))
 		return nil, err
 	}
-	jobs := make([]claimedJob, len(rows))
+	jobs := make([]ClaimedJob, len(rows))
 	for i, row := range rows {
-		jobs[i] = claimedJob{
+		jobs[i] = ClaimedJob{
 			ID:             row.ID,
 			TemplateName:   TemplateName(row.TemplateName),
 			RecipientEmail: row.RecipientEmail,
