@@ -65,14 +65,52 @@ func main() {
 	}
 	defer pool.Close()
 
+	e := buildServer(cfg, pool, log)
+	run(e, fmt.Sprintf(":%s", cfg.Port), log)
+}
+
+func run(e *echo.Echo, addr string, log *zap.Logger) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	log.Info("starting server", zap.String("addr", addr))
+
+	go func() {
+		<-quit
+		log.Info("shutting down server")
+		if err := e.Shutdown(context.Background()); err != nil {
+			log.Error("server shutdown error", zap.Error(err))
+		}
+	}()
+
+	if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Error("server error", zap.Error(err))
+		os.Exit(1)
+	}
+}
+
+func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(echomw.RequestID())
 	e.Use(appmw.Recover(log))
 	e.Use(appmw.RequestLogger(log))
 
-	// Email subsystem
+	emailSvc, emailWorker := buildEmailSubsystem(cfg, pool, log)
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	go emailWorker.Run(workerCtx)
+	e.Server.RegisterOnShutdown(func() {
+		workerCancel()
+		emailWorker.Wait()
+	})
+
+	registerRoutes(e, cfg, pool, emailSvc, log)
+	return e
+}
+
+func buildEmailSubsystem(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) (*email.Service, *email.Worker) {
 	emailRepo := email.NewRepo(pool, log)
+
 	var emailProvider providers.Provider
 	if cfg.Email.Provider == "smtp" {
 		emailProvider = providers.NewSMTP(providers.SMTPConfig{
@@ -86,6 +124,7 @@ func main() {
 	} else {
 		emailProvider = providers.NewNoop(log)
 	}
+
 	emailSvc := email.NewService(emailRepo)
 	emailWorker := email.NewWorker(emailRepo, emailProvider, email.WorkerConfig{
 		PollInterval: cfg.Email.WorkerInterval,
@@ -95,25 +134,24 @@ func main() {
 		FromName:     cfg.Email.FromName,
 	}, log)
 
-	workerCtx, workerCancel := context.WithCancel(context.Background())
-	defer workerCancel()
-	go emailWorker.Run(workerCtx)
+	return emailSvc, emailWorker
+}
 
-	// User registration
+func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, log *zap.Logger) {
+	jwtSecret := []byte(cfg.JWTSecret)
+
 	userRepo := user.NewRepo(pool, log)
-	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, []byte(cfg.JWTSecret), log)
+	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, jwtSecret, log)
 	userHandler := user.NewHandler(userSvc, log)
 
-	reg := e.Group("/api/v1")
-	reg.Use(appmw.RegisterRateLimiter())
-	reg.POST("/users", userHandler.Register)
-
-	// Auth: login (rate-limited, public) and logout (JWT-protected)
-	jwtSecret := []byte(cfg.JWTSecret)
 	authRepo := auth.NewAuthRepo(pool, log)
 	authSvc := auth.NewAuthSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
 	authHandler := auth.NewHandler(authSvc, log)
 	authMW := auth.Middleware(authRepo, jwtSecret, log)
+
+	reg := e.Group("/api/v1")
+	reg.Use(appmw.RegisterRateLimiter())
+	reg.POST("/users", userHandler.Register)
 
 	loginGroup := e.Group("/api/v1/auth")
 	loginGroup.Use(appmw.LoginRateLimiter())
@@ -129,28 +167,6 @@ func main() {
 	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
 	usersGroup.PATCH("/:id", userHandler.PatchProfile)
 	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
-
-	// Graceful shutdown on SIGINT / SIGTERM
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	addr := fmt.Sprintf(":%s", cfg.Port)
-	log.Info("starting server", zap.String("addr", addr))
-
-	go func() {
-		<-quit
-		log.Info("shutting down server")
-		workerCancel()
-		emailWorker.Wait() // drain the in-flight tick before closing the pool
-		if err := e.Shutdown(context.Background()); err != nil {
-			log.Error("server shutdown error", zap.Error(err))
-		}
-	}()
-
-	if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Error("server error", zap.Error(err))
-		os.Exit(1)
-	}
 }
 
 func runMigrations(dsn string) error {
