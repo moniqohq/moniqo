@@ -51,21 +51,30 @@ type UserRepository struct {
 // Create records the call and returns the configured stub values.
 func (m *UserRepository) Create(_ context.Context, p user.CreateParams) (models.User, error) {
 	args := m.Called(p)
-	u, _ := args.Get(0).(models.User)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
 	return u, args.Error(1)
 }
 
 // GetByID records the call and returns the configured stub values.
 func (m *UserRepository) GetByID(_ context.Context, id int64) (models.User, error) {
 	args := m.Called(id)
-	u, _ := args.Get(0).(models.User)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
 	return u, args.Error(1)
 }
 
 // UpdateProfile records the call and returns the configured stub values.
 func (m *UserRepository) UpdateProfile(_ context.Context, p user.UpdateProfileParams) (models.User, error) {
 	args := m.Called(p)
-	u, _ := args.Get(0).(models.User)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
 	return u, args.Error(1)
 }
 

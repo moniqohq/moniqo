@@ -28,7 +28,7 @@ func (m *AuthService) Logout(ctx context.Context, params auth.LogoutParams) erro
 	return m.LogoutFn(ctx, params)
 }
 
-// AuthRepository is a testify mock for auth.AuthRepository.
+// AuthRepository is a testify mock for auth.Repository.
 type AuthRepository struct {
 	mock.Mock
 }
@@ -36,7 +36,11 @@ type AuthRepository struct {
 // GetUserByEmail records the call and returns the stubbed credentials.
 func (m *AuthRepository) GetUserByEmail(_ context.Context, email string) (auth.UserCredentials, error) {
 	args := m.Called(email)
-	return args.Get(0).(auth.UserCredentials), args.Error(1)
+	creds, ok := args.Get(0).(auth.UserCredentials)
+	if !ok {
+		return auth.UserCredentials{}, args.Error(1)
+	}
+	return creds, args.Error(1)
 }
 
 // UpdateLastLogin records the call and returns the stubbed error.
