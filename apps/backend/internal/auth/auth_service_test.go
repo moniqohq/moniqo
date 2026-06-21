@@ -47,7 +47,7 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("success returns access token, refresh token and Bearer type", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
@@ -66,7 +66,7 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("user not found returns ErrInvalidCredentials", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).Return(auth.UserCredentials{}, auth.ErrUserNotFound)
 
 		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
@@ -80,7 +80,7 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("wrong password returns ErrInvalidCredentials", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, "DifferentPass1", models.UserStatusActive), nil)
 
@@ -97,7 +97,7 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("pending verification returns ErrPendingVerification", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusPendingVerification), nil)
 
@@ -113,7 +113,7 @@ func TestAuthSvc_Login(t *testing.T) {
 		t.Parallel()
 
 		dbErr := errors.New("db unavailable")
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
@@ -130,7 +130,7 @@ func TestAuthSvc_Login(t *testing.T) {
 		t.Parallel()
 
 		dbErr := errors.New("connection reset")
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).Return(auth.UserCredentials{}, dbErr)
 
 		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
@@ -143,7 +143,7 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("issued JWT has correct claims", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
@@ -164,7 +164,7 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("last_login is updated on successful login", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
@@ -193,7 +193,7 @@ func TestAuthSvc_Logout(t *testing.T) {
 	t.Run("success calls InsertRevokedAccessToken", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(nil)
 
 		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
@@ -206,7 +206,7 @@ func TestAuthSvc_Logout(t *testing.T) {
 	t.Run("correct jti and user_id forwarded to repo", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).
 			Return(nil).
 			Run(func(args mock.Arguments) {
@@ -226,7 +226,7 @@ func TestAuthSvc_Logout(t *testing.T) {
 		t.Parallel()
 
 		dbErr := errors.New("db unavailable")
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(dbErr)
 
 		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)

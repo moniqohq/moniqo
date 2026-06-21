@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Repository is the persistence contract required by UserSvc.
+// Repository is the persistence contract required by Svc.
 type Repository interface {
 	Create(ctx context.Context, p CreateParams) (models.User, error)
 	GetByID(ctx context.Context, id int64) (models.User, error)
@@ -25,8 +25,8 @@ type Repository interface {
 	GetHashByID(ctx context.Context, id int64) (string, error)
 }
 
-// UserSvc implements the business logic for user operations.
-type UserSvc struct {
+// Svc implements the business logic for user operations.
+type Svc struct {
 	repo        Repository
 	mailer      email.Enqueuer
 	bcryptCost  int
@@ -35,8 +35,9 @@ type UserSvc struct {
 	log         *zap.Logger
 }
 
-func NewSvc(repo Repository, mailer email.Enqueuer, bcryptCost int, appBaseURL string, tokenSecret []byte, log *zap.Logger) *UserSvc {
-	return &UserSvc{
+// NewSvc returns a Svc wired to the given repository, mailer, and configuration.
+func NewSvc(repo Repository, mailer email.Enqueuer, bcryptCost int, appBaseURL string, tokenSecret []byte, log *zap.Logger) *Svc {
+	return &Svc{
 		repo:        repo,
 		mailer:      mailer,
 		bcryptCost:  bcryptCost,
@@ -49,7 +50,7 @@ func NewSvc(repo Repository, mailer email.Enqueuer, bcryptCost int, appBaseURL s
 // Register hashes the password, persists the new user, and enqueues a
 // verification email.  The 201 response is returned before the email is sent;
 // failures to enqueue are logged but do not fail registration.
-func (s *UserSvc) Register(ctx context.Context, req RegisterRequest) (models.User, error) {
+func (s *Svc) Register(ctx context.Context, req RegisterRequest) (models.User, error) {
 	s.log.Info("registering new user", zap.String("username", req.Username), zap.String("email", req.Email))
 
 	s.log.Debug("hashing password", zap.String("username", req.Username), zap.Int("bcrypt_cost", s.bcryptCost))
@@ -86,7 +87,7 @@ func (s *UserSvc) Register(ctx context.Context, req RegisterRequest) (models.Use
 //
 // Format: base64url(payload) "." base64url(sig)
 // where payload = "verify:<userID>:<expiryUnix>"
-func (s *UserSvc) verificationToken(userID int64) string {
+func (s *Svc) verificationToken(userID int64) string {
 	expiry := time.Now().Add(24 * time.Hour).Unix()
 	payload := fmt.Sprintf("verify:%d:%d", userID, expiry)
 	mac := hmac.New(sha256.New, s.tokenSecret)
@@ -98,13 +99,13 @@ func (s *UserSvc) verificationToken(userID int64) string {
 }
 
 // GetByID returns the public-safe profile for the given user id.
-func (s *UserSvc) GetByID(ctx context.Context, id int64) (models.User, error) {
+func (s *Svc) GetByID(ctx context.Context, id int64) (models.User, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
 // ReplaceProfile performs a full profile replacement (PUT semantics).
 // Absent name becomes nil; absent picture becomes "".
-func (s *UserSvc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error) {
+func (s *Svc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error) {
 	s.log.Info("replacing user profile", zap.Int64("user_id", id))
 	return s.repo.UpdateProfile(ctx, UpdateProfileParams{
 		ID:       id,
@@ -118,7 +119,7 @@ func (s *UserSvc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfi
 // PatchProfile applies only the non-nil fields from req to the current profile.
 // If both CurrentPassword and NewPassword are set, it also changes the password
 // after verifying the current one.
-func (s *UserSvc) PatchProfile(ctx context.Context, id int64, req PatchProfileRequest) (models.User, error) {
+func (s *Svc) PatchProfile(ctx context.Context, id int64, req PatchProfileRequest) (models.User, error) {
 	s.log.Info("patching user profile", zap.Int64("user_id", id))
 
 	current, err := s.repo.GetByID(ctx, id)
@@ -177,12 +178,12 @@ func (s *UserSvc) PatchProfile(ctx context.Context, id int64, req PatchProfileRe
 }
 
 // Delete soft-deletes the user. It is idempotent.
-func (s *UserSvc) Delete(ctx context.Context, id int64) error {
+func (s *Svc) Delete(ctx context.Context, id int64) error {
 	s.log.Info("soft-deleting user", zap.Int64("user_id", id))
 	return s.repo.SoftDelete(ctx, id)
 }
 
-func (s *UserSvc) enqueueVerification(ctx context.Context, u models.User) {
+func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {
 	name := ""
 	if u.Name != nil {
 		name = *u.Name

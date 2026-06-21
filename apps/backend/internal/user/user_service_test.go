@@ -20,14 +20,14 @@ func ptr[T any](v T) *T { return &v }
 
 // newNoopMailer returns a mock enqueuer that accepts any Enqueue call.
 // Tests focused on user registration logic use this to avoid caring about email side-effects.
-func newNoopMailer() *internalmock.MockEmailEnqueuer {
-	m := &internalmock.MockEmailEnqueuer{}
+func newNoopMailer() *internalmock.EmailEnqueuer {
+	m := &internalmock.EmailEnqueuer{}
 	m.On("Enqueue", mock.AnythingOfType("email.EnqueueParams")).Return(nil)
 	return m
 }
 
 // Ensure the email import is exercised — EnqueueParams must be a known type.
-var _ email.Enqueuer = (*internalmock.MockEmailEnqueuer)(nil)
+var _ email.Enqueuer = (*internalmock.EmailEnqueuer)(nil)
 
 func makeUser(username, email string) models.User {
 	return models.User{
@@ -51,7 +51,7 @@ func TestUserService_Register(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockUserRepository{}
+		repo := &internalmock.UserRepository{}
 		repo.On("Create", mock.AnythingOfType("CreateParams")).Return(makeUser("saqibtest", "saqib@example.com"), nil)
 		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
 
@@ -70,7 +70,7 @@ func TestUserService_Register(t *testing.T) {
 
 		u := makeUser("saqibtest", "saqib@example.com")
 		u.Name = ptr("Saqib")
-		repo := &internalmock.MockUserRepository{}
+		repo := &internalmock.UserRepository{}
 		repo.On("Create", mock.AnythingOfType("CreateParams")).Return(u, nil)
 		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
 
@@ -87,7 +87,7 @@ func TestUserService_Register(t *testing.T) {
 	t.Run("password is hashed before storage", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockUserRepository{}
+		repo := &internalmock.UserRepository{}
 		repo.On("Create", mock.AnythingOfType("CreateParams")).Return(makeUser("saqibtest", "saqib@example.com"), nil).
 			Run(func(args mock.Arguments) {
 				p := args.Get(0).(user.CreateParams)
@@ -111,7 +111,7 @@ func TestUserService_Register(t *testing.T) {
 			Email:    "saqib@example.com",
 			Name:     ptr("Saqib"),
 		}
-		repo := &internalmock.MockUserRepository{}
+		repo := &internalmock.UserRepository{}
 		repo.On("Create", mock.AnythingOfType("CreateParams")).Return(makeUser("saqibtest", "saqib@example.com"), nil).
 			Run(func(args mock.Arguments) {
 				p := args.Get(0).(user.CreateParams)
@@ -131,7 +131,7 @@ func TestUserService_Register(t *testing.T) {
 	t.Run("conflict error is propagated", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockUserRepository{}
+		repo := &internalmock.UserRepository{}
 		repo.On("Create", mock.AnythingOfType("CreateParams")).Return(models.User{}, user.ErrConflict)
 		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
 
@@ -145,7 +145,7 @@ func TestUserService_Register(t *testing.T) {
 		t.Parallel()
 
 		repoErr := errors.New("db unavailable")
-		repo := &internalmock.MockUserRepository{}
+		repo := &internalmock.UserRepository{}
 		repo.On("Create", mock.AnythingOfType("CreateParams")).Return(models.User{}, repoErr)
 		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
 
@@ -158,7 +158,7 @@ func TestUserService_Register(t *testing.T) {
 	t.Run("bcrypt error is returned before repo is called", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockUserRepository{}
+		repo := &internalmock.UserRepository{}
 		// cost > bcrypt.MaxCost (31) triggers InvalidCostError
 		svc := user.NewSvc(repo, newNoopMailer(), 32, "http://localhost:3000", []byte("test-secret"), log)
 

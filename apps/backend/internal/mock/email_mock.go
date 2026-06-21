@@ -8,13 +8,13 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/email"
 )
 
-// MockEmailEnqueuer is a test double for email.Enqueuer.
-type MockEmailEnqueuer struct {
+// EmailEnqueuer is a test double for email.Enqueuer.
+type EmailEnqueuer struct {
 	mock.Mock
 }
 
 // Enqueue records the call and returns the stubbed error.
-func (m *MockEmailEnqueuer) Enqueue(_ context.Context, p email.EnqueueParams) error {
+func (m *EmailEnqueuer) Enqueue(_ context.Context, p email.EnqueueParams) error {
 	args := m.Called(p)
 	return args.Error(0)
 }

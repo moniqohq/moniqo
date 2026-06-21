@@ -7,7 +7,7 @@ import "errors"
 // -----------------------------------------------------------------------------
 
 // RegisterRequest is the HTTP request body for POST /api/v1/users and the
-// service-layer input to UserSvc.Register.
+// service-layer input to Svc.Register.
 type RegisterRequest struct {
 	Username string  `json:"username"`
 	Password string  `json:"password"`

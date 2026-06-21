@@ -101,7 +101,7 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "service conflict returns 409",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com"}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				RegisterFn: func(_ context.Context, _ user.RegisterRequest) (models.User, error) {
 					return models.User{}, user.ErrConflict
 				},
@@ -113,7 +113,7 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "service generic error returns 500",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com"}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				RegisterFn: func(_ context.Context, _ user.RegisterRequest) (models.User, error) {
 					return models.User{}, errors.New("unexpected db failure")
 				},
@@ -125,7 +125,7 @@ func TestHandler_Register(t *testing.T) {
 		{
 			name: "success returns 201 with user payload",
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com","name":"Saqib"}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				RegisterFn: func(_ context.Context, _ user.RegisterRequest) (models.User, error) {
 					return fixedUser(), nil
 				},
@@ -147,7 +147,7 @@ func TestHandler_Register(t *testing.T) {
 			body: `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com","name":"Saqib"}`,
 			svc: func() user.Service {
 				var captured user.RegisterRequest
-				return &mock.MockUserService{
+				return &mock.UserService{
 					RegisterFn: func(_ context.Context, req user.RegisterRequest) (models.User, error) {
 						captured = req
 						_ = captured
@@ -193,7 +193,7 @@ func TestHandler_Register_InputForwarding(t *testing.T) {
 	e := echo.New()
 
 	var captured user.RegisterRequest
-	svc := &mock.MockUserService{
+	svc := &mock.UserService{
 		RegisterFn: func(_ context.Context, req user.RegisterRequest) (models.User, error) {
 			captured = req
 			return fixedUser(), nil

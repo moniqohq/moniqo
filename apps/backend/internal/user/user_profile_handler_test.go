@@ -88,7 +88,7 @@ func TestHandler_GetProfile(t *testing.T) {
 			name:        "no auth claims returns 401",
 			pathID:      "7",
 			authedAs:    0,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusUnauthorized,
 			wantSuccess: false,
 		},
@@ -96,7 +96,7 @@ func TestHandler_GetProfile(t *testing.T) {
 			name:        "id mismatch returns 403",
 			pathID:      "99",
 			authedAs:    testUserID,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusForbidden,
 			wantSuccess: false,
 		},
@@ -104,7 +104,7 @@ func TestHandler_GetProfile(t *testing.T) {
 			name:     "user not found returns 404",
 			pathID:   "7",
 			authedAs: testUserID,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				GetByIDFn: func(_ context.Context, _ int64) (models.User, error) {
 					return models.User{}, user.ErrNotFound
 				},
@@ -117,7 +117,7 @@ func TestHandler_GetProfile(t *testing.T) {
 			name:     "service error returns 500",
 			pathID:   "7",
 			authedAs: testUserID,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				GetByIDFn: func(_ context.Context, _ int64) (models.User, error) {
 					return models.User{}, errors.New("db down")
 				},
@@ -129,7 +129,7 @@ func TestHandler_GetProfile(t *testing.T) {
 			name:     "success returns 200 with profile",
 			pathID:   "7",
 			authedAs: testUserID,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				GetByIDFn: func(_ context.Context, id int64) (models.User, error) {
 					return profileUser(), nil
 				},
@@ -179,7 +179,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 			pathID:      "7",
 			authedAs:    0,
 			body:        `{"username":"saqibtest","email":"saqib@example.com","picture":""}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusUnauthorized,
 			wantSuccess: false,
 		},
@@ -188,7 +188,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 			pathID:      "99",
 			authedAs:    testUserID,
 			body:        `{"username":"saqibtest","email":"saqib@example.com","picture":""}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusForbidden,
 			wantSuccess: false,
 		},
@@ -197,7 +197,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 			pathID:      "7",
 			authedAs:    testUserID,
 			body:        `{"username":"ab","email":"saqib@example.com","picture":""}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusBadRequest,
 			wantSuccess: false,
 			wantMsg:     "validation failed",
@@ -207,7 +207,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 			pathID:      "7",
 			authedAs:    testUserID,
 			body:        `{"username":"saqibtest","email":"not-an-email","picture":""}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusBadRequest,
 			wantSuccess: false,
 			wantMsg:     "validation failed",
@@ -217,7 +217,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 			pathID:   "7",
 			authedAs: testUserID,
 			body:     `{"username":"saqibtest","email":"saqib@example.com","picture":""}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				ReplaceProfileFn: func(_ context.Context, _ int64, _ user.ReplaceProfileRequest) (models.User, error) {
 					return models.User{}, user.ErrConflict
 				},
@@ -231,7 +231,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 			pathID:   "7",
 			authedAs: testUserID,
 			body:     `{"username":"saqibtest","email":"saqib@example.com","picture":""}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				ReplaceProfileFn: func(_ context.Context, _ int64, _ user.ReplaceProfileRequest) (models.User, error) {
 					return profileUser(), nil
 				},
@@ -281,7 +281,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:      "7",
 			authedAs:    0,
 			body:        `{"picture":"https://cdn.moniqo.app/new.png"}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusUnauthorized,
 			wantSuccess: false,
 		},
@@ -290,7 +290,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:      "99",
 			authedAs:    testUserID,
 			body:        `{"picture":"https://cdn.moniqo.app/new.png"}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusForbidden,
 			wantSuccess: false,
 		},
@@ -299,7 +299,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:      "7",
 			authedAs:    testUserID,
 			body:        `{}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusBadRequest,
 			wantSuccess: false,
 			wantMsg:     "validation failed",
@@ -309,7 +309,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:      "7",
 			authedAs:    testUserID,
 			body:        `{"new_password":"NewSecure99"}`,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusBadRequest,
 			wantSuccess: false,
 			wantMsg:     "validation failed",
@@ -319,7 +319,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:   "7",
 			authedAs: testUserID,
 			body:     `{"current_password":"wrong","new_password":"NewSecure99"}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				PatchProfileFn: func(_ context.Context, _ int64, _ user.PatchProfileRequest) (models.User, error) {
 					return models.User{}, user.ErrWrongPassword
 				},
@@ -333,7 +333,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:   "7",
 			authedAs: testUserID,
 			body:     `{"username":"saqibtest"}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				PatchProfileFn: func(_ context.Context, _ int64, _ user.PatchProfileRequest) (models.User, error) {
 					return models.User{}, user.ErrConflict
 				},
@@ -347,7 +347,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:   "7",
 			authedAs: testUserID,
 			body:     `{"picture":"https://cdn.moniqo.app/new.png"}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				PatchProfileFn: func(_ context.Context, _ int64, _ user.PatchProfileRequest) (models.User, error) {
 					u := profileUser()
 					u.Picture = "https://cdn.moniqo.app/new.png"
@@ -363,7 +363,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 			pathID:   "7",
 			authedAs: testUserID,
 			body:     `{"current_password":"OldSecure1","new_password":"NewSecure99"}`,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				PatchProfileFn: func(_ context.Context, _ int64, _ user.PatchProfileRequest) (models.User, error) {
 					return profileUser(), nil
 				},
@@ -411,7 +411,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:        "no auth claims returns 401",
 			pathID:      "7",
 			authedAs:    0,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusUnauthorized,
 			wantSuccess: false,
 		},
@@ -419,7 +419,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:        "id mismatch returns 403",
 			pathID:      "99",
 			authedAs:    testUserID,
-			svc:         &mock.MockUserService{},
+			svc:         &mock.UserService{},
 			wantStatus:  http.StatusForbidden,
 			wantSuccess: false,
 		},
@@ -427,7 +427,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:     "service error returns 500",
 			pathID:   "7",
 			authedAs: testUserID,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				DeleteFn: func(_ context.Context, _ int64) error {
 					return errors.New("db failure")
 				},
@@ -439,7 +439,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:     "success returns 200",
 			pathID:   "7",
 			authedAs: testUserID,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				DeleteFn: func(_ context.Context, _ int64) error {
 					return nil
 				},
@@ -452,7 +452,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:     "already-deleted user returns 200 (idempotent)",
 			pathID:   "7",
 			authedAs: testUserID,
-			svc: &mock.MockUserService{
+			svc: &mock.UserService{
 				DeleteFn: func(_ context.Context, _ int64) error {
 					return nil
 				},
