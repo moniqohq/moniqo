@@ -127,7 +127,23 @@ func (s *Svc) PatchProfile(ctx context.Context, id int64, req PatchProfileReques
 		return models.User{}, err
 	}
 
-	// Merge only present fields onto current values.
+	updated, err := s.repo.UpdateProfile(ctx, mergeProfileFields(id, current, req))
+	if err != nil {
+		return models.User{}, err
+	}
+
+	if req.CurrentPassword != nil && req.NewPassword != nil {
+		if err := s.changePassword(ctx, id, *req.CurrentPassword, *req.NewPassword); err != nil {
+			return models.User{}, err
+		}
+	}
+
+	return updated, nil
+}
+
+// mergeProfileFields overlays the non-nil patch fields onto the current profile
+// and returns an UpdateProfileParams ready for the repository.
+func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) UpdateProfileParams {
 	name := current.Name
 	if req.Name != nil {
 		name = req.Name
@@ -144,37 +160,31 @@ func (s *Svc) PatchProfile(ctx context.Context, id int64, req PatchProfileReques
 	if req.Picture != nil {
 		picture = *req.Picture
 	}
-
-	updated, err := s.repo.UpdateProfile(ctx, UpdateProfileParams{
+	return UpdateProfileParams{
 		ID:       id,
 		Name:     name,
 		Username: username,
 		Email:    emailAddr,
 		Picture:  picture,
-	})
+	}
+}
+
+// changePassword verifies currentPwd against the stored hash and, if it
+// matches, replaces it with a bcrypt hash of newPwd.
+func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd string) error {
+	hash, err := s.repo.GetHashByID(ctx, id)
 	if err != nil {
-		return models.User{}, err
+		return err
 	}
-
-	if req.CurrentPassword != nil && req.NewPassword != nil {
-		hash, err := s.repo.GetHashByID(ctx, id)
-		if err != nil {
-			return models.User{}, err
-		}
-		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(*req.CurrentPassword)); err != nil {
-			return models.User{}, ErrWrongPassword
-		}
-		newHash, err := bcrypt.GenerateFromPassword([]byte(*req.NewPassword), s.bcryptCost)
-		if err != nil {
-			s.log.Error("failed to hash new password", zap.Int64("user_id", id), zap.Error(err))
-			return models.User{}, err
-		}
-		if err := s.repo.UpdatePassword(ctx, id, string(newHash)); err != nil {
-			return models.User{}, err
-		}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(currentPwd)); err != nil {
+		return ErrWrongPassword
 	}
-
-	return updated, nil
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPwd), s.bcryptCost)
+	if err != nil {
+		s.log.Error("failed to hash new password", zap.Int64("user_id", id), zap.Error(err))
+		return err
+	}
+	return s.repo.UpdatePassword(ctx, id, string(newHash))
 }
 
 // Delete soft-deletes the user. It is idempotent.
