@@ -31,7 +31,7 @@ func setClaimsInContext(c echo.Context, claims *Claims) {
 //  2. Reject if the jti appears in revoked_access_tokens.
 //  3. Reject if the user (sub) no longer exists (soft-deleted).
 //  4. Attach the verified Claims to the Echo context.
-func Middleware(repo AuthRepository, jwtSecret []byte, log *zap.Logger) echo.MiddlewareFunc {
+func Middleware(repo Repository, jwtSecret []byte, log *zap.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			tokenString, err := extractBearerToken(c)

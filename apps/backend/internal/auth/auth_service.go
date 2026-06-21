@@ -14,8 +14,8 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
-// AuthRepository is the persistence contract for authentication operations.
-type AuthRepository interface {
+// Repository is the persistence contract for authentication operations.
+type Repository interface {
 	GetUserByEmail(ctx context.Context, email string) (UserCredentials, error)
 	UpdateLastLogin(ctx context.Context, userID int64) error
 	InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error
@@ -29,9 +29,9 @@ type AuthRepository interface {
 	RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertRefreshTokenRepoParams) ([16]byte, error)
 }
 
-// AuthSvc implements authentication business logic.
-type AuthSvc struct {
-	repo               AuthRepository
+// Svc implements authentication business logic.
+type Svc struct {
+	repo               Repository
 	jwtSecret          []byte
 	accessTokenTTL     time.Duration
 	refreshTokenTTL    time.Duration
@@ -41,14 +41,14 @@ type AuthSvc struct {
 
 // NewAuthSvc returns an AuthSvc wired to the given repository and JWT configuration.
 func NewAuthSvc(
-	repo AuthRepository,
+	repo Repository,
 	jwtSecret []byte,
 	accessTokenTTL time.Duration,
 	refreshTokenTTL time.Duration,
 	refreshTokenMaxAge time.Duration,
 	log *zap.Logger,
-) *AuthSvc {
-	return &AuthSvc{
+) *Svc {
+	return &Svc{
 		repo:               repo,
 		jwtSecret:          jwtSecret,
 		accessTokenTTL:     accessTokenTTL,
@@ -60,7 +60,7 @@ func NewAuthSvc(
 
 // Login verifies credentials, enforces account status, issues an access token,
 // and updates last_login on success.
-func (s *AuthSvc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) {
+func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) {
 	s.log.Info("processing login", zap.String("email", req.Email))
 
 	creds, err := s.repo.GetUserByEmail(ctx, req.Email)
@@ -110,7 +110,7 @@ func (s *AuthSvc) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 
 // IssueRefreshToken creates a new token family and inserts the first refresh
 // token row. Returns the raw token (sent to the client) and its expiry.
-func (s *AuthSvc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue, error) {
+func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue, error) {
 	raw, hash, err := GenerateRefreshToken()
 	if err != nil {
 		return RefreshIssue{}, err
@@ -137,7 +137,7 @@ func (s *AuthSvc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshI
 // RefreshAccessToken validates rawToken, detects reuse, rotates the token, and
 // mints a new access token. Returns ErrRefreshTokenInvalid for all invalid/
 // rejected states so the handler never leaks the specific failure reason.
-func (s *AuthSvc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshResult, error) {
+func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshResult, error) {
 	hash := HashRefreshToken(rawToken)
 
 	row, err := s.repo.GetRefreshTokenByHash(ctx, hash)
@@ -211,7 +211,7 @@ func (s *AuthSvc) RefreshAccessToken(ctx context.Context, rawToken string) (Refr
 
 // Logout inserts the access token's jti into the revocation blocklist so that
 // subsequent requests carrying it are rejected by the auth middleware.
-func (s *AuthSvc) Logout(ctx context.Context, params LogoutParams) error {
+func (s *Svc) Logout(ctx context.Context, params LogoutParams) error {
 	s.log.Info("processing logout", zap.Int64("user_id", params.UserID))
 
 	jtiPg := pgtype.UUID{Bytes: params.JTI, Valid: true}

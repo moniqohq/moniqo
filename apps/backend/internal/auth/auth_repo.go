@@ -14,19 +14,19 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
-// AuthRepo implements AuthRepository using PostgreSQL.
-type AuthRepo struct {
+// Repo implements Repository using PostgreSQL.
+type Repo struct {
 	pool *pgxpool.Pool
 	log  *zap.Logger
 }
 
-// NewAuthRepo returns an AuthRepo backed by the given connection pool.
-func NewAuthRepo(pool *pgxpool.Pool, log *zap.Logger) *AuthRepo {
-	return &AuthRepo{pool: pool, log: log}
+// NewAuthRepo returns a Repo backed by the given connection pool.
+func NewAuthRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
+	return &Repo{pool: pool, log: log}
 }
 
 // GetUserByEmail fetches a user's public fields and password hash by email address.
-func (r *AuthRepo) GetUserByEmail(ctx context.Context, email string) (UserCredentials, error) {
+func (r *Repo) GetUserByEmail(ctx context.Context, email string) (UserCredentials, error) {
 	q := db.New(r.pool)
 	row, err := q.GetUserByEmail(ctx, email)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -43,7 +43,7 @@ func (r *AuthRepo) GetUserByEmail(ctx context.Context, email string) (UserCreden
 }
 
 // UpdateLastLogin records the current timestamp as the user's last successful login.
-func (r *AuthRepo) UpdateLastLogin(ctx context.Context, userID int64) error {
+func (r *Repo) UpdateLastLogin(ctx context.Context, userID int64) error {
 	q := db.New(r.pool)
 	if err := q.UpdateLastLogin(ctx, userID); err != nil {
 		r.log.Error("UpdateLastLogin query failed", zap.Int64("user_id", userID), zap.Error(err))
@@ -53,7 +53,7 @@ func (r *AuthRepo) UpdateLastLogin(ctx context.Context, userID int64) error {
 }
 
 // InsertRevokedAccessToken adds a JWT JTI to the revocation list so it cannot be reused after logout.
-func (r *AuthRepo) InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error {
+func (r *Repo) InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error {
 	q := db.New(r.pool)
 	err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
 		Jti:       p.JTI,
@@ -68,7 +68,7 @@ func (r *AuthRepo) InsertRevokedAccessToken(ctx context.Context, p InsertRevoked
 }
 
 // IsAccessTokenRevoked reports whether the given JTI appears in the revocation list.
-func (r *AuthRepo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error) {
+func (r *Repo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error) {
 	q := db.New(r.pool)
 	revoked, err := q.IsAccessTokenRevoked(ctx, jti)
 	if err != nil {
@@ -79,7 +79,7 @@ func (r *AuthRepo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (b
 }
 
 // UserExistsByID reports whether a user row with the given ID exists in the database.
-func (r *AuthRepo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
+func (r *Repo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
 	q := db.New(r.pool)
 	_, err := q.GetUserByID(ctx, userID)
 	if errors.Is(err, pgx.ErrNoRows) {
