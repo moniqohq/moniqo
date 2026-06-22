@@ -2,6 +2,8 @@
 package logger
 
 import (
+	"fmt"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -48,7 +50,7 @@ func New(cfg Config) (*zap.Logger, error) {
 
 	log, err := zapCfg.Build(zap.AddCallerSkip(0))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build logger: %w", err)
 	}
 
 	const maxStaticFields = 2

@@ -48,7 +48,7 @@ func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	}()
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return fmt.Errorf("smtp send cancelled: %w", ctx.Err())
 	case r := <-ch:
 		return r.err
 	}

@@ -44,11 +44,11 @@ func renderSubject(name TemplateName, data any) (string, error) {
 	path := fmt.Sprintf("templates/%s.html", name)
 	tmpl, err := htmltmpl.ParseFS(templateFS, path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse subject template: %w", err)
 	}
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "subject", data); err != nil {
-		return "", err
+		return "", fmt.Errorf("execute subject template: %w", err)
 	}
 	return buf.String(), nil
 }
@@ -58,11 +58,11 @@ func renderHTML(name TemplateName, data any) (string, error) {
 	content := fmt.Sprintf("templates/%s.html", name)
 	tmpl, err := htmltmpl.ParseFS(templateFS, base, content)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse html template: %w", err)
 	}
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
-		return "", err
+		return "", fmt.Errorf("execute html template: %w", err)
 	}
 	return buf.String(), nil
 }
@@ -71,11 +71,11 @@ func renderText(name TemplateName, data any) (string, error) {
 	path := fmt.Sprintf("templates/%s.txt", name)
 	tmpl, err := texttmpl.ParseFS(templateFS, path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("parse text template: %w", err)
 	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
+		return "", fmt.Errorf("execute text template: %w", err)
 	}
 	return buf.String(), nil
 }

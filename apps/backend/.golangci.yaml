@@ -66,6 +66,8 @@ linters:
   settings:
     cyclop:
       max-complexity: 15
+    lll:
+      line-length: 140
     misspell:
       locale: US
     revive:
@@ -83,8 +85,14 @@ linters:
       ignore-package-globs:
         - '**/mock'
         - '**/*_test'
+        - github.com/labstack/echo/v4
+        - github.com/moniqohq/moniqo/apps/backend/internal/httpx
   exclusions:
     warn-unused: true
+    rules:
+      - linters:
+          - misspell
+        text: cancelled
     # Mode of the generated files analysis.
     #
     # - `strict`: sources are excluded by strictly following the Go generated file convention.

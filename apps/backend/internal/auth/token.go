@@ -43,7 +43,7 @@ func GenerateAccessToken(userID int64, secret []byte, ttl time.Duration) (string
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(secret)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("sign token: %w", err)
 	}
 	return signed, claims, nil
 }
@@ -83,7 +83,7 @@ func ParseAccessToken(tokenString string, secret []byte) (*Claims, error) {
 		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse token: %w", err)
 	}
 
 	claims, ok := token.Claims.(*Claims)

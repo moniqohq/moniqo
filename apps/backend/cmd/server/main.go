@@ -178,13 +178,16 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 func runMigrations(dsn string) error {
 	conn, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return err
+		return fmt.Errorf("open db connection: %w", err)
 	}
 	defer conn.Close()
 
 	goose.SetBaseFS(migrations.Migrations)
 	if err := goose.SetDialect("postgres"); err != nil {
-		return err
+		return fmt.Errorf("set goose dialect: %w", err)
 	}
-	return goose.Up(conn, ".")
+	if err := goose.Up(conn, "."); err != nil {
+		return fmt.Errorf("run migrations: %w", err)
+	}
+	return nil
 }

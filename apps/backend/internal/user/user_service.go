@@ -60,7 +60,7 @@ func (s *Svc) Register(ctx context.Context, req RegisterRequest) (models.User, e
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), s.bcryptCost)
 	if err != nil {
 		s.log.Error("failed to hash password", zap.String("username", req.Username), zap.Error(err))
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("hash password: %w", err)
 	}
 
 	s.log.Debug("persisting user via repo", zap.String("username", req.Username))
@@ -79,7 +79,7 @@ func (s *Svc) Register(ctx context.Context, req RegisterRequest) (models.User, e
 		} else {
 			s.log.Error("failed to persist user", zap.String("username", req.Username), zap.Error(err))
 		}
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("create user: %w", err)
 	}
 
 	s.log.Info("user registered successfully", zap.Int64("user_id", pub.ID), zap.String("username", pub.Username))
@@ -89,20 +89,28 @@ func (s *Svc) Register(ctx context.Context, req RegisterRequest) (models.User, e
 
 // GetByID returns the public-safe profile for the given user id.
 func (s *Svc) GetByID(ctx context.Context, id int64) (models.User, error) {
-	return s.repo.GetByID(ctx, id)
+	u, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return models.User{}, fmt.Errorf("get user by id: %w", err)
+	}
+	return u, nil
 }
 
 // ReplaceProfile performs a full profile replacement (PUT semantics).
 // Absent name becomes nil; absent picture becomes "".
 func (s *Svc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error) {
 	s.log.Info("replacing user profile", zap.Int64("user_id", id))
-	return s.repo.UpdateProfile(ctx, UpdateProfileParams{
+	u, err := s.repo.UpdateProfile(ctx, UpdateProfileParams{
 		ID:       id,
 		Name:     req.Name,
 		Username: req.Username,
 		Email:    req.Email,
 		Picture:  req.Picture,
 	})
+	if err != nil {
+		return models.User{}, fmt.Errorf("update profile: %w", err)
+	}
+	return u, nil
 }
 
 // PatchProfile applies only the non-nil fields from req to the current profile.
@@ -113,12 +121,12 @@ func (s *Svc) PatchProfile(ctx context.Context, id int64, req PatchProfileReques
 
 	current, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("get user by id: %w", err)
 	}
 
 	updated, err := s.repo.UpdateProfile(ctx, mergeProfileFields(id, current, req))
 	if err != nil {
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("update profile: %w", err)
 	}
 
 	if req.CurrentPassword != nil && req.NewPassword != nil {
@@ -161,7 +169,10 @@ func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) 
 // Delete soft-deletes the user. It is idempotent.
 func (s *Svc) Delete(ctx context.Context, id int64) error {
 	s.log.Info("soft-deleting user", zap.Int64("user_id", id))
-	return s.repo.SoftDelete(ctx, id)
+	if err := s.repo.SoftDelete(ctx, id); err != nil {
+		return fmt.Errorf("soft delete user: %w", err)
+	}
+	return nil
 }
 
 // verificationToken returns a time-limited HMAC-SHA256 token that encodes the
@@ -186,7 +197,7 @@ func (s *Svc) verificationToken(userID int64) string {
 func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd string) error {
 	hash, err := s.repo.GetHashByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("get hash by id: %w", err)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(currentPwd)); err != nil {
 		return ErrWrongPassword
@@ -194,9 +205,12 @@ func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd s
 	newHash, err := bcrypt.GenerateFromPassword([]byte(newPwd), s.bcryptCost)
 	if err != nil {
 		s.log.Error("failed to hash new password", zap.Int64("user_id", id), zap.Error(err))
-		return err
+		return fmt.Errorf("hash new password: %w", err)
 	}
-	return s.repo.UpdatePassword(ctx, id, string(newHash))
+	if err := s.repo.UpdatePassword(ctx, id, string(newHash)); err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	return nil
 }
 
 func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {

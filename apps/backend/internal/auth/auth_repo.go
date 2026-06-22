@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -34,7 +35,7 @@ func (r *Repo) GetUserByEmail(ctx context.Context, email string) (UserCredential
 	}
 	if err != nil {
 		r.log.Error("GetUserByEmail query failed", zap.String("email", email), zap.Error(err))
-		return UserCredentials{}, err
+		return UserCredentials{}, fmt.Errorf("get user by email: %w", err)
 	}
 	return UserCredentials{
 		User: rowToPublic(row),
@@ -47,7 +48,7 @@ func (r *Repo) UpdateLastLogin(ctx context.Context, userID int64) error {
 	q := db.New(r.pool)
 	if err := q.UpdateLastLogin(ctx, userID); err != nil {
 		r.log.Error("UpdateLastLogin query failed", zap.Int64("user_id", userID), zap.Error(err))
-		return err
+		return fmt.Errorf("update last login: %w", err)
 	}
 	return nil
 }
@@ -62,7 +63,7 @@ func (r *Repo) InsertRevokedAccessToken(ctx context.Context, p InsertRevokedToke
 	})
 	if err != nil {
 		r.log.Error("InsertRevokedAccessToken query failed", zap.Error(err))
-		return err
+		return fmt.Errorf("insert revoked token: %w", err)
 	}
 	return nil
 }
@@ -73,7 +74,7 @@ func (r *Repo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool,
 	revoked, err := q.IsAccessTokenRevoked(ctx, jti)
 	if err != nil {
 		r.log.Error("IsAccessTokenRevoked query failed", zap.Error(err))
-		return false, err
+		return false, fmt.Errorf("check token revoked: %w", err)
 	}
 	return revoked, nil
 }
@@ -87,7 +88,7 @@ func (r *Repo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
 	}
 	if err != nil {
 		r.log.Error("UserExistsByID query failed", zap.Int64("user_id", userID), zap.Error(err))
-		return false, err
+		return false, fmt.Errorf("get user by id: %w", err)
 	}
 	return true, nil
 }

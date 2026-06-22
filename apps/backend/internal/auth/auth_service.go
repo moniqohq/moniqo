@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -70,7 +71,7 @@ func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) 
 	}
 	if err != nil {
 		s.log.Error("login: repo error on GetUserByEmail", zap.String("email", req.Email), zap.Error(err))
-		return LoginResult{}, err
+		return LoginResult{}, fmt.Errorf("get user by email: %w", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(creds.Hash), []byte(req.Password)); err != nil {
@@ -97,7 +98,7 @@ func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) 
 
 	if err := s.repo.UpdateLastLogin(ctx, creds.User.ID); err != nil {
 		s.log.Error("login: failed to update last_login", zap.Int64("user_id", creds.User.ID), zap.Error(err))
-		return LoginResult{}, err
+		return LoginResult{}, fmt.Errorf("update last login: %w", err)
 	}
 
 	s.log.Info("login successful", zap.Int64("user_id", creds.User.ID))
@@ -221,7 +222,7 @@ func (s *Svc) Logout(ctx context.Context, params LogoutParams) error {
 		ExpiresAt: params.ExpiresAt,
 	}); err != nil {
 		s.log.Error("logout: failed to revoke access token", zap.Int64("user_id", params.UserID), zap.Error(err))
-		return err
+		return fmt.Errorf("insert revoked token: %w", err)
 	}
 
 	s.log.Info("logout successful", zap.Int64("user_id", params.UserID))

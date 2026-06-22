@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -61,7 +62,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.User, error) 
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		r.log.Error("failed to begin transaction", zap.Error(err))
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
@@ -73,7 +74,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.User, error) 
 	r.log.Debug("committing transaction", zap.Int64("user_id", pub.ID))
 	if err := tx.Commit(ctx); err != nil {
 		r.log.Error("failed to commit user insert transaction", zap.Int64("user_id", pub.ID), zap.Error(err))
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("commit transaction: %w", err)
 	}
 
 	r.log.Info("user row committed to database", zap.Int64("user_id", pub.ID), zap.String("username", pub.Username))
@@ -95,7 +96,7 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (models.User, error) {
 			return models.User{}, ErrNotFound
 		}
 		r.log.Error("GetUserByID query failed", zap.Int64("user_id", id), zap.Error(err))
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("get user by id: %w", err)
 	}
 	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt), nil
 }
@@ -122,7 +123,7 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 			return models.User{}, ErrConflict
 		}
 		r.log.Error("UpdateUserProfile query failed", zap.Int64("user_id", p.ID), zap.Error(err))
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("update user profile: %w", err)
 	}
 	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt), nil
 }
@@ -131,7 +132,10 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error {
 	r.log.Debug("executing UpdateUserPassword query", zap.Int64("user_id", id))
 	q := db.New(r.pool)
-	return q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{ID: id, Hash: hash})
+	if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{ID: id, Hash: hash}); err != nil {
+		return fmt.Errorf("update user password: %w", err)
+	}
+	return nil
 }
 
 // SoftDelete sets deleted_at on the user row. It is idempotent: if the user is
@@ -139,7 +143,10 @@ func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error 
 func (r *Repo) SoftDelete(ctx context.Context, id int64) error {
 	r.log.Debug("executing SoftDeleteUser query", zap.Int64("user_id", id))
 	q := db.New(r.pool)
-	return q.SoftDeleteUser(ctx, id)
+	if err := q.SoftDeleteUser(ctx, id); err != nil {
+		return fmt.Errorf("soft delete user: %w", err)
+	}
+	return nil
 }
 
 // GetHashByID returns the bcrypt hash for the given user.
@@ -153,7 +160,7 @@ func (r *Repo) GetHashByID(ctx context.Context, id int64) (string, error) {
 			return "", ErrNotFound
 		}
 		r.log.Error("GetUserHashByID query failed", zap.Int64("user_id", id), zap.Error(err))
-		return "", err
+		return "", fmt.Errorf("get user hash by id: %w", err)
 	}
 	return hash, nil
 }
@@ -177,7 +184,7 @@ func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (mod
 			return models.User{}, ErrConflict
 		}
 		r.log.Error("CreateUser query failed", zap.String("username", p.Username), zap.Error(err))
-		return models.User{}, err
+		return models.User{}, fmt.Errorf("create user: %w", err)
 	}
 
 	r.log.Debug("CreateUser query succeeded", zap.Int64("user_id", row.ID))

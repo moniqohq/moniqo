@@ -61,7 +61,7 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 			zap.String("to", p.To),
 			zap.Error(err),
 		)
-		return err
+		return fmt.Errorf("enqueue email job: %w", err)
 	}
 	r.log.Debug("email job enqueued",
 		zap.String("idempotency_key", p.IdempotencyKey),
@@ -95,7 +95,7 @@ func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]Claim
 	})
 	if err != nil {
 		r.log.Error("failed to lock email jobs", zap.Int32("limit", n), zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("lock email jobs: %w", err)
 	}
 	jobs := make([]ClaimedJob, len(rows))
 	for i, row := range rows {
@@ -120,7 +120,7 @@ func (r *Repo) MarkSent(ctx context.Context, id pgtype.UUID) error {
 			zap.String("job_id", uuid.UUID(id.Bytes).String()),
 			zap.Error(err),
 		)
-		return err
+		return fmt.Errorf("mark email job sent: %w", err)
 	}
 	r.log.Debug("email job marked sent", zap.String("job_id", uuid.UUID(id.Bytes).String()))
 	return nil
@@ -144,7 +144,7 @@ func (r *Repo) MarkFailed(ctx context.Context, id pgtype.UUID, errMsg string, at
 			zap.Int32("attempt", attempt),
 			zap.Error(err),
 		)
-		return err
+		return fmt.Errorf("mark email job failed: %w", err)
 	}
 	r.log.Debug("email job marked failed",
 		zap.String("job_id", uuid.UUID(id.Bytes).String()),
