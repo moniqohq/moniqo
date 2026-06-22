@@ -43,35 +43,36 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
-	defer log.Sync() //nolint:errcheck
 
-	if cfg.DatabaseURL == "" {
-		log.Error("DATABASE_URL is required")
+	if err := start(cfg, log); err != nil {
+		log.Error("fatal", zap.Error(err))
+		_ = log.Sync()
 		os.Exit(1)
+	}
+	_ = log.Sync()
+}
+
+func start(cfg config.Config, log *zap.Logger) error {
+	if cfg.DatabaseURL == "" {
+		return errors.New("DATABASE_URL is required")
 	}
 
 	if cfg.JWTSecret == "" {
-		log.Error("JWT_SECRET is required")
-		os.Exit(1)
+		return errors.New("JWT_SECRET is required")
 	}
 
 	if err := runMigrations(cfg.DatabaseURL); err != nil {
-		log.Error("migration failed", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
-		log.Error("failed to connect to database", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer pool.Close()
 
 	e := buildServer(cfg, pool, log)
-	if err := run(e, ":"+cfg.Port, log); err != nil {
-		log.Error("server error", zap.Error(err))
-		os.Exit(1)
-	}
+	return run(e, ":"+cfg.Port, log)
 }
 
 func run(e *echo.Echo, addr string, log *zap.Logger) error {
