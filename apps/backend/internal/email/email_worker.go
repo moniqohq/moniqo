@@ -49,7 +49,7 @@ func NewWorker(repo *Repo, provider providers.Provider, cfg WorkerConfig, log *z
 	}
 }
 
-// Run starts the poll loop and blocks until ctx is cancelled.  Call it in a
+// Run starts the poll loop and blocks until ctx is canceled.  Call it in a
 // goroutine from main.go.  The current tick (if any) drains before Run returns.
 func (w *Worker) Run(ctx context.Context) {
 	w.wg.Add(1)
@@ -150,4 +150,3 @@ func (w *Worker) failJob(ctx context.Context, job *ClaimedJob, errMsg string, lo
 		log.Warn("email job moved to dead letter", zap.Int32("max_attempts", job.MaxAttempts))
 	}
 }
-

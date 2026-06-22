@@ -33,7 +33,7 @@ func NewSMTP(cfg SMTPConfig) *SMTPProvider {
 	return &SMTPProvider{cfg: cfg}
 }
 
-// Send delivers msg using SMTP, honouring ctx for cancellation.
+// Send delivers msg using SMTP, honoring ctx for cancellation.
 func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	type result struct{ err error }
 	ch := make(chan result, 1)

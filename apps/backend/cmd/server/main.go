@@ -11,12 +11,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
-	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
+
+	echomw "github.com/labstack/echo/v4/middleware"
 
 	"github.com/moniqohq/moniqo/apps/backend/db/migrations"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
@@ -66,7 +68,7 @@ func main() {
 	defer pool.Close()
 
 	e := buildServer(cfg, pool, log)
-	if err := run(e, fmt.Sprintf(":%s", cfg.Port), log); err != nil {
+	if err := run(e, ":"+cfg.Port, log); err != nil {
 		log.Error("server error", zap.Error(err))
 		os.Exit(1)
 	}

@@ -1,10 +1,11 @@
 package middleware
 
 import (
+	"github.com/labstack/echo/v4"
 	"golang.org/x/time/rate"
 
-	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
+
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 )
 

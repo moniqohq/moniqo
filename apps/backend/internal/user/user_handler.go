@@ -7,11 +7,12 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
+
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
-	"go.uber.org/zap"
 )
 
 // Service is the service contract required by Handler.

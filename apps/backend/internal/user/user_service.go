@@ -3,16 +3,17 @@ package user
 import (
 	"context"
 	"crypto/hmac"
-	"errors"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/moniqohq/moniqo/apps/backend/internal/email"
-	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/moniqohq/moniqo/apps/backend/internal/email"
+	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
 // Repository is the persistence contract required by Svc.
