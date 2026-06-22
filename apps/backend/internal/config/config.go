@@ -51,8 +51,12 @@ type EmailConfig struct {
 	BaseBackoff    time.Duration // EMAIL_BASE_BACKOFF (default 30s)
 }
 
+// Load reads configuration from environment variables, falling back to sensible
+// defaults. It also attempts to load a .env file from the repo root if present.
 func Load() Config {
 	_ = godotenv.Load("../../.env")
+
+	env := envOrDefault("APP_ENV", "production")
 
 	cost := defaultBcryptCost
 	if v := os.Getenv("BCRYPT_COST"); v != "" {
@@ -61,111 +65,66 @@ func Load() Config {
 		}
 	}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	env := os.Getenv("APP_ENV")
-	if env == "" {
-		env = "production"
-	}
-
-	logLevel := os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "info"
-	}
-
-	ttl := defaultAccessTokenTTL
-	if v := os.Getenv("ACCESS_TOKEN_TTL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil && d > 0 {
-			ttl = d
-		}
-	}
-
-	refreshTTL := defaultRefreshTokenTTL
-	if v := os.Getenv("REFRESH_TOKEN_TTL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil && d > 0 {
-			refreshTTL = d
-		}
-	}
-
-	refreshMaxAge := defaultRefreshTokenMaxAge
-	if v := os.Getenv("REFRESH_TOKEN_MAX_AGE"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil && d > 0 {
-			refreshMaxAge = d
-		}
-	}
-
-	appBaseURL := os.Getenv("APP_BASE_URL")
-	if appBaseURL == "" {
-		appBaseURL = "http://localhost:3000"
-	}
-
-	emailProvider := os.Getenv("EMAIL_PROVIDER")
-	if emailProvider == "" {
-		if env == "development" {
-			emailProvider = "noop"
-		} else {
-			emailProvider = "smtp"
-		}
-	}
-
-	fromName := os.Getenv("EMAIL_FROM_NAME")
-	if fromName == "" {
-		fromName = "Moniqo"
-	}
-
-	smtpPort := defaultSMTPPort
-	if v := os.Getenv("EMAIL_SMTP_PORT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			smtpPort = n
-		}
-	}
-
-	workerInterval := defaultWorkerInterval
-	if v := os.Getenv("EMAIL_WORKER_INTERVAL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil && d > 0 {
-			workerInterval = d
-		}
-	}
-
-	workerBatch := defaultWorkerBatch
-	if v := os.Getenv("EMAIL_WORKER_BATCH"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			workerBatch = int32(n)
-		}
-	}
-
-	baseBackoff := defaultBaseBackoff
-	if v := os.Getenv("EMAIL_BASE_BACKOFF"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil && d > 0 {
-			baseBackoff = d
-		}
-	}
-
 	return Config{
-		Port:               port,
+		Port:               envOrDefault("PORT", "8080"),
 		DatabaseURL:        os.Getenv("DATABASE_URL"),
 		BcryptCost:         cost,
 		Env:                env,
-		LogLevel:           logLevel,
+		LogLevel:           envOrDefault("LOG_LEVEL", "info"),
 		JWTSecret:          os.Getenv("JWT_SECRET"),
-		AccessTokenTTL:     ttl,
-		RefreshTokenTTL:    refreshTTL,
-		RefreshTokenMaxAge: refreshMaxAge,
-		AppBaseURL:         appBaseURL,
-		Email: EmailConfig{
-			Provider:       emailProvider,
-			FromAddress:    os.Getenv("EMAIL_FROM_ADDRESS"),
-			FromName:       fromName,
-			SMTPHost:       os.Getenv("EMAIL_SMTP_HOST"),
-			SMTPPort:       smtpPort,
-			SMTPUser:       os.Getenv("EMAIL_SMTP_USER"),
-			SMTPPassword:   os.Getenv("EMAIL_SMTP_PASSWORD"),
-			WorkerInterval: workerInterval,
-			WorkerBatch:    workerBatch,
-			BaseBackoff:    baseBackoff,
-		},
+		AccessTokenTTL:     envDuration("ACCESS_TOKEN_TTL", defaultAccessTokenTTL),
+		RefreshTokenTTL:    envDuration("REFRESH_TOKEN_TTL", defaultRefreshTokenTTL),
+		RefreshTokenMaxAge: envDuration("REFRESH_TOKEN_MAX_AGE", defaultRefreshTokenMaxAge),
+		AppBaseURL:         envOrDefault("APP_BASE_URL", "http://localhost:3000"),
+		Email:              loadEmailConfig(env),
 	}
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func envDuration(key string, fallback time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	if d, err := time.ParseDuration(v); err == nil && d > 0 {
+		return d
+	}
+	return fallback
+}
+
+func loadEmailConfig(env string) EmailConfig {
+	defaultProvider := "smtp"
+	if env == "development" {
+		defaultProvider = "noop"
+	}
+
+	return EmailConfig{
+		Provider:       envOrDefault("EMAIL_PROVIDER", defaultProvider),
+		FromAddress:    os.Getenv("EMAIL_FROM_ADDRESS"),
+		FromName:       envOrDefault("EMAIL_FROM_NAME", "Moniqo"),
+		SMTPHost:       os.Getenv("EMAIL_SMTP_HOST"),
+		SMTPPort:       envInt("EMAIL_SMTP_PORT", defaultSMTPPort),
+		SMTPUser:       os.Getenv("EMAIL_SMTP_USER"),
+		SMTPPassword:   os.Getenv("EMAIL_SMTP_PASSWORD"),
+		WorkerInterval: envDuration("EMAIL_WORKER_INTERVAL", defaultWorkerInterval),
+		WorkerBatch:    int32(envInt("EMAIL_WORKER_BATCH", int(defaultWorkerBatch))),
+		BaseBackoff:    envDuration("EMAIL_BASE_BACKOFF", defaultBaseBackoff),
+	}
+}
+
+func envInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	if n, err := strconv.Atoi(v); err == nil && n > 0 {
+		return n
+	}
+	return fallback
 }

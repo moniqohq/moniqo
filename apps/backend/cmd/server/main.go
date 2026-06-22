@@ -66,10 +66,13 @@ func main() {
 	defer pool.Close()
 
 	e := buildServer(cfg, pool, log)
-	run(e, fmt.Sprintf(":%s", cfg.Port), log)
+	if err := run(e, fmt.Sprintf(":%s", cfg.Port), log); err != nil {
+		log.Error("server error", zap.Error(err))
+		os.Exit(1)
+	}
 }
 
-func run(e *echo.Echo, addr string, log *zap.Logger) {
+func run(e *echo.Echo, addr string, log *zap.Logger) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -84,9 +87,9 @@ func run(e *echo.Echo, addr string, log *zap.Logger) {
 	}()
 
 	if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Error("server error", zap.Error(err))
-		os.Exit(1)
+		return err
 	}
+	return nil
 }
 
 func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.Echo {

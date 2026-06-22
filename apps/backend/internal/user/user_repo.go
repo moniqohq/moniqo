@@ -52,9 +52,9 @@ func toPublicUser(
 	}
 }
 
-// create inserts a user row within the provided transaction and returns the
+// insertWithTx inserts a user row within the provided transaction and returns the
 // public-safe model. Callers are responsible for commit/rollback.
-func (r *Repo) create(ctx context.Context, tx pgx.Tx, p CreateParams) (models.User, error) {
+func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (models.User, error) {
 	r.log.Debug("executing CreateUser query", zap.String("username", p.Username), zap.String("email", p.Email))
 
 	q := db.New(tx)
@@ -90,7 +90,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.User, error) 
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	pub, err := r.create(ctx, tx, p)
+	pub, err := r.insertWithTx(ctx, tx, p)
 	if err != nil {
 		return models.User{}, err
 	}
