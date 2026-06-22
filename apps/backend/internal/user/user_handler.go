@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	fieldBody       = "body"
-	errInvalidJSON  = "invalid json"
+	fieldBody      = "body"
+	errInvalidJSON = "invalid json"
 )
 
 // Service is the service contract required by Handler.

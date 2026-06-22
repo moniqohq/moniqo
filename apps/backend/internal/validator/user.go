@@ -11,11 +11,11 @@ import (
 // usernameRe enforces: starts with a letter, followed by alphanumeric chars, with
 // optional single - or _ separators between alphanumeric segments.
 const (
-	fieldEmail       = "email"
-	minPasswordLen   = 8
-	maxPasswordLen   = 72
-	maxEmailLen      = 254
-	maxNameLen       = 100
+	fieldEmail     = "email"
+	minPasswordLen = 8
+	maxPasswordLen = 72
+	maxEmailLen    = 254
+	maxNameLen     = 100
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)

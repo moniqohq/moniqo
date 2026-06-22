@@ -3,6 +3,7 @@ package models
 
 import "time"
 
+// UserStatus represents the lifecycle state of a user account.
 type UserStatus string
 
 const (
