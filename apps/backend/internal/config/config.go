@@ -113,7 +113,7 @@ func loadEmailConfig(env string) EmailConfig {
 		SMTPUser:       os.Getenv("EMAIL_SMTP_USER"),
 		SMTPPassword:   os.Getenv("EMAIL_SMTP_PASSWORD"),
 		WorkerInterval: envDuration("EMAIL_WORKER_INTERVAL", defaultWorkerInterval),
-		WorkerBatch:    int32(envInt("EMAIL_WORKER_BATCH", int(defaultWorkerBatch))),
+		WorkerBatch:    envInt32("EMAIL_WORKER_BATCH", defaultWorkerBatch),
 		BaseBackoff:    envDuration("EMAIL_BASE_BACKOFF", defaultBaseBackoff),
 	}
 }
@@ -125,6 +125,17 @@ func envInt(key string, fallback int) int {
 	}
 	if n, err := strconv.Atoi(v); err == nil && n > 0 {
 		return n
+	}
+	return fallback
+}
+
+func envInt32(key string, fallback int32) int32 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	if n, err := strconv.ParseInt(v, 10, 32); err == nil && n > 0 {
+		return int32(n)
 	}
 	return fallback
 }
