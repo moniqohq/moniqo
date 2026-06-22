@@ -144,34 +144,26 @@ type PatchProfileInput struct {
 	NewPassword     *string
 }
 
-// ValidatePatchProfile returns an error list. It rejects an empty body (all nil)
-// and validates only the fields that are present.
-func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
-	profileFields := in.Name != nil || in.Username != nil || in.Email != nil || in.Picture != nil
-	passwordFields := in.CurrentPassword != nil || in.NewPassword != nil
-	if !profileFields && !passwordFields {
-		return []httpx.FieldError{{Field: "body", Error: "request body must contain at least one field"}}
-	}
-
+func validatePatchProfileFields(in PatchProfileInput) []httpx.FieldError {
 	var errs []httpx.FieldError
-
 	if in.Username != nil {
 		if fe := validateUsername(*in.Username); fe != nil {
 			errs = append(errs, *fe)
 		}
 	}
-
 	if in.Email != nil {
 		if fe := validateEmail(*in.Email); fe != nil {
 			errs = append(errs, *fe)
 		}
 	}
-
 	if fe := validateName(in.Name); fe != nil {
 		errs = append(errs, *fe)
 	}
+	return errs
+}
 
-	// Password change: both fields must be present together.
+func validatePatchPasswordFields(in PatchProfileInput) []httpx.FieldError {
+	var errs []httpx.FieldError
 	if in.CurrentPassword == nil && in.NewPassword != nil {
 		errs = append(errs, httpx.FieldError{Field: "current_password", Error: "required when changing password"})
 	}
@@ -183,6 +175,17 @@ func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
 			errs = append(errs, *fe)
 		}
 	}
-
 	return errs
+}
+
+// ValidatePatchProfile returns an error list. It rejects an empty body (all nil)
+// and validates only the fields that are present.
+func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
+	profileFields := in.Name != nil || in.Username != nil || in.Email != nil || in.Picture != nil
+	passwordFields := in.CurrentPassword != nil || in.NewPassword != nil
+	if !profileFields && !passwordFields {
+		return []httpx.FieldError{{Field: "body", Error: "request body must contain at least one field"}}
+	}
+	errs := validatePatchProfileFields(in)
+	return append(errs, validatePatchPasswordFields(in)...)
 }

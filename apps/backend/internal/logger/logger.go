@@ -19,14 +19,20 @@ type Config struct {
 	Env string
 }
 
+func parseLevel(s string) zapcore.Level {
+	var l zapcore.Level
+	if err := l.UnmarshalText([]byte(s)); err != nil {
+		return zapcore.InfoLevel
+	}
+	return l
+}
+
 // New builds a *zap.Logger from Config.
 // Returns an error only if the underlying zap build fails (effectively never in practice).
 func New(cfg Config) (*zap.Logger, error) {
 	level := zapcore.InfoLevel
 	if cfg.Level != "" {
-		if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
-			level = zapcore.InfoLevel
-		}
+		level = parseLevel(cfg.Level)
 	}
 
 	var zapCfg zap.Config
