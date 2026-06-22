@@ -85,23 +85,6 @@ func (s *Svc) Register(ctx context.Context, req RegisterRequest) (models.User, e
 	return pub, nil
 }
 
-// verificationToken returns a time-limited HMAC-SHA256 token that encodes the
-// user ID and a 24-hour expiry.  The token is self-verifying: the verification
-// endpoint can decode and validate it without a DB lookup.
-//
-// Format: base64url(payload) "." base64url(sig)
-// where payload = "verify:<userID>:<expiryUnix>"
-func (s *Svc) verificationToken(userID int64) string {
-	expiry := time.Now().Add(24 * time.Hour).Unix()
-	payload := fmt.Sprintf("verify:%d:%d", userID, expiry)
-	mac := hmac.New(sha256.New, s.tokenSecret)
-	mac.Write([]byte(payload))
-	sig := mac.Sum(nil)
-	return base64.RawURLEncoding.EncodeToString([]byte(payload)) +
-		"." +
-		base64.RawURLEncoding.EncodeToString(sig)
-}
-
 // GetByID returns the public-safe profile for the given user id.
 func (s *Svc) GetByID(ctx context.Context, id int64) (models.User, error) {
 	return s.repo.GetByID(ctx, id)
@@ -173,6 +156,29 @@ func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) 
 	}
 }
 
+// Delete soft-deletes the user. It is idempotent.
+func (s *Svc) Delete(ctx context.Context, id int64) error {
+	s.log.Info("soft-deleting user", zap.Int64("user_id", id))
+	return s.repo.SoftDelete(ctx, id)
+}
+
+// verificationToken returns a time-limited HMAC-SHA256 token that encodes the
+// user ID and a 24-hour expiry.  The token is self-verifying: the verification
+// endpoint can decode and validate it without a DB lookup.
+//
+// Format: base64url(payload) "." base64url(sig)
+// where payload = "verify:<userID>:<expiryUnix>"
+func (s *Svc) verificationToken(userID int64) string {
+	expiry := time.Now().Add(24 * time.Hour).Unix()
+	payload := fmt.Sprintf("verify:%d:%d", userID, expiry)
+	mac := hmac.New(sha256.New, s.tokenSecret)
+	mac.Write([]byte(payload))
+	sig := mac.Sum(nil)
+	return base64.RawURLEncoding.EncodeToString([]byte(payload)) +
+		"." +
+		base64.RawURLEncoding.EncodeToString(sig)
+}
+
 // changePassword verifies currentPwd against the stored hash and, if it
 // matches, replaces it with a bcrypt hash of newPwd.
 func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd string) error {
@@ -189,12 +195,6 @@ func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd s
 		return err
 	}
 	return s.repo.UpdatePassword(ctx, id, string(newHash))
-}
-
-// Delete soft-deletes the user. It is idempotent.
-func (s *Svc) Delete(ctx context.Context, id int64) error {
-	s.log.Info("soft-deleting user", zap.Int64("user_id", id))
-	return s.repo.SoftDelete(ctx, id)
 }
 
 func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {

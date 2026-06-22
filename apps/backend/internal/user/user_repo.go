@@ -53,32 +53,6 @@ func toPublicUser(
 	}
 }
 
-// insertWithTx inserts a user row within the provided transaction and returns the
-// public-safe model. Callers are responsible for commit/rollback.
-func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (models.User, error) {
-	r.log.Debug("executing CreateUser query", zap.String("username", p.Username), zap.String("email", p.Email))
-
-	q := db.New(tx)
-	row, err := q.CreateUser(ctx, db.CreateUserParams{
-		Username: p.Username,
-		Email:    p.Email,
-		Hash:     p.Hash,
-		Name:     p.Name,
-	})
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			r.log.Debug("unique constraint violation on user insert", zap.String("username", p.Username), zap.String("email", p.Email))
-			return models.User{}, ErrConflict
-		}
-		r.log.Error("CreateUser query failed", zap.String("username", p.Username), zap.Error(err))
-		return models.User{}, err
-	}
-
-	r.log.Debug("CreateUser query succeeded", zap.Int64("user_id", row.ID))
-	return rowToPublic(row), nil
-}
-
 // Create opens a transaction, inserts the user, and commits. Any failure rolls
 // back and returns the original error (or ErrConflict for unique violations).
 func (r *Repo) Create(ctx context.Context, p CreateParams) (models.User, error) {
@@ -182,4 +156,30 @@ func (r *Repo) GetHashByID(ctx context.Context, id int64) (string, error) {
 		return "", err
 	}
 	return hash, nil
+}
+
+// insertWithTx inserts a user row within the provided transaction and returns the
+// public-safe model. Callers are responsible for commit/rollback.
+func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (models.User, error) {
+	r.log.Debug("executing CreateUser query", zap.String("username", p.Username), zap.String("email", p.Email))
+
+	q := db.New(tx)
+	row, err := q.CreateUser(ctx, db.CreateUserParams{
+		Username: p.Username,
+		Email:    p.Email,
+		Hash:     p.Hash,
+		Name:     p.Name,
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			r.log.Debug("unique constraint violation on user insert", zap.String("username", p.Username), zap.String("email", p.Email))
+			return models.User{}, ErrConflict
+		}
+		r.log.Error("CreateUser query failed", zap.String("username", p.Username), zap.Error(err))
+		return models.User{}, err
+	}
+
+	r.log.Debug("CreateUser query succeeded", zap.Int64("user_id", row.ID))
+	return rowToPublic(row), nil
 }

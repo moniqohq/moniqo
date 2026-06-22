@@ -15,6 +15,11 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 )
 
+const (
+	fieldBody       = "body"
+	errInvalidJSON  = "invalid json"
+)
+
 // Service is the service contract required by Handler.
 type Service interface {
 	Register(ctx context.Context, req RegisterRequest) (models.User, error)
@@ -42,7 +47,7 @@ func (h *Handler) Register(c echo.Context) error {
 	var req RegisterRequest
 	if err := c.Bind(&req); err != nil {
 		h.log.Debug("failed to bind registration request body", zap.Error(err))
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: "body", Error: "invalid json"}})
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
 	}
 
 	h.log.Debug("validating registration input", zap.String("username", req.Username), zap.String("email", req.Email))
@@ -72,33 +77,6 @@ func (h *Handler) Register(c echo.Context) error {
 
 	h.log.Info("registration request completed", zap.Int64("user_id", pub.ID), zap.String("username", pub.Username))
 	return httpx.Created(c, pub, "user created successfully")
-}
-
-// resolveOwnership extracts the authenticated user id from the JWT claims and
-// parses the {id} path param. On failure it writes the HTTP response and
-// returns (0, false); on success it returns (userID, true).
-func (h *Handler) resolveOwnership(c echo.Context) (int64, bool) {
-	claims, ok := auth.ClaimsFromContext(c)
-	if !ok {
-		_ = httpx.Unauthorized(c, "not authenticated")
-		return 0, false
-	}
-	authedID, err := strconv.ParseInt(claims.Subject, 10, 64)
-	if err != nil {
-		h.log.Error("malformed sub claim", zap.String("sub", claims.Subject))
-		_ = httpx.InternalError(c)
-		return 0, false
-	}
-	pathID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		_ = httpx.NotFound(c, "user not found")
-		return 0, false
-	}
-	if authedID != pathID {
-		_ = httpx.Forbidden(c, "access denied")
-		return 0, false
-	}
-	return authedID, true
 }
 
 // GetProfile handles GET /api/v1/users/{id}.
@@ -134,7 +112,7 @@ func (h *Handler) ReplaceProfile(c echo.Context) error {
 	var req ReplaceProfileRequest
 	if err := c.Bind(&req); err != nil {
 		h.log.Debug("failed to bind replace profile request body", zap.Error(err))
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: "body", Error: "invalid json"}})
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
 	}
 
 	if errs := validator.ValidateReplaceProfile(validator.ReplaceProfileInput{
@@ -173,7 +151,7 @@ func (h *Handler) PatchProfile(c echo.Context) error {
 	var req PatchProfileRequest
 	if err := c.Bind(&req); err != nil {
 		h.log.Debug("failed to bind patch profile request body", zap.Error(err))
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: "body", Error: "invalid json"}})
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
 	}
 
 	if errs := validator.ValidatePatchProfile(validator.PatchProfileInput{
@@ -220,4 +198,31 @@ func (h *Handler) DeleteProfile(c echo.Context) error {
 	}
 
 	return httpx.OK(c, nil, "user deleted successfully")
+}
+
+// resolveOwnership extracts the authenticated user id from the JWT claims and
+// parses the {id} path param. On failure it writes the HTTP response and
+// returns (0, false); on success it returns (userID, true).
+func (h *Handler) resolveOwnership(c echo.Context) (int64, bool) {
+	claims, ok := auth.ClaimsFromContext(c)
+	if !ok {
+		_ = httpx.Unauthorized(c, "not authenticated")
+		return 0, false
+	}
+	authedID, err := strconv.ParseInt(claims.Subject, 10, 64)
+	if err != nil {
+		h.log.Error("malformed sub claim", zap.String("sub", claims.Subject))
+		_ = httpx.InternalError(c)
+		return 0, false
+	}
+	pathID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		_ = httpx.NotFound(c, "user not found")
+		return 0, false
+	}
+	if authedID != pathID {
+		_ = httpx.Forbidden(c, "access denied")
+		return 0, false
+	}
+	return authedID, true
 }

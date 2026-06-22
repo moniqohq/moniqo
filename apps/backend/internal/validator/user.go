@@ -10,6 +10,8 @@ import (
 
 // usernameRe enforces: starts with a letter, followed by alphanumeric chars, with
 // optional single - or _ separators between alphanumeric segments.
+const fieldEmail = "email"
+
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)
 
 func validateUsername(username string) *httpx.FieldError {
@@ -39,13 +41,13 @@ func validatePassword(field, password string) *httpx.FieldError {
 
 func validateEmail(email string) *httpx.FieldError {
 	if email == "" {
-		return &httpx.FieldError{Field: "email", Error: "required"}
+		return &httpx.FieldError{Field: fieldEmail, Error: "required"}
 	}
 	if len(email) > 254 {
-		return &httpx.FieldError{Field: "email", Error: "must not exceed 254 characters"}
+		return &httpx.FieldError{Field: fieldEmail, Error: "must not exceed 254 characters"}
 	}
 	if _, err := mail.ParseAddress(email); err != nil {
-		return &httpx.FieldError{Field: "email", Error: "invalid email format"}
+		return &httpx.FieldError{Field: fieldEmail, Error: "invalid email format"}
 	}
 	return nil
 }
