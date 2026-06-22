@@ -26,6 +26,8 @@ type Repository interface {
 	GetHashByID(ctx context.Context, id int64) (string, error)
 }
 
+const verificationTokenTTL = 24 * time.Hour
+
 // Svc implements the business logic for user operations.
 type Svc struct {
 	repo        Repository
@@ -169,7 +171,7 @@ func (s *Svc) Delete(ctx context.Context, id int64) error {
 // Format: base64url(payload) "." base64url(sig)
 // where payload = "verify:<userID>:<expiryUnix>"
 func (s *Svc) verificationToken(userID int64) string {
-	expiry := time.Now().Add(24 * time.Hour).Unix()
+	expiry := time.Now().Add(verificationTokenTTL).Unix()
 	payload := fmt.Sprintf("verify:%d:%d", userID, expiry)
 	mac := hmac.New(sha256.New, s.tokenSecret)
 	mac.Write([]byte(payload))

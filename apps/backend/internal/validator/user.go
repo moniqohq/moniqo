@@ -10,7 +10,13 @@ import (
 
 // usernameRe enforces: starts with a letter, followed by alphanumeric chars, with
 // optional single - or _ separators between alphanumeric segments.
-const fieldEmail = "email"
+const (
+	fieldEmail       = "email"
+	minPasswordLen   = 8
+	maxPasswordLen   = 72
+	maxEmailLen      = 254
+	maxNameLen       = 100
+)
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)
 
@@ -22,7 +28,7 @@ func validateUsername(username string) *httpx.FieldError {
 	case !usernameRe.MatchString(username):
 		return &httpx.FieldError{
 			Field: "username",
-			Error: "must start with a letter, contain only letters, digits, hyphens, or underscores, and not end with a hyphen or underscore",
+			Error: "must start with a letter and contain only letters, digits, hyphens, or underscores",
 		}
 	}
 	return nil
@@ -30,10 +36,10 @@ func validateUsername(username string) *httpx.FieldError {
 
 func validatePassword(field, password string) *httpx.FieldError {
 	plen := len(password)
-	if plen < 8 {
+	if plen < minPasswordLen {
 		return &httpx.FieldError{Field: field, Error: "must be at least 8 characters"}
 	}
-	if plen > 72 {
+	if plen > maxPasswordLen {
 		return &httpx.FieldError{Field: field, Error: "must not exceed 72 characters"}
 	}
 	return nil
@@ -43,7 +49,7 @@ func validateEmail(email string) *httpx.FieldError {
 	if email == "" {
 		return &httpx.FieldError{Field: fieldEmail, Error: "required"}
 	}
-	if len(email) > 254 {
+	if len(email) > maxEmailLen {
 		return &httpx.FieldError{Field: fieldEmail, Error: "must not exceed 254 characters"}
 	}
 	if _, err := mail.ParseAddress(email); err != nil {
@@ -59,12 +65,13 @@ func validateName(name *string) *httpx.FieldError {
 	if *name == "" {
 		return &httpx.FieldError{Field: "name", Error: "must not be empty if provided"}
 	}
-	if utf8.RuneCountInString(*name) > 100 {
+	if utf8.RuneCountInString(*name) > maxNameLen {
 		return &httpx.FieldError{Field: "name", Error: "must not exceed 100 characters"}
 	}
 	return nil
 }
 
+// RegisterInput holds the fields for POST /api/v1/users registration.
 type RegisterInput struct {
 	Username string
 	Password string

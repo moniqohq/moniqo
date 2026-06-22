@@ -1,3 +1,4 @@
+// Package logger provides zap-based structured logger initialization.
 package logger
 
 import (
@@ -44,7 +45,8 @@ func New(cfg Config) (*zap.Logger, error) {
 		return nil, err
 	}
 
-	fields := make([]zap.Field, 0, 2)
+	const maxStaticFields = 2
+	fields := make([]zap.Field, 0, maxStaticFields)
 	if cfg.ServiceName != "" {
 		fields = append(fields, zap.String("service", cfg.ServiceName))
 	}
