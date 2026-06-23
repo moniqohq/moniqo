@@ -150,8 +150,8 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, jwtSecret, log)
 	userHandler := user.NewHandler(userSvc, log)
 
-	authRepo := auth.NewAuthRepo(pool, log)
-	authSvc := auth.NewAuthSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
+	authRepo := auth.NewRepo(pool, log)
+	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
 	authHandler := auth.NewHandler(authSvc, log)
 	authMW := auth.Middleware(authRepo, jwtSecret, log)
 

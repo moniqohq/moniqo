@@ -14,7 +14,10 @@ import (
 	"github.com/google/uuid"
 )
 
-const issuer = "moniqo"
+const (
+	issuer           = "moniqo"
+	refreshTokenSize = 32
+)
 
 // contextKey is a private type to prevent collisions with other packages.
 type contextKey string
@@ -52,9 +55,9 @@ func GenerateAccessToken(userID int64, secret []byte, ttl time.Duration) (string
 // returning both the raw base64url value (sent to the client) and its SHA-256
 // hex hash (stored in the DB — the raw value is never persisted).
 func GenerateRefreshToken() (raw string, hash string, err error) {
-	buf := make([]byte, 32)
+	buf := make([]byte, refreshTokenSize)
 	if _, err = rand.Read(buf); err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("generate random bytes: %w", err)
 	}
 	raw = base64.RawURLEncoding.EncodeToString(buf)
 	hash = HashRefreshToken(raw)

@@ -21,8 +21,8 @@ type Repo struct {
 	log  *zap.Logger
 }
 
-// NewAuthRepo returns a Repo backed by the given connection pool.
-func NewAuthRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
+// NewRepo returns a Repo backed by the given connection pool.
+func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
 	return &Repo{pool: pool, log: log}
 }
 
@@ -93,7 +93,8 @@ func (r *Repo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
 	return true, nil
 }
 
-func (r *AuthRepo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error) {
+// InsertRefreshToken persists a new refresh token row and returns its family ID.
+func (r *Repo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error) {
 	q := db.New(r.pool)
 	id, err := q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
 		FamilyID:          pgtype.UUID{Bytes: p.FamilyID, Valid: true},
@@ -104,12 +105,13 @@ func (r *AuthRepo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenR
 	})
 	if err != nil {
 		r.log.Error("InsertRefreshToken query failed", zap.Error(err))
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 	return id.Bytes, nil
 }
 
-func (r *AuthRepo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.RefreshToken, error) {
+// GetRefreshTokenByHash looks up a refresh token by its SHA-256 hash.
+func (r *Repo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.RefreshToken, error) {
 	q := db.New(r.pool)
 	row, err := q.GetRefreshTokenByHash(ctx, hash)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -117,44 +119,46 @@ func (r *AuthRepo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.R
 	}
 	if err != nil {
 		r.log.Error("GetRefreshTokenByHash query failed", zap.Error(err))
-		return db.RefreshToken{}, err
+		return db.RefreshToken{}, fmt.Errorf("get refresh token by hash: %w", err)
 	}
 	return row, nil
 }
 
-func (r *AuthRepo) MarkRefreshTokenUsed(ctx context.Context, id [16]byte) error {
+// MarkRefreshTokenUsed flags the token as consumed so it cannot be reused.
+func (r *Repo) MarkRefreshTokenUsed(ctx context.Context, id [16]byte) error {
 	q := db.New(r.pool)
 	if err := q.MarkRefreshTokenUsed(ctx, pgtype.UUID{Bytes: id, Valid: true}); err != nil {
 		r.log.Error("MarkRefreshTokenUsed query failed", zap.Error(err))
-		return err
+		return fmt.Errorf("mark refresh token used: %w", err)
 	}
 	return nil
 }
 
-func (r *AuthRepo) RevokeRefreshTokenFamily(ctx context.Context, familyID [16]byte, reason string) error {
+// RevokeRefreshTokenFamily invalidates every token that shares the given family ID.
+func (r *Repo) RevokeRefreshTokenFamily(ctx context.Context, familyID [16]byte, reason string) error {
 	q := db.New(r.pool)
 	if err := q.RevokeRefreshTokenFamily(ctx, db.RevokeRefreshTokenFamilyParams{
 		FamilyID:      pgtype.UUID{Bytes: familyID, Valid: true},
 		RevokedReason: &reason,
 	}); err != nil {
 		r.log.Error("RevokeRefreshTokenFamily query failed", zap.Error(err))
-		return err
+		return fmt.Errorf("revoke refresh token family: %w", err)
 	}
 	return nil
 }
 
 // RotateRefreshToken atomically marks oldID as used and inserts a new token row.
-func (r *AuthRepo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertRefreshTokenRepoParams) ([16]byte, error) {
+func (r *Repo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertRefreshTokenRepoParams) ([16]byte, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
 	q := db.New(tx)
 
 	if err := q.MarkRefreshTokenUsed(ctx, pgtype.UUID{Bytes: oldID, Valid: true}); err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("mark refresh token used: %w", err)
 	}
 
 	newID, err := q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
@@ -165,11 +169,11 @@ func (r *AuthRepo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p Ins
 		AbsoluteExpiresAt: pgtype.Timestamptz{Time: p.AbsoluteExpiresAt, Valid: true},
 	})
 	if err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("commit transaction: %w", err)
 	}
 	return newID.Bytes, nil
 }

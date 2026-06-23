@@ -40,8 +40,8 @@ type Svc struct {
 	log                *zap.Logger
 }
 
-// NewAuthSvc returns an AuthSvc wired to the given repository and JWT configuration.
-func NewAuthSvc(
+// NewSvc returns an Svc wired to the given repository and JWT configuration.
+func NewSvc(
 	repo Repository,
 	jwtSecret []byte,
 	accessTokenTTL time.Duration,
@@ -129,7 +129,7 @@ func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue
 		ExpiresAt:         expiresAt,
 		AbsoluteExpiresAt: absoluteExpiresAt,
 	}); err != nil {
-		return RefreshIssue{}, err
+		return RefreshIssue{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 
 	return RefreshIssue{RawToken: raw, ExpiresAt: expiresAt}, nil
@@ -146,7 +146,7 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 		return RefreshResult{}, ErrRefreshTokenInvalid
 	}
 	if err != nil {
-		return RefreshResult{}, err
+		return RefreshResult{}, fmt.Errorf("get refresh token by hash: %w", err)
 	}
 
 	now := time.Now()
@@ -194,7 +194,7 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 		ExpiresAt:         newExpiresAt,
 		AbsoluteExpiresAt: row.AbsoluteExpiresAt.Time,
 	}); err != nil {
-		return RefreshResult{}, err
+		return RefreshResult{}, fmt.Errorf("rotate refresh token: %w", err)
 	}
 
 	userID := row.UserID

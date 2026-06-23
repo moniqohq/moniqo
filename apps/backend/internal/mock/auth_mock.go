@@ -67,27 +67,35 @@ func (m *AuthRepository) UserExistsByID(_ context.Context, userID int64) (bool, 
 	return args.Bool(0), args.Error(1)
 }
 
+// InsertRefreshToken records the call and returns the stubbed token family ID.
 func (m *AuthRepository) InsertRefreshToken(_ context.Context, p auth.InsertRefreshTokenRepoParams) ([16]byte, error) {
 	args := m.Called(p)
-	return args.Get(0).([16]byte), args.Error(1)
+	familyID, _ := args.Get(0).([16]byte)
+	return familyID, args.Error(1)
 }
 
+// GetRefreshTokenByHash records the call and returns the stubbed refresh token.
 func (m *AuthRepository) GetRefreshTokenByHash(_ context.Context, hash string) (db.RefreshToken, error) {
 	args := m.Called(hash)
-	return args.Get(0).(db.RefreshToken), args.Error(1)
+	token, _ := args.Get(0).(db.RefreshToken)
+	return token, args.Error(1)
 }
 
+// MarkRefreshTokenUsed records the call and returns the stubbed error.
 func (m *AuthRepository) MarkRefreshTokenUsed(_ context.Context, id [16]byte) error {
 	args := m.Called(id)
 	return args.Error(0)
 }
 
+// RevokeRefreshTokenFamily records the call and returns the stubbed error.
 func (m *AuthRepository) RevokeRefreshTokenFamily(_ context.Context, familyID [16]byte, reason string) error {
 	args := m.Called(familyID, reason)
 	return args.Error(0)
 }
 
+// RotateRefreshToken records the call and returns the stubbed new token family ID.
 func (m *AuthRepository) RotateRefreshToken(_ context.Context, oldID [16]byte, p auth.InsertRefreshTokenRepoParams) ([16]byte, error) {
 	args := m.Called(oldID, p)
-	return args.Get(0).([16]byte), args.Error(1)
+	familyID, _ := args.Get(0).([16]byte)
+	return familyID, args.Error(1)
 }
