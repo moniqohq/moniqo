@@ -3,6 +3,7 @@ package mock
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/mock"
@@ -112,4 +113,47 @@ func (m *AuthRepository) RotateRefreshToken(_ context.Context, oldID [16]byte, p
 		return [16]byte{}, args.Error(1)
 	}
 	return familyID, args.Error(1)
+}
+
+// PasswordResetRepository is a testify mock for auth.PasswordResetRepository.
+type PasswordResetRepository struct {
+	mock.Mock
+}
+
+// GetUserForPasswordReset records the call and returns the stubbed user info.
+func (m *PasswordResetRepository) GetUserForPasswordReset(_ context.Context, emailAddr string) (auth.PasswordResetUserInfo, error) {
+	args := m.Called(emailAddr)
+	u, ok := args.Get(0).(auth.PasswordResetUserInfo)
+	if !ok {
+		return auth.PasswordResetUserInfo{}, args.Error(1)
+	}
+	return u, args.Error(1)
+}
+
+// InvalidateUserPasswordResetTokens records the call and returns the stubbed error.
+func (m *PasswordResetRepository) InvalidateUserPasswordResetTokens(_ context.Context, userID int64) error {
+	args := m.Called(userID)
+	return args.Error(0)
+}
+
+// InsertPasswordResetToken records the call and returns the stubbed error.
+func (m *PasswordResetRepository) InsertPasswordResetToken(_ context.Context, userID int64, tokenHash string, expiresAt time.Time) error {
+	args := m.Called(userID, tokenHash, expiresAt)
+	return args.Error(0)
+}
+
+// GetPasswordResetTokenByHash records the call and returns the stubbed token row.
+func (m *PasswordResetRepository) GetPasswordResetTokenByHash(_ context.Context, tokenHash string) (auth.PasswordResetTokenRow, error) {
+	args := m.Called(tokenHash)
+	row, ok := args.Get(0).(auth.PasswordResetTokenRow)
+	if !ok {
+		return auth.PasswordResetTokenRow{}, args.Error(1)
+	}
+	return row, args.Error(1)
+}
+
+// ConfirmResetTransaction records the call and returns the stubbed error.
+func (m *PasswordResetRepository) ConfirmResetTransaction(_ context.Context, p auth.ConfirmResetTxParams) error {
+	args := m.Called(p)
+	return args.Error(0)
 }
