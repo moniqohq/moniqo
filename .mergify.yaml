@@ -16,13 +16,7 @@ pull_request_rules:
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-requested=0"
-      - "check-success=CI / build"
-      - "check-success=CI / test-backend"
-      - "check-success=CI / lint-backend"
-      - "check-success=CI / lint-frontend"
-      - "check-success=CI / format"
-      - "check-success=CI / security-scan"
-      - "check-success=CI / dependency-scan"
+      - "check-success=CI / summary"
       - "check-success=Validate Pull Request / conventional-commits"
       - "check-success=Validate Pull Request / pr-title"
       - "check-success=Validate Pull Request / DCO"
@@ -35,12 +29,12 @@ pull_request_rules:
           {{ body }}
       delete_head_branch: {}
 
-  # Remove "queued" label if PR is updated after being queued (label no longer valid)
+  # Remove "queued" label when a new commit is pushed so CI must re-pass before merge
   - name: Remove queue label on new commits
     conditions:
       - base=main
       - "label=queued"
-      - "check-neutral=CI / build"
+      - "check-pending=CI / summary"
     actions:
       label:
         remove:
@@ -51,12 +45,7 @@ pull_request_rules:
     conditions:
       - base=main
       - "author=dependabot[bot]"
-      - "check-success=CI / build"
-      - "check-success=CI / test-backend"
-      - "check-success=CI / lint-backend"
-      - "check-success=CI / lint-frontend"
-      - "check-success=CI / security-scan"
-      - "check-success=CI / dependency-scan"
+      - "check-success=CI / summary"
       - "label=dependencies"
     actions:
       squash:
