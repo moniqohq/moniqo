@@ -190,11 +190,11 @@ func TestAuthSvc_Logout(t *testing.T) {
 		ExpiresAt: time.Now().Add(15 * time.Minute),
 	}
 
-	t.Run("success calls InsertRevokedAccessToken", func(t *testing.T) {
+	t.Run("success calls LogoutTransaction", func(t *testing.T) {
 		t.Parallel()
 
 		repo := &internalmock.AuthRepository{}
-		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(nil)
+		repo.On("LogoutTransaction", mock.AnythingOfType("LogoutParams")).Return(nil)
 
 		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)
@@ -207,11 +207,11 @@ func TestAuthSvc_Logout(t *testing.T) {
 		t.Parallel()
 
 		repo := &internalmock.AuthRepository{}
-		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).
+		repo.On("LogoutTransaction", mock.AnythingOfType("LogoutParams")).
 			Return(nil).
 			Run(func(args mock.Arguments) {
-				p := args.Get(0).(auth.InsertRevokedTokenParams)
-				assert.Equal(t, pgtype.UUID{Bytes: jti, Valid: true}, p.JTI)
+				p := args.Get(0).(auth.LogoutParams)
+				assert.Equal(t, jti, p.JTI)
 				assert.Equal(t, int64(42), p.UserID)
 			})
 
@@ -222,12 +222,12 @@ func TestAuthSvc_Logout(t *testing.T) {
 		repo.AssertExpectations(t)
 	})
 
-	t.Run("token invalidation failure propagates error", func(t *testing.T) {
+	t.Run("transaction failure propagates error", func(t *testing.T) {
 		t.Parallel()
 
 		dbErr := errors.New("db unavailable")
 		repo := &internalmock.AuthRepository{}
-		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(dbErr)
+		repo.On("LogoutTransaction", mock.AnythingOfType("LogoutParams")).Return(dbErr)
 
 		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)

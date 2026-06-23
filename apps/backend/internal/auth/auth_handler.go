@@ -73,6 +73,13 @@ func (h *Handler) Login(c echo.Context) error {
 	}, "login successful")
 }
 
+// logoutRequest is the optional body for POST /api/v1/auth/logout.
+// Providing refresh_token allows atomic revocation of the current session's
+// refresh token alongside the access token.
+type logoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 // Logout handles POST /api/v1/auth/logout.
 func (h *Handler) Logout(c echo.Context) error {
 	h.log.Debug("received logout request")
@@ -94,11 +101,19 @@ func (h *Handler) Logout(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
-	if err := h.svc.Logout(c.Request().Context(), LogoutParams{
+	var body logoutRequest
+	_ = c.Bind(&body) // best-effort; missing body is fine
+
+	params := LogoutParams{
 		JTI:       jti,
 		UserID:    userID,
 		ExpiresAt: claims.ExpiresAt.Time,
-	}); err != nil {
+	}
+	if body.RefreshToken != "" {
+		params.RefreshTokenHash = HashRefreshToken(body.RefreshToken)
+	}
+
+	if err := h.svc.Logout(c.Request().Context(), params); err != nil {
 		h.log.Error("logout failed", zap.Int64("user_id", userID), zap.Error(err))
 		return httpx.InternalError(c)
 	}

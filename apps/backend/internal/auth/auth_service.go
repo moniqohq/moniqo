@@ -19,9 +19,9 @@ import (
 type Repository interface {
 	GetUserByEmail(ctx context.Context, email string) (UserCredentials, error)
 	UpdateLastLogin(ctx context.Context, userID int64) error
-	InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error
 	IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error)
 	UserExistsByID(ctx context.Context, userID int64) (bool, error)
+	LogoutTransaction(ctx context.Context, p LogoutParams) error
 
 	InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error)
 	GetRefreshTokenByHash(ctx context.Context, hash string) (db.RefreshToken, error)
@@ -184,19 +184,14 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 	}, nil
 }
 
-// Logout inserts the access token's jti into the revocation blocklist so that
-// subsequent requests carrying it are rejected by the auth middleware.
+// Logout atomically blocklists the access token JTI and, if a refresh token
+// hash is provided, marks that refresh token as revoked with reason "logout".
 func (s *Svc) Logout(ctx context.Context, params LogoutParams) error {
 	s.log.Info("processing logout", zap.Int64("user_id", params.UserID))
 
-	jtiPg := pgtype.UUID{Bytes: params.JTI, Valid: true}
-	if err := s.repo.InsertRevokedAccessToken(ctx, InsertRevokedTokenParams{
-		JTI:       jtiPg,
-		UserID:    params.UserID,
-		ExpiresAt: params.ExpiresAt,
-	}); err != nil {
-		s.log.Error("logout: failed to revoke access token", zap.Int64("user_id", params.UserID), zap.Error(err))
-		return fmt.Errorf("insert revoked token: %w", err)
+	if err := s.repo.LogoutTransaction(ctx, params); err != nil {
+		s.log.Error("logout: transaction failed", zap.Int64("user_id", params.UserID), zap.Error(err))
+		return fmt.Errorf("logout transaction: %w", err)
 	}
 
 	s.log.Info("logout successful", zap.Int64("user_id", params.UserID))

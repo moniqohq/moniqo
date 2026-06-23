@@ -53,17 +53,50 @@ func (r *Repo) UpdateLastLogin(ctx context.Context, userID int64) error {
 	return nil
 }
 
-// InsertRevokedAccessToken adds a JWT JTI to the revocation list so it cannot be reused after logout.
-func (r *Repo) InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error {
-	q := db.New(r.pool)
-	err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
-		Jti:       p.JTI,
+// LogoutTransaction atomically blocklists the access token JTI and, if
+// p.RefreshTokenHash is non-empty, revokes that refresh token with reason "logout".
+func (r *Repo) LogoutTransaction(ctx context.Context, p LogoutParams) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
+	if err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
+		Jti:       pgtype.UUID{Bytes: p.JTI, Valid: true},
 		UserID:    p.UserID,
 		ExpiresAt: pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
-	})
-	if err != nil {
-		r.log.Error("InsertRevokedAccessToken query failed", zap.Error(err))
+	}); err != nil {
+		r.log.Error("LogoutTransaction: insert revoked access token failed", zap.Error(err))
 		return fmt.Errorf("insert revoked token: %w", err)
+	}
+
+	if p.RefreshTokenHash != "" {
+		reason := "logout"
+		if err := q.RevokeRefreshToken(ctx, db.RevokeRefreshTokenParams{
+			TokenHash:     p.RefreshTokenHash,
+			RevokedReason: &reason,
+		}); err != nil {
+			r.log.Error("LogoutTransaction: revoke refresh token failed", zap.Error(err))
+			return fmt.Errorf("revoke refresh token: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
+}
+
+// DeleteExpiredRevokedTokens removes access token blocklist entries whose TTL
+// has passed. Called periodically by the cleanup goroutine in main.
+func (r *Repo) DeleteExpiredRevokedTokens(ctx context.Context) error {
+	q := db.New(r.pool)
+	if err := q.DeleteExpiredRevokedAccessTokens(ctx); err != nil {
+		r.log.Error("DeleteExpiredRevokedTokens query failed", zap.Error(err))
+		return fmt.Errorf("delete expired revoked tokens: %w", err)
 	}
 	return nil
 }

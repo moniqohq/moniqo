@@ -63,11 +63,14 @@ type RefreshResult struct {
 	Refresh     RefreshIssue
 }
 
-// LogoutParams carries the claims extracted from the current access token.
+// LogoutParams carries the claims extracted from the current access token and,
+// optionally, the SHA-256 hash of the refresh token to revoke atomically.
+// If RefreshTokenHash is empty, only the access token is blocklisted.
 type LogoutParams struct {
-	JTI       uuid.UUID
-	UserID    int64
-	ExpiresAt time.Time
+	JTI              uuid.UUID
+	UserID           int64
+	ExpiresAt        time.Time
+	RefreshTokenHash string
 }
 
 // -----------------------------------------------------------------------------
