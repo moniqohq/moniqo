@@ -200,3 +200,27 @@ jobs:
         working-directory: apps/mobile
         run: pnpm audit --audit-level=high
         continue-on-error: true
+
+  summary:
+    name: summary
+    if: always()
+    needs:
+      - build-backend
+      - build-frontend
+      - test-backend
+      - lint-backend
+      - lint-frontend
+      - format
+      - security-scan
+      - dependency-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: All checks passed
+        run: |
+          results="${{ join(needs.*.result, ' ') }}"
+          for result in $results; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "A required job failed: $result"
+              exit 1
+            fi
+          done
