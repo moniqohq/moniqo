@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	issuer           = "moniqo"
-	refreshTokenSize = 32
+	issuer               = "moniqo"
+	refreshTokenSize     = 32
+	passwordResetRawSize = 32 // 32 bytes → 64-char hex string
 )
 
 // contextKey is a private type to prevent collisions with other packages.
@@ -73,6 +74,19 @@ func GenerateRefreshToken() (raw string, hash string, err error) {
 func HashRefreshToken(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
+}
+
+// GeneratePasswordResetToken produces a cryptographically random 32-byte token,
+// returning the raw hex string (sent to the client) and its SHA-256 hex hash
+// (stored in the DB). The raw value is never persisted.
+func GeneratePasswordResetToken() (raw string, hash string, err error) {
+	buf := make([]byte, passwordResetRawSize)
+	if _, err = rand.Read(buf); err != nil {
+		return "", "", fmt.Errorf("generate random bytes: %w", err)
+	}
+	raw = hex.EncodeToString(buf)
+	hash = HashRefreshToken(raw) // SHA-256 hex of the raw token
+	return raw, hash, nil
 }
 
 // ParseAccessToken validates a JWT string and returns the embedded claims.
