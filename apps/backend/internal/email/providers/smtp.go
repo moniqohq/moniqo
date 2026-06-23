@@ -23,14 +23,17 @@ type SMTPConfig struct {
 	FromName string
 }
 
+// SMTPProvider sends email via a standard SMTP submission endpoint.
 type SMTPProvider struct {
 	cfg SMTPConfig
 }
 
+// NewSMTP constructs an SMTPProvider from the given config.
 func NewSMTP(cfg SMTPConfig) *SMTPProvider {
 	return &SMTPProvider{cfg: cfg}
 }
 
+// Send delivers msg using SMTP, honoring ctx for cancellation.
 func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	type result struct{ err error }
 	ch := make(chan result, 1)
@@ -45,7 +48,7 @@ func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	}()
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return fmt.Errorf("smtp send cancelled: %w", ctx.Err())
 	case r := <-ch:
 		return r.err
 	}
@@ -76,7 +79,8 @@ func quoteDisplayName(name string) string {
 
 // mimeRandBoundary returns a cryptographically random boundary string.
 func mimeRandBoundary() string {
-	b := make([]byte, 16)
+	const mimeBoundaryLen = 16
+	b := make([]byte, mimeBoundaryLen)
 	if _, err := rand.Read(b); err != nil {
 		panic("crypto/rand unavailable: " + err.Error())
 	}

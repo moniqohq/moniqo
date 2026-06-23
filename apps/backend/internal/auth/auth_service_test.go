@@ -47,13 +47,13 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("success returns access token, refresh token and Bearer type", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		result, err := svc.Login(context.Background(), validReq)
 
 		require.NoError(t, err)
@@ -66,10 +66,10 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("user not found returns ErrInvalidCredentials", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).Return(auth.UserCredentials{}, auth.ErrUserNotFound)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, auth.ErrInvalidCredentials)
@@ -80,11 +80,11 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("wrong password returns ErrInvalidCredentials", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, "DifferentPass1", models.UserStatusActive), nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		req := validReq
 		req.Password = "WrongPassXX"
 		_, err := svc.Login(context.Background(), req)
@@ -97,11 +97,11 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("pending verification returns ErrPendingVerification", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusPendingVerification), nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, auth.ErrPendingVerification)
@@ -113,13 +113,13 @@ func TestAuthSvc_Login(t *testing.T) {
 		t.Parallel()
 
 		dbErr := errors.New("db unavailable")
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(dbErr)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, dbErr)
@@ -130,10 +130,10 @@ func TestAuthSvc_Login(t *testing.T) {
 		t.Parallel()
 
 		dbErr := errors.New("connection reset")
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).Return(auth.UserCredentials{}, dbErr)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		assert.ErrorIs(t, err, dbErr)
@@ -143,13 +143,13 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("issued JWT has correct claims", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 30*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 30*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		result, err := svc.Login(context.Background(), validReq)
 		require.NoError(t, err)
 
@@ -164,13 +164,13 @@ func TestAuthSvc_Login(t *testing.T) {
 	t.Run("last_login is updated on successful login", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetUserByEmail", validReq.Email).
 			Return(makeCredentials(validReq.Email, validReq.Password, models.UserStatusActive), nil)
 		repo.On("InsertRefreshToken", mock.Anything).Return([16]byte{}, nil)
 		repo.On("UpdateLastLogin", int64(1)).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		_, err := svc.Login(context.Background(), validReq)
 
 		require.NoError(t, err)
@@ -193,10 +193,10 @@ func TestAuthSvc_Logout(t *testing.T) {
 	t.Run("success calls InsertRevokedAccessToken", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(nil)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)
 
 		require.NoError(t, err)
@@ -206,7 +206,7 @@ func TestAuthSvc_Logout(t *testing.T) {
 	t.Run("correct jti and user_id forwarded to repo", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).
 			Return(nil).
 			Run(func(args mock.Arguments) {
@@ -215,7 +215,7 @@ func TestAuthSvc_Logout(t *testing.T) {
 				assert.Equal(t, int64(42), p.UserID)
 			})
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)
 
 		require.NoError(t, err)
@@ -226,10 +226,10 @@ func TestAuthSvc_Logout(t *testing.T) {
 		t.Parallel()
 
 		dbErr := errors.New("db unavailable")
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("InsertRevokedAccessToken", mock.AnythingOfType("InsertRevokedTokenParams")).Return(dbErr)
 
-		svc := auth.NewAuthSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
+		svc := auth.NewSvc(repo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
 		err := svc.Logout(context.Background(), params)
 
 		assert.ErrorIs(t, err, dbErr)
@@ -261,8 +261,8 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 	ttl := 168 * time.Hour
 	maxAge := 720 * time.Hour
 
-	newSvc := func(repo *internalmock.MockAuthRepository) *auth.AuthSvc {
-		return auth.NewAuthSvc(repo, testSecret, 15*time.Minute, ttl, maxAge, log)
+	newSvc := func(repo *internalmock.AuthRepository) *auth.Svc {
+		return auth.NewSvc(repo, testSecret, 15*time.Minute, ttl, maxAge, log)
 	}
 
 	t.Run("happy path returns new access token and refresh token", func(t *testing.T) {
@@ -271,7 +271,7 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 		now := time.Now()
 		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
 		repo.On("RotateRefreshToken", [16]byte(tokenID), mock.Anything).Return([16]byte{}, nil)
 
@@ -287,7 +287,7 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 	t.Run("unknown token hash returns ErrRefreshTokenInvalid", func(t *testing.T) {
 		t.Parallel()
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetRefreshTokenByHash", mock.Anything).Return(db.RefreshToken{}, auth.ErrRefreshTokenInvalid)
 
 		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
@@ -303,7 +303,7 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
 		row.RevokedAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
 
 		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
@@ -319,7 +319,7 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 		row := makeRefreshTokenRow(familyID, tokenID, userID, now.Add(-2*ttl), ttl, maxAge)
 		row.ExpiresAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
 
 		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
@@ -335,7 +335,7 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
 		row.AbsoluteExpiresAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
 
 		_, err := newSvc(repo).RefreshAccessToken(context.Background(), rawToken)
@@ -351,7 +351,7 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
 		row.UsedAt = pgtype.Timestamptz{Time: now.Add(-time.Minute), Valid: true}
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
 		repo.On("RevokeRefreshTokenFamily", [16]byte(familyID), "reuse_detected").Return(nil)
 
@@ -370,7 +370,7 @@ func TestAuthSvc_RefreshAccessToken(t *testing.T) {
 		row := makeRefreshTokenRow(familyID, tokenID, userID, now, ttl, maxAge)
 		row.AbsoluteExpiresAt = pgtype.Timestamptz{Time: now.Add(time.Hour), Valid: true}
 
-		repo := &internalmock.MockAuthRepository{}
+		repo := &internalmock.AuthRepository{}
 		repo.On("GetRefreshTokenByHash", mock.Anything).Return(row, nil)
 		repo.On("RotateRefreshToken", [16]byte(tokenID), mock.MatchedBy(func(p auth.InsertRefreshTokenRepoParams) bool {
 			// ExpiresAt must not exceed the absolute cap (now+1h).

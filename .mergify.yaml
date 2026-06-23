@@ -8,10 +8,11 @@ pull_request_rules:
         add_users:
           - "{{ author }}"
 
-  # Auto-squash merge after 1 approval and all CI checks pass
+  # Auto-squash merge after 1 approval and all CI checks pass (requires "queue" label)
   - name: Auto-squash merge after approval and CI
     conditions:
       - base=main
+      - "label=queue"
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-requested=0"
@@ -24,6 +25,7 @@ pull_request_rules:
       - "check-success=CI / dependency-scan"
       - "check-success=Validate Pull Request / conventional-commits"
       - "check-success=Validate Pull Request / pr-title"
+      - "check-success=Validate Pull Request / DCO"
       - "author!=dependabot[bot]"
     actions:
       squash:
@@ -32,6 +34,17 @@ pull_request_rules:
 
           {{ body }}
       delete_head_branch: {}
+
+  # Remove "queue" label if PR is updated after being queued (label no longer valid)
+  - name: Remove queue label on new commits
+    conditions:
+      - base=main
+      - "label=queue"
+      - "check-neutral=CI / build"
+    actions:
+      label:
+        remove:
+          - queue
 
   # Auto-merge Dependabot PRs after CI (no human approval required)
   - name: Auto-merge Dependabot patch/minor updates

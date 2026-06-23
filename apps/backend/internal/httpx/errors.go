@@ -1,5 +1,7 @@
+// Package httpx provides shared HTTP response types and error constants for the Moniqo API.
 package httpx
 
+// API error code constants used in the response envelope's "code" field.
 const (
 	CodeValidationError = "VALIDATION_ERROR"
 	CodeConflict        = "CONFLICT"

@@ -1,3 +1,4 @@
+// Package middleware provides Echo middleware for the Moniqo HTTP server.
 package middleware
 
 import (

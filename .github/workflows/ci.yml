@@ -7,13 +7,32 @@ on:
     branches: [main]
 
 jobs:
-  build:
-    name: build
+  changes:
+    name: detect-changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+            frontend:
+              - 'apps/web/**'
+
+  build-backend:
+    name: build-backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache: true
@@ -22,6 +41,14 @@ jobs:
       - name: Build backend
         working-directory: apps/backend
         run: go build ./...
+
+  build-frontend:
+    name: build-frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
 
@@ -41,11 +68,13 @@ jobs:
 
   test-backend:
     name: test-backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache: true
@@ -57,25 +86,28 @@ jobs:
 
   lint-backend:
     name: lint-backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache: true
           cache-dependency-path: apps/backend/go.sum
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: apps/backend
-          args: --config ../../.golangci.yaml
 
   lint-frontend:
     name: lint-frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +130,8 @@ jobs:
 
   format:
     name: format
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,21 +142,25 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Install dependencies
+        working-directory: apps/web
         run: pnpm install
 
       - name: Check formatting
+        working-directory: apps/web
         run: pnpm format:check
 
   security-scan:
     name: security-scan
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/backend/go.mod
           cache: true
@@ -136,6 +174,8 @@ jobs:
 
   dependency-scan:
     name: dependency-scan
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -146,9 +186,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: apps/web/pnpm-lock.yaml
 
       - name: Install dependencies
+        working-directory: apps/web
         run: pnpm install
 
       - name: Audit web dependencies
@@ -159,3 +200,27 @@ jobs:
         working-directory: apps/mobile
         run: pnpm audit --audit-level=high
         continue-on-error: true
+
+  summary:
+    name: summary
+    if: always()
+    needs:
+      - build-backend
+      - build-frontend
+      - test-backend
+      - lint-backend
+      - lint-frontend
+      - format
+      - security-scan
+      - dependency-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: All checks passed
+        run: |
+          results="${{ join(needs.*.result, ' ') }}"
+          for result in $results; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "A required job failed: $result"
+              exit 1
+            fi
+          done

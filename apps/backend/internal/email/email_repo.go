@@ -1,3 +1,4 @@
+// Package email provides email job enqueueing and repository access for async email delivery.
 package email
 
 import (
@@ -22,6 +23,7 @@ type Repo struct {
 	log  *zap.Logger
 }
 
+// NewRepo returns a Repo backed by the given connection pool.
 func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
 	return &Repo{pool: pool, log: log}
 }
@@ -59,7 +61,7 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 			zap.String("to", p.To),
 			zap.Error(err),
 		)
-		return err
+		return fmt.Errorf("enqueue email job: %w", err)
 	}
 	r.log.Debug("email job enqueued",
 		zap.String("idempotency_key", p.IdempotencyKey),
@@ -69,8 +71,8 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 	return nil
 }
 
-// claimedJob is the internal representation returned by LockBatch.
-type claimedJob struct {
+// ClaimedJob is the internal representation returned by LockBatch.
+type ClaimedJob struct {
 	ID             pgtype.UUID
 	TemplateName   TemplateName
 	RecipientEmail string
@@ -85,7 +87,7 @@ type claimedJob struct {
 // long-lived lock is held during subsequent SMTP sends.  Jobs whose locked_by was
 // set but never cleared more than 10 minutes ago are also eligible (crash
 // recovery).
-func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]claimedJob, error) {
+func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]ClaimedJob, error) {
 	q := db.New(r.pool)
 	rows, err := q.LockEmailJobs(ctx, db.LockEmailJobsParams{
 		Limit:    n,
@@ -93,11 +95,11 @@ func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]claim
 	})
 	if err != nil {
 		r.log.Error("failed to lock email jobs", zap.Int32("limit", n), zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("lock email jobs: %w", err)
 	}
-	jobs := make([]claimedJob, len(rows))
+	jobs := make([]ClaimedJob, len(rows))
 	for i, row := range rows {
-		jobs[i] = claimedJob{
+		jobs[i] = ClaimedJob{
 			ID:             row.ID,
 			TemplateName:   TemplateName(row.TemplateName),
 			RecipientEmail: row.RecipientEmail,
@@ -118,7 +120,7 @@ func (r *Repo) MarkSent(ctx context.Context, id pgtype.UUID) error {
 			zap.String("job_id", uuid.UUID(id.Bytes).String()),
 			zap.Error(err),
 		)
-		return err
+		return fmt.Errorf("mark email job sent: %w", err)
 	}
 	r.log.Debug("email job marked sent", zap.String("job_id", uuid.UUID(id.Bytes).String()))
 	return nil
@@ -128,7 +130,8 @@ func (r *Repo) MarkSent(ctx context.Context, id pgtype.UUID) error {
 // exponential backoff (base * 2^attempt), and clears locked_by.  Once attempts
 // are exhausted the job transitions to dead.
 func (r *Repo) MarkFailed(ctx context.Context, id pgtype.UUID, errMsg string, attempt int32, baseBackoff time.Duration) error {
-	delay := time.Duration(float64(baseBackoff) * math.Pow(2, float64(attempt)))
+	const expBackoffBase = 2
+	delay := time.Duration(float64(baseBackoff) * math.Pow(expBackoffBase, float64(attempt)))
 	next := pgtype.Timestamptz{Time: time.Now().Add(delay), Valid: true}
 	errStr := errMsg
 	if err := db.New(r.pool).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{
@@ -141,7 +144,7 @@ func (r *Repo) MarkFailed(ctx context.Context, id pgtype.UUID, errMsg string, at
 			zap.Int32("attempt", attempt),
 			zap.Error(err),
 		)
-		return err
+		return fmt.Errorf("mark email job failed: %w", err)
 	}
 	r.log.Debug("email job marked failed",
 		zap.String("job_id", uuid.UUID(id.Bytes).String()),

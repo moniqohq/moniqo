@@ -5,14 +5,19 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
-const issuer = "moniqo"
+const (
+	issuer           = "moniqo"
+	refreshTokenSize = 32
+)
 
 // contextKey is a private type to prevent collisions with other packages.
 type contextKey string
@@ -30,7 +35,7 @@ func GenerateAccessToken(userID int64, secret []byte, ttl time.Duration) (string
 	now := time.Now()
 	claims := &Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   fmt.Sprintf("%d", userID),
+			Subject:   strconv.FormatInt(userID, 10),
 			ID:        uuid.New().String(),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
@@ -41,7 +46,7 @@ func GenerateAccessToken(userID int64, secret []byte, ttl time.Duration) (string
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(secret)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("sign token: %w", err)
 	}
 	return signed, claims, nil
 }
@@ -50,9 +55,9 @@ func GenerateAccessToken(userID int64, secret []byte, ttl time.Duration) (string
 // returning both the raw base64url value (sent to the client) and its SHA-256
 // hex hash (stored in the DB — the raw value is never persisted).
 func GenerateRefreshToken() (raw string, hash string, err error) {
-	buf := make([]byte, 32)
+	buf := make([]byte, refreshTokenSize)
 	if _, err = rand.Read(buf); err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("generate random bytes: %w", err)
 	}
 	raw = base64.RawURLEncoding.EncodeToString(buf)
 	hash = HashRefreshToken(raw)
@@ -81,12 +86,12 @@ func ParseAccessToken(tokenString string, secret []byte) (*Claims, error) {
 		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse token: %w", err)
 	}
 
 	claims, ok := token.Claims.(*Claims)
 	if !ok {
-		return nil, fmt.Errorf("invalid claims type")
+		return nil, errors.New("invalid claims type")
 	}
 	return claims, nil
 }

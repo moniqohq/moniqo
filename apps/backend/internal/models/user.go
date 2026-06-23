@@ -1,7 +1,9 @@
+// Package models defines the API-facing data transfer types returned by handlers.
 package models
 
 import "time"
 
+// UserStatus represents the lifecycle state of a user account.
 type UserStatus string
 
 const (

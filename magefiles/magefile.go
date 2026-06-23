@@ -162,7 +162,7 @@ func Clean() error {
 // --- internal helpers ---
 
 func lintBackend() error {
-	return runInDir("apps/backend", "golangci-lint", "run", "./...")
+	return runInDir("apps/backend", "golangci-lint", "run")
 }
 
 func lintJS() error {

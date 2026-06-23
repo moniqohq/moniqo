@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,8 +15,8 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
-// AuthRepository is the persistence contract for authentication operations.
-type AuthRepository interface {
+// Repository is the persistence contract for authentication operations.
+type Repository interface {
 	GetUserByEmail(ctx context.Context, email string) (UserCredentials, error)
 	UpdateLastLogin(ctx context.Context, userID int64) error
 	InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error
@@ -29,9 +30,9 @@ type AuthRepository interface {
 	RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertRefreshTokenRepoParams) ([16]byte, error)
 }
 
-// AuthSvc implements authentication business logic.
-type AuthSvc struct {
-	repo               AuthRepository
+// Svc implements authentication business logic.
+type Svc struct {
+	repo               Repository
 	jwtSecret          []byte
 	accessTokenTTL     time.Duration
 	refreshTokenTTL    time.Duration
@@ -39,15 +40,16 @@ type AuthSvc struct {
 	log                *zap.Logger
 }
 
-func NewAuthSvc(
-	repo AuthRepository,
+// NewSvc returns an Svc wired to the given repository and JWT configuration.
+func NewSvc(
+	repo Repository,
 	jwtSecret []byte,
 	accessTokenTTL time.Duration,
 	refreshTokenTTL time.Duration,
 	refreshTokenMaxAge time.Duration,
 	log *zap.Logger,
-) *AuthSvc {
-	return &AuthSvc{
+) *Svc {
+	return &Svc{
 		repo:               repo,
 		jwtSecret:          jwtSecret,
 		accessTokenTTL:     accessTokenTTL,
@@ -59,7 +61,7 @@ func NewAuthSvc(
 
 // Login verifies credentials, enforces account status, issues an access token,
 // and updates last_login on success.
-func (s *AuthSvc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) {
+func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) {
 	s.log.Info("processing login", zap.String("email", req.Email))
 
 	creds, err := s.repo.GetUserByEmail(ctx, req.Email)
@@ -69,7 +71,7 @@ func (s *AuthSvc) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 	}
 	if err != nil {
 		s.log.Error("login: repo error on GetUserByEmail", zap.String("email", req.Email), zap.Error(err))
-		return LoginResult{}, err
+		return LoginResult{}, fmt.Errorf("get user by email: %w", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(creds.Hash), []byte(req.Password)); err != nil {
@@ -96,7 +98,7 @@ func (s *AuthSvc) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 
 	if err := s.repo.UpdateLastLogin(ctx, creds.User.ID); err != nil {
 		s.log.Error("login: failed to update last_login", zap.Int64("user_id", creds.User.ID), zap.Error(err))
-		return LoginResult{}, err
+		return LoginResult{}, fmt.Errorf("update last login: %w", err)
 	}
 
 	s.log.Info("login successful", zap.Int64("user_id", creds.User.ID))
@@ -109,7 +111,7 @@ func (s *AuthSvc) Login(ctx context.Context, req LoginRequest) (LoginResult, err
 
 // IssueRefreshToken creates a new token family and inserts the first refresh
 // token row. Returns the raw token (sent to the client) and its expiry.
-func (s *AuthSvc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue, error) {
+func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue, error) {
 	raw, hash, err := GenerateRefreshToken()
 	if err != nil {
 		return RefreshIssue{}, err
@@ -127,7 +129,7 @@ func (s *AuthSvc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshI
 		ExpiresAt:         expiresAt,
 		AbsoluteExpiresAt: absoluteExpiresAt,
 	}); err != nil {
-		return RefreshIssue{}, err
+		return RefreshIssue{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 
 	return RefreshIssue{RawToken: raw, ExpiresAt: expiresAt}, nil
@@ -136,7 +138,7 @@ func (s *AuthSvc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshI
 // RefreshAccessToken validates rawToken, detects reuse, rotates the token, and
 // mints a new access token. Returns ErrRefreshTokenInvalid for all invalid/
 // rejected states so the handler never leaks the specific failure reason.
-func (s *AuthSvc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshResult, error) {
+func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshResult, error) {
 	hash := HashRefreshToken(rawToken)
 
 	row, err := s.repo.GetRefreshTokenByHash(ctx, hash)
@@ -144,46 +146,21 @@ func (s *AuthSvc) RefreshAccessToken(ctx context.Context, rawToken string) (Refr
 		return RefreshResult{}, ErrRefreshTokenInvalid
 	}
 	if err != nil {
-		return RefreshResult{}, err
+		return RefreshResult{}, fmt.Errorf("get refresh token by hash: %w", err)
 	}
 
 	now := time.Now()
 
-	// Reject if revoked.
-	if row.RevokedAt.Valid {
-		return RefreshResult{}, ErrRefreshTokenInvalid
+	if err := s.validateRefreshTokenState(ctx, row, now); err != nil {
+		return RefreshResult{}, err
 	}
 
-	// Reuse detection: token already consumed → revoke entire family.
-	if row.UsedAt.Valid {
-		s.log.Warn("refresh token reuse detected — revoking family",
-			zap.String("family_id", row.FamilyID.String()))
-		reason := "reuse_detected"
-		_ = s.repo.RevokeRefreshTokenFamily(ctx, row.FamilyID.Bytes, reason)
-		return RefreshResult{}, ErrRefreshTokenInvalid
-	}
-
-	// Reject if expired.
-	if row.ExpiresAt.Valid && now.After(row.ExpiresAt.Time) {
-		return RefreshResult{}, ErrRefreshTokenInvalid
-	}
-
-	// Reject if absolute session cap exceeded.
-	if row.AbsoluteExpiresAt.Valid && now.After(row.AbsoluteExpiresAt.Time) {
-		return RefreshResult{}, ErrRefreshTokenInvalid
-	}
-
-	// Mint new tokens.
 	newRaw, newHash, err := GenerateRefreshToken()
 	if err != nil {
 		return RefreshResult{}, err
 	}
 
-	// Clamp new expiry to the inherited absolute cap.
-	newExpiresAt := now.Add(s.refreshTokenTTL)
-	if row.AbsoluteExpiresAt.Valid && newExpiresAt.After(row.AbsoluteExpiresAt.Time) {
-		newExpiresAt = row.AbsoluteExpiresAt.Time
-	}
+	newExpiresAt := clampExpiry(now.Add(s.refreshTokenTTL), row.AbsoluteExpiresAt)
 
 	if _, err := s.repo.RotateRefreshToken(ctx, row.ID.Bytes, InsertRefreshTokenRepoParams{
 		FamilyID:          row.FamilyID.Bytes,
@@ -192,11 +169,10 @@ func (s *AuthSvc) RefreshAccessToken(ctx context.Context, rawToken string) (Refr
 		ExpiresAt:         newExpiresAt,
 		AbsoluteExpiresAt: row.AbsoluteExpiresAt.Time,
 	}); err != nil {
-		return RefreshResult{}, err
+		return RefreshResult{}, fmt.Errorf("rotate refresh token: %w", err)
 	}
 
-	userID := row.UserID
-	accessToken, _, err := GenerateAccessToken(userID, s.jwtSecret, s.accessTokenTTL)
+	accessToken, _, err := GenerateAccessToken(row.UserID, s.jwtSecret, s.accessTokenTTL)
 	if err != nil {
 		return RefreshResult{}, err
 	}
@@ -210,7 +186,7 @@ func (s *AuthSvc) RefreshAccessToken(ctx context.Context, rawToken string) (Refr
 
 // Logout inserts the access token's jti into the revocation blocklist so that
 // subsequent requests carrying it are rejected by the auth middleware.
-func (s *AuthSvc) Logout(ctx context.Context, params LogoutParams) error {
+func (s *Svc) Logout(ctx context.Context, params LogoutParams) error {
 	s.log.Info("processing logout", zap.Int64("user_id", params.UserID))
 
 	jtiPg := pgtype.UUID{Bytes: params.JTI, Valid: true}
@@ -220,9 +196,38 @@ func (s *AuthSvc) Logout(ctx context.Context, params LogoutParams) error {
 		ExpiresAt: params.ExpiresAt,
 	}); err != nil {
 		s.log.Error("logout: failed to revoke access token", zap.Int64("user_id", params.UserID), zap.Error(err))
-		return err
+		return fmt.Errorf("insert revoked token: %w", err)
 	}
 
 	s.log.Info("logout successful", zap.Int64("user_id", params.UserID))
 	return nil
+}
+
+// validateRefreshTokenState checks the token's state and revokes the family on
+// reuse detection. All invalid states return ErrRefreshTokenInvalid.
+func (s *Svc) validateRefreshTokenState(ctx context.Context, row db.RefreshToken, now time.Time) error {
+	if row.RevokedAt.Valid {
+		return ErrRefreshTokenInvalid
+	}
+	if row.UsedAt.Valid {
+		s.log.Warn("refresh token reuse detected — revoking family",
+			zap.String("family_id", row.FamilyID.String()))
+		_ = s.repo.RevokeRefreshTokenFamily(ctx, row.FamilyID.Bytes, "reuse_detected")
+		return ErrRefreshTokenInvalid
+	}
+	if row.ExpiresAt.Valid && now.After(row.ExpiresAt.Time) {
+		return ErrRefreshTokenInvalid
+	}
+	if row.AbsoluteExpiresAt.Valid && now.After(row.AbsoluteExpiresAt.Time) {
+		return ErrRefreshTokenInvalid
+	}
+	return nil
+}
+
+// clampExpiry returns proposed unless abs is valid and comes sooner.
+func clampExpiry(proposed time.Time, abs pgtype.Timestamptz) time.Time {
+	if abs.Valid && proposed.After(abs.Time) {
+		return abs.Time
+	}
+	return proposed
 }

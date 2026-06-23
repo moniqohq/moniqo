@@ -38,6 +38,7 @@ type Worker struct {
 	wg       sync.WaitGroup
 }
 
+// NewWorker returns a Worker wired to the given repository, email provider, and configuration.
 func NewWorker(repo *Repo, provider providers.Provider, cfg WorkerConfig, log *zap.Logger) *Worker {
 	return &Worker{
 		repo:     repo,
@@ -48,7 +49,7 @@ func NewWorker(repo *Repo, provider providers.Provider, cfg WorkerConfig, log *z
 	}
 }
 
-// Run starts the poll loop and blocks until ctx is cancelled.  Call it in a
+// Run starts the poll loop and blocks until ctx is canceled.  Call it in a
 // goroutine from main.go.  The current tick (if any) drains before Run returns.
 func (w *Worker) Run(ctx context.Context) {
 	w.wg.Add(1)
@@ -97,7 +98,7 @@ func (w *Worker) tick(ctx context.Context) {
 	}
 }
 
-func (w *Worker) processJob(ctx context.Context, job *claimedJob) {
+func (w *Worker) processJob(ctx context.Context, job *ClaimedJob) {
 	log := w.log.With(
 		zap.String("job_id", uuid.UUID(job.ID.Bytes).String()),
 		zap.String("template", string(job.TemplateName)),
@@ -141,7 +142,7 @@ func (w *Worker) processJob(ctx context.Context, job *claimedJob) {
 	log.Info("email sent successfully")
 }
 
-func (w *Worker) failJob(ctx context.Context, job *claimedJob, errMsg string, log *zap.Logger) {
+func (w *Worker) failJob(ctx context.Context, job *ClaimedJob, errMsg string, log *zap.Logger) {
 	if err := w.repo.MarkFailed(ctx, job.ID, errMsg, job.AttemptCount, w.cfg.BaseBackoff); err != nil {
 		log.Error("email worker: mark failed", zap.Error(err))
 	}
@@ -149,4 +150,3 @@ func (w *Worker) failJob(ctx context.Context, job *claimedJob, errMsg string, lo
 		log.Warn("email job moved to dead letter", zap.Int32("max_attempts", job.MaxAttempts))
 	}
 }
-

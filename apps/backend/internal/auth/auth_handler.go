@@ -1,3 +1,4 @@
+// Package auth provides JWT-based authentication handlers and token utilities.
 package auth
 
 import (
@@ -13,19 +14,20 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 )
 
-// AuthService is the service contract required by Handler.
-type AuthService interface {
+// Service is the service contract required by Handler.
+type Service interface {
 	Login(ctx context.Context, req LoginRequest) (LoginResult, error)
 	Logout(ctx context.Context, params LogoutParams) error
 }
 
 // Handler holds HTTP handlers for auth endpoints.
 type Handler struct {
-	svc AuthService
+	svc Service
 	log *zap.Logger
 }
 
-func NewHandler(svc AuthService, log *zap.Logger) *Handler {
+// NewHandler returns an auth Handler wired to the given service.
+func NewHandler(svc Service, log *zap.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
 }
 

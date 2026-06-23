@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -14,17 +15,19 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
-// AuthRepo implements AuthRepository using PostgreSQL.
-type AuthRepo struct {
+// Repo implements Repository using PostgreSQL.
+type Repo struct {
 	pool *pgxpool.Pool
 	log  *zap.Logger
 }
 
-func NewAuthRepo(pool *pgxpool.Pool, log *zap.Logger) *AuthRepo {
-	return &AuthRepo{pool: pool, log: log}
+// NewRepo returns a Repo backed by the given connection pool.
+func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
+	return &Repo{pool: pool, log: log}
 }
 
-func (r *AuthRepo) GetUserByEmail(ctx context.Context, email string) (UserCredentials, error) {
+// GetUserByEmail fetches a user's public fields and password hash by email address.
+func (r *Repo) GetUserByEmail(ctx context.Context, email string) (UserCredentials, error) {
 	q := db.New(r.pool)
 	row, err := q.GetUserByEmail(ctx, email)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -32,7 +35,7 @@ func (r *AuthRepo) GetUserByEmail(ctx context.Context, email string) (UserCreden
 	}
 	if err != nil {
 		r.log.Error("GetUserByEmail query failed", zap.String("email", email), zap.Error(err))
-		return UserCredentials{}, err
+		return UserCredentials{}, fmt.Errorf("get user by email: %w", err)
 	}
 	return UserCredentials{
 		User: rowToPublic(row),
@@ -40,16 +43,18 @@ func (r *AuthRepo) GetUserByEmail(ctx context.Context, email string) (UserCreden
 	}, nil
 }
 
-func (r *AuthRepo) UpdateLastLogin(ctx context.Context, userID int64) error {
+// UpdateLastLogin records the current timestamp as the user's last successful login.
+func (r *Repo) UpdateLastLogin(ctx context.Context, userID int64) error {
 	q := db.New(r.pool)
 	if err := q.UpdateLastLogin(ctx, userID); err != nil {
 		r.log.Error("UpdateLastLogin query failed", zap.Int64("user_id", userID), zap.Error(err))
-		return err
+		return fmt.Errorf("update last login: %w", err)
 	}
 	return nil
 }
 
-func (r *AuthRepo) InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error {
+// InsertRevokedAccessToken adds a JWT JTI to the revocation list so it cannot be reused after logout.
+func (r *Repo) InsertRevokedAccessToken(ctx context.Context, p InsertRevokedTokenParams) error {
 	q := db.New(r.pool)
 	err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
 		Jti:       p.JTI,
@@ -58,22 +63,24 @@ func (r *AuthRepo) InsertRevokedAccessToken(ctx context.Context, p InsertRevoked
 	})
 	if err != nil {
 		r.log.Error("InsertRevokedAccessToken query failed", zap.Error(err))
-		return err
+		return fmt.Errorf("insert revoked token: %w", err)
 	}
 	return nil
 }
 
-func (r *AuthRepo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error) {
+// IsAccessTokenRevoked reports whether the given JTI appears in the revocation list.
+func (r *Repo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error) {
 	q := db.New(r.pool)
 	revoked, err := q.IsAccessTokenRevoked(ctx, jti)
 	if err != nil {
 		r.log.Error("IsAccessTokenRevoked query failed", zap.Error(err))
-		return false, err
+		return false, fmt.Errorf("check token revoked: %w", err)
 	}
 	return revoked, nil
 }
 
-func (r *AuthRepo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
+// UserExistsByID reports whether a user row with the given ID exists in the database.
+func (r *Repo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
 	q := db.New(r.pool)
 	_, err := q.GetUserByID(ctx, userID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -81,12 +88,13 @@ func (r *AuthRepo) UserExistsByID(ctx context.Context, userID int64) (bool, erro
 	}
 	if err != nil {
 		r.log.Error("UserExistsByID query failed", zap.Int64("user_id", userID), zap.Error(err))
-		return false, err
+		return false, fmt.Errorf("get user by id: %w", err)
 	}
 	return true, nil
 }
 
-func (r *AuthRepo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error) {
+// InsertRefreshToken persists a new refresh token row and returns its family ID.
+func (r *Repo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error) {
 	q := db.New(r.pool)
 	id, err := q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
 		FamilyID:          pgtype.UUID{Bytes: p.FamilyID, Valid: true},
@@ -97,12 +105,13 @@ func (r *AuthRepo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenR
 	})
 	if err != nil {
 		r.log.Error("InsertRefreshToken query failed", zap.Error(err))
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 	return id.Bytes, nil
 }
 
-func (r *AuthRepo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.RefreshToken, error) {
+// GetRefreshTokenByHash looks up a refresh token by its SHA-256 hash.
+func (r *Repo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.RefreshToken, error) {
 	q := db.New(r.pool)
 	row, err := q.GetRefreshTokenByHash(ctx, hash)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -110,44 +119,46 @@ func (r *AuthRepo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.R
 	}
 	if err != nil {
 		r.log.Error("GetRefreshTokenByHash query failed", zap.Error(err))
-		return db.RefreshToken{}, err
+		return db.RefreshToken{}, fmt.Errorf("get refresh token by hash: %w", err)
 	}
 	return row, nil
 }
 
-func (r *AuthRepo) MarkRefreshTokenUsed(ctx context.Context, id [16]byte) error {
+// MarkRefreshTokenUsed flags the token as consumed so it cannot be reused.
+func (r *Repo) MarkRefreshTokenUsed(ctx context.Context, id [16]byte) error {
 	q := db.New(r.pool)
 	if err := q.MarkRefreshTokenUsed(ctx, pgtype.UUID{Bytes: id, Valid: true}); err != nil {
 		r.log.Error("MarkRefreshTokenUsed query failed", zap.Error(err))
-		return err
+		return fmt.Errorf("mark refresh token used: %w", err)
 	}
 	return nil
 }
 
-func (r *AuthRepo) RevokeRefreshTokenFamily(ctx context.Context, familyID [16]byte, reason string) error {
+// RevokeRefreshTokenFamily invalidates every token that shares the given family ID.
+func (r *Repo) RevokeRefreshTokenFamily(ctx context.Context, familyID [16]byte, reason string) error {
 	q := db.New(r.pool)
 	if err := q.RevokeRefreshTokenFamily(ctx, db.RevokeRefreshTokenFamilyParams{
 		FamilyID:      pgtype.UUID{Bytes: familyID, Valid: true},
 		RevokedReason: &reason,
 	}); err != nil {
 		r.log.Error("RevokeRefreshTokenFamily query failed", zap.Error(err))
-		return err
+		return fmt.Errorf("revoke refresh token family: %w", err)
 	}
 	return nil
 }
 
 // RotateRefreshToken atomically marks oldID as used and inserts a new token row.
-func (r *AuthRepo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertRefreshTokenRepoParams) ([16]byte, error) {
+func (r *Repo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertRefreshTokenRepoParams) ([16]byte, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
 	q := db.New(tx)
 
 	if err := q.MarkRefreshTokenUsed(ctx, pgtype.UUID{Bytes: oldID, Valid: true}); err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("mark refresh token used: %w", err)
 	}
 
 	newID, err := q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
@@ -158,11 +169,11 @@ func (r *AuthRepo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p Ins
 		AbsoluteExpiresAt: pgtype.Timestamptz{Time: p.AbsoluteExpiresAt, Valid: true},
 	})
 	if err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return [16]byte{}, err
+		return [16]byte{}, fmt.Errorf("commit transaction: %w", err)
 	}
 	return newID.Bytes, nil
 }

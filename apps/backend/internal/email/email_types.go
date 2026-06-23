@@ -5,6 +5,7 @@ import "context"
 // TemplateName identifies an email template pair (.html + .txt).
 type TemplateName string
 
+// Email template name constants for supported notification types.
 const (
 	TemplateVerification  TemplateName = "verification"
 	TemplatePasswordReset TemplateName = "password_reset"

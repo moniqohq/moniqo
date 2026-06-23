@@ -28,6 +28,34 @@ jobs:
           dry-run: false
           pr-comments: false
 
+  dco:
+    name: DCO
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check DCO sign-off on all commits
+        run: |
+          missing=$(git log "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" \
+            --format="%H %s" | while read -r sha msg; do
+              if ! git log -1 --format="%B" "$sha" | grep -qiE "^Signed-off-by: .+ <.+@.+>"; then
+                echo "  $sha $msg"
+              fi
+            done)
+          if [ -n "$missing" ]; then
+            echo "The following commits are missing a Signed-off-by line:"
+            echo "$missing"
+            echo ""
+            echo "Re-run with: git commit --amend --signoff  (last commit)"
+            echo "Or:          git rebase --signoff HEAD~N   (last N commits)"
+            exit 1
+          fi
+          echo "All commits have a valid DCO sign-off."
+
   pr-title:
     runs-on: ubuntu-latest
     if: github.actor != 'dependabot[bot]'

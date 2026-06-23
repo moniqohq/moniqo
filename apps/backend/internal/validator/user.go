@@ -10,8 +10,68 @@ import (
 
 // usernameRe enforces: starts with a letter, followed by alphanumeric chars, with
 // optional single - or _ separators between alphanumeric segments.
+const (
+	fieldEmail     = "email"
+	minPasswordLen = 8
+	maxPasswordLen = 72
+	maxEmailLen    = 254
+	maxNameLen     = 100
+)
+
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)
 
+func validateUsername(username string) *httpx.FieldError {
+	ulen := utf8.RuneCountInString(username)
+	switch {
+	case ulen < 8 || ulen > 12:
+		return &httpx.FieldError{Field: "username", Error: "must be between 8 and 12 characters"}
+	case !usernameRe.MatchString(username):
+		return &httpx.FieldError{
+			Field: "username",
+			Error: "must start with a letter and contain only letters, digits, hyphens, or underscores",
+		}
+	}
+	return nil
+}
+
+func validatePassword(field, password string) *httpx.FieldError {
+	plen := len(password)
+	if plen < minPasswordLen {
+		return &httpx.FieldError{Field: field, Error: "must be at least 8 characters"}
+	}
+	if plen > maxPasswordLen {
+		return &httpx.FieldError{Field: field, Error: "must not exceed 72 characters"}
+	}
+	return nil
+}
+
+func validateEmail(email string) *httpx.FieldError {
+	if email == "" {
+		return &httpx.FieldError{Field: fieldEmail, Error: "required"}
+	}
+	if len(email) > maxEmailLen {
+		return &httpx.FieldError{Field: fieldEmail, Error: "must not exceed 254 characters"}
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return &httpx.FieldError{Field: fieldEmail, Error: "invalid email format"}
+	}
+	return nil
+}
+
+func validateName(name *string) *httpx.FieldError {
+	if name == nil {
+		return nil
+	}
+	if *name == "" {
+		return &httpx.FieldError{Field: "name", Error: "must not be empty if provided"}
+	}
+	if utf8.RuneCountInString(*name) > maxNameLen {
+		return &httpx.FieldError{Field: "name", Error: "must not exceed 100 characters"}
+	}
+	return nil
+}
+
+// RegisterInput holds the fields for POST /api/v1/users registration.
 type RegisterInput struct {
 	Username string
 	Password string
@@ -24,41 +84,23 @@ func ValidateRegister(in RegisterInput) []httpx.FieldError {
 	var errs []httpx.FieldError
 
 	// Username
-	ulen := utf8.RuneCountInString(in.Username)
-	switch {
-	case ulen < 8 || ulen > 12:
-		errs = append(errs, httpx.FieldError{Field: "username", Error: "must be between 8 and 12 characters"})
-	case !usernameRe.MatchString(in.Username):
-		errs = append(errs, httpx.FieldError{
-			Field: "username",
-			Error: "must start with a letter, contain only letters, digits, hyphens, or underscores, and not end with a hyphen or underscore",
-		})
+	if fe := validateUsername(in.Username); fe != nil {
+		errs = append(errs, *fe)
 	}
 
 	// Password (byte length — bcrypt truncates at 72 bytes)
-	plen := len(in.Password)
-	if plen < 8 {
-		errs = append(errs, httpx.FieldError{Field: "password", Error: "must be at least 8 characters"})
-	} else if plen > 72 {
-		errs = append(errs, httpx.FieldError{Field: "password", Error: "must not exceed 72 characters"})
+	if fe := validatePassword("password", in.Password); fe != nil {
+		errs = append(errs, *fe)
 	}
 
 	// Email (required)
-	if in.Email == "" {
-		errs = append(errs, httpx.FieldError{Field: "email", Error: "required"})
-	} else if len(in.Email) > 254 {
-		errs = append(errs, httpx.FieldError{Field: "email", Error: "must not exceed 254 characters"})
-	} else if _, err := mail.ParseAddress(in.Email); err != nil {
-		errs = append(errs, httpx.FieldError{Field: "email", Error: "invalid email format"})
+	if fe := validateEmail(in.Email); fe != nil {
+		errs = append(errs, *fe)
 	}
 
 	// Name (optional — omitted is fine; explicitly empty is not)
-	if in.Name != nil {
-		if *in.Name == "" {
-			errs = append(errs, httpx.FieldError{Field: "name", Error: "must not be empty if provided"})
-		} else if utf8.RuneCountInString(*in.Name) > 100 {
-			errs = append(errs, httpx.FieldError{Field: "name", Error: "must not exceed 100 characters"})
-		}
+	if fe := validateName(in.Name); fe != nil {
+		errs = append(errs, *fe)
 	}
 
 	return errs
@@ -76,31 +118,16 @@ type ReplaceProfileInput struct {
 func ValidateReplaceProfile(in ReplaceProfileInput) []httpx.FieldError {
 	var errs []httpx.FieldError
 
-	ulen := utf8.RuneCountInString(in.Username)
-	switch {
-	case ulen < 8 || ulen > 12:
-		errs = append(errs, httpx.FieldError{Field: "username", Error: "must be between 8 and 12 characters"})
-	case !usernameRe.MatchString(in.Username):
-		errs = append(errs, httpx.FieldError{
-			Field: "username",
-			Error: "must start with a letter, contain only letters, digits, hyphens, or underscores, and not end with a hyphen or underscore",
-		})
+	if fe := validateUsername(in.Username); fe != nil {
+		errs = append(errs, *fe)
 	}
 
-	if in.Email == "" {
-		errs = append(errs, httpx.FieldError{Field: "email", Error: "required"})
-	} else if len(in.Email) > 254 {
-		errs = append(errs, httpx.FieldError{Field: "email", Error: "must not exceed 254 characters"})
-	} else if _, err := mail.ParseAddress(in.Email); err != nil {
-		errs = append(errs, httpx.FieldError{Field: "email", Error: "invalid email format"})
+	if fe := validateEmail(in.Email); fe != nil {
+		errs = append(errs, *fe)
 	}
 
-	if in.Name != nil {
-		if *in.Name == "" {
-			errs = append(errs, httpx.FieldError{Field: "name", Error: "must not be empty if provided"})
-		} else if utf8.RuneCountInString(*in.Name) > 100 {
-			errs = append(errs, httpx.FieldError{Field: "name", Error: "must not exceed 100 characters"})
-		}
+	if fe := validateName(in.Name); fe != nil {
+		errs = append(errs, *fe)
 	}
 
 	return errs
@@ -117,6 +144,40 @@ type PatchProfileInput struct {
 	NewPassword     *string
 }
 
+func validatePatchProfileFields(in PatchProfileInput) []httpx.FieldError {
+	var errs []httpx.FieldError
+	if in.Username != nil {
+		if fe := validateUsername(*in.Username); fe != nil {
+			errs = append(errs, *fe)
+		}
+	}
+	if in.Email != nil {
+		if fe := validateEmail(*in.Email); fe != nil {
+			errs = append(errs, *fe)
+		}
+	}
+	if fe := validateName(in.Name); fe != nil {
+		errs = append(errs, *fe)
+	}
+	return errs
+}
+
+func validatePatchPasswordFields(in PatchProfileInput) []httpx.FieldError {
+	var errs []httpx.FieldError
+	if in.CurrentPassword == nil && in.NewPassword != nil {
+		errs = append(errs, httpx.FieldError{Field: "current_password", Error: "required when changing password"})
+	}
+	if in.NewPassword == nil && in.CurrentPassword != nil {
+		errs = append(errs, httpx.FieldError{Field: "new_password", Error: "required when changing password"})
+	}
+	if in.NewPassword != nil {
+		if fe := validatePassword("new_password", *in.NewPassword); fe != nil {
+			errs = append(errs, *fe)
+		}
+	}
+	return errs
+}
+
 // ValidatePatchProfile returns an error list. It rejects an empty body (all nil)
 // and validates only the fields that are present.
 func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
@@ -125,56 +186,6 @@ func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
 	if !profileFields && !passwordFields {
 		return []httpx.FieldError{{Field: "body", Error: "request body must contain at least one field"}}
 	}
-
-	var errs []httpx.FieldError
-
-	if in.Username != nil {
-		ulen := utf8.RuneCountInString(*in.Username)
-		switch {
-		case ulen < 8 || ulen > 12:
-			errs = append(errs, httpx.FieldError{Field: "username", Error: "must be between 8 and 12 characters"})
-		case !usernameRe.MatchString(*in.Username):
-			errs = append(errs, httpx.FieldError{
-				Field: "username",
-				Error: "must start with a letter, contain only letters, digits, hyphens, or underscores, and not end with a hyphen or underscore",
-			})
-		}
-	}
-
-	if in.Email != nil {
-		if *in.Email == "" {
-			errs = append(errs, httpx.FieldError{Field: "email", Error: "required"})
-		} else if len(*in.Email) > 254 {
-			errs = append(errs, httpx.FieldError{Field: "email", Error: "must not exceed 254 characters"})
-		} else if _, err := mail.ParseAddress(*in.Email); err != nil {
-			errs = append(errs, httpx.FieldError{Field: "email", Error: "invalid email format"})
-		}
-	}
-
-	if in.Name != nil {
-		if *in.Name == "" {
-			errs = append(errs, httpx.FieldError{Field: "name", Error: "must not be empty if provided"})
-		} else if utf8.RuneCountInString(*in.Name) > 100 {
-			errs = append(errs, httpx.FieldError{Field: "name", Error: "must not exceed 100 characters"})
-		}
-	}
-
-	// Password change: both fields must be present together.
-	if in.CurrentPassword != nil || in.NewPassword != nil {
-		if in.CurrentPassword == nil {
-			errs = append(errs, httpx.FieldError{Field: "current_password", Error: "required when changing password"})
-		}
-		if in.NewPassword == nil {
-			errs = append(errs, httpx.FieldError{Field: "new_password", Error: "required when changing password"})
-		} else {
-			plen := len(*in.NewPassword)
-			if plen < 8 {
-				errs = append(errs, httpx.FieldError{Field: "new_password", Error: "must be at least 8 characters"})
-			} else if plen > 72 {
-				errs = append(errs, httpx.FieldError{Field: "new_password", Error: "must not exceed 72 characters"})
-			}
-		}
-	}
-
-	return errs
+	errs := validatePatchProfileFields(in)
+	return append(errs, validatePatchPasswordFields(in)...)
 }

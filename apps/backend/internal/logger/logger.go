@@ -1,6 +1,9 @@
+// Package logger provides zap-based structured logger initialization.
 package logger
 
 import (
+	"fmt"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -18,14 +21,20 @@ type Config struct {
 	Env string
 }
 
+func parseLevel(s string) zapcore.Level {
+	var l zapcore.Level
+	if err := l.UnmarshalText([]byte(s)); err != nil {
+		return zapcore.InfoLevel
+	}
+	return l
+}
+
 // New builds a *zap.Logger from Config.
 // Returns an error only if the underlying zap build fails (effectively never in practice).
 func New(cfg Config) (*zap.Logger, error) {
 	level := zapcore.InfoLevel
 	if cfg.Level != "" {
-		if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
-			level = zapcore.InfoLevel
-		}
+		level = parseLevel(cfg.Level)
 	}
 
 	var zapCfg zap.Config
@@ -41,10 +50,11 @@ func New(cfg Config) (*zap.Logger, error) {
 
 	log, err := zapCfg.Build(zap.AddCallerSkip(0))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build logger: %w", err)
 	}
 
-	fields := make([]zap.Field, 0, 2)
+	const maxStaticFields = 2
+	fields := make([]zap.Field, 0, maxStaticFields)
 	if cfg.ServiceName != "" {
 		fields = append(fields, zap.String("service", cfg.ServiceName))
 	}
