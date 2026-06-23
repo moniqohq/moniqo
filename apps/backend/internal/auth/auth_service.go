@@ -151,41 +151,16 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 
 	now := time.Now()
 
-	// Reject if revoked.
-	if row.RevokedAt.Valid {
-		return RefreshResult{}, ErrRefreshTokenInvalid
+	if err := s.validateRefreshTokenState(ctx, row, now); err != nil {
+		return RefreshResult{}, err
 	}
 
-	// Reuse detection: token already consumed → revoke entire family.
-	if row.UsedAt.Valid {
-		s.log.Warn("refresh token reuse detected — revoking family",
-			zap.String("family_id", row.FamilyID.String()))
-		reason := "reuse_detected"
-		_ = s.repo.RevokeRefreshTokenFamily(ctx, row.FamilyID.Bytes, reason)
-		return RefreshResult{}, ErrRefreshTokenInvalid
-	}
-
-	// Reject if expired.
-	if row.ExpiresAt.Valid && now.After(row.ExpiresAt.Time) {
-		return RefreshResult{}, ErrRefreshTokenInvalid
-	}
-
-	// Reject if absolute session cap exceeded.
-	if row.AbsoluteExpiresAt.Valid && now.After(row.AbsoluteExpiresAt.Time) {
-		return RefreshResult{}, ErrRefreshTokenInvalid
-	}
-
-	// Mint new tokens.
 	newRaw, newHash, err := GenerateRefreshToken()
 	if err != nil {
 		return RefreshResult{}, err
 	}
 
-	// Clamp new expiry to the inherited absolute cap.
-	newExpiresAt := now.Add(s.refreshTokenTTL)
-	if row.AbsoluteExpiresAt.Valid && newExpiresAt.After(row.AbsoluteExpiresAt.Time) {
-		newExpiresAt = row.AbsoluteExpiresAt.Time
-	}
+	newExpiresAt := clampExpiry(now.Add(s.refreshTokenTTL), row.AbsoluteExpiresAt)
 
 	if _, err := s.repo.RotateRefreshToken(ctx, row.ID.Bytes, InsertRefreshTokenRepoParams{
 		FamilyID:          row.FamilyID.Bytes,
@@ -197,8 +172,7 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 		return RefreshResult{}, fmt.Errorf("rotate refresh token: %w", err)
 	}
 
-	userID := row.UserID
-	accessToken, _, err := GenerateAccessToken(userID, s.jwtSecret, s.accessTokenTTL)
+	accessToken, _, err := GenerateAccessToken(row.UserID, s.jwtSecret, s.accessTokenTTL)
 	if err != nil {
 		return RefreshResult{}, err
 	}
@@ -227,4 +201,33 @@ func (s *Svc) Logout(ctx context.Context, params LogoutParams) error {
 
 	s.log.Info("logout successful", zap.Int64("user_id", params.UserID))
 	return nil
+}
+
+// validateRefreshTokenState checks the token's state and revokes the family on
+// reuse detection. All invalid states return ErrRefreshTokenInvalid.
+func (s *Svc) validateRefreshTokenState(ctx context.Context, row db.RefreshToken, now time.Time) error {
+	if row.RevokedAt.Valid {
+		return ErrRefreshTokenInvalid
+	}
+	if row.UsedAt.Valid {
+		s.log.Warn("refresh token reuse detected — revoking family",
+			zap.String("family_id", row.FamilyID.String()))
+		_ = s.repo.RevokeRefreshTokenFamily(ctx, row.FamilyID.Bytes, "reuse_detected")
+		return ErrRefreshTokenInvalid
+	}
+	if row.ExpiresAt.Valid && now.After(row.ExpiresAt.Time) {
+		return ErrRefreshTokenInvalid
+	}
+	if row.AbsoluteExpiresAt.Valid && now.After(row.AbsoluteExpiresAt.Time) {
+		return ErrRefreshTokenInvalid
+	}
+	return nil
+}
+
+// clampExpiry returns proposed unless abs is valid and comes sooner.
+func clampExpiry(proposed time.Time, abs pgtype.Timestamptz) time.Time {
+	if abs.Valid && proposed.After(abs.Time) {
+		return abs.Time
+	}
+	return proposed
 }
