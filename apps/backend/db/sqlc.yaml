@@ -5,6 +5,7 @@ sql:
       - "queries/users.sql"
       - "queries/auth.sql"
       - "queries/email_jobs.sql"
+      - "queries/password_reset.sql"
     schema: "migrations"
     gen:
       go:
