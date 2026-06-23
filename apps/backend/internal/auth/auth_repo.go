@@ -218,15 +218,21 @@ func userByIDRowToPublic(row db.GetUserByIDRow) models.User {
 		t := row.LastLogin.Time
 		lastLogin = &t
 	}
+	var tokensInvalidBefore *time.Time
+	if row.TokensInvalidBefore.Valid {
+		t := row.TokensInvalidBefore.Time
+		tokensInvalidBefore = &t
+	}
 	return models.User{
-		ID:        row.ID,
-		Name:      row.Name,
-		Username:  row.Username,
-		Email:     row.Email,
-		Picture:   row.Picture,
-		Status:    models.UserStatus(row.Status),
-		LastLogin: lastLogin,
-		CreatedAt: row.CreatedAt.Time,
+		ID:                  row.ID,
+		Name:                row.Name,
+		Username:            row.Username,
+		Email:               row.Email,
+		Picture:             row.Picture,
+		Status:              models.UserStatus(row.Status),
+		LastLogin:           lastLogin,
+		CreatedAt:           row.CreatedAt.Time,
+		TokensInvalidBefore: tokensInvalidBefore,
 	}
 }
 

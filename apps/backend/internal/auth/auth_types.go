@@ -19,6 +19,10 @@ var (
 	// refresh token failure (absent, expired, revoked, malformed, reuse). The
 	// handler maps it to 401 without revealing the specific cause.
 	ErrRefreshTokenInvalid = errors.New("refresh token invalid")
+	// ErrInvalidResetToken is the single generic error returned for any password
+	// reset token failure (not found, already used, expired). The handler maps
+	// it to 401 without revealing the specific cause.
+	ErrInvalidResetToken = errors.New("reset token invalid")
 )
 
 // -----------------------------------------------------------------------------
@@ -99,4 +103,26 @@ type InsertRefreshTokenRepoParams struct {
 	TokenHash         string
 	ExpiresAt         time.Time
 	AbsoluteExpiresAt time.Time
+}
+
+// -----------------------------------------------------------------------------
+// Password reset types
+// -----------------------------------------------------------------------------
+
+// RequestResetRequest is the service-layer input for initiating a password reset.
+type RequestResetRequest struct {
+	Email string
+}
+
+// ConfirmResetRequest is the service-layer input for confirming a password reset.
+type ConfirmResetRequest struct {
+	Token       string
+	NewPassword string
+}
+
+// PasswordResetUserInfo holds the minimum user data needed for token issuance and email.
+type PasswordResetUserInfo struct {
+	ID    int64
+	Name  *string
+	Email string
 }
