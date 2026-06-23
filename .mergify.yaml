@@ -8,11 +8,11 @@ pull_request_rules:
         add_users:
           - "{{ author }}"
 
-  # Auto-squash merge after 1 approval and all CI checks pass (requires "queue" label)
+  # Auto-squash merge after 1 approval and all CI checks pass (requires "queued" label)
   - name: Auto-squash merge after approval and CI
     conditions:
       - base=main
-      - "label=queue"
+      - "label=queued"
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-requested=0"
@@ -35,16 +35,16 @@ pull_request_rules:
           {{ body }}
       delete_head_branch: {}
 
-  # Remove "queue" label if PR is updated after being queued (label no longer valid)
+  # Remove "queued" label if PR is updated after being queued (label no longer valid)
   - name: Remove queue label on new commits
     conditions:
       - base=main
-      - "label=queue"
+      - "label=queued"
       - "check-neutral=CI / build"
     actions:
       label:
         remove:
-          - queue
+          - queued
 
   # Auto-merge Dependabot PRs after CI (no human approval required)
   - name: Auto-merge Dependabot patch/minor updates
