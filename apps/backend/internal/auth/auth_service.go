@@ -20,7 +20,7 @@ type Repository interface {
 	GetUserByEmail(ctx context.Context, email string) (UserCredentials, error)
 	UpdateLastLogin(ctx context.Context, userID int64) error
 	IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error)
-	UserExistsByID(ctx context.Context, userID int64) (bool, error)
+	GetUserByID(ctx context.Context, userID int64) (models.User, error)
 	LogoutTransaction(ctx context.Context, p LogoutParams) error
 
 	InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoParams) ([16]byte, error)

@@ -112,18 +112,19 @@ func (r *Repo) IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool,
 	return revoked, nil
 }
 
-// UserExistsByID reports whether a user row with the given ID exists in the database.
-func (r *Repo) UserExistsByID(ctx context.Context, userID int64) (bool, error) {
+// GetUserByID fetches a user's public fields by ID. The underlying query filters
+// out soft-deleted rows, so a soft-deleted user yields ErrUserNotFound.
+func (r *Repo) GetUserByID(ctx context.Context, userID int64) (models.User, error) {
 	q := db.New(r.pool)
-	_, err := q.GetUserByID(ctx, userID)
+	row, err := q.GetUserByID(ctx, userID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return models.User{}, ErrUserNotFound
 	}
 	if err != nil {
-		r.log.Error("UserExistsByID query failed", zap.Int64("user_id", userID), zap.Error(err))
-		return false, fmt.Errorf("get user by id: %w", err)
+		r.log.Error("GetUserByID query failed", zap.Int64("user_id", userID), zap.Error(err))
+		return models.User{}, fmt.Errorf("get user by id: %w", err)
 	}
-	return true, nil
+	return userByIDRowToPublic(row), nil
 }
 
 // InsertRefreshToken persists a new refresh token row and returns its family ID.
@@ -209,6 +210,24 @@ func (r *Repo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertR
 		return [16]byte{}, fmt.Errorf("commit transaction: %w", err)
 	}
 	return newID.Bytes, nil
+}
+
+func userByIDRowToPublic(row db.GetUserByIDRow) models.User {
+	var lastLogin *time.Time
+	if row.LastLogin.Valid {
+		t := row.LastLogin.Time
+		lastLogin = &t
+	}
+	return models.User{
+		ID:        row.ID,
+		Name:      row.Name,
+		Username:  row.Username,
+		Email:     row.Email,
+		Picture:   row.Picture,
+		Status:    models.UserStatus(row.Status),
+		LastLogin: lastLogin,
+		CreatedAt: row.CreatedAt.Time,
+	}
 }
 
 func rowToPublic(row db.GetUserByEmailRow) models.User {

@@ -24,6 +24,10 @@ type contextKey string
 
 const claimsKey contextKey = "auth_claims"
 
+// ContextKeyUser is the context key under which Middleware stores the resolved
+// *models.User for downstream handlers.
+const ContextKeyUser contextKey = "authenticated_user"
+
 // Claims is the JWT payload for Moniqo access tokens.
 type Claims struct {
 	jwt.RegisteredClaims
