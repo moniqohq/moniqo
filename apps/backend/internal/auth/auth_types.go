@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -125,4 +126,29 @@ type PasswordResetUserInfo struct {
 	ID    int64
 	Name  *string
 	Email string
+}
+
+// PasswordResetTokenRow is the internal representation of a password_reset_tokens row.
+type PasswordResetTokenRow struct {
+	ID        [16]byte
+	UserID    int64
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+}
+
+// ConfirmResetTxParams carries everything needed to atomically confirm a password reset.
+type ConfirmResetTxParams struct {
+	TokenID     [16]byte
+	UserID      int64
+	NewHash     string
+	InvalidatAt time.Time
+}
+
+// PasswordResetRepository is the persistence contract for password reset operations.
+type PasswordResetRepository interface {
+	GetUserForPasswordReset(ctx context.Context, emailAddr string) (PasswordResetUserInfo, error)
+	InvalidateUserPasswordResetTokens(ctx context.Context, userID int64) error
+	InsertPasswordResetToken(ctx context.Context, userID int64, tokenHash string, expiresAt time.Time) error
+	GetPasswordResetTokenByHash(ctx context.Context, tokenHash string) (PasswordResetTokenRow, error)
+	ConfirmResetTransaction(ctx context.Context, p ConfirmResetTxParams) error
 }
