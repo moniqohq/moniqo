@@ -9,6 +9,7 @@ import (
 
 	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
+	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
 // AuthService is a test double for auth.AuthService.
@@ -61,10 +62,14 @@ func (m *AuthRepository) IsAccessTokenRevoked(_ context.Context, jti pgtype.UUID
 	return args.Bool(0), args.Error(1)
 }
 
-// UserExistsByID is a mock implementation of AuthRepository.UserExistsByID.
-func (m *AuthRepository) UserExistsByID(_ context.Context, userID int64) (bool, error) {
+// GetUserByID is a mock implementation of AuthRepository.GetUserByID.
+func (m *AuthRepository) GetUserByID(_ context.Context, userID int64) (models.User, error) {
 	args := m.Called(userID)
-	return args.Bool(0), args.Error(1)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
+	return u, args.Error(1)
 }
 
 // InsertRefreshToken records the call and returns the stubbed token family ID.

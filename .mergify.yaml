@@ -2,27 +2,21 @@ pull_request_rules:
   # Assign PR to its author
   - name: Assign PR to author
     conditions:
-      - "-assignee~=.*"
+      - "#assignee=0"
     actions:
       assign:
         add_users:
           - "{{ author }}"
 
-  # Auto-squash merge after 1 approval and all CI checks pass (requires "queue" label)
+  # Auto-squash merge after 1 approval and all CI checks pass (requires "queued" label)
   - name: Auto-squash merge after approval and CI
     conditions:
       - base=main
-      - "label=queue"
+      - "label=queued"
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-requested=0"
-      - "check-success=CI / build"
-      - "check-success=CI / test-backend"
-      - "check-success=CI / lint-backend"
-      - "check-success=CI / lint-frontend"
-      - "check-success=CI / format"
-      - "check-success=CI / security-scan"
-      - "check-success=CI / dependency-scan"
+      - "check-success=CI / summary"
       - "check-success=Validate Pull Request / conventional-commits"
       - "check-success=Validate Pull Request / pr-title"
       - "check-success=Validate Pull Request / DCO"
@@ -35,28 +29,23 @@ pull_request_rules:
           {{ body }}
       delete_head_branch: {}
 
-  # Remove "queue" label if PR is updated after being queued (label no longer valid)
+  # Remove "queued" label when a new commit is pushed so CI must re-pass before merge
   - name: Remove queue label on new commits
     conditions:
       - base=main
-      - "label=queue"
-      - "check-neutral=CI / build"
+      - "label=queued"
+      - "check-pending=CI / summary"
     actions:
       label:
         remove:
-          - queue
+          - queued
 
   # Auto-merge Dependabot PRs after CI (no human approval required)
   - name: Auto-merge Dependabot patch/minor updates
     conditions:
       - base=main
       - "author=dependabot[bot]"
-      - "check-success=CI / build"
-      - "check-success=CI / test-backend"
-      - "check-success=CI / lint-backend"
-      - "check-success=CI / lint-frontend"
-      - "check-success=CI / security-scan"
-      - "check-success=CI / dependency-scan"
+      - "check-success=CI / summary"
       - "label=dependencies"
     actions:
       squash:

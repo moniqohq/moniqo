@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -117,7 +118,7 @@ func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.E
 		emailWorker.Wait()
 	})
 
-	registerRoutes(e, cfg, pool, authRepo, emailSvc, log)
+	registerRoutes(e, cfg, pool, emailSvc, log)
 	return e
 }
 
@@ -166,16 +167,60 @@ func buildEmailSubsystem(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger)
 	return emailSvc, emailWorker
 }
 
-func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, authRepo *auth.Repo, emailSvc *email.Service, log *zap.Logger) {
+// publicRoute identifies a route that bypasses JWT authentication. A prefix
+// route matches any path that begins with path (used for wildcard groups like
+// the password-reset flow); otherwise path must match exactly.
+type publicRoute struct {
+	method string
+	path   string
+	prefix bool
+}
+
+// matches reports whether the route covers the given request method and path.
+func (r publicRoute) matches(method, path string) bool {
+	if r.method != method {
+		return false
+	}
+	if r.prefix {
+		return strings.HasPrefix(path, r.path)
+	}
+	return path == r.path
+}
+
+// newAuthSkipper builds the skipper consulted by the global auth middleware.
+// The slice below is the single source of truth for routes excluded from
+// authentication — keep all exclusions here, never scattered across registrations.
+func newAuthSkipper() echomw.Skipper {
+	routes := []publicRoute{
+		{method: http.MethodPost, path: "/api/v1/users"},                              // registration
+		{method: http.MethodPost, path: "/api/v1/auth/login"},                         // login
+		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                       // cookie-based refresh
+		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // password reset flow
+	}
+	return func(c echo.Context) bool {
+		req := c.Request()
+		for _, r := range routes {
+			if r.matches(req.Method, req.URL.Path) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, log *zap.Logger) {
 	jwtSecret := []byte(cfg.JWTSecret)
 
 	userRepo := user.NewRepo(pool, log)
 	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, jwtSecret, log)
 	userHandler := user.NewHandler(userSvc, log)
 
+	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
 	authHandler := auth.NewHandler(authSvc, log)
-	authMW := auth.Middleware(authRepo, jwtSecret, log)
+
+	// Auth middleware is applied globally; public routes are skipped via the skipper.
+	e.Use(auth.Middleware(authRepo, jwtSecret, log, newAuthSkipper()))
 
 	reg := e.Group("/api/v1")
 	reg.Use(appmw.RegisterRateLimiter())
@@ -185,12 +230,10 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, authRep
 	loginGroup.Use(appmw.LoginRateLimiter())
 	loginGroup.POST("/login", authHandler.Login)
 
-	logoutGroup := e.Group("/api/v1/auth")
-	logoutGroup.Use(authMW)
-	logoutGroup.POST("/logout", authHandler.Logout)
+	authGroup := e.Group("/api/v1/auth")
+	authGroup.POST("/logout", authHandler.Logout)
 
 	usersGroup := e.Group("/api/v1/users")
-	usersGroup.Use(authMW)
 	usersGroup.GET("/:id", userHandler.GetProfile)
 	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
 	usersGroup.PATCH("/:id", userHandler.PatchProfile)
