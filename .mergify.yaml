@@ -2,7 +2,7 @@ pull_request_rules:
   # Assign PR to its author
   - name: Assign PR to author
     conditions:
-      - "-assignee~=.*"
+      - "#assignee=0"
     actions:
       assign:
         add_users:
