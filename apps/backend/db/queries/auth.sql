@@ -43,3 +43,21 @@ SET revoked_at     = now(),
     revoked_reason = $2
 WHERE family_id  = $1
   AND revoked_at IS NULL;
+
+-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET revoked_at     = now(),
+    revoked_reason = $2
+WHERE token_hash   = $1
+  AND revoked_at IS NULL;
+
+-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked_at     = now(),
+    revoked_reason = $2
+WHERE user_id      = $1
+  AND revoked_at IS NULL;
+
+-- name: DeleteExpiredRevokedAccessTokens :exec
+DELETE FROM revoked_access_tokens
+WHERE expires_at < now();

@@ -11,6 +11,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteExpiredRevokedAccessTokens = `-- name: DeleteExpiredRevokedAccessTokens :exec
+DELETE FROM revoked_access_tokens
+WHERE expires_at < now()
+`
+
+func (q *Queries) DeleteExpiredRevokedAccessTokens(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredRevokedAccessTokens)
+	return err
+}
+
 const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
 SELECT id, family_id, user_id, token_hash, issued_at, expires_at, absolute_expires_at, used_at, revoked_at, revoked_reason
 FROM refresh_tokens
@@ -137,6 +147,42 @@ WHERE id = $1
 
 func (q *Queries) MarkRefreshTokenUsed(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, markRefreshTokenUsed, id)
+	return err
+}
+
+const revokeAllUserRefreshTokens = `-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked_at     = now(),
+    revoked_reason = $2
+WHERE user_id      = $1
+  AND revoked_at IS NULL
+`
+
+type RevokeAllUserRefreshTokensParams struct {
+	UserID        int64
+	RevokedReason *string
+}
+
+func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, arg RevokeAllUserRefreshTokensParams) error {
+	_, err := q.db.Exec(ctx, revokeAllUserRefreshTokens, arg.UserID, arg.RevokedReason)
+	return err
+}
+
+const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET revoked_at     = now(),
+    revoked_reason = $2
+WHERE token_hash   = $1
+  AND revoked_at IS NULL
+`
+
+type RevokeRefreshTokenParams struct {
+	TokenHash     string
+	RevokedReason *string
+}
+
+func (q *Queries) RevokeRefreshToken(ctx context.Context, arg RevokeRefreshTokenParams) error {
+	_, err := q.db.Exec(ctx, revokeRefreshToken, arg.TokenHash, arg.RevokedReason)
 	return err
 }
 
