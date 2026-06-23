@@ -67,16 +67,19 @@ func checkRevocation(c echo.Context, repo Repository, jtiStr string, log *zap.Lo
 	jti, err := uuid.Parse(jtiStr)
 	if err != nil {
 		log.Error("middleware: malformed jti claim", zap.String("jti", jtiStr))
-		return httpx.Unauthorized(c, "not authenticated")
+		_ = httpx.Unauthorized(c, "not authenticated")
+		return echo.ErrUnauthorized
 	}
 
 	revoked, err := repo.IsAccessTokenRevoked(c.Request().Context(), pgtype.UUID{Bytes: jti, Valid: true})
 	if err != nil {
 		log.Error("middleware: revocation check failed", zap.Error(err))
-		return httpx.InternalError(c)
+		_ = httpx.InternalError(c)
+		return echo.ErrInternalServerError
 	}
 	if revoked {
-		return httpx.Unauthorized(c, "not authenticated")
+		_ = httpx.Unauthorized(c, "not authenticated")
+		return echo.ErrUnauthorized
 	}
 	return nil
 }
@@ -85,16 +88,19 @@ func checkUserExists(c echo.Context, repo Repository, sub string, log *zap.Logge
 	userID, err := strconv.ParseInt(sub, 10, 64)
 	if err != nil {
 		log.Error("middleware: malformed sub claim", zap.String("sub", sub))
-		return httpx.Unauthorized(c, "not authenticated")
+		_ = httpx.Unauthorized(c, "not authenticated")
+		return echo.ErrUnauthorized
 	}
 
 	exists, err := repo.UserExistsByID(c.Request().Context(), userID)
 	if err != nil {
 		log.Error("middleware: user existence check failed", zap.Error(err))
-		return httpx.InternalError(c)
+		_ = httpx.InternalError(c)
+		return echo.ErrInternalServerError
 	}
 	if !exists {
-		return httpx.Unauthorized(c, "not authenticated")
+		_ = httpx.Unauthorized(c, "not authenticated")
+		return echo.ErrUnauthorized
 	}
 	return nil
 }
