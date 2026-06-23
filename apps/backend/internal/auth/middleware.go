@@ -86,6 +86,14 @@ func authenticate(c echo.Context, next echo.HandlerFunc, repo Repository, jwtSec
 		return err
 	}
 
+	if user.TokensInvalidBefore != nil && claims.IssuedAt != nil &&
+		claims.IssuedAt.Time.Before(*user.TokensInvalidBefore) {
+		log.Debug("middleware: access token predates password reset epoch",
+			zap.Int64("user_id", user.ID))
+		_ = httpx.Unauthorized(c, unauthorizedMsg)
+		return echo.ErrUnauthorized
+	}
+
 	setClaimsInContext(c, claims)
 	setUserInContext(c, user)
 	return next(c)
