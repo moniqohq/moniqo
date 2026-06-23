@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -95,6 +96,8 @@ func run(e *echo.Echo, addr string, log *zap.Logger) error {
 	return nil
 }
 
+const tokenCleanupInterval = time.Hour
+
 func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
@@ -105,13 +108,33 @@ func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.E
 	emailSvc, emailWorker := buildEmailSubsystem(cfg, pool, log)
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	go emailWorker.Run(workerCtx)
+
+	authRepo := auth.NewRepo(pool, log)
+	go runTokenCleanup(workerCtx, authRepo, log)
+
 	e.Server.RegisterOnShutdown(func() {
 		workerCancel()
 		emailWorker.Wait()
 	})
 
-	registerRoutes(e, cfg, pool, emailSvc, log)
+	registerRoutes(e, cfg, pool, authRepo, emailSvc, log)
 	return e
+}
+
+// runTokenCleanup periodically removes expired rows from revoked_access_tokens.
+func runTokenCleanup(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
+	ticker := time.NewTicker(tokenCleanupInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err := repo.DeleteExpiredRevokedTokens(ctx); err != nil {
+				log.Error("token cleanup failed", zap.Error(err))
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func buildEmailSubsystem(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) (*email.Service, *email.Worker) {
@@ -143,14 +166,13 @@ func buildEmailSubsystem(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger)
 	return emailSvc, emailWorker
 }
 
-func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, log *zap.Logger) {
+func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, authRepo *auth.Repo, emailSvc *email.Service, log *zap.Logger) {
 	jwtSecret := []byte(cfg.JWTSecret)
 
 	userRepo := user.NewRepo(pool, log)
 	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, jwtSecret, log)
 	userHandler := user.NewHandler(userSvc, log)
 
-	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
 	authHandler := auth.NewHandler(authSvc, log)
 	authMW := auth.Middleware(authRepo, jwtSecret, log)

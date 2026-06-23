@@ -49,8 +49,8 @@ func (m *AuthRepository) UpdateLastLogin(_ context.Context, userID int64) error 
 	return args.Error(0)
 }
 
-// InsertRevokedAccessToken is a mock implementation of AuthRepository.InsertRevokedAccessToken.
-func (m *AuthRepository) InsertRevokedAccessToken(_ context.Context, p auth.InsertRevokedTokenParams) error {
+// LogoutTransaction is a mock implementation of AuthRepository.LogoutTransaction.
+func (m *AuthRepository) LogoutTransaction(_ context.Context, p auth.LogoutParams) error {
 	args := m.Called(p)
 	return args.Error(0)
 }

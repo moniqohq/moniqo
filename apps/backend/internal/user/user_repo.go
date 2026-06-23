@@ -138,13 +138,36 @@ func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error 
 	return nil
 }
 
-// SoftDelete sets deleted_at on the user row. It is idempotent: if the user is
-// already soft-deleted the UPDATE matches zero rows and no error is returned.
+// SoftDelete soft-deletes the user and atomically revokes all their refresh
+// tokens with reason "account_deletion". Idempotent — re-deleting a deleted
+// user matches zero rows and no error is returned.
 func (r *Repo) SoftDelete(ctx context.Context, id int64) error {
-	r.log.Debug("executing SoftDeleteUser query", zap.Int64("user_id", id))
-	q := db.New(r.pool)
+	r.log.Debug("beginning soft-delete transaction", zap.Int64("user_id", id))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
 	if err := q.SoftDeleteUser(ctx, id); err != nil {
+		r.log.Error("SoftDeleteUser query failed", zap.Int64("user_id", id), zap.Error(err))
 		return fmt.Errorf("soft delete user: %w", err)
+	}
+
+	reason := "account_deletion"
+	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
+		UserID:        id,
+		RevokedReason: &reason,
+	}); err != nil {
+		r.log.Error("RevokeAllUserRefreshTokens query failed", zap.Int64("user_id", id), zap.Error(err))
+		return fmt.Errorf("revoke user refresh tokens: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
 }
