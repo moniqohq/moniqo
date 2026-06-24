@@ -1,55 +1,62 @@
 {{ $p := . }}
-<nav class="flex justify-center items-center gap-2 mt-12 flex-wrap" aria-label="Blog pagination">
-
-  {{/* Previous */}}
-  {{ if $p.HasPrev }}
-  <a href="{{ $p.Prev.URL }}"
-     class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-400 hover:text-white transition-all duration-200 border"
-     style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08);"
-     aria-label="Previous page">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+<nav class="mt-12 flex flex-wrap items-center justify-center gap-2" aria-label="Blog pagination">
+  {{/* Previous */}} {{ if $p.HasPrev }}
+  <a
+    href="{{ $p.Prev.URL }}"
+    class="flex h-9 w-9 items-center justify-center rounded-xl border text-gray-400 transition-all duration-200 hover:text-white"
+    style="background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.08)"
+    aria-label="Previous page"
+  >
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
     </svg>
   </a>
   {{ else }}
-  <span class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-600 border cursor-not-allowed"
-        style="background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.05);" aria-disabled="true">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+  <span
+    class="flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-xl border text-gray-600"
+    style="background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.05)"
+    aria-disabled="true"
+  >
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
     </svg>
   </span>
-  {{ end }}
-
-  {{/* Page numbers — show all if ≤ 12, otherwise just show up to 12 */}}
-  {{ range $p.Pagers }}
-    {{ if eq . $p }}
-    <span class="flex items-center justify-center w-9 h-9 rounded-xl text-sm font-bold text-white"
-          style="background:#7C3AED;" aria-current="page">{{ .PageNumber }}</span>
-    {{ else }}
-    <a href="{{ .URL }}"
-       class="flex items-center justify-center w-9 h-9 rounded-xl text-sm text-gray-400 hover:text-white border transition-all duration-200"
-       style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08);"
-       aria-label="Page {{ .PageNumber }}">{{ .PageNumber }}</a>
-    {{ end }}
-  {{ end }}
-
-  {{/* Next */}}
-  {{ if $p.HasNext }}
-  <a href="{{ $p.Next.URL }}"
-     class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-400 hover:text-white transition-all duration-200 border"
-     style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08);"
-     aria-label="Next page">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  {{ end }} {{/* Page numbers — show all if ≤ 12, otherwise just show up to 12 */}} {{ range
+  $p.Pagers }} {{ if eq . $p }}
+  <span
+    class="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-white"
+    style="background: #7c3aed"
+    aria-current="page"
+    >{{ .PageNumber }}</span
+  >
+  {{ else }}
+  <a
+    href="{{ .URL }}"
+    class="flex h-9 w-9 items-center justify-center rounded-xl border text-sm text-gray-400 transition-all duration-200 hover:text-white"
+    style="background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.08)"
+    aria-label="Page {{ .PageNumber }}"
+    >{{ .PageNumber }}</a
+  >
+  {{ end }} {{ end }} {{/* Next */}} {{ if $p.HasNext }}
+  <a
+    href="{{ $p.Next.URL }}"
+    class="flex h-9 w-9 items-center justify-center rounded-xl border text-gray-400 transition-all duration-200 hover:text-white"
+    style="background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.08)"
+    aria-label="Next page"
+  >
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
     </svg>
   </a>
   {{ else }}
-  <span class="flex items-center justify-center w-9 h-9 rounded-xl text-gray-600 border cursor-not-allowed"
-        style="background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.05);" aria-disabled="true">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+  <span
+    class="flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-xl border text-gray-600"
+    style="background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.05)"
+    aria-disabled="true"
+  >
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
     </svg>
   </span>
   {{ end }}
-
 </nav>

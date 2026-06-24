@@ -115,6 +115,15 @@ type EmailJob struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type PasswordResetToken struct {
+	ID        pgtype.UUID
+	UserID    int64
+	TokenHash string
+	ExpiresAt pgtype.Timestamptz
+	UsedAt    pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
 type RefreshToken struct {
 	ID                pgtype.UUID
 	FamilyID          pgtype.UUID
@@ -135,15 +144,16 @@ type RevokedAccessToken struct {
 }
 
 type User struct {
-	ID        int64
-	Username  string
-	Email     string
-	Hash      string
-	Name      *string
-	Picture   string
-	Status    UserStatus
-	LastLogin pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID                  int64
+	Username            string
+	Email               string
+	Hash                string
+	Name                *string
+	Picture             string
+	Status              UserStatus
+	LastLogin           pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	DeletedAt           pgtype.Timestamptz
+	TokensInvalidBefore pgtype.Timestamptz
 }

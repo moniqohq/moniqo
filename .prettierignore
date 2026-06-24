@@ -28,3 +28,7 @@ LICENSE
 # Markdown / prose docs — formatting is opinionated, keep prose untouched
 **/*.md
 docs/
+
+# Hugo templates — Go template syntax (double-quoted string literals) inside
+# HTML attributes is unparseable by prettier's HTML formatter
+apps/landing/layouts/

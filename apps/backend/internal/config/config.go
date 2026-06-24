@@ -13,27 +13,29 @@ const (
 	defaultBcryptCost = 12
 	defaultSMTPPort   = 587
 
-	defaultAccessTokenTTL           = 15 * time.Minute
-	defaultRefreshTokenTTL          = 168 * time.Hour // 7d
-	defaultRefreshTokenMaxAge       = 720 * time.Hour // 30d
-	defaultWorkerInterval           = 5 * time.Second
-	defaultWorkerBatch        int32 = 10
-	defaultBaseBackoff              = 30 * time.Second
+	defaultAccessTokenTTL              = 15 * time.Minute
+	defaultRefreshTokenTTL             = 168 * time.Hour // 7d
+	defaultRefreshTokenMaxAge          = 720 * time.Hour // 30d
+	defaultPasswordResetTokenTTL       = time.Hour
+	defaultWorkerInterval              = 5 * time.Second
+	defaultWorkerBatch           int32 = 10
+	defaultBaseBackoff                 = 30 * time.Second
 )
 
 // Config holds all runtime settings for the backend server.
 type Config struct {
-	Port               string
-	DatabaseURL        string
-	BcryptCost         int
-	Env                string // "development" | "staging" | "production"
-	LogLevel           string // "debug" | "info" | "warn" | "error"
-	JWTSecret          string
-	AccessTokenTTL     time.Duration
-	RefreshTokenTTL    time.Duration
-	RefreshTokenMaxAge time.Duration
-	AppBaseURL         string
-	Email              EmailConfig
+	Port                  string
+	DatabaseURL           string
+	BcryptCost            int
+	Env                   string // "development" | "staging" | "production"
+	LogLevel              string // "debug" | "info" | "warn" | "error"
+	JWTSecret             string
+	AccessTokenTTL        time.Duration
+	RefreshTokenTTL       time.Duration
+	RefreshTokenMaxAge    time.Duration
+	PasswordResetTokenTTL time.Duration
+	AppBaseURL            string
+	Email                 EmailConfig
 }
 
 // EmailConfig groups all email-related settings.
@@ -66,17 +68,18 @@ func Load() Config {
 	}
 
 	return Config{
-		Port:               envOrDefault("PORT", "8080"),
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		BcryptCost:         cost,
-		Env:                env,
-		LogLevel:           envOrDefault("LOG_LEVEL", "info"),
-		JWTSecret:          os.Getenv("JWT_SECRET"),
-		AccessTokenTTL:     envDuration("ACCESS_TOKEN_TTL", defaultAccessTokenTTL),
-		RefreshTokenTTL:    envDuration("REFRESH_TOKEN_TTL", defaultRefreshTokenTTL),
-		RefreshTokenMaxAge: envDuration("REFRESH_TOKEN_MAX_AGE", defaultRefreshTokenMaxAge),
-		AppBaseURL:         envOrDefault("APP_BASE_URL", "http://localhost:3000"),
-		Email:              loadEmailConfig(env),
+		Port:                  envOrDefault("PORT", "8080"),
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		BcryptCost:            cost,
+		Env:                   env,
+		LogLevel:              envOrDefault("LOG_LEVEL", "info"),
+		JWTSecret:             os.Getenv("JWT_SECRET"),
+		AccessTokenTTL:        envDuration("ACCESS_TOKEN_TTL", defaultAccessTokenTTL),
+		RefreshTokenTTL:       envDuration("REFRESH_TOKEN_TTL", defaultRefreshTokenTTL),
+		RefreshTokenMaxAge:    envDuration("REFRESH_TOKEN_MAX_AGE", defaultRefreshTokenMaxAge),
+		PasswordResetTokenTTL: envDuration("PASSWORD_RESET_TOKEN_TTL", defaultPasswordResetTokenTTL),
+		AppBaseURL:            envOrDefault("APP_BASE_URL", "http://localhost:3000"),
+		Email:                 loadEmailConfig(env),
 	}
 }
 

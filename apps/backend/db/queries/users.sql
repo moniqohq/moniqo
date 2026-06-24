@@ -4,7 +4,7 @@ VALUES ($1, $2, $3, $4)
 RETURNING id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at;
 
 -- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at
+SELECT id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
 FROM users
 WHERE id = $1 AND deleted_at IS NULL;
 
@@ -28,3 +28,14 @@ WHERE id = $1 AND deleted_at IS NULL;
 UPDATE users
 SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: SetTokensInvalidBefore :exec
+UPDATE users
+SET tokens_invalid_before = $2, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: GetUserForPasswordReset :one
+SELECT id, name, email, status
+FROM users
+WHERE lower(email) = lower($1)
+  AND deleted_at IS NULL;

@@ -122,19 +122,27 @@ func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.E
 	return e
 }
 
-// runTokenCleanup periodically removes expired rows from revoked_access_tokens.
+// runTokenCleanup periodically removes expired rows from revoked_access_tokens
+// and password_reset_tokens.
 func runTokenCleanup(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
 	ticker := time.NewTicker(tokenCleanupInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			if err := repo.DeleteExpiredRevokedTokens(ctx); err != nil {
-				log.Error("token cleanup failed", zap.Error(err))
-			}
+			cleanExpiredTokens(ctx, repo, log)
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func cleanExpiredTokens(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
+	if err := repo.DeleteExpiredRevokedTokens(ctx); err != nil {
+		log.Error("token cleanup: revoked access tokens failed", zap.Error(err))
+	}
+	if err := repo.DeleteExpiredPasswordResetTokens(ctx); err != nil {
+		log.Error("token cleanup: password reset tokens failed", zap.Error(err))
 	}
 }
 
@@ -195,7 +203,8 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodPost, path: "/api/v1/users"},                              // registration
 		{method: http.MethodPost, path: "/api/v1/auth/login"},                         // login
 		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                       // cookie-based refresh
-		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // password reset flow
+		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                // request reset
+		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // confirm reset + subpaths
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -219,6 +228,16 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
 	authHandler := auth.NewHandler(authSvc, log)
 
+	passwordResetSvc := auth.NewPasswordResetSvc(
+		authRepo,
+		emailSvc,
+		cfg.BcryptCost,
+		cfg.PasswordResetTokenTTL,
+		cfg.AppBaseURL,
+		log,
+	)
+	passwordResetHandler := auth.NewPasswordResetHandler(passwordResetSvc, log)
+
 	// Auth middleware is applied globally; public routes are skipped via the skipper.
 	e.Use(auth.Middleware(authRepo, jwtSecret, log, newAuthSkipper()))
 
@@ -232,6 +251,11 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 
 	authGroup := e.Group("/api/v1/auth")
 	authGroup.POST("/logout", authHandler.Logout)
+
+	passwordResetGroup := e.Group("/api/v1/auth/password-reset")
+	passwordResetGroup.Use(appmw.PasswordResetRateLimiter())
+	passwordResetGroup.POST("", passwordResetHandler.RequestReset)
+	passwordResetGroup.POST("/confirm", passwordResetHandler.ConfirmReset)
 
 	usersGroup := e.Group("/api/v1/users")
 	usersGroup.GET("/:id", userHandler.GetProfile)
