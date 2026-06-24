@@ -166,8 +166,12 @@ func TestValidateRegister(t *testing.T) {
 			wantMsg:   "invalid email format",
 		},
 		{
-			name:      "email exceeds 254 chars",
-			input:     func() validator.RegisterInput { i := validInput(); i.Email = strings.Repeat("a", 250) + "@b.co"; return i }(),
+			name: "email exceeds 254 chars",
+			input: func() validator.RegisterInput {
+				i := validInput()
+				i.Email = strings.Repeat("a", 250) + "@b.co"
+				return i
+			}(),
 			wantField: "email",
 			wantMsg:   "must not exceed 254 characters",
 		},

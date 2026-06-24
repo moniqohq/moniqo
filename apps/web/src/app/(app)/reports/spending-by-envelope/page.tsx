@@ -1,7 +1,7 @@
-import { SpendingByEnvelopeReportPage } from '@/components/reports/SpendingByEnvelopeReportPage'
+import { SpendingByEnvelopeReportPage } from "@/components/reports/SpendingByEnvelopeReportPage";
 
-export const metadata = { title: 'Spending by Envelope Report — Moniqo' }
+export const metadata = { title: "Spending by Envelope Report — Moniqo" };
 
 export default function Page() {
-  return <SpendingByEnvelopeReportPage />
+  return <SpendingByEnvelopeReportPage />;
 }

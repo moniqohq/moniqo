@@ -14,7 +14,6 @@ version: 2
 #   4. For large frameworks that require manual migration, add an `ignore` rule.
 
 updates:
-
   # ── GitHub Actions ──────────────────────────────────────────────────────────
   # Monitors all workflow files under .github/workflows/.
   - package-ecosystem: github-actions
@@ -35,7 +34,6 @@ updates:
       github-actions:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-
 
   # ── Go — backend application ────────────────────────────────────────────────
   # Monitors apps/backend/go.mod (Echo, pgx, JWT, goose, zap, …).
@@ -78,7 +76,6 @@ updates:
           - "github.com/rogpeppe/go-internal"
         update-types: ["minor", "patch"]
 
-
   # ── Go — magefiles build tooling ────────────────────────────────────────────
   # Monitors magefiles/go.mod (Mage task runner).
   - package-ecosystem: gomod
@@ -99,7 +96,6 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-
   # ── npm — monorepo root ─────────────────────────────────────────────────────
   # Monitors /package.json (prettier, workspace-level dev tooling).
   - package-ecosystem: npm
@@ -119,7 +115,6 @@ updates:
       root-dev-tooling:
         patterns: ["prettier", "prettier-plugin-*"]
         update-types: ["minor", "patch"]
-
 
   # ── npm — Next.js web application ──────────────────────────────────────────
   # Monitors apps/web/package.json.
@@ -214,7 +209,6 @@ updates:
           - "cypress"
         update-types: ["minor", "patch"]
 
-
   # ── npm — Expo / React Native mobile application ────────────────────────────
   # Monitors apps/mobile/package.json.
   # Major Expo and React Native upgrades require a coordinated SDK migration
@@ -289,7 +283,6 @@ updates:
           - "@types/*"
         update-types: ["minor", "patch"]
 
-
   # ── npm — Tauri desktop application ────────────────────────────────────────
   # Monitors apps/desktop/package.json. The Tauri Rust toolchain is managed
   # separately; only the JS/TS frontend dependencies appear here.
@@ -312,7 +305,6 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-
   # ── npm — Hugo landing page ─────────────────────────────────────────────────
   # Monitors apps/landing/package.json (PostCSS, Tailwind CSS build tooling).
   - package-ecosystem: npm
@@ -332,7 +324,6 @@ updates:
       landing-tooling:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-
 
   # ── npm — shared packages ───────────────────────────────────────────────────
   # One stanza per workspace package under packages/. These are currently stubs;

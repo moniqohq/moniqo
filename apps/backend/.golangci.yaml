@@ -76,15 +76,15 @@ linters:
       rules:
         - name: add-constant
           exclude:
-            - '**/*.go'
+            - "**/*.go"
         - name: line-length-limit
-          arguments: [ 140 ]
+          arguments: [140]
         - name: max-public-structs
-          arguments: [ 10 ]
+          arguments: [25]
     wrapcheck:
       ignore-package-globs:
-        - '**/mock'
-        - '**/*_test'
+        - "**/mock"
+        - "**/*_test"
         - github.com/labstack/echo/v4
         - github.com/moniqohq/moniqo/apps/backend/internal/httpx
   exclusions:

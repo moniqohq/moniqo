@@ -61,22 +61,23 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at
+SELECT id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
 
 type GetUserByIDRow struct {
-	ID        int64
-	Username  string
-	Email     string
-	Name      *string
-	Picture   string
-	Status    UserStatus
-	LastLogin pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID                  int64
+	Username            string
+	Email               string
+	Name                *string
+	Picture             string
+	Status              UserStatus
+	LastLogin           pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	DeletedAt           pgtype.Timestamptz
+	TokensInvalidBefore pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error) {
@@ -93,6 +94,33 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, er
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.TokensInvalidBefore,
+	)
+	return i, err
+}
+
+const getUserForPasswordReset = `-- name: GetUserForPasswordReset :one
+SELECT id, name, email, status
+FROM users
+WHERE lower(email) = lower($1)
+  AND deleted_at IS NULL
+`
+
+type GetUserForPasswordResetRow struct {
+	ID     int64
+	Name   *string
+	Email  string
+	Status UserStatus
+}
+
+func (q *Queries) GetUserForPasswordReset(ctx context.Context, lower string) (GetUserForPasswordResetRow, error) {
+	row := q.db.QueryRow(ctx, getUserForPasswordReset, lower)
+	var i GetUserForPasswordResetRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Status,
 	)
 	return i, err
 }
@@ -108,6 +136,22 @@ func (q *Queries) GetUserHashByID(ctx context.Context, id int64) (string, error)
 	var hash string
 	err := row.Scan(&hash)
 	return hash, err
+}
+
+const setTokensInvalidBefore = `-- name: SetTokensInvalidBefore :exec
+UPDATE users
+SET tokens_invalid_before = $2, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type SetTokensInvalidBeforeParams struct {
+	ID                  int64
+	TokensInvalidBefore pgtype.Timestamptz
+}
+
+func (q *Queries) SetTokensInvalidBefore(ctx context.Context, arg SetTokensInvalidBeforeParams) error {
+	_, err := q.db.Exec(ctx, setTokensInvalidBefore, arg.ID, arg.TokensInvalidBefore)
+	return err
 }
 
 const softDeleteUser = `-- name: SoftDeleteUser :exec

@@ -1,6 +1,12 @@
-<div class="rounded-xl mb-8 p-5" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);">
-  <p class="text-xs font-semibold uppercase tracking-widest mb-4" style="color:#9ca3af;letter-spacing:.1em;">On this page</p>
-  <nav class="toc-nav">
-    {{ .Page.TableOfContents }}
-  </nav>
+<div
+  class="mb-8 rounded-xl p-5"
+  style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08)"
+>
+  <p
+    class="mb-4 text-xs font-semibold uppercase tracking-widest"
+    style="color: #9ca3af; letter-spacing: 0.1em"
+  >
+    On this page
+  </p>
+  <nav class="toc-nav">{{ .Page.TableOfContents }}</nav>
 </div>

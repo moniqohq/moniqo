@@ -3,3 +3,8 @@ packages:
   - "apps/desktop"
   - "apps/mobile"
   - "packages/*"
+
+overrides:
+  hono: ">=4.12.25"
+  postcss: ">=8.5.10"
+  js-yaml: ">=4.2.0"

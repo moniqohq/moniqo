@@ -1,5 +1,5 @@
-import { EnvelopesView } from '@/components/envelopes/EnvelopesView'
+import { EnvelopesView } from "@/components/envelopes/EnvelopesView";
 
 export default function EnvelopesPage() {
-  return <EnvelopesView />
+  return <EnvelopesView />;
 }
