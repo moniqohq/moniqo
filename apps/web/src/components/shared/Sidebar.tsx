@@ -1,36 +1,43 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard, ArrowLeftRight, Landmark, Mail,
-  Target, BarChart2, Settings,
-  BookOpen, HelpCircle, Sparkles,
+  LayoutDashboard,
+  ArrowLeftRight,
+  Landmark,
+  Mail,
+  Target,
+  BarChart2,
+  Settings,
+  BookOpen,
+  HelpCircle,
+  Sparkles,
   X,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useUIStore } from '@/stores/ui.store'
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/ui.store";
 
 const mainNavItems = [
-  { label: 'Dashboard',    href: '/dashboard',    icon: LayoutDashboard },
-  { label: 'Transactions', href: '/transactions', icon: ArrowLeftRight },
-  { label: 'Accounts',     href: '/accounts',     icon: Landmark },
-  { label: 'Envelopes',    href: '/envelopes',    icon: Mail },
-  { label: 'Goals',        href: '/goals',        icon: Target },
-  { label: 'Reports',      href: '/reports',      icon: BarChart2 },
-  { label: 'Settings',     href: '/settings',     icon: Settings },
-]
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
+  { label: "Accounts", href: "/accounts", icon: Landmark },
+  { label: "Envelopes", href: "/envelopes", icon: Mail },
+  { label: "Goals", href: "/goals", icon: Target },
+  { label: "Reports", href: "/reports", icon: BarChart2 },
+  { label: "Settings", href: "/settings", icon: Settings },
+];
 
 const extrasNavItems = [
-  { label: 'Documentation', href: '/docs',    icon: BookOpen },
-  { label: 'Help & Support', href: '/support', icon: HelpCircle },
-  { label: 'Get PRO',        href: '/upgrade', icon: Sparkles },
-]
+  { label: "Documentation", href: "/docs", icon: BookOpen },
+  { label: "Help & Support", href: "/support", icon: HelpCircle },
+  { label: "Get PRO", href: "/upgrade", icon: Sparkles },
+];
 
 export function Sidebar() {
-  const pathname = usePathname()
-  const { sidebarCollapsed, mobileSidebarOpen, setMobileSidebar } = useUIStore()
+  const pathname = usePathname();
+  const { sidebarCollapsed, mobileSidebarOpen, setMobileSidebar } = useUIStore();
 
   return (
     <>
@@ -50,17 +57,17 @@ export function Sidebar() {
       {/* Sidebar panel */}
       <motion.aside
         animate={{ width: sidebarCollapsed ? 64 : 256 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex flex-col bg-[#0A0E1A] border-r border-[#1E2B42]',
-          'lg:relative lg:translate-x-0',
-          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[#1E2B42] bg-[#0A0E1A]",
+          "lg:relative lg:translate-x-0",
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
         style={{ width: sidebarCollapsed ? 64 : 256 }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 h-16 border-b border-[#1E2B42] flex-shrink-0">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#6C3AED] flex items-center justify-center text-white font-bold text-xl">
+        <div className="flex h-16 flex-shrink-0 items-center gap-3 border-b border-[#1E2B42] px-4">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#6C3AED] text-xl font-bold text-white">
             ₹
           </div>
           <AnimatePresence>
@@ -69,10 +76,12 @@ export function Sidebar() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
-                className="font-semibold text-white text-[22px] tracking-tight leading-none"
+                className="text-[22px] font-semibold leading-none tracking-tight text-white"
               >
                 <div>Moniqo</div>
-                <div className="text-[11px] font-normal text-[#5A6A85] tracking-wide mt-0.5">Budget Planner</div>
+                <div className="mt-0.5 text-[11px] font-normal tracking-wide text-[#5A6A85]">
+                  Budget Planner
+                </div>
               </motion.span>
             )}
           </AnimatePresence>
@@ -87,26 +96,28 @@ export function Sidebar() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-2 py-3 overflow-y-auto">
+        <nav className="flex-1 overflow-y-auto px-2 py-3">
           {/* Section title */}
           {!sidebarCollapsed && (
-            <div className="px-2 mb-1">
-              <span className="text-[10px] font-semibold text-[#6B7FA3] uppercase tracking-widest">General</span>
+            <div className="mb-1 px-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7FA3]">
+                General
+              </span>
             </div>
           )}
 
           <div className="space-y-0.5">
             {mainNavItems.map(({ label, href, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + '/')
+              const active = pathname === href || pathname.startsWith(href + "/");
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    'flex items-center p-2 rounded-lg text-sm font-medium transition-colors relative',
+                    "relative flex items-center rounded-lg p-2 text-sm font-medium transition-colors",
                     active
-                      ? 'bg-[rgba(108,58,237,0.15)] text-[#C4B5FD]'
-                      : 'text-[#C8D3E8] hover:bg-[#111827] hover:text-white',
+                      ? "bg-[rgba(108,58,237,0.15)] text-[#C4B5FD]"
+                      : "text-[#C8D3E8] hover:bg-[#111827] hover:text-white",
                   )}
                 >
                   {active && (
@@ -116,8 +127,8 @@ export function Sidebar() {
                       transition={{ duration: 0.15 }}
                     />
                   )}
-                  <span className="flex-shrink-0 relative z-10 flex items-center justify-center w-10">
-                    <Icon size={16} className={cn(active && 'text-[#A78BFA]')} />
+                  <span className="relative z-10 flex w-10 flex-shrink-0 items-center justify-center">
+                    <Icon size={16} className={cn(active && "text-[#A78BFA]")} />
                   </span>
                   <AnimatePresence>
                     {!sidebarCollapsed && (
@@ -132,30 +143,32 @@ export function Sidebar() {
                     )}
                   </AnimatePresence>
                 </Link>
-              )
+              );
             })}
           </div>
 
           {/* Extras section */}
           {!sidebarCollapsed && (
-            <div className="px-2 mt-4 mb-1">
-              <span className="text-[10px] font-semibold text-[#6B7FA3] uppercase tracking-widest">Extras</span>
+            <div className="mb-1 mt-4 px-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7FA3]">
+                Extras
+              </span>
             </div>
           )}
-          {sidebarCollapsed && <div className="my-3 mx-2 border-t border-[#1E2B42]" />}
+          {sidebarCollapsed && <div className="mx-2 my-3 border-t border-[#1E2B42]" />}
 
           <div className="space-y-0.5">
             {extrasNavItems.map(({ label, href, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + '/')
+              const active = pathname === href || pathname.startsWith(href + "/");
               return (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    'flex items-center p-2 rounded-lg text-sm font-medium transition-colors relative',
+                    "relative flex items-center rounded-lg p-2 text-sm font-medium transition-colors",
                     active
-                      ? 'bg-[rgba(108,58,237,0.15)] text-[#C4B5FD]'
-                      : 'text-[#C8D3E8] hover:bg-[#111827] hover:text-white',
+                      ? "bg-[rgba(108,58,237,0.15)] text-[#C4B5FD]"
+                      : "text-[#C8D3E8] hover:bg-[#111827] hover:text-white",
                   )}
                 >
                   {active && (
@@ -165,8 +178,8 @@ export function Sidebar() {
                       transition={{ duration: 0.15 }}
                     />
                   )}
-                  <span className="flex-shrink-0 relative z-10 flex items-center justify-center w-10">
-                    <Icon size={16} className={cn(active && 'text-[#A78BFA]')} />
+                  <span className="relative z-10 flex w-10 flex-shrink-0 items-center justify-center">
+                    <Icon size={16} className={cn(active && "text-[#A78BFA]")} />
                   </span>
                   <AnimatePresence>
                     {!sidebarCollapsed && (
@@ -181,18 +194,18 @@ export function Sidebar() {
                     )}
                   </AnimatePresence>
                 </Link>
-              )
+              );
             })}
           </div>
         </nav>
 
         {/* Version */}
         {!sidebarCollapsed && (
-          <div className="px-4 py-3 border-t border-[#1E2B42] flex-shrink-0">
+          <div className="flex-shrink-0 border-t border-[#1E2B42] px-4 py-3">
             <span className="text-[11px] text-[#2A3A54]">1.0.0-alpha</span>
           </div>
         )}
       </motion.aside>
     </>
-  )
+  );
 }

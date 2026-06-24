@@ -1,120 +1,202 @@
-'use client'
+"use client";
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from "react";
 import {
-  Plus, Upload, ChevronDown, MoreVertical, Search,
-  Grid3x3, SlidersHorizontal, Square, CheckSquare,
-  ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Building2,
-  CreditCard, PiggyBank, Wallet, TrendingUp, Landmark,
-  ArrowUp, ArrowDown,
-} from 'lucide-react'
-import { motion } from 'framer-motion'
-import {
-  AreaChart, Area, BarChart, Bar,
-  ResponsiveContainer, Tooltip,
-} from 'recharts'
-import { mockTransactions, mockEnvelopes, mockAccounts } from '@/mock/data'
-import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from '@/lib/utils'
-import { AddTransactionModal } from './AddTransactionModal'
-import { TransactionDetailsModal } from './TransactionDetailsModal'
-import { DeleteTransactionModal } from './DeleteTransactionModal'
-import { EditTransactionModal } from './EditTransactionModal'
-import { DateRangePicker } from './DateRangePicker'
-import type { DateRange } from './DateRangePicker'
-import type { Transaction, AccountType } from '@/types'
+  Plus,
+  Upload,
+  ChevronDown,
+  MoreVertical,
+  Search,
+  Grid3x3,
+  SlidersHorizontal,
+  Square,
+  CheckSquare,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ArrowLeftRight,
+  Building2,
+  CreditCard,
+  PiggyBank,
+  Wallet,
+  TrendingUp,
+  Landmark,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
+import { mockTransactions, mockEnvelopes, mockAccounts } from "@/mock/data";
+import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from "@/lib/utils";
+import { AddTransactionModal } from "./AddTransactionModal";
+import { TransactionDetailsModal } from "./TransactionDetailsModal";
+import { DeleteTransactionModal } from "./DeleteTransactionModal";
+import { EditTransactionModal } from "./EditTransactionModal";
+import { DateRangePicker } from "./DateRangePicker";
+import type { DateRange } from "./DateRangePicker";
+import type { Transaction, AccountType } from "@/types";
 
 /* ── Sparkline mock data (daily buckets for current month) ── */
 const sparkInflow = [
-  { v: 42000 }, { v: 58000 }, { v: 35000 }, { v: 91000 }, { v: 67000 },
-  { v: 48000 }, { v: 72000 }, { v: 55000 }, { v: 83000 }, { v: 61000 },
-  { v: 44000 }, { v: 96000 }, { v: 70000 }, { v: 52000 }, { v: 88000 },
-]
+  { v: 42000 },
+  { v: 58000 },
+  { v: 35000 },
+  { v: 91000 },
+  { v: 67000 },
+  { v: 48000 },
+  { v: 72000 },
+  { v: 55000 },
+  { v: 83000 },
+  { v: 61000 },
+  { v: 44000 },
+  { v: 96000 },
+  { v: 70000 },
+  { v: 52000 },
+  { v: 88000 },
+];
 const sparkOutflow = [
-  { v: 18000 }, { v: 24000 }, { v: 31000 }, { v: 15000 }, { v: 27000 },
-  { v: 22000 }, { v: 38000 }, { v: 19000 }, { v: 29000 }, { v: 33000 },
-  { v: 16000 }, { v: 41000 }, { v: 25000 }, { v: 20000 }, { v: 36000 },
-]
+  { v: 18000 },
+  { v: 24000 },
+  { v: 31000 },
+  { v: 15000 },
+  { v: 27000 },
+  { v: 22000 },
+  { v: 38000 },
+  { v: 19000 },
+  { v: 29000 },
+  { v: 33000 },
+  { v: 16000 },
+  { v: 41000 },
+  { v: 25000 },
+  { v: 20000 },
+  { v: 36000 },
+];
 const sparkNet = [
-  { v: 24000 }, { v: 34000 }, { v: 4000 }, { v: 76000 }, { v: 40000 },
-  { v: 26000 }, { v: 34000 }, { v: 36000 }, { v: 54000 }, { v: 28000 },
-  { v: 28000 }, { v: 55000 }, { v: 45000 }, { v: 32000 }, { v: 52000 },
-]
+  { v: 24000 },
+  { v: 34000 },
+  { v: 4000 },
+  { v: 76000 },
+  { v: 40000 },
+  { v: 26000 },
+  { v: 34000 },
+  { v: 36000 },
+  { v: 54000 },
+  { v: 28000 },
+  { v: 28000 },
+  { v: 55000 },
+  { v: 45000 },
+  { v: 32000 },
+  { v: 52000 },
+];
 const sparkCount = [
-  { v: 3 }, { v: 5 }, { v: 2 }, { v: 8 }, { v: 4 },
-  { v: 6 }, { v: 7 }, { v: 3 }, { v: 9 }, { v: 5 },
-  { v: 4 }, { v: 11 }, { v: 6 }, { v: 3 }, { v: 6 },
-]
+  { v: 3 },
+  { v: 5 },
+  { v: 2 },
+  { v: 8 },
+  { v: 4 },
+  { v: 6 },
+  { v: 7 },
+  { v: 3 },
+  { v: 9 },
+  { v: 5 },
+  { v: 4 },
+  { v: 11 },
+  { v: 6 },
+  { v: 3 },
+  { v: 6 },
+];
 
 /* ── Tooltip shared across sparklines ── */
-function SparkTooltip({ active, payload, formatter }: { active?: boolean; payload?: Array<{ value: number; dataKey?: string; name?: string }>; formatter: (v: number) => string }) {
-  if (!active || !payload?.length) return null
+function SparkTooltip({
+  active,
+  payload,
+  formatter,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number; dataKey?: string; name?: string }>;
+  formatter: (v: number) => string;
+}) {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#131C2E] border border-[#1E2B42] rounded px-2 py-1 text-[11px] text-white shadow-xl">
+    <div className="rounded border border-[#1E2B42] bg-[#131C2E] px-2 py-1 text-[11px] text-white shadow-xl">
       {formatter(payload[0].value)}
     </div>
-  )
+  );
 }
 
 /* ── Type badge — Flowbite: rounded, px-2.5 py-0.5 text-xs font-medium ── */
-function TypeBadge({ type }: { type: Transaction['type'] }) {
-  if (type === 'expense') return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[rgba(239,68,68,0.12)] text-[#F87171] whitespace-nowrap">
-      <ArrowDownLeft size={12} strokeWidth={2.5} />
-      Expense
-    </span>
-  )
-  if (type === 'income') return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[rgba(34,197,94,0.12)] text-[#4ADE80] whitespace-nowrap">
-      <ArrowUpRight size={12} strokeWidth={2.5} />
-      Income
-    </span>
-  )
+function TypeBadge({ type }: { type: Transaction["type"] }) {
+  if (type === "expense")
+    return (
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(239,68,68,0.12)] px-3 py-1.5 text-xs font-medium text-[#F87171]">
+        <ArrowDownLeft size={12} strokeWidth={2.5} />
+        Expense
+      </span>
+    );
+  if (type === "income")
+    return (
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(34,197,94,0.12)] px-3 py-1.5 text-xs font-medium text-[#4ADE80]">
+        <ArrowUpRight size={12} strokeWidth={2.5} />
+        Income
+      </span>
+    );
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[rgba(99,179,237,0.12)] text-[#7DD3FC] whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(99,179,237,0.12)] px-3 py-1.5 text-xs font-medium text-[#7DD3FC]">
       <ArrowLeftRight size={12} strokeWidth={2.5} />
       Transfer
     </span>
-  )
+  );
 }
 
 /* ── Payee avatar ───────────────────────────────────────── */
 function PayeeAvatar({ payee, color }: { payee: string; color?: string }) {
   return (
     <div
-      className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white flex-shrink-0 select-none"
-      style={{ backgroundColor: color ?? '#1E2B42' }}
+      className="flex h-8 w-8 flex-shrink-0 select-none items-center justify-center rounded-lg text-xs font-bold text-white"
+      style={{ backgroundColor: color ?? "#1E2B42" }}
     >
       {payee[0]}
     </div>
-  )
+  );
 }
 
 /* ── Envelope chip ──────────────────────────────────────── */
 function EnvelopeChip({ name, icon, color }: { name?: string; icon?: string; color?: string }) {
-  if (!name) return <span className="text-[#2A3A54] text-sm select-none">—</span>
+  if (!name) return <span className="select-none text-sm text-[#2A3A54]">—</span>;
   return (
     <div className="flex items-center gap-2">
       <div
-        className="w-6 h-6 rounded flex items-center justify-center text-xs flex-shrink-0"
-        style={{ backgroundColor: color ?? '#1E2B42' }}
+        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-xs"
+        style={{ backgroundColor: color ?? "#1E2B42" }}
       >
         {icon ?? name[0]}
       </div>
-      <span className="text-sm text-[#A8B4CC] whitespace-nowrap">{name}</span>
+      <span className="whitespace-nowrap text-sm text-[#A8B4CC]">{name}</span>
     </div>
-  )
+  );
 }
 
 /* ── Transaction row ────────────────────────────────────── */
 function TxRow({
-  tx, index, selected, onSelect, onRowClick,
+  tx,
+  index,
+  selected,
+  onSelect,
+  onRowClick,
 }: {
-  tx: Transaction; index: number; selected: boolean; onSelect: () => void; onRowClick: () => void
+  tx: Transaction;
+  index: number;
+  selected: boolean;
+  onSelect: () => void;
+  onRowClick: () => void;
 }) {
   const amountColor =
-    tx.type === 'income' ? 'text-[#4ADE80]'
-    : tx.type === 'transfer' ? (tx.amount >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')
-    : 'text-[#F87171]'
+    tx.type === "income"
+      ? "text-[#4ADE80]"
+      : tx.type === "transfer"
+        ? tx.amount >= 0
+          ? "text-[#4ADE80]"
+          : "text-[#F87171]"
+        : "text-[#F87171]";
 
   return (
     <motion.tr
@@ -123,24 +205,25 @@ function TxRow({
       transition={{ delay: index * 0.018 }}
       onClick={onRowClick}
       className={cn(
-        'group hover:bg-[#0D1828] transition-colors cursor-pointer',
-        selected && 'bg-[rgba(108,58,237,0.05)]',
+        "group cursor-pointer transition-colors hover:bg-[#0D1828]",
+        selected && "bg-[rgba(108,58,237,0.05)]",
       )}
     >
       {/* Checkbox */}
-      <td className="w-10 pl-4 pr-2 py-3">
+      <td className="w-10 py-3 pl-4 pr-2">
         <button
-          onClick={e => { e.stopPropagation(); onSelect() }}
-          className="text-[#2A3A54] hover:text-[#6C3AED] focus:outline-none transition-colors flex"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          className="flex text-[#2A3A54] transition-colors hover:text-[#6C3AED] focus:outline-none"
         >
-          {selected
-            ? <CheckSquare size={15} className="text-[#6C3AED]" />
-            : <Square size={15} />}
+          {selected ? <CheckSquare size={15} className="text-[#6C3AED]" /> : <Square size={15} />}
         </button>
       </td>
 
       {/* Date */}
-      <td className="px-4 py-3 text-sm text-[#A8B4CC] whitespace-nowrap">
+      <td className="whitespace-nowrap px-4 py-3 text-sm text-[#A8B4CC]">
         {formatTableDate(tx.date)}
       </td>
 
@@ -149,9 +232,11 @@ function TxRow({
         <div className="flex items-center gap-3">
           <PayeeAvatar payee={tx.payee} color={tx.payeeColor} />
           <div>
-            <p className="text-sm font-medium text-[#E8EEF8] leading-tight">{tx.payee}</p>
+            <p className="text-sm font-medium leading-tight text-[#E8EEF8]">{tx.payee}</p>
             {tx.memo && (
-              <p className="text-xs text-[#5A6A85] mt-0.5 leading-tight whitespace-nowrap">{tx.memo}</p>
+              <p className="mt-0.5 whitespace-nowrap text-xs leading-tight text-[#5A6A85]">
+                {tx.memo}
+              </p>
             )}
           </div>
         </div>
@@ -171,113 +256,122 @@ function TxRow({
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           {(() => {
-            const acc = mockAccounts.find(a => a.id === tx.accountId)
-            const meta = acc ? ACCOUNT_TYPE_META[acc.type] : ACCOUNT_TYPE_META.checking
+            const acc = mockAccounts.find((a) => a.id === tx.accountId);
+            const meta = acc ? ACCOUNT_TYPE_META[acc.type] : ACCOUNT_TYPE_META.checking;
             return (
               <div
-                className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
                 style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
               >
                 {meta.icon}
               </div>
-            )
+            );
           })()}
           <div>
-            <p className="text-sm text-[#A8B4CC] leading-tight whitespace-nowrap">
+            <p className="whitespace-nowrap text-sm leading-tight text-[#A8B4CC]">
               {tx.accountInstitution ?? tx.accountName}
             </p>
-            <p className="text-xs text-[#5A6A85] leading-tight">{tx.accountSubLabel}</p>
+            <p className="text-xs leading-tight text-[#5A6A85]">{tx.accountSubLabel}</p>
           </div>
         </div>
       </td>
 
       {/* Amount */}
-      <td className={cn('px-4 py-3 text-sm font-semibold tabular-nums text-right whitespace-nowrap', amountColor)}>
+      <td
+        className={cn(
+          "whitespace-nowrap px-4 py-3 text-right text-sm font-semibold tabular-nums",
+          amountColor,
+        )}
+      >
         <span className="inline-flex items-center justify-end gap-1.5">
           {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
-          {tx.amount >= 0
-            ? <ArrowUp size={13} strokeWidth={2.5} />
-            : <ArrowDown size={13} strokeWidth={2.5} />}
+          {tx.amount >= 0 ? (
+            <ArrowUp size={13} strokeWidth={2.5} />
+          ) : (
+            <ArrowDown size={13} strokeWidth={2.5} />
+          )}
         </span>
       </td>
 
       {/* Running Balance */}
-      <td className={cn(
-        'px-4 py-3 text-sm tabular-nums text-right whitespace-nowrap',
-        tx.runningBalance !== undefined && tx.runningBalance < 0
-          ? 'text-[#F87171]'
-          : 'text-[#A8B4CC]',
-      )}>
-        {tx.runningBalance !== undefined ? formatCurrency(tx.runningBalance) : '—'}
+      <td
+        className={cn(
+          "whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums",
+          tx.runningBalance !== undefined && tx.runningBalance < 0
+            ? "text-[#F87171]"
+            : "text-[#A8B4CC]",
+        )}
+      >
+        {tx.runningBalance !== undefined ? formatCurrency(tx.runningBalance) : "—"}
       </td>
 
       {/* Actions */}
-      <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-        <button className="p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-all ml-auto flex">
+      <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+        <button className="ml-auto flex rounded-lg p-1.5 text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#E8EEF8] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
           <MoreVertical size={13} />
         </button>
       </td>
     </motion.tr>
-  )
+  );
 }
 
 /* ── Account type icon ──────────────────────────────────── */
 const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string }> = {
-  checking:   { icon: <Building2 size={11} />,  color: '#3B82F6' },
-  savings:    { icon: <PiggyBank size={11} />,   color: '#22C55E' },
-  credit:     { icon: <CreditCard size={11} />,  color: '#F87171' },
-  cash:       { icon: <Wallet size={11} />,       color: '#F59E0B' },
-  investment: { icon: <TrendingUp size={11} />,  color: '#8B5CF6' },
-  loan:       { icon: <Landmark   size={11} />,  color: '#EC4899' },
-}
+  checking: { icon: <Building2 size={11} />, color: "#3B82F6" },
+  savings: { icon: <PiggyBank size={11} />, color: "#22C55E" },
+  credit: { icon: <CreditCard size={11} />, color: "#F87171" },
+  cash: { icon: <Wallet size={11} />, color: "#F59E0B" },
+  investment: { icon: <TrendingUp size={11} />, color: "#8B5CF6" },
+  loan: { icon: <Landmark size={11} />, color: "#EC4899" },
+};
 
 /* ── Account filter dropdown (multi-select) ─────────────── */
 function AccountFilter({
-  value, onChange, triggerClassName,
+  value,
+  onChange,
+  triggerClassName,
 }: {
-  value: Set<string>
-  onChange: (ids: Set<string>) => void
-  triggerClassName?: string
+  value: Set<string>;
+  onChange: (ids: Set<string>) => void;
+  triggerClassName?: string;
 }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   function toggle(id: string) {
-    const next = new Set(value)
-    next.has(id) ? next.delete(id) : next.add(id)
-    onChange(next)
+    const next = new Set(value);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange(next);
   }
 
   function triggerLabel() {
-    if (value.size === 0) return 'All Accounts'
+    if (value.size === 0) return "All Accounts";
     if (value.size === 1) {
-      const acc = mockAccounts.find(a => a.id === [...value][0])
-      return acc ? acc.name : 'All Accounts'
+      const acc = mockAccounts.find((a) => a.id === [...value][0]);
+      return acc ? acc.name : "All Accounts";
     }
-    return `${value.size} Accounts`
+    return `${value.size} Accounts`;
   }
 
-  const firstSelected = value.size === 1
-    ? mockAccounts.find(a => a.id === [...value][0])
-    : null
+  const firstSelected = value.size === 1 ? mockAccounts.find((a) => a.id === [...value][0]) : null;
 
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
-        className={cn(triggerClassName, open && 'border-[#6C3AED]/60 text-[#A8B4CC]')}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(triggerClassName, open && "border-[#6C3AED]/60 text-[#A8B4CC]")}
       >
         {firstSelected && (
           <span
-            className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
             style={{ backgroundColor: `${ACCOUNT_TYPE_META[firstSelected.type].color}22` }}
           >
             <span style={{ color: ACCOUNT_TYPE_META[firstSelected.type].color }}>
@@ -286,7 +380,7 @@ function AccountFilter({
           </span>
         )}
         {value.size > 1 && (
-          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#6C3AED] text-[9px] font-bold text-white flex-shrink-0">
+          <span className="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#6C3AED] text-[9px] font-bold text-white">
             {value.size}
           </span>
         )}
@@ -295,14 +389,16 @@ function AccountFilter({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-60 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 overflow-hidden">
+        <div className="absolute left-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
           {/* header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A2640]">
-            <span className="text-[11px] font-semibold text-[#3A4A60] uppercase tracking-wider">Accounts</span>
+          <div className="flex items-center justify-between border-b border-[#1A2640] px-3 py-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+              Accounts
+            </span>
             {value.size > 0 && (
               <button
                 onClick={() => onChange(new Set())}
-                className="text-[11px] text-[#6C3AED] hover:text-[#7C4AFF] transition-colors"
+                className="text-[11px] text-[#6C3AED] transition-colors hover:text-[#7C4AFF]"
               >
                 Clear all
               </button>
@@ -310,108 +406,118 @@ function AccountFilter({
           </div>
 
           {/* list */}
-          <div className="py-1 max-h-64 overflow-y-auto">
-            {mockAccounts.map(acc => {
-              const checked = value.has(acc.id)
-              const meta = ACCOUNT_TYPE_META[acc.type]
+          <div className="max-h-64 overflow-y-auto py-1">
+            {mockAccounts.map((acc) => {
+              const checked = value.has(acc.id);
+              const meta = ACCOUNT_TYPE_META[acc.type];
               return (
                 <button
                   key={acc.id}
                   onClick={() => toggle(acc.id)}
                   className={cn(
-                    'w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors',
-                    checked ? 'bg-[#6C3AED]/15 text-white' : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                    "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
+                    checked
+                      ? "bg-[#6C3AED]/15 text-white"
+                      : "text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
                   )}
                 >
                   {/* checkbox */}
-                  <span className={cn(
-                    'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
-                    checked ? 'bg-[#6C3AED] border-[#6C3AED]' : 'border-[#2A3A54]',
-                  )}>
+                  <span
+                    className={cn(
+                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors",
+                      checked ? "border-[#6C3AED] bg-[#6C3AED]" : "border-[#2A3A54]",
+                    )}
+                  >
                     {checked && (
                       <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path
+                          d="M1 3.5L3.5 6L8 1"
+                          stroke="white"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </span>
                   {/* type icon */}
                   <span
-                    className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
                     style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
                   >
                     {meta.icon}
                   </span>
                   {/* name + institution */}
                   <div className="min-w-0">
-                    <p className="truncate text-[13px] text-[#A8B4CC] leading-tight">{acc.name}</p>
+                    <p className="truncate text-[13px] leading-tight text-[#A8B4CC]">{acc.name}</p>
                     {acc.institution && (
-                      <p className="text-[11px] text-[#5A6A85] leading-tight">{acc.institution}</p>
+                      <p className="text-[11px] leading-tight text-[#5A6A85]">{acc.institution}</p>
                     )}
                   </div>
                 </button>
-              )
+              );
             })}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 /* ── Envelope filter dropdown (multi-select) ────────────── */
 function EnvelopeFilter({
-  value, onChange, triggerClassName,
+  value,
+  onChange,
+  triggerClassName,
 }: {
-  value: Set<string>
-  onChange: (ids: Set<string>) => void
-  triggerClassName?: string
+  value: Set<string>;
+  onChange: (ids: Set<string>) => void;
+  triggerClassName?: string;
 }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   function toggle(id: string) {
-    const next = new Set(value)
-    next.has(id) ? next.delete(id) : next.add(id)
-    onChange(next)
+    const next = new Set(value);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange(next);
   }
 
   function triggerLabel() {
-    if (value.size === 0) return 'All Envelopes'
+    if (value.size === 0) return "All Envelopes";
     if (value.size === 1) {
-      const env = mockEnvelopes.find(e => e.id === [...value][0])
-      return env ? env.name : 'All Envelopes'
+      const env = mockEnvelopes.find((e) => e.id === [...value][0]);
+      return env ? env.name : "All Envelopes";
     }
-    return `${value.size} Envelopes`
+    return `${value.size} Envelopes`;
   }
 
-  const firstSelected = value.size === 1
-    ? mockEnvelopes.find(e => e.id === [...value][0])
-    : null
+  const firstSelected = value.size === 1 ? mockEnvelopes.find((e) => e.id === [...value][0]) : null;
 
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
-        className={cn(triggerClassName, open && 'border-[#6C3AED]/60 text-[#A8B4CC]')}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(triggerClassName, open && "border-[#6C3AED]/60 text-[#A8B4CC]")}
       >
         {firstSelected && (
           <span
-            className="w-4 h-4 rounded flex items-center justify-center text-[10px] flex-shrink-0"
+            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[10px]"
             style={{ backgroundColor: firstSelected.color }}
           >
             {firstSelected.icon}
           </span>
         )}
         {value.size > 1 && (
-          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#6C3AED] text-[9px] font-bold text-white flex-shrink-0">
+          <span className="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#6C3AED] text-[9px] font-bold text-white">
             {value.size}
           </span>
         )}
@@ -420,14 +526,16 @@ function EnvelopeFilter({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 overflow-hidden">
+        <div className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
           {/* header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A2640]">
-            <span className="text-[11px] font-semibold text-[#3A4A60] uppercase tracking-wider">Envelopes</span>
+          <div className="flex items-center justify-between border-b border-[#1A2640] px-3 py-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+              Envelopes
+            </span>
             {value.size > 0 && (
               <button
                 onClick={() => onChange(new Set())}
-                className="text-[11px] text-[#6C3AED] hover:text-[#7C4AFF] transition-colors"
+                className="text-[11px] text-[#6C3AED] transition-colors hover:text-[#7C4AFF]"
               >
                 Clear all
               </button>
@@ -435,92 +543,122 @@ function EnvelopeFilter({
           </div>
 
           {/* list */}
-          <div className="py-1 max-h-64 overflow-y-auto">
-            {mockEnvelopes.map(env => {
-              const checked = value.has(env.id)
+          <div className="max-h-64 overflow-y-auto py-1">
+            {mockEnvelopes.map((env) => {
+              const checked = value.has(env.id);
               return (
                 <button
                   key={env.id}
                   onClick={() => toggle(env.id)}
                   className={cn(
-                    'w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors',
-                    checked ? 'bg-[#6C3AED]/15 text-white' : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                    "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
+                    checked
+                      ? "bg-[#6C3AED]/15 text-white"
+                      : "text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
                   )}
                 >
                   {/* checkbox */}
-                  <span className={cn(
-                    'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
-                    checked ? 'bg-[#6C3AED] border-[#6C3AED]' : 'border-[#2A3A54]',
-                  )}>
+                  <span
+                    className={cn(
+                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors",
+                      checked ? "border-[#6C3AED] bg-[#6C3AED]" : "border-[#2A3A54]",
+                    )}
+                  >
                     {checked && (
                       <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path
+                          d="M1 3.5L3.5 6L8 1"
+                          stroke="white"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </span>
                   <span
-                    className="w-5 h-5 rounded flex items-center justify-center text-[11px] flex-shrink-0"
+                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
                     style={{ backgroundColor: env.color }}
                   >
                     {env.icon}
                   </span>
                   <span className="truncate text-[#A8B4CC]">{env.name}</span>
                 </button>
-              )
+              );
             })}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 /* ── Transaction type filter (multi-select) ─────────────── */
 const TX_TYPES = [
-  { id: 'expense',  label: 'Expense',  icon: <ArrowDownLeft size={11} />,  color: '#F87171', bg: 'rgba(239,68,68,0.12)' },
-  { id: 'income',   label: 'Income',   icon: <ArrowUpRight size={11} />,   color: '#4ADE80', bg: 'rgba(34,197,94,0.12)' },
-  { id: 'transfer', label: 'Transfer', icon: <ArrowLeftRight size={11} />, color: '#7DD3FC', bg: 'rgba(99,179,237,0.12)' },
-] as const
+  {
+    id: "expense",
+    label: "Expense",
+    icon: <ArrowDownLeft size={11} />,
+    color: "#F87171",
+    bg: "rgba(239,68,68,0.12)",
+  },
+  {
+    id: "income",
+    label: "Income",
+    icon: <ArrowUpRight size={11} />,
+    color: "#4ADE80",
+    bg: "rgba(34,197,94,0.12)",
+  },
+  {
+    id: "transfer",
+    label: "Transfer",
+    icon: <ArrowLeftRight size={11} />,
+    color: "#7DD3FC",
+    bg: "rgba(99,179,237,0.12)",
+  },
+] as const;
 
-type TxTypeId = typeof TX_TYPES[number]['id']
+type TxTypeId = (typeof TX_TYPES)[number]["id"];
 
 function TypeFilter({
-  value, onChange, triggerClassName,
+  value,
+  onChange,
+  triggerClassName,
 }: {
-  value: Set<TxTypeId>
-  onChange: (ids: Set<TxTypeId>) => void
-  triggerClassName?: string
+  value: Set<TxTypeId>;
+  onChange: (ids: Set<TxTypeId>) => void;
+  triggerClassName?: string;
 }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   function toggle(id: TxTypeId) {
-    const next = new Set(value)
-    next.has(id) ? next.delete(id) : next.add(id)
-    onChange(next)
+    const next = new Set(value);
+    next.has(id) ? next.delete(id) : next.add(id);
+    onChange(next);
   }
 
   function triggerLabel() {
-    if (value.size === 0 || value.size === TX_TYPES.length) return 'All Types'
-    if (value.size === 1) return TX_TYPES.find(t => t.id === [...value][0])!.label
-    return `${value.size} Types`
+    if (value.size === 0 || value.size === TX_TYPES.length) return "All Types";
+    if (value.size === 1) return TX_TYPES.find((t) => t.id === [...value][0])!.label;
+    return `${value.size} Types`;
   }
 
-  const singleSelected = value.size === 1 ? TX_TYPES.find(t => t.id === [...value][0]) : null
+  const singleSelected = value.size === 1 ? TX_TYPES.find((t) => t.id === [...value][0]) : null;
 
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
-        className={cn(triggerClassName, open && 'border-[#6C3AED]/60 text-[#A8B4CC]')}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(triggerClassName, open && "border-[#6C3AED]/60 text-[#A8B4CC]")}
       >
         {singleSelected ? (
           <span style={{ color: singleSelected.color }}>{singleSelected.icon}</span>
@@ -528,7 +666,7 @@ function TypeFilter({
           <Grid3x3 size={12} />
         )}
         {value.size > 1 && value.size < TX_TYPES.length && (
-          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#6C3AED] text-[9px] font-bold text-white flex-shrink-0">
+          <span className="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#6C3AED] text-[9px] font-bold text-white">
             {value.size}
           </span>
         )}
@@ -537,13 +675,15 @@ function TypeFilter({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A2640]">
-            <span className="text-[11px] font-semibold text-[#3A4A60] uppercase tracking-wider">Type</span>
+        <div className="absolute left-0 top-full z-20 mt-1 w-48 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
+          <div className="flex items-center justify-between border-b border-[#1A2640] px-3 py-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+              Type
+            </span>
             {value.size > 0 && value.size < TX_TYPES.length && (
               <button
                 onClick={() => onChange(new Set())}
-                className="text-[11px] text-[#6C3AED] hover:text-[#7C4AFF] transition-colors"
+                className="text-[11px] text-[#6C3AED] transition-colors hover:text-[#7C4AFF]"
               >
                 Clear all
               </button>
@@ -551,78 +691,91 @@ function TypeFilter({
           </div>
 
           <div className="py-1">
-            {TX_TYPES.map(type => {
-              const checked = value.has(type.id)
+            {TX_TYPES.map((type) => {
+              const checked = value.has(type.id);
               return (
                 <button
                   key={type.id}
                   onClick={() => toggle(type.id)}
                   className={cn(
-                    'w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors',
-                    checked ? 'bg-[#6C3AED]/15 text-white' : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                    "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
+                    checked
+                      ? "bg-[#6C3AED]/15 text-white"
+                      : "text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
                   )}
                 >
-                  <span className={cn(
-                    'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
-                    checked ? 'bg-[#6C3AED] border-[#6C3AED]' : 'border-[#2A3A54]',
-                  )}>
+                  <span
+                    className={cn(
+                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border transition-colors",
+                      checked ? "border-[#6C3AED] bg-[#6C3AED]" : "border-[#2A3A54]",
+                    )}
+                  >
                     {checked && (
                       <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                        <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path
+                          d="M1 3.5L3.5 6L8 1"
+                          stroke="white"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </span>
                   <span
-                    className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
                     style={{ backgroundColor: type.bg, color: type.color }}
                   >
                     {type.icon}
                   </span>
                   <span className="text-[#A8B4CC]">{type.label}</span>
                 </button>
-              )
+              );
             })}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 /* ── Per-page dropdown ──────────────────────────────────── */
-const PAGE_SIZES = [10, 25, 50, 100]
+const PAGE_SIZES = [10, 25, 50, 100];
 
 function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [])
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   return (
     <div ref={ref} className="relative ml-1">
       <button
-        onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2640] px-3 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
       >
         {value} / page <ChevronDown size={10} />
       </button>
       {open && (
-        <div className="absolute right-0 bottom-full mb-1 w-32 rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg z-20 py-1 overflow-hidden">
-          {PAGE_SIZES.map(n => (
+        <div className="absolute bottom-full right-0 z-20 mb-1 w-32 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
+          {PAGE_SIZES.map((n) => (
             <button
               key={n}
-              onClick={() => { onChange(n); setOpen(false) }}
+              onClick={() => {
+                onChange(n);
+                setOpen(false);
+              }}
               className={cn(
-                'w-full text-left px-3 py-1.5 text-sm transition-colors',
+                "w-full px-3 py-1.5 text-left text-sm transition-colors",
                 n === value
-                  ? 'bg-[#6C3AED]/20 text-white'
-                  : 'text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                  ? "bg-[#6C3AED]/20 text-white"
+                  : "text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
               )}
             >
               {n} / page
@@ -631,109 +784,114 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
         </div>
       )}
     </div>
-  )
+  );
 }
 
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
-  const [modalOpen, setModalOpen] = useState(false)
-  const [detailTx, setDetailTx] = useState<Transaction | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [editTx, setEditTx] = useState<Transaction | null>(null)
-  const [editOpen, setEditOpen] = useState(false)
-  const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteLoading, setDeleteLoading] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [pageSize, setPageSize] = useState(25)
-  const [envelopeFilter, setEnvelopeFilter] = useState<Set<string>>(new Set())
-  const [accountFilter, setAccountFilter] = useState<Set<string>>(new Set())
-  const [typeFilter, setTypeFilter] = useState<Set<TxTypeId>>(new Set())
+  const [modalOpen, setModalOpen] = useState(false);
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pageSize, setPageSize] = useState(25);
+  const [envelopeFilter, setEnvelopeFilter] = useState<Set<string>>(new Set());
+  const [accountFilter, setAccountFilter] = useState<Set<string>>(new Set());
+  const [typeFilter, setTypeFilter] = useState<Set<TxTypeId>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange>(() => {
-    const now = new Date()
+    const now = new Date();
     return {
       from: new Date(now.getFullYear(), now.getMonth(), 1),
       to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
-    }
-  })
+    };
+  });
 
-  const allSelected = selected.size === mockTransactions.length && mockTransactions.length > 0
-  const someSelected = selected.size > 0 && !allSelected
+  const allSelected = selected.size === mockTransactions.length && mockTransactions.length > 0;
+  const someSelected = selected.size > 0 && !allSelected;
 
-  const totalInflow  = 885650
-  const totalOutflow = -347820
-  const netFlow      = totalInflow + totalOutflow
-  const totalCount   = 72
+  const totalInflow = 885650;
+  const totalOutflow = -347820;
+  const netFlow = totalInflow + totalOutflow;
+  const totalCount = 72;
 
   function toggleAll() {
     if (allSelected || someSelected) {
-      setSelected(new Set())
+      setSelected(new Set());
     } else {
-      setSelected(new Set(mockTransactions.map(t => t.id)))
+      setSelected(new Set(mockTransactions.map((t) => t.id)));
     }
   }
 
   function toggleRow(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
   function openDeleteModal(tx: Transaction) {
-    setDeleteTx(tx)
-    setDeleteOpen(true)
+    setDeleteTx(tx);
+    setDeleteOpen(true);
   }
 
   function closeDeleteModal() {
-    if (deleteLoading) return
-    setDeleteOpen(false)
-    setTimeout(() => setDeleteTx(null), 200)
+    if (deleteLoading) return;
+    setDeleteOpen(false);
+    setTimeout(() => setDeleteTx(null), 200);
   }
 
   async function confirmDelete() {
-    setDeleteLoading(true)
+    setDeleteLoading(true);
     // Simulate async delete — replace with real API call
-    await new Promise(r => setTimeout(r, 800))
-    setDeleteLoading(false)
-    setDeleteOpen(false)
-    setDetailOpen(false)
-    setTimeout(() => { setDeleteTx(null); setDetailTx(null) }, 200)
+    await new Promise((r) => setTimeout(r, 800));
+    setDeleteLoading(false);
+    setDeleteOpen(false);
+    setDetailOpen(false);
+    setTimeout(() => {
+      setDeleteTx(null);
+      setDetailTx(null);
+    }, 200);
   }
 
   /* Flowbite dropdown trigger style */
   const filterBtn = [
-    'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#1A2640]',
-    'bg-[#080D1A] text-sm text-[#7A8BA8]',
-    'hover:text-[#C8D4E8] hover:border-[#2A3A54]',
-    'focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25',
-    'transition-all whitespace-nowrap',
-  ].join(' ')
+    "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#1A2640]",
+    "bg-[#080D1A] text-sm text-[#7A8BA8]",
+    "hover:text-[#C8D4E8] hover:border-[#2A3A54]",
+    "focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25",
+    "transition-all whitespace-nowrap",
+  ].join(" ");
 
   return (
     <div className="layout-page py-6">
-
       {/* ── Page header ─────────────────────────────────── */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#E8EEF8] tracking-tight">Transactions</h1>
-          <p className="text-sm text-[#5A6A85] mt-1 whitespace-nowrap">
-            Review and manage all transactions in your budget. Your transactions update your accounts and envelopes.
-            <br />Filter by type, envelope, or account to find what you need. Import from your bank or add transactions manually.
+          <h1 className="text-2xl font-semibold tracking-tight text-[#E8EEF8]">Transactions</h1>
+          <p className="mt-1 whitespace-nowrap text-sm text-[#5A6A85]">
+            Review and manage all transactions in your budget. Your transactions update your
+            accounts and envelopes.
+            <br />
+            Filter by type, envelope, or account to find what you need. Import from your bank or add
+            transactions manually.
           </p>
         </div>
 
         {/* Flowbite button group pattern */}
-        <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#1E2B42] text-sm font-medium text-[#A8B4CC] hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors">
+        <div className="mt-0.5 flex flex-shrink-0 items-center gap-2">
+          <button className="inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-4 py-2.5 text-sm font-medium text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
             <Upload size={14} />
             Import
           </button>
 
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#6C3AED] rounded-lg border border-[#6C3AED] hover:bg-[#7C4AFF] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50"
           >
             <Plus size={14} />
             Add Transaction
@@ -742,19 +900,18 @@ export function TransactionsView() {
       </div>
 
       {/* ── Table card ──────────────────────────────────── */}
-      <div className="bg-[#0B1220] border border-[#1A2640] rounded-lg shadow-sm overflow-hidden">
-
+      <div className="overflow-hidden rounded-lg border border-[#1A2640] bg-[#0B1220] shadow-sm">
         {/* Filter bar */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#131E30] flex-wrap">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#131E30] px-4 py-3">
           {/* Flowbite search input */}
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <Search size={13} className="text-[#3A4A60]" />
             </div>
             <input
               type="search"
               placeholder="Search transactions..."
-              className="block w-56 py-2 pl-9 pr-3 text-sm text-[#A8B4CC] bg-[#080D1A] border border-[#1A2640] rounded-lg placeholder:text-[#2A3A54] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25 focus:border-[#6C3AED] transition-colors"
+              className="block w-56 rounded-lg border border-[#1A2640] bg-[#080D1A] py-2 pl-9 pr-3 text-sm text-[#A8B4CC] transition-colors placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25"
             />
           </div>
 
@@ -768,31 +925,26 @@ export function TransactionsView() {
             onChange={setEnvelopeFilter}
             triggerClassName={filterBtn}
           />
-          <DateRangePicker
-            value={dateRange}
-            onChange={setDateRange}
-            triggerClassName={filterBtn}
-          />
-          <TypeFilter
-            value={typeFilter}
-            onChange={setTypeFilter}
-            triggerClassName={filterBtn}
-          />
-          <button className={cn(filterBtn, 'ml-auto')}>
+          <DateRangePicker value={dateRange} onChange={setDateRange} triggerClassName={filterBtn} />
+          <TypeFilter value={typeFilter} onChange={setTypeFilter} triggerClassName={filterBtn} />
+          <button className={cn(filterBtn, "ml-auto")}>
             <SlidersHorizontal size={12} />
             Filters
           </button>
         </div>
 
         {/* Stats row */}
-        <div className="px-4 py-3 border-b border-[#131E30]">
-          <div className="bg-[#080E1A] border border-[#1A2640] rounded-lg flex">
-
+        <div className="border-b border-[#131E30] px-4 py-3">
+          <div className="flex rounded-lg border border-[#1A2640] bg-[#080E1A]">
             {/* Total Inflow */}
-            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
-              <p className="text-xs font-semibold text-[#22C55E] uppercase tracking-widest mb-1">Total Inflow</p>
-              <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">{formatCurrency(totalInflow)}</p>
-              <div className="mt-1 h-12 -mx-1">
+            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#22C55E]">
+                Total Inflow
+              </p>
+              <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">
+                {formatCurrency(totalInflow)}
+              </p>
+              <div className="-mx-1 mt-1 h-12">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={sparkInflow} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                     <defs>
@@ -802,19 +954,31 @@ export function TransactionsView() {
                       </linearGradient>
                     </defs>
                     <Tooltip content={<SparkTooltip formatter={formatCurrencyCompact} />} />
-                    <Area type="monotone" dataKey="v" stroke="#22C55E" strokeWidth={1.5} fill="url(#inflowGrad)" dot={false} activeDot={{ r: 3, fill: '#22C55E', stroke: '#080C14', strokeWidth: 1.5 }} />
+                    <Area
+                      type="monotone"
+                      dataKey="v"
+                      stroke="#22C55E"
+                      strokeWidth={1.5}
+                      fill="url(#inflowGrad)"
+                      dot={false}
+                      activeDot={{ r: 3, fill: "#22C55E", stroke: "#080C14", strokeWidth: 1.5 }}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="w-px my-3 bg-[#1A2640]" />
+            <div className="my-3 w-px bg-[#1A2640]" />
 
             {/* Total Outflow */}
-            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
-              <p className="text-xs font-semibold text-[#F97316] uppercase tracking-widest mb-1">Total Outflow</p>
-              <p className="text-2xl font-bold tabular-nums text-[#F97316]">{formatCurrency(totalOutflow)}</p>
-              <div className="mt-1 h-12 -mx-1">
+            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#F97316]">
+                Total Outflow
+              </p>
+              <p className="text-2xl font-bold tabular-nums text-[#F97316]">
+                {formatCurrency(totalOutflow)}
+              </p>
+              <div className="-mx-1 mt-1 h-12">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={sparkOutflow} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                     <defs>
@@ -824,21 +988,41 @@ export function TransactionsView() {
                       </linearGradient>
                     </defs>
                     <Tooltip content={<SparkTooltip formatter={formatCurrencyCompact} />} />
-                    <Area type="monotone" dataKey="v" stroke="#F97316" strokeWidth={1.5} fill="url(#outflowGrad)" dot={false} activeDot={{ r: 3, fill: '#F97316', stroke: '#080C14', strokeWidth: 1.5 }} />
+                    <Area
+                      type="monotone"
+                      dataKey="v"
+                      stroke="#F97316"
+                      strokeWidth={1.5}
+                      fill="url(#outflowGrad)"
+                      dot={false}
+                      activeDot={{ r: 3, fill: "#F97316", stroke: "#080C14", strokeWidth: 1.5 }}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="w-px my-3 bg-[#1A2640]" />
+            <div className="my-3 w-px bg-[#1A2640]" />
 
             {/* Net Flow */}
-            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
-              <p className={cn('text-xs font-semibold uppercase tracking-widest mb-1', netFlow >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]')}>Net Flow</p>
-              <p className={cn('text-2xl font-bold tabular-nums', netFlow >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')}>
+            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
+              <p
+                className={cn(
+                  "mb-1 text-xs font-semibold uppercase tracking-widest",
+                  netFlow >= 0 ? "text-[#22C55E]" : "text-[#F87171]",
+                )}
+              >
+                Net Flow
+              </p>
+              <p
+                className={cn(
+                  "text-2xl font-bold tabular-nums",
+                  netFlow >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
+                )}
+              >
                 {formatCurrency(netFlow)}
               </p>
-              <div className="mt-1 h-12 -mx-1">
+              <div className="-mx-1 mt-1 h-12">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={sparkNet} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                     <defs>
@@ -848,57 +1032,84 @@ export function TransactionsView() {
                       </linearGradient>
                     </defs>
                     <Tooltip content={<SparkTooltip formatter={formatCurrencyCompact} />} />
-                    <Area type="monotone" dataKey="v" stroke="#4ADE80" strokeWidth={1.5} fill="url(#netGrad)" dot={false} activeDot={{ r: 3, fill: '#4ADE80', stroke: '#080C14', strokeWidth: 1.5 }} />
+                    <Area
+                      type="monotone"
+                      dataKey="v"
+                      stroke="#4ADE80"
+                      strokeWidth={1.5}
+                      fill="url(#netGrad)"
+                      dot={false}
+                      activeDot={{ r: 3, fill: "#4ADE80", stroke: "#080C14", strokeWidth: 1.5 }}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="w-px my-3 bg-[#1A2640]" />
+            <div className="my-3 w-px bg-[#1A2640]" />
 
             {/* Transactions */}
-            <div className="flex-1 px-5 pt-3 pb-0 flex flex-col">
-              <p className="text-xs font-semibold text-[#5A6A85] uppercase tracking-widest mb-1">Transactions</p>
+            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5A6A85]">
+                Transactions
+              </p>
               <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">{totalCount}</p>
-              <div className="mt-1 h-12 -mx-1">
+              <div className="-mx-1 mt-1 h-12">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sparkCount} margin={{ top: 2, right: 2, bottom: 2, left: 2 }} barCategoryGap="30%">
+                  <BarChart
+                    data={sparkCount}
+                    margin={{ top: 2, right: 2, bottom: 2, left: 2 }}
+                    barCategoryGap="30%"
+                  >
                     <Tooltip content={<SparkTooltip formatter={(v: number) => `${v} txns`} />} />
                     <Bar dataKey="v" fill="#6C3AED" radius={[2, 2, 0, 0]} opacity={0.7} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
-
           </div>
         </div>
 
         {/* Table — Flowbite: divide-y on tbody, text-xs uppercase headers */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-[#5A6A85] uppercase bg-[#080E1A]">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#080E1A] text-xs uppercase text-[#5A6A85]">
               <tr>
-                <th scope="col" className="w-10 pl-4 pr-2 py-3">
+                <th scope="col" className="w-10 py-3 pl-4 pr-2">
                   <button
                     onClick={toggleAll}
-                    className="text-[#2A3A54] hover:text-[#6C3AED] focus:outline-none transition-colors flex"
+                    className="flex text-[#2A3A54] transition-colors hover:text-[#6C3AED] focus:outline-none"
                   >
-                    {allSelected
-                      ? <CheckSquare size={14} className="text-[#6C3AED]" />
-                      : <Square size={14} />}
+                    {allSelected ? (
+                      <CheckSquare size={14} className="text-[#6C3AED]" />
+                    ) : (
+                      <Square size={14} />
+                    )}
                   </button>
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  <button className="inline-flex items-center gap-1 hover:text-[#A8B4CC] transition-colors tracking-wider">
+                  <button className="inline-flex items-center gap-1 tracking-wider transition-colors hover:text-[#A8B4CC]">
                     Date <span className="text-[10px]">↑</span>
                   </button>
                 </th>
-                <th scope="col" className="px-4 py-3 tracking-wider">Payee / Note</th>
-                <th scope="col" className="px-4 py-3 tracking-wider">Type</th>
-                <th scope="col" className="px-4 py-3 tracking-wider">Envelope / Category</th>
-                <th scope="col" className="px-4 py-3 tracking-wider">Account</th>
-                <th scope="col" className="px-4 py-3 tracking-wider text-right">Amount</th>
-                <th scope="col" className="px-4 py-3 tracking-wider text-right">Running Balance</th>
+                <th scope="col" className="px-4 py-3 tracking-wider">
+                  Payee / Note
+                </th>
+                <th scope="col" className="px-4 py-3 tracking-wider">
+                  Type
+                </th>
+                <th scope="col" className="px-4 py-3 tracking-wider">
+                  Envelope / Category
+                </th>
+                <th scope="col" className="px-4 py-3 tracking-wider">
+                  Account
+                </th>
+                <th scope="col" className="px-4 py-3 text-right tracking-wider">
+                  Amount
+                </th>
+                <th scope="col" className="px-4 py-3 text-right tracking-wider">
+                  Running Balance
+                </th>
                 <th scope="col" className="w-10" />
               </tr>
             </thead>
@@ -910,7 +1121,10 @@ export function TransactionsView() {
                   index={i}
                   selected={selected.has(tx.id)}
                   onSelect={() => toggleRow(tx.id)}
-                  onRowClick={() => { setDetailTx(tx); setDetailOpen(true) }}
+                  onRowClick={() => {
+                    setDetailTx(tx);
+                    setDetailOpen(true);
+                  }}
                 />
               ))}
             </tbody>
@@ -918,32 +1132,32 @@ export function TransactionsView() {
         </div>
 
         {/* Pagination — Flowbite pagination pattern */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-[#131E30]">
+        <div className="flex items-center justify-between border-t border-[#131E30] px-4 py-3">
           <span className="text-sm text-[#5A6A85]">
-            Showing <span className="font-medium text-[#A8B4CC]">1</span> to{' '}
-            <span className="font-medium text-[#A8B4CC]">{mockTransactions.length}</span> of{' '}
+            Showing <span className="font-medium text-[#A8B4CC]">1</span> to{" "}
+            <span className="font-medium text-[#A8B4CC]">{mockTransactions.length}</span> of{" "}
             <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
           </span>
 
           <div className="inline-flex items-center gap-1" aria-label="Pagination">
-            <button className="px-2.5 py-1.5 text-sm rounded-lg border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors">
+            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
               ‹
             </button>
-            {[1, 2, 3].map(n => (
+            {[1, 2, 3].map((n) => (
               <button
                 key={n}
-                aria-current={n === 1 ? 'page' : undefined}
+                aria-current={n === 1 ? "page" : undefined}
                 className={cn(
-                  'px-3 py-1.5 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30',
+                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30",
                   n === 1
-                    ? 'bg-[#6C3AED] text-white border border-[#6C3AED]'
-                    : 'border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white',
+                    ? "border border-[#6C3AED] bg-[#6C3AED] text-white"
+                    : "border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
                 )}
               >
                 {n}
               </button>
             ))}
-            <button className="px-2.5 py-1.5 text-sm rounded-lg border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 transition-colors">
+            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
               ›
             </button>
 
@@ -958,12 +1172,21 @@ export function TransactionsView() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         onDelete={() => detailTx && openDeleteModal(detailTx)}
-        onEdit={() => { if (detailTx) { setEditTx(detailTx); setEditOpen(true); setDetailOpen(false) } }}
+        onEdit={() => {
+          if (detailTx) {
+            setEditTx(detailTx);
+            setEditOpen(true);
+            setDetailOpen(false);
+          }
+        }}
       />
       <EditTransactionModal
         tx={editTx}
         open={editOpen}
-        onClose={() => { setEditOpen(false); setTimeout(() => setEditTx(null), 200) }}
+        onClose={() => {
+          setEditOpen(false);
+          setTimeout(() => setEditTx(null), 200);
+        }}
       />
       <DeleteTransactionModal
         tx={deleteTx}
@@ -973,5 +1196,5 @@ export function TransactionsView() {
         loading={deleteLoading}
       />
     </div>
-  )
+  );
 }
