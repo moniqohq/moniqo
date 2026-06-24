@@ -1,50 +1,82 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { ArrowUpRight } from 'lucide-react'
-import { mockTransactions } from '@/mock/data'
-import { formatCurrency, formatTableDate, cn } from '@/lib/utils'
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { ArrowUpRight } from "lucide-react";
+import { mockTransactions } from "@/mock/data";
+import { formatCurrency, formatTableDate, cn } from "@/lib/utils";
 
-type Status = 'Done' | 'Reconciled' | 'Pending'
+type Status = "Done" | "Reconciled" | "Pending";
 
-const STATUSES: Status[] = ['Done', 'Reconciled', 'Pending', 'Done', 'Done', 'Reconciled', 'Pending', 'Done', 'Reconciled', 'Pending', 'Done', 'Reconciled']
+const STATUSES: Status[] = [
+  "Done",
+  "Reconciled",
+  "Pending",
+  "Done",
+  "Done",
+  "Reconciled",
+  "Pending",
+  "Done",
+  "Reconciled",
+  "Pending",
+  "Done",
+  "Reconciled",
+];
 
 function StatusBadge({ status }: { status: Status }) {
   const styles: Record<Status, string> = {
-    Done:       'bg-[rgba(34,197,94,0.12)] text-[#4ADE80]',
-    Reconciled: 'bg-[rgba(99,179,237,0.12)] text-[#7DD3FC]',
-    Pending:    'bg-[rgba(245,158,11,0.12)] text-[#FBB74B]',
-  }
+    Done: "bg-[rgba(34,197,94,0.12)] text-[#4ADE80]",
+    Reconciled: "bg-[rgba(99,179,237,0.12)] text-[#7DD3FC]",
+    Pending: "bg-[rgba(245,158,11,0.12)] text-[#FBB74B]",
+  };
   return (
-    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium tracking-wide', styles[status])}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium tracking-wide",
+        styles[status],
+      )}
+    >
       {status}
     </span>
-  )
+  );
 }
 
 export function RecentTransactions() {
-  const recent = mockTransactions.slice(0, 7)
+  const recent = mockTransactions.slice(0, 7);
 
   return (
     <div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-[#1E2B42]">
-              <th className="px-5 py-2.5 text-[11px] font-semibold text-[#5A6A85] uppercase tracking-wider">Merchant</th>
-              <th className="px-4 py-2.5 text-[11px] font-semibold text-[#5A6A85] uppercase tracking-wider">Envelope</th>
-              <th className="px-4 py-2.5 text-[11px] font-semibold text-[#5A6A85] uppercase tracking-wider">Date</th>
-              <th className="px-4 py-2.5 text-[11px] font-semibold text-[#5A6A85] uppercase tracking-wider text-right">Amount</th>
-              <th className="px-5 py-2.5 text-[11px] font-semibold text-[#5A6A85] uppercase tracking-wider text-right">Status</th>
+              <th className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+                Merchant
+              </th>
+              <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+                Envelope
+              </th>
+              <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+                Date
+              </th>
+              <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+                Amount
+              </th>
+              <th className="px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+                Status
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1E2B42]">
             {recent.map((tx, i) => {
               const amountColor =
-                tx.type === 'income' ? 'text-[#4ADE80]'
-                : tx.type === 'transfer' ? (tx.amount >= 0 ? 'text-[#4ADE80]' : 'text-[#F87171]')
-                : 'text-[#F87171]'
+                tx.type === "income"
+                  ? "text-[#4ADE80]"
+                  : tx.type === "transfer"
+                    ? tx.amount >= 0
+                      ? "text-[#4ADE80]"
+                      : "text-[#F87171]"
+                    : "text-[#F87171]";
 
               return (
                 <motion.tr
@@ -52,21 +84,25 @@ export function RecentTransactions() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: i * 0.04 }}
-                  className="hover:bg-[#0D1828] transition-colors cursor-pointer"
+                  className="cursor-pointer transition-colors hover:bg-[#0D1828]"
                 >
                   {/* Merchant */}
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 select-none"
-                        style={{ backgroundColor: tx.payeeColor ?? '#1E2B42' }}
+                        className="flex h-7 w-7 flex-shrink-0 select-none items-center justify-center rounded-lg text-[11px] font-bold text-white"
+                        style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
                       >
                         {tx.payee[0]}
                       </div>
                       <div>
-                        <p className="text-[13px] font-medium text-[#E8EEF8] leading-tight truncate max-w-[140px]">{tx.payee}</p>
+                        <p className="max-w-[140px] truncate text-[13px] font-medium leading-tight text-[#E8EEF8]">
+                          {tx.payee}
+                        </p>
                         {tx.memo && (
-                          <p className="text-[11px] text-[#5A6A85] leading-tight truncate max-w-[140px]">{tx.memo}</p>
+                          <p className="max-w-[140px] truncate text-[11px] leading-tight text-[#5A6A85]">
+                            {tx.memo}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -77,25 +113,32 @@ export function RecentTransactions() {
                     {tx.envelopeName ? (
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-5 h-5 rounded flex items-center justify-center text-[11px] flex-shrink-0"
-                          style={{ backgroundColor: tx.envelopeColor ?? '#1E2B42' }}
+                          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
+                          style={{ backgroundColor: tx.envelopeColor ?? "#1E2B42" }}
                         >
                           {tx.envelopeIcon ?? tx.envelopeName[0]}
                         </div>
-                        <span className="text-[13px] text-[#A8B4CC] whitespace-nowrap">{tx.envelopeName}</span>
+                        <span className="whitespace-nowrap text-[13px] text-[#A8B4CC]">
+                          {tx.envelopeName}
+                        </span>
                       </div>
                     ) : (
-                      <span className="text-[#2A3A54] text-sm select-none">—</span>
+                      <span className="select-none text-sm text-[#2A3A54]">—</span>
                     )}
                   </td>
 
                   {/* Date */}
-                  <td className="px-4 py-3 text-[13px] text-[#A8B4CC] whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] text-[#A8B4CC]">
                     {formatTableDate(tx.date)}
                   </td>
 
                   {/* Amount */}
-                  <td className={cn('px-4 py-3 text-[13px] font-semibold tabular-nums text-right whitespace-nowrap', amountColor)}>
+                  <td
+                    className={cn(
+                      "whitespace-nowrap px-4 py-3 text-right text-[13px] font-semibold tabular-nums",
+                      amountColor,
+                    )}
+                  >
                     {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
                   </td>
 
@@ -104,20 +147,20 @@ export function RecentTransactions() {
                     <StatusBadge status={STATUSES[i % STATUSES.length]} />
                   </td>
                 </motion.tr>
-              )
+              );
             })}
           </tbody>
         </table>
       </div>
 
-      <div className="px-5 py-3 border-t border-[#1E2B42]">
+      <div className="border-t border-[#1E2B42] px-5 py-3">
         <Link
           href="/transactions"
-          className="flex items-center gap-1 text-[13px] text-[#6C3AED] hover:text-[#A78BFA] transition-colors"
+          className="flex items-center gap-1 text-[13px] text-[#6C3AED] transition-colors hover:text-[#A78BFA]"
         >
           View all transactions <ArrowUpRight size={12} />
         </Link>
       </div>
     </div>
-  )
+  );
 }

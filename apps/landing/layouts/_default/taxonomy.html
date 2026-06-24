@@ -1,13 +1,18 @@
 {{ define "main" }}
 <section class="container py-10 lg:py-14">
-  <h1 class="text-3xl font-extrabold text-white mb-8" style="font-family:'Plus Jakarta Sans',sans-serif;">
+  <h1
+    class="mb-8 text-3xl font-extrabold text-white"
+    style="font-family: &quot;Plus Jakarta Sans&quot;, sans-serif"
+  >
     {{ .Title }}
   </h1>
   <ul class="space-y-2">
     {{ range .Data.Terms.Alphabetical }}
     <li>
-      <a href="{{ .Page.RelPermalink }}"
-         class="text-purple-400 hover:text-white transition-colors duration-150 text-sm font-medium">
+      <a
+        href="{{ .Page.RelPermalink }}"
+        class="text-sm font-medium text-purple-400 transition-colors duration-150 hover:text-white"
+      >
         {{ .Page.Title }} <span class="text-gray-500">({{ .Count }})</span>
       </a>
     </li>

@@ -1,79 +1,132 @@
 <section id="hero" class="relative overflow-hidden">
-
   <!-- ── Background layers ───────────────────────────────────── -->
   <!-- Ambient hero glow -->
-  <div class="absolute pointer-events-none" aria-hidden="true"
-       style="top:-5%;right:10%;width:700px;height:700px;
-              background:radial-gradient(ellipse,rgba(124,58,237,.22) 0%,transparent 65%);
-              filter:blur(60px);animation:mnq-glow 5s ease-in-out infinite;">
-  </div>
-  <div class="absolute pointer-events-none" aria-hidden="true"
-       style="bottom:0;left:-5%;width:500px;height:500px;
-              background:radial-gradient(ellipse,rgba(79,70,229,.12) 0%,transparent 70%);
-              filter:blur(60px);">
-  </div>
+  <div
+    class="pointer-events-none absolute"
+    aria-hidden="true"
+    style="
+      top: -5%;
+      right: 10%;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(ellipse, rgba(124, 58, 237, 0.22) 0%, transparent 65%);
+      filter: blur(60px);
+      animation: mnq-glow 5s ease-in-out infinite;
+    "
+  ></div>
+  <div
+    class="pointer-events-none absolute"
+    aria-hidden="true"
+    style="
+      bottom: 0;
+      left: -5%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(79, 70, 229, 0.12) 0%, transparent 70%);
+      filter: blur(60px);
+    "
+  ></div>
 
   <!-- Animated wave lines (bottom) -->
-  <div class="absolute bottom-0 inset-x-0 pointer-events-none overflow-hidden" aria-hidden="true"
-       style="height:180px;opacity:.18;">
-    <svg viewBox="0 0 1440 180" fill="none" preserveAspectRatio="none"
-         class="absolute bottom-0 w-full h-full">
-      <path class="animate-wave"
-            d="M0,80 C240,20 480,140 720,80 C960,20 1200,140 1440,80 L1440,180 L0,180 Z"
-            fill="url(#wg1)" fill-opacity=".6"/>
-      <path class="animate-wave-b"
-            d="M0,110 C200,50 440,160 720,100 C1000,40 1240,150 1440,100 L1440,180 L0,180 Z"
-            fill="url(#wg2)" fill-opacity=".4"/>
+  <div
+    class="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden"
+    aria-hidden="true"
+    style="height: 180px; opacity: 0.18"
+  >
+    <svg
+      viewBox="0 0 1440 180"
+      fill="none"
+      preserveAspectRatio="none"
+      class="absolute bottom-0 h-full w-full"
+    >
+      <path
+        class="animate-wave"
+        d="M0,80 C240,20 480,140 720,80 C960,20 1200,140 1440,80 L1440,180 L0,180 Z"
+        fill="url(#wg1)"
+        fill-opacity=".6"
+      />
+      <path
+        class="animate-wave-b"
+        d="M0,110 C200,50 440,160 720,100 C1000,40 1240,150 1440,100 L1440,180 L0,180 Z"
+        fill="url(#wg2)"
+        fill-opacity=".4"
+      />
       <defs>
         <linearGradient id="wg1" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stop-color="#7C3AED" stop-opacity=".0"/>
-          <stop offset="50%"  stop-color="#8B5CF6" stop-opacity=".3"/>
-          <stop offset="100%" stop-color="#7C3AED" stop-opacity=".0"/>
+          <stop offset="0%" stop-color="#7C3AED" stop-opacity=".0" />
+          <stop offset="50%" stop-color="#8B5CF6" stop-opacity=".3" />
+          <stop offset="100%" stop-color="#7C3AED" stop-opacity=".0" />
         </linearGradient>
         <linearGradient id="wg2" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stop-color="#4F46E5" stop-opacity=".0"/>
-          <stop offset="50%"  stop-color="#7C3AED" stop-opacity=".2"/>
-          <stop offset="100%" stop-color="#4F46E5" stop-opacity=".0"/>
+          <stop offset="0%" stop-color="#4F46E5" stop-opacity=".0" />
+          <stop offset="50%" stop-color="#7C3AED" stop-opacity=".2" />
+          <stop offset="100%" stop-color="#4F46E5" stop-opacity=".0" />
         </linearGradient>
       </defs>
     </svg>
   </div>
 
   <!-- ── Main layout ─────────────────────────────────────────── -->
-  <div class="container mx-auto px-2 sm:px-3 lg:px-4 max-w-screen-2xl relative"
-       style="padding-top:5rem;padding-bottom:4rem;">
-    <div class="flex flex-col lg:flex-row lg:items-center gap-12 xl:gap-16">
-
+  <div
+    class="container relative mx-auto max-w-screen-2xl px-2 sm:px-3 lg:px-4"
+    style="padding-top: 5rem; padding-bottom: 4rem"
+  >
+    <div class="flex flex-col gap-12 lg:flex-row lg:items-center xl:gap-16">
       <!-- ══════════════════════════════════════
            LEFT CONTENT  (40%)
            ══════════════════════════════════════ -->
-      <div class="w-full lg:w-[42%] flex-shrink-0">
-
+      <div class="w-full flex-shrink-0 lg:w-[42%]">
         <!-- Badge -->
         <div class="anim-0 mb-7">
           <span class="section-badge">
-            <svg class="w-3 h-3" style="color:#10B981;" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            <svg class="h-3 w-3" style="color: #10b981" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+              />
             </svg>
             Open Source &nbsp;·&nbsp; Privacy First
           </span>
         </div>
 
         <!-- Headline -->
-        <h1 class="anim-1 font-extrabold text-white mb-6"
-            style="font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(2.8rem,5vw,4.75rem);line-height:1.04;letter-spacing:-.02em;">
-          Budget every rupee<br>with<br>
+        <h1
+          class="anim-1 mb-6 font-extrabold text-white"
+          style="
+            font-family: &quot;Plus Jakarta Sans&quot;, sans-serif;
+            font-size: clamp(2.8rem, 5vw, 4.75rem);
+            line-height: 1.04;
+            letter-spacing: -0.02em;
+          "
+        >
+          Budget every rupee<br />with<br />
           <span class="relative inline-block">
             <span class="gradient-text">confidence.</span>
             <!-- Underline accent -->
-            <svg class="absolute -bottom-2 left-0 w-full" viewBox="0 0 260 10" fill="none" preserveAspectRatio="none"
-                 style="height:6px;opacity:.7;">
-              <path d="M2 6 Q65 2 130 5 Q195 8 258 4" stroke="url(#ul)" stroke-width="2.5"
-                    stroke-linecap="round" fill="none"/>
+            <svg
+              class="absolute -bottom-2 left-0 w-full"
+              viewBox="0 0 260 10"
+              fill="none"
+              preserveAspectRatio="none"
+              style="height: 6px; opacity: 0.7"
+            >
+              <path
+                d="M2 6 Q65 2 130 5 Q195 8 258 4"
+                stroke="url(#ul)"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                fill="none"
+              />
               <defs>
-                <linearGradient id="ul" x1="0" y1="0" x2="260" y2="0" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%"   stop-color="#7C3AED"/>
-                  <stop offset="100%" stop-color="#C084FC"/>
+                <linearGradient
+                  id="ul"
+                  x1="0"
+                  y1="0"
+                  x2="260"
+                  y2="0"
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop offset="0%" stop-color="#7C3AED" />
+                  <stop offset="100%" stop-color="#C084FC" />
                 </linearGradient>
               </defs>
             </svg>
@@ -81,23 +134,29 @@
         </h1>
 
         <!-- Body copy -->
-        <p class="anim-2 text-lg text-gray-400 leading-relaxed mb-8" style="max-width:420px;">
-          Moniqo is an open-source envelope budgeting app that helps you give every rupee a job before you spend it.
+        <p class="anim-2 mb-8 text-lg leading-relaxed text-gray-400" style="max-width: 420px">
+          Moniqo is an open-source envelope budgeting app that helps you give every rupee a job
+          before you spend it.
         </p>
 
         <!-- Feature bullets — 2-col grid -->
-        <div class="anim-3 grid grid-cols-2 gap-x-6 gap-y-2.5 mb-9" style="max-width:420px;">
-          {{ $bullets := slice
-            "Zero-based budgeting"
-            "Multi-account support"
-            "Goals & savings tracking"
-            "Privacy first"
-            "Self-hostable"
-            "Open-source (GPL v3)" }}
-          {{ range $bullets }}
+        <div class="anim-3 mb-9 grid grid-cols-2 gap-x-6 gap-y-2.5" style="max-width: 420px">
+          {{ $bullets := slice "Zero-based budgeting" "Multi-account support" "Goals & savings
+          tracking" "Privacy first" "Self-hostable" "Open-source (GPL v3)" }} {{ range $bullets }}
           <div class="flex items-center gap-2 text-sm text-gray-300">
-            <svg class="w-4 h-4 flex-shrink-0" style="color:#10B981;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            <svg
+              class="h-4 w-4 flex-shrink-0"
+              style="color: #10b981"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             {{ . }}
           </div>
@@ -105,25 +164,59 @@
         </div>
 
         <!-- CTA buttons -->
-        <div class="anim-4 flex flex-wrap gap-3 mb-9">
-          <a href="/get-started"
-             class="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold text-white rounded-xl transition-all duration-200"
-             style="background:linear-gradient(135deg,#7C3AED,#6D28D9);box-shadow:0 0 24px rgba(124,58,237,.4);"
-             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 0 40px rgba(124,58,237,.6)';"
-             onmouseout="this.style.transform='';this.style.boxShadow='0 0 24px rgba(124,58,237,.4)';">
+        <div class="anim-4 mb-9 flex flex-wrap gap-3">
+          <a
+            href="/get-started"
+            class="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-base font-semibold text-white transition-all duration-200"
+            style="
+              background: linear-gradient(135deg, #7c3aed, #6d28d9);
+              box-shadow: 0 0 24px rgba(124, 58, 237, 0.4);
+            "
+            onmouseover="
+              this.style.transform = 'translateY(-2px)';
+              this.style.boxShadow = '0 0 40px rgba(124,58,237,.6)';
+            "
+            onmouseout="
+              this.style.transform = '';
+              this.style.boxShadow = '0 0 24px rgba(124,58,237,.4)';
+            "
+          >
             Get Started
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M5 12h14M12 5l7 7-7 7"
+              />
             </svg>
           </a>
           {{ with .Site.Params.social.github }}
-          <a href="{{ . }}" target="_blank" rel="noopener noreferrer"
-             class="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold text-white rounded-xl transition-all duration-200"
-             style="border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);backdrop-filter:blur(8px);"
-             onmouseover="this.style.borderColor='rgba(124,58,237,.5)';this.style.background='rgba(124,58,237,.08)';this.style.transform='translateY(-2px)';"
-             onmouseout="this.style.borderColor='rgba(255,255,255,.15)';this.style.background='rgba(255,255,255,.04)';this.style.transform='';">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          <a
+            href="{{ . }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-base font-semibold text-white transition-all duration-200"
+            style="
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              background: rgba(255, 255, 255, 0.04);
+              backdrop-filter: blur(8px);
+            "
+            onmouseover="
+              this.style.borderColor = 'rgba(124,58,237,.5)';
+              this.style.background = 'rgba(124,58,237,.08)';
+              this.style.transform = 'translateY(-2px)';
+            "
+            onmouseout="
+              this.style.borderColor = 'rgba(255,255,255,.15)';
+              this.style.background = 'rgba(255,255,255,.04)';
+              this.style.transform = '';
+            "
+          >
+            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+              />
             </svg>
             View on GitHub
           </a>
@@ -132,314 +225,837 @@
 
         <!-- Trust chips -->
         <div class="flex flex-wrap gap-2">
-          {{ $chips := slice "Open Source" "Privacy First" "Self Hosted" "Cross Platform" }}
-          {{ range $chips }}
-          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-gray-400"
-                style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);">
+          {{ $chips := slice "Open Source" "Privacy First" "Self Hosted" "Cross Platform" }} {{
+          range $chips }}
+          <span
+            class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-gray-400"
+            style="
+              background: rgba(255, 255, 255, 0.05);
+              border: 1px solid rgba(255, 255, 255, 0.08);
+            "
+          >
             {{ . }}
           </span>
           {{ end }}
         </div>
-
-      </div><!-- /left -->
+      </div>
+      <!-- /left -->
 
       <!-- ══════════════════════════════════════
            RIGHT VISUAL  (58%)
            ══════════════════════════════════════ -->
-      <div class="w-full lg:flex-1 relative anim-r" style="min-width:0;">
-
+      <div class="anim-r relative w-full lg:flex-1" style="min-width: 0">
         <!-- Purple glow behind dashboard -->
-        <div class="absolute pointer-events-none"
-             style="inset:-40px;border-radius:32px;
-                    background:radial-gradient(ellipse at 55% 45%,rgba(124,58,237,.28) 0%,transparent 60%);
-                    filter:blur(30px);animation:mnq-glow 6s ease-in-out infinite;">
-        </div>
+        <div
+          class="pointer-events-none absolute"
+          style="
+            inset: -40px;
+            border-radius: 32px;
+            background: radial-gradient(
+              ellipse at 55% 45%,
+              rgba(124, 58, 237, 0.28) 0%,
+              transparent 60%
+            );
+            filter: blur(30px);
+            animation: mnq-glow 6s ease-in-out infinite;
+          "
+        ></div>
 
         <!-- ── Floating card: Account Balance ── -->
-        <div class="hidden lg:block absolute -top-8 -left-6 z-20 animate-float"
-             style="width:176px;background:rgba(10,16,37,.9);border:1px solid rgba(124,58,237,.35);
-                    border-radius:16px;padding:14px 16px;backdrop-filter:blur(20px);
-                    box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 20px rgba(124,58,237,.15);">
-          <p style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+        <div
+          class="animate-float absolute -left-6 -top-8 z-20 hidden lg:block"
+          style="
+            width: 176px;
+            background: rgba(10, 16, 37, 0.9);
+            border: 1px solid rgba(124, 58, 237, 0.35);
+            border-radius: 16px;
+            padding: 14px 16px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+              0 8px 32px rgba(0, 0, 0, 0.5),
+              0 0 20px rgba(124, 58, 237, 0.15);
+          "
+        >
+          <p
+            style="
+              font-size: 10px;
+              font-weight: 600;
+              color: #9ca3af;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              margin-bottom: 6px;
+            "
+          >
             Total Balance
           </p>
-          <p style="font-size:18px;font-weight:700;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;">
+          <p
+            style="
+              font-size: 18px;
+              font-weight: 700;
+              color: #fff;
+              font-family: &quot;Plus Jakarta Sans&quot;, sans-serif;
+            "
+          >
             ₹1,24,850
           </p>
-          <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
-            <svg style="width:12px;height:12px;color:#10B981;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+          <div style="display: flex; align-items: center; gap: 4px; margin-top: 4px">
+            <svg
+              style="width: 12px; height: 12px; color: #10b981"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M5 10l7-7m0 0l7 7m-7-7v18"
+              />
             </svg>
-            <span style="font-size:11px;color:#10B981;font-weight:600;">+2.4% this month</span>
+            <span style="font-size: 11px; color: #10b981; font-weight: 600">+2.4% this month</span>
           </div>
         </div>
 
         <!-- ── Floating card: Credit Card ── -->
-        <div class="hidden xl:block absolute top-1/3 -left-14 z-20 animate-float-b"
-             style="width:168px;background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(109,40,217,.15));
-                    border:1px solid rgba(124,58,237,.3);border-radius:14px;padding:14px 16px;
-                    backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,.4);">
-          <p style="font-size:10px;font-weight:600;color:#C084FC;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+        <div
+          class="animate-float-b absolute -left-14 top-1/3 z-20 hidden xl:block"
+          style="
+            width: 168px;
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(109, 40, 217, 0.15));
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 14px;
+            padding: 14px 16px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+          "
+        >
+          <p
+            style="
+              font-size: 10px;
+              font-weight: 600;
+              color: #c084fc;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              margin-bottom: 6px;
+            "
+          >
             HDFC Credit
           </p>
-          <p style="font-size:13px;font-weight:600;color:#E5E7EB;letter-spacing:.1em;">**** 4829</p>
-          <p style="font-size:11px;color:#9CA3AF;margin-top:4px;">Balance: ₹12,540</p>
+          <p style="font-size: 13px; font-weight: 600; color: #e5e7eb; letter-spacing: 0.1em">
+            **** 4829
+          </p>
+          <p style="font-size: 11px; color: #9ca3af; margin-top: 4px">Balance: ₹12,540</p>
         </div>
 
         <!-- ── Floating card: Savings Goal ── -->
-        <div class="hidden lg:block absolute -bottom-8 -right-4 z-20 animate-float-c"
-             style="width:184px;background:rgba(10,16,37,.9);border:1px solid rgba(16,185,129,.25);
-                    border-radius:16px;padding:14px 16px;backdrop-filter:blur(20px);
-                    box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 16px rgba(16,185,129,.08);">
-          <p style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+        <div
+          class="animate-float-c absolute -bottom-8 -right-4 z-20 hidden lg:block"
+          style="
+            width: 184px;
+            background: rgba(10, 16, 37, 0.9);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 16px;
+            padding: 14px 16px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+              0 8px 32px rgba(0, 0, 0, 0.5),
+              0 0 16px rgba(16, 185, 129, 0.08);
+          "
+        >
+          <p
+            style="
+              font-size: 10px;
+              font-weight: 600;
+              color: #9ca3af;
+              text-transform: uppercase;
+              letter-spacing: 0.08em;
+              margin-bottom: 6px;
+            "
+          >
             Emergency Fund
           </p>
           <!-- Progress bar -->
-          <div style="background:rgba(255,255,255,.08);border-radius:99px;height:5px;margin-bottom:6px;">
-            <div style="background:linear-gradient(90deg,#10B981,#34D399);border-radius:99px;height:5px;width:68%;"></div>
+          <div
+            style="
+              background: rgba(255, 255, 255, 0.08);
+              border-radius: 99px;
+              height: 5px;
+              margin-bottom: 6px;
+            "
+          >
+            <div
+              style="
+                background: linear-gradient(90deg, #10b981, #34d399);
+                border-radius: 99px;
+                height: 5px;
+                width: 68%;
+              "
+            ></div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:baseline;">
-            <span style="font-size:12px;font-weight:700;color:#fff;">₹68,000</span>
-            <span style="font-size:10px;color:#10B981;font-weight:600;">68%</span>
+          <div style="display: flex; justify-content: space-between; align-items: baseline">
+            <span style="font-size: 12px; font-weight: 700; color: #fff">₹68,000</span>
+            <span style="font-size: 10px; color: #10b981; font-weight: 600">68%</span>
           </div>
-          <p style="font-size:10px;color:#6B7280;margin-top:2px;">of ₹1,00,000 goal</p>
+          <p style="font-size: 10px; color: #6b7280; margin-top: 2px">of ₹1,00,000 goal</p>
         </div>
 
         <!-- ══════════════════════════════════
              DASHBOARD MOCKUP
              ══════════════════════════════════ -->
-        <div class="relative z-10" style="border-radius:20px;overflow:hidden;
-                    border:1px solid rgba(255,255,255,.1);
-                    box-shadow:0 0 100px rgba(124,58,237,.25),0 40px 80px rgba(0,0,0,.6);">
-
+        <div
+          class="relative z-10"
+          style="
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow:
+              0 0 100px rgba(124, 58, 237, 0.25),
+              0 40px 80px rgba(0, 0, 0, 0.6);
+          "
+        >
           <!-- Browser chrome -->
-          <div style="background:#0D1127;padding:10px 14px;display:flex;align-items:center;gap:10px;
-                      border-bottom:1px solid rgba(255,255,255,.07);">
+          <div
+            style="
+              background: #0d1127;
+              padding: 10px 14px;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            "
+          >
             <!-- Traffic lights -->
-            <div style="display:flex;gap:5px;flex-shrink:0;">
-              <span style="width:11px;height:11px;border-radius:50%;background:#FF5F57;display:block;"></span>
-              <span style="width:11px;height:11px;border-radius:50%;background:#FFBD2E;display:block;"></span>
-              <span style="width:11px;height:11px;border-radius:50%;background:#28C840;display:block;"></span>
+            <div style="display: flex; gap: 5px; flex-shrink: 0">
+              <span
+                style="
+                  width: 11px;
+                  height: 11px;
+                  border-radius: 50%;
+                  background: #ff5f57;
+                  display: block;
+                "
+              ></span>
+              <span
+                style="
+                  width: 11px;
+                  height: 11px;
+                  border-radius: 50%;
+                  background: #ffbd2e;
+                  display: block;
+                "
+              ></span>
+              <span
+                style="
+                  width: 11px;
+                  height: 11px;
+                  border-radius: 50%;
+                  background: #28c840;
+                  display: block;
+                "
+              ></span>
             </div>
             <!-- Address bar -->
-            <div style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);
-                        border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;">
-              <svg style="width:10px;height:10px;color:#6B7280;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            <div
+              style="
+                flex: 1;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 6px;
+                padding: 4px 10px;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+              "
+            >
+              <svg
+                style="width: 10px; height: 10px; color: #6b7280; flex-shrink: 0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
               </svg>
-              <span style="font-size:11px;color:#6B7280;font-family:monospace;">app.moniqo.com/dashboard</span>
+              <span style="font-size: 11px; color: #6b7280; font-family: monospace"
+                >app.moniqo.com/dashboard</span
+              >
             </div>
-            <div style="width:60px;"></div>
+            <div style="width: 60px"></div>
           </div>
 
           <!-- App layout -->
-          <div style="display:flex;background:#070B1F;height:clamp(360px,42vw,480px);">
-
+          <div style="display: flex; background: #070b1f; height: clamp(360px, 42vw, 480px)">
             <!-- ── Sidebar ── -->
-            <aside style="width:clamp(120px,14vw,162px);flex-shrink:0;background:#0A0F28;
-                           border-right:1px solid rgba(255,255,255,.06);
-                           display:flex;flex-direction:column;padding:12px 0;">
-
+            <aside
+              style="
+                width: clamp(120px, 14vw, 162px);
+                flex-shrink: 0;
+                background: #0a0f28;
+                border-right: 1px solid rgba(255, 255, 255, 0.06);
+                display: flex;
+                flex-direction: column;
+                padding: 12px 0;
+              "
+            >
               <!-- Logo row -->
-              <div style="display:flex;align-items:center;gap:8px;padding:4px 14px 14px;">
-                <div style="width:24px;height:24px;background:linear-gradient(135deg,#7C3AED,#A855F7);
-                            border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <div style="display: flex; align-items: center; gap: 8px; padding: 4px 14px 14px">
+                <div
+                  style="
+                    width: 24px;
+                    height: 24px;
+                    background: linear-gradient(135deg, #7c3aed, #a855f7);
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                  "
+                >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                    <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"
-                          font-family="sans-serif" font-size="18" font-weight="700" fill="white">₹</text>
+                    <text
+                      x="50%"
+                      y="50%"
+                      dominant-baseline="central"
+                      text-anchor="middle"
+                      font-family="sans-serif"
+                      font-size="18"
+                      font-weight="700"
+                      fill="white"
+                    >
+                      ₹
+                    </text>
                   </svg>
                 </div>
-                <span style="font-size:12px;font-weight:700;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;">Moniqo</span>
+                <span
+                  style="
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #fff;
+                    font-family: &quot;Plus Jakarta Sans&quot;, sans-serif;
+                  "
+                  >Moniqo</span
+                >
               </div>
 
               <!-- Nav items -->
-              <nav style="flex:1;padding:0 8px;">
+              <nav style="flex: 1; padding: 0 8px">
                 <!-- Dashboard (active) -->
-                <div style="display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:8px;margin-bottom:2px;
-                            background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.3);">
-                  <svg style="width:13px;height:13px;color:#A855F7;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"/>
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 7px;
+                    padding: 7px 8px;
+                    border-radius: 8px;
+                    margin-bottom: 2px;
+                    background: rgba(124, 58, 237, 0.18);
+                    border: 1px solid rgba(124, 58, 237, 0.3);
+                  "
+                >
+                  <svg
+                    style="width: 13px; height: 13px; color: #a855f7; flex-shrink: 0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z"
+                    />
                   </svg>
-                  <span style="font-size:11px;font-weight:600;color:#C084FC;">Dashboard</span>
+                  <span style="font-size: 11px; font-weight: 600; color: #c084fc">Dashboard</span>
                 </div>
                 <!-- Other nav items -->
-                {{ $navItems := slice
-                  (dict "label" "Transactions" "icon" "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2")
-                  (dict "label" "Accounts" "icon" "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z")
-                  (dict "label" "Categories" "icon" "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z")
-                  (dict "label" "Goals" "icon" "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z")
-                  (dict "label" "Reports" "icon" "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z")
-                }}
-                {{ range $navItems }}
-                <div style="display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:8px;margin-bottom:2px;cursor:pointer;"
-                     onmouseover="this.style.background='rgba(255,255,255,.05)';"
-                     onmouseout="this.style.background='';">
-                  <svg style="width:13px;height:13px;color:#4B5563;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ .icon }}"/>
+                {{ $navItems := slice (dict "label" "Transactions" "icon" "M9 5H7a2 2 0 00-2 2v12a2
+                2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0
+                012-2h2a2 2 0 012 2") (dict "label" "Accounts" "icon" "M3 10h18M7 15h1m4 0h1m-7
+                4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z") (dict "label"
+                "Categories" "icon" "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010
+                2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z") (dict "label"
+                "Goals" "icon" "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z") (dict "label"
+                "Reports" "icon" "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0
+                002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0
+                012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z") }} {{ range $navItems }}
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 7px;
+                    padding: 7px 8px;
+                    border-radius: 8px;
+                    margin-bottom: 2px;
+                    cursor: pointer;
+                  "
+                  onmouseover="this.style.background = 'rgba(255,255,255,.05)'"
+                  onmouseout="this.style.background = ''"
+                >
+                  <svg
+                    style="width: 13px; height: 13px; color: #4b5563; flex-shrink: 0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="{{ .icon }}"
+                    />
                   </svg>
-                  <span style="font-size:11px;font-weight:500;color:#6B7280;">{{ .label }}</span>
+                  <span style="font-size: 11px; font-weight: 500; color: #6b7280"
+                    >{{ .label }}</span
+                  >
                 </div>
                 {{ end }}
               </nav>
 
               <!-- Settings at bottom -->
-              <div style="padding:0 8px;">
-                <div style="display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:8px;">
-                  <svg style="width:13px;height:13px;color:#4B5563;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <div style="padding: 0 8px">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 7px;
+                    padding: 7px 8px;
+                    border-radius: 8px;
+                  "
+                >
+                  <svg
+                    style="width: 13px; height: 13px; color: #4b5563; flex-shrink: 0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
                   </svg>
-                  <span style="font-size:11px;font-weight:500;color:#6B7280;">Settings</span>
+                  <span style="font-size: 11px; font-weight: 500; color: #6b7280">Settings</span>
                 </div>
               </div>
             </aside>
 
             <!-- ── Main content ── -->
-            <main style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px 16px;gap:12px;min-width:0;">
-
+            <main
+              style="
+                flex: 1;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                padding: 14px 16px;
+                gap: 12px;
+                min-width: 0;
+              "
+            >
               <!-- Top row: heading + date -->
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
+              <div
+                style="
+                  display: flex;
+                  align-items: flex-start;
+                  justify-content: space-between;
+                  flex-shrink: 0;
+                "
+              >
                 <div>
-                  <p style="font-size:10px;color:#6B7280;margin-bottom:2px;">Good morning, Saqib</p>
-                  <h2 style="font-size:14px;font-weight:700;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;margin:0;">Dashboard</h2>
+                  <p style="font-size: 10px; color: #6b7280; margin-bottom: 2px">
+                    Good morning, Saqib
+                  </p>
+                  <h2
+                    style="
+                      font-size: 14px;
+                      font-weight: 700;
+                      color: #fff;
+                      font-family: &quot;Plus Jakarta Sans&quot;, sans-serif;
+                      margin: 0;
+                    "
+                  >
+                    Dashboard
+                  </h2>
                 </div>
-                <span style="font-size:10px;color:#9CA3AF;padding:3px 8px;background:rgba(255,255,255,.06);
-                             border:1px solid rgba(255,255,255,.08);border-radius:99px;">June 2026</span>
+                <span
+                  style="
+                    font-size: 10px;
+                    color: #9ca3af;
+                    padding: 3px 8px;
+                    background: rgba(255, 255, 255, 0.06);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 99px;
+                  "
+                  >June 2026</span
+                >
               </div>
 
               <!-- Stat cards -->
-              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;flex-shrink:0;">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: repeat(4, 1fr);
+                  gap: 8px;
+                  flex-shrink: 0;
+                "
+              >
                 <!-- Total Balance -->
-                <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
-                            border-radius:10px;padding:10px 10px;">
-                  <p style="font-size:9px;color:#6B7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Balance</p>
-                  <p style="font-size:12px;font-weight:700;color:#fff;margin:0;">₹1,24,850</p>
-                  <p style="font-size:9px;color:#10B981;margin-top:2px;">+2.4%</p>
+                <div
+                  style="
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.07);
+                    border-radius: 10px;
+                    padding: 10px 10px;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 9px;
+                      color: #6b7280;
+                      margin-bottom: 4px;
+                      text-transform: uppercase;
+                      letter-spacing: 0.06em;
+                    "
+                  >
+                    Balance
+                  </p>
+                  <p style="font-size: 12px; font-weight: 700; color: #fff; margin: 0">₹1,24,850</p>
+                  <p style="font-size: 9px; color: #10b981; margin-top: 2px">+2.4%</p>
                 </div>
                 <!-- To Be Budgeted -->
-                <div style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);
-                            border-radius:10px;padding:10px 10px;">
-                  <p style="font-size:9px;color:#A855F7;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">To Budget</p>
-                  <p style="font-size:12px;font-weight:700;color:#C084FC;margin:0;">₹12,340</p>
-                  <p style="font-size:9px;color:#9CA3AF;margin-top:2px;">Unallocated</p>
+                <div
+                  style="
+                    background: rgba(124, 58, 237, 0.1);
+                    border: 1px solid rgba(124, 58, 237, 0.25);
+                    border-radius: 10px;
+                    padding: 10px 10px;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 9px;
+                      color: #a855f7;
+                      margin-bottom: 4px;
+                      text-transform: uppercase;
+                      letter-spacing: 0.06em;
+                    "
+                  >
+                    To Budget
+                  </p>
+                  <p style="font-size: 12px; font-weight: 700; color: #c084fc; margin: 0">
+                    ₹12,340
+                  </p>
+                  <p style="font-size: 9px; color: #9ca3af; margin-top: 2px">Unallocated</p>
                 </div>
                 <!-- Monthly -->
-                <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
-                            border-radius:10px;padding:10px 10px;">
-                  <p style="font-size:9px;color:#6B7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Monthly</p>
-                  <p style="font-size:12px;font-weight:700;color:#fff;margin:0;">₹65,000</p>
-                  <p style="font-size:9px;color:#9CA3AF;margin-top:2px;">Jun 2026</p>
+                <div
+                  style="
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.07);
+                    border-radius: 10px;
+                    padding: 10px 10px;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 9px;
+                      color: #6b7280;
+                      margin-bottom: 4px;
+                      text-transform: uppercase;
+                      letter-spacing: 0.06em;
+                    "
+                  >
+                    Monthly
+                  </p>
+                  <p style="font-size: 12px; font-weight: 700; color: #fff; margin: 0">₹65,000</p>
+                  <p style="font-size: 9px; color: #9ca3af; margin-top: 2px">Jun 2026</p>
                 </div>
                 <!-- Expenses -->
-                <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
-                            border-radius:10px;padding:10px 10px;">
-                  <p style="font-size:9px;color:#6B7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Spent</p>
-                  <p style="font-size:12px;font-weight:700;color:#EF4444;margin:0;">₹32,450</p>
-                  <p style="font-size:9px;color:#9CA3AF;margin-top:2px;">49.9% used</p>
+                <div
+                  style="
+                    background: rgba(255, 255, 255, 0.04);
+                    border: 1px solid rgba(255, 255, 255, 0.07);
+                    border-radius: 10px;
+                    padding: 10px 10px;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 9px;
+                      color: #6b7280;
+                      margin-bottom: 4px;
+                      text-transform: uppercase;
+                      letter-spacing: 0.06em;
+                    "
+                  >
+                    Spent
+                  </p>
+                  <p style="font-size: 12px; font-weight: 700; color: #ef4444; margin: 0">
+                    ₹32,450
+                  </p>
+                  <p style="font-size: 9px; color: #9ca3af; margin-top: 2px">49.9% used</p>
                 </div>
               </div>
 
               <!-- Middle: Chart + Transactions -->
-              <div style="display:flex;gap:10px;flex:1;min-height:0;overflow:hidden;">
-
+              <div style="display: flex; gap: 10px; flex: 1; min-height: 0; overflow: hidden">
                 <!-- Spending chart -->
-                <div style="flex:1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
-                            border-radius:10px;padding:12px;display:flex;flex-direction:column;min-width:0;">
-                  <p style="font-size:10px;font-weight:600;color:#E5E7EB;margin-bottom:10px;flex-shrink:0;">
+                <div
+                  style="
+                    flex: 1;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    border-radius: 10px;
+                    padding: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    min-width: 0;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 10px;
+                      font-weight: 600;
+                      color: #e5e7eb;
+                      margin-bottom: 10px;
+                      flex-shrink: 0;
+                    "
+                  >
                     Spending by Category
                   </p>
                   <!-- Bar chart -->
-                  <div style="display:flex;align-items:flex-end;gap:6px;flex:1;min-height:0;">
-                    {{ $bars := slice
-                      (dict "label" "Housing" "pct" "72" "color" "#7C3AED")
-                      (dict "label" "Food"    "pct" "48" "color" "#8B5CF6")
-                      (dict "label" "Trans."  "pct" "32" "color" "#A855F7")
-                      (dict "label" "Entert." "pct" "22" "color" "#6D28D9")
-                      (dict "label" "Util."   "pct" "38" "color" "#8B5CF6")
-                      (dict "label" "Other"   "pct" "18" "color" "#4C1D95")
-                    }}
-                    {{ range $bars }}
-                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;">
-                      <div style="flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;">
-                        <div style="width:100%;border-radius:4px 4px 0 0;
+                  <div
+                    style="display: flex; align-items: flex-end; gap: 6px; flex: 1; min-height: 0"
+                  >
+                    {{ $bars := slice (dict "label" "Housing" "pct" "72" "color" "#7C3AED") (dict
+                    "label" "Food" "pct" "48" "color" "#8B5CF6") (dict "label" "Trans." "pct" "32"
+                    "color" "#A855F7") (dict "label" "Entert." "pct" "22" "color" "#6D28D9") (dict
+                    "label" "Util." "pct" "38" "color" "#8B5CF6") (dict "label" "Other" "pct" "18"
+                    "color" "#4C1D95") }} {{ range $bars }}
+                    <div
+                      style="
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 4px;
+                        height: 100%;
+                      "
+                    >
+                      <div
+                        style="
+                          flex: 1;
+                          width: 100%;
+                          display: flex;
+                          flex-direction: column;
+                          justify-content: flex-end;
+                        "
+                      >
+                        <div
+                          style="width:100%;border-radius:4px 4px 0 0;
                                     background:{{ .color }};height:{{ .pct }}%;
                                     min-height:4px;opacity:.85;
                                     animation:mnq-bar-grow .8s ease-out both;
-                                    transform-origin:bottom;">
-                        </div>
+                                    transform-origin:bottom;"
+                        ></div>
                       </div>
-                      <span style="font-size:8px;color:#6B7280;text-align:center;white-space:nowrap;">{{ .label }}</span>
+                      <span
+                        style="
+                          font-size: 8px;
+                          color: #6b7280;
+                          text-align: center;
+                          white-space: nowrap;
+                        "
+                        >{{ .label }}</span
+                      >
                     </div>
                     {{ end }}
                   </div>
                 </div>
 
                 <!-- Transactions -->
-                <div style="width:clamp(130px,18vw,200px);flex-shrink:0;background:rgba(255,255,255,.03);
-                            border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px;
-                            display:flex;flex-direction:column;overflow:hidden;">
-                  <p style="font-size:10px;font-weight:600;color:#E5E7EB;margin-bottom:8px;flex-shrink:0;">
+                <div
+                  style="
+                    width: clamp(130px, 18vw, 200px);
+                    flex-shrink: 0;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    border-radius: 10px;
+                    padding: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 10px;
+                      font-weight: 600;
+                      color: #e5e7eb;
+                      margin-bottom: 8px;
+                      flex-shrink: 0;
+                    "
+                  >
                     Recent
                   </p>
-                  <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:6px;">
-                    {{ $txns := slice
-                      (dict "name" "Grocery Store" "amt" "-₹2,340" "cat" "Groceries" "pos" false)
-                      (dict "name" "Netflix"       "amt" "-₹499"   "cat" "Entertain." "pos" false)
-                      (dict "name" "Salary"        "amt" "+₹65,000" "cat" "Income"    "pos" true)
-                      (dict "name" "Electricity"   "amt" "-₹1,850" "cat" "Utilities"  "pos" false)
-                    }}
-                    {{ range $txns }}
-                    <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-                      <div style="min-width:0;flex:1;margin-right:6px;">
-                        <p style="font-size:10px;font-weight:500;color:#E5E7EB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;">{{ .name }}</p>
-                        <p style="font-size:9px;color:#6B7280;margin:0;">{{ .cat }}</p>
+                  <div
+                    style="
+                      flex: 1;
+                      overflow: hidden;
+                      display: flex;
+                      flex-direction: column;
+                      gap: 6px;
+                    "
+                  >
+                    {{ $txns := slice (dict "name" "Grocery Store" "amt" "-₹2,340" "cat" "Groceries"
+                    "pos" false) (dict "name" "Netflix" "amt" "-₹499" "cat" "Entertain." "pos"
+                    false) (dict "name" "Salary" "amt" "+₹65,000" "cat" "Income" "pos" true) (dict
+                    "name" "Electricity" "amt" "-₹1,850" "cat" "Utilities" "pos" false) }} {{ range
+                    $txns }}
+                    <div
+                      style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        flex-shrink: 0;
+                      "
+                    >
+                      <div style="min-width: 0; flex: 1; margin-right: 6px">
+                        <p
+                          style="
+                            font-size: 10px;
+                            font-weight: 500;
+                            color: #e5e7eb;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            margin: 0;
+                          "
+                        >
+                          {{ .name }}
+                        </p>
+                        <p style="font-size: 9px; color: #6b7280; margin: 0">{{ .cat }}</p>
                       </div>
-                      <span style="font-size:10px;font-weight:600;white-space:nowrap;{{ if .pos }}color:#10B981;{{ else }}color:#EF4444;{{ end }}">
+                      <span
+                        style="font-size:10px;font-weight:600;white-space:nowrap;{{ if .pos }}color:#10B981;{{ else }}color:#EF4444;{{ end }}"
+                      >
                         {{ .amt }}
                       </span>
                     </div>
                     {{ end }}
                   </div>
                 </div>
-
               </div>
 
               <!-- Accounts row -->
-              <div style="display:flex;gap:8px;flex-shrink:0;">
-                <div style="flex:1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
-                            border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="display: flex; gap: 8px; flex-shrink: 0">
+                <div
+                  style="
+                    flex: 1;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    border-radius: 8px;
+                    padding: 8px 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
                   <div>
-                    <p style="font-size:9px;color:#6B7280;margin:0;">HDFC Savings</p>
-                    <p style="font-size:11px;font-weight:700;color:#fff;margin:2px 0 0;">₹89,320</p>
+                    <p style="font-size: 9px; color: #6b7280; margin: 0">HDFC Savings</p>
+                    <p style="font-size: 11px; font-weight: 700; color: #fff; margin: 2px 0 0">
+                      ₹89,320
+                    </p>
                   </div>
-                  <div style="width:20px;height:20px;background:rgba(124,58,237,.2);border-radius:5px;
-                              display:flex;align-items:center;justify-content:center;">
-                    <svg style="width:11px;height:11px;color:#A855F7;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                  <div
+                    style="
+                      width: 20px;
+                      height: 20px;
+                      background: rgba(124, 58, 237, 0.2);
+                      border-radius: 5px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    "
+                  >
+                    <svg
+                      style="width: 11px; height: 11px; color: #a855f7"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      />
                     </svg>
                   </div>
                 </div>
-                <div style="flex:1;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
-                            border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;">
+                <div
+                  style="
+                    flex: 1;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.06);
+                    border-radius: 8px;
+                    padding: 8px 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                  "
+                >
                   <div>
-                    <p style="font-size:9px;color:#6B7280;margin:0;">SBI Current</p>
-                    <p style="font-size:11px;font-weight:700;color:#fff;margin:2px 0 0;">₹35,530</p>
+                    <p style="font-size: 9px; color: #6b7280; margin: 0">SBI Current</p>
+                    <p style="font-size: 11px; font-weight: 700; color: #fff; margin: 2px 0 0">
+                      ₹35,530
+                    </p>
                   </div>
-                  <div style="width:20px;height:20px;background:rgba(16,185,129,.15);border-radius:5px;
-                              display:flex;align-items:center;justify-content:center;">
-                    <svg style="width:11px;height:11px;color:#10B981;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                  <div
+                    style="
+                      width: 20px;
+                      height: 20px;
+                      background: rgba(16, 185, 129, 0.15);
+                      border-radius: 5px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    "
+                  >
+                    <svg
+                      style="width: 11px; height: 11px; color: #10b981"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                      />
                     </svg>
                   </div>
                 </div>
               </div>
-
             </main>
-          </div><!-- /app layout -->
-        </div><!-- /dashboard mockup -->
-
-      </div><!-- /right -->
-    </div><!-- /flex row -->
+          </div>
+          <!-- /app layout -->
+        </div>
+        <!-- /dashboard mockup -->
+      </div>
+      <!-- /right -->
+    </div>
+    <!-- /flex row -->
   </div>
 </section>
