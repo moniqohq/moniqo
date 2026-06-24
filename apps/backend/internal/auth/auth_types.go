@@ -13,9 +13,9 @@ import (
 
 // Sentinel errors returned by the auth service and repository layers.
 var (
-	ErrInvalidCredentials  = errors.New("invalid credentials")
-	ErrPendingVerification = errors.New("account pending verification")
-	ErrUserNotFound        = errors.New("user not found")
+	ErrInvalidCredentials  = errors.New("invalid credentials")          // wrong username or password
+	ErrPendingVerification = errors.New("account pending verification") // email not yet confirmed
+	ErrUserNotFound        = errors.New("user not found")               // no account matches the lookup key
 	// ErrRefreshTokenInvalid is the single generic error returned for any
 	// refresh token failure (absent, expired, revoked, malformed, reuse). The
 	// handler maps it to 401 without revealing the specific cause.
@@ -110,15 +110,15 @@ type InsertRefreshTokenRepoParams struct {
 // Password reset types
 // -----------------------------------------------------------------------------
 
-// RequestResetRequest is the service-layer input for initiating a password reset.
+// RequestResetRequest is the HTTP request body and service-layer input for initiating a password reset.
 type RequestResetRequest struct {
-	Email string
+	Email string `json:"email"`
 }
 
-// ConfirmResetRequest is the service-layer input for confirming a password reset.
+// ConfirmResetRequest is the HTTP request body and service-layer input for confirming a password reset.
 type ConfirmResetRequest struct {
-	Token       string
-	NewPassword string
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
 }
 
 // PasswordResetUserInfo holds the minimum user data needed for token issuance and email.

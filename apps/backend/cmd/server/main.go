@@ -130,15 +130,19 @@ func runTokenCleanup(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
 	for {
 		select {
 		case <-ticker.C:
-			if err := repo.DeleteExpiredRevokedTokens(ctx); err != nil {
-				log.Error("token cleanup: revoked access tokens failed", zap.Error(err))
-			}
-			if err := repo.DeleteExpiredPasswordResetTokens(ctx); err != nil {
-				log.Error("token cleanup: password reset tokens failed", zap.Error(err))
-			}
+			cleanExpiredTokens(ctx, repo, log)
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func cleanExpiredTokens(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
+	if err := repo.DeleteExpiredRevokedTokens(ctx); err != nil {
+		log.Error("token cleanup: revoked access tokens failed", zap.Error(err))
+	}
+	if err := repo.DeleteExpiredPasswordResetTokens(ctx); err != nil {
+		log.Error("token cleanup: password reset tokens failed", zap.Error(err))
 	}
 }
 
@@ -196,11 +200,11 @@ func (r publicRoute) matches(method, path string) bool {
 // authentication — keep all exclusions here, never scattered across registrations.
 func newAuthSkipper() echomw.Skipper {
 	routes := []publicRoute{
-		{method: http.MethodPost, path: "/api/v1/users"},                               // registration
-		{method: http.MethodPost, path: "/api/v1/auth/login"},                          // login
-		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                        // cookie-based refresh
-		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                 // request reset
-		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true},  // confirm reset + subpaths
+		{method: http.MethodPost, path: "/api/v1/users"},                              // registration
+		{method: http.MethodPost, path: "/api/v1/auth/login"},                         // login
+		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                       // cookie-based refresh
+		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                // request reset
+		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // confirm reset + subpaths
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()

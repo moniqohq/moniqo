@@ -1,11 +1,14 @@
-{{define "subject"}}Verify your Moniqo account{{end}}
-{{define "content"}}
+{{define "subject"}}Verify your Moniqo account{{end}} {{define "content"}}
 <h1>Welcome to Moniqo{{if .Name}}, {{.Name}}{{end}}!</h1>
-<p>Thanks for signing up. Click the button below to verify your email address and activate your account.</p>
-<p style="margin: 24px 0;">
+<p>
+  Thanks for signing up. Click the button below to verify your email address and activate your
+  account.
+</p>
+<p style="margin: 24px 0">
   <a class="btn" href="{{.VerificationURL}}">Verify email address</a>
 </p>
-<p style="font-size: 13px; color: #999;">
-  This link expires in {{.ExpiresIn}}. If you did not create a Moniqo account, you can safely ignore this email.
+<p style="font-size: 13px; color: #999">
+  This link expires in {{.ExpiresIn}}. If you did not create a Moniqo account, you can safely ignore
+  this email.
 </p>
 {{end}}
