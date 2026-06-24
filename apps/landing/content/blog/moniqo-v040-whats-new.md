@@ -12,10 +12,6 @@ Moniqo v0.4.0 is here. This release focused on three things: speed, clarity, and
 
 ## What's new
 
-### Envelope templates
-
-Create reusable envelope sets that you can apply to new budgets in one click. If you have a personal template and a business template, switching between budget configurations takes seconds.
-
 ### Improved transaction import
 
 CSV import now supports more bank formats out of the box. We've also added a mapping step so you can configure which column maps to which field — no more failed imports due to column order differences.
