@@ -3,10 +3,10 @@ header:
     spdx-id: GPL-3.0-only # SPDX identifier for GNU General Public License v3
     copyright-owner: Moniqo
     copyright-year: "2026"
-    content: | 
+    content: |
       Moniqo is a personal finance management application designed to help users
       track, manage, and optimize their financial activities.
-      
+
       Copyright (C) 2026 Moniqo <support@moniqo.in>
 
       This program is free software: you can redistribute it and/or modify
@@ -68,7 +68,7 @@ header:
 
     # Landing page
     - "apps/landing/**"
-  
+
   comment: never
 
   language:
