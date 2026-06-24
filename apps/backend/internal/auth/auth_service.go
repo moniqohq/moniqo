@@ -18,7 +18,7 @@ import (
 
 // Repository is the persistence contract for authentication operations.
 type Repository interface {
-	GetUserByEmail(ctx context.Context, email string) (UserCredentials, error)
+	GetUserByEmail(ctx context.Context, emailAddr string) (UserCredentials, error)
 	UpdateLastLogin(ctx context.Context, userID int64) error
 	IsAccessTokenRevoked(ctx context.Context, jti pgtype.UUID) (bool, error)
 	GetUserByID(ctx context.Context, userID int64) (models.User, error)
@@ -292,36 +292,6 @@ func (s *PasswordResetSvc) RequestReset(ctx context.Context, req RequestResetReq
 	return nil
 }
 
-func (s *PasswordResetSvc) enqueueResetEmail(ctx context.Context, user PasswordResetUserInfo, rawToken string) {
-	name := ""
-	if user.Name != nil {
-		name = *user.Name
-	}
-
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.appBaseURL, rawToken)
-
-	ttlHours := int(s.tokenTTL.Hours())
-	expiresIn := fmt.Sprintf("%d hour", ttlHours)
-	if ttlHours != 1 {
-		expiresIn += "s"
-	}
-
-	err := s.mailer.Enqueue(ctx, email.EnqueueParams{
-		IdempotencyKey: fmt.Sprintf("password_reset:%d:%d", user.ID, time.Now().UnixMilli()),
-		Template:       email.TemplatePasswordReset,
-		To:             user.Email,
-		ToName:         name,
-		Payload: map[string]any{
-			"Name":      name,
-			"ResetURL":  resetURL,
-			"ExpiresIn": expiresIn,
-		},
-	})
-	if err != nil {
-		s.log.Error("password reset: failed to enqueue email", zap.Int64("user_id", user.ID), zap.Error(err))
-	}
-}
-
 // ConfirmReset validates the reset token, updates the password, and invalidates
 // all active tokens for the user. Returns ErrInvalidResetToken for any token
 // validation failure (not found, used, expired) — the caller must not reveal
@@ -367,4 +337,34 @@ func (s *PasswordResetSvc) ConfirmReset(ctx context.Context, req ConfirmResetReq
 
 	s.log.Info("password reset confirmed", zap.Int64("user_id", row.UserID))
 	return nil
+}
+
+func (s *PasswordResetSvc) enqueueResetEmail(ctx context.Context, user PasswordResetUserInfo, rawToken string) {
+	name := ""
+	if user.Name != nil {
+		name = *user.Name
+	}
+
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.appBaseURL, rawToken)
+
+	ttlHours := int(s.tokenTTL.Hours())
+	expiresIn := fmt.Sprintf("%d hour", ttlHours)
+	if ttlHours != 1 {
+		expiresIn += "s"
+	}
+
+	err := s.mailer.Enqueue(ctx, email.EnqueueParams{
+		IdempotencyKey: fmt.Sprintf("password_reset:%d:%d", user.ID, time.Now().UnixMilli()),
+		Template:       email.TemplatePasswordReset,
+		To:             user.Email,
+		ToName:         name,
+		Payload: map[string]any{
+			"Name":      name,
+			"ResetURL":  resetURL,
+			"ExpiresIn": expiresIn,
+		},
+	})
+	if err != nil {
+		s.log.Error("password reset: failed to enqueue email", zap.Int64("user_id", user.ID), zap.Error(err))
+	}
 }

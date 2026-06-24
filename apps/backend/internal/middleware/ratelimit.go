@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	authRatePerMin          = 10.0
-	authBurst               = 10
-	secondsPerMin           = 60
-	passwordResetRate15Min  = 5.0
-	passwordReset15Min      = 15 * 60.0 // 15 minutes in seconds
-	passwordResetBurst      = 5
+	authRatePerMin         = 10.0
+	authBurst              = 10
+	secondsPerMin          = 60
+	passwordResetRate15Min = 5.0
+	passwordReset15Min     = 15 * 60.0 // 15 minutes in seconds
+	passwordResetBurst     = 5
 )
 
 // RegisterRateLimiter returns a rate limiter middleware scoped to the registration
