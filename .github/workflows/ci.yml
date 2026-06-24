@@ -50,19 +50,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: pnpm/action-setup@v6
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install web dependencies
         working-directory: apps/web
-        run: npm ci
+        run: pnpm install
 
       - name: Type check web
         working-directory: apps/web
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
   test-backend:
     name: test-backend
@@ -110,19 +112,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: pnpm/action-setup@v6
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: apps/web
-        run: npm ci
+        run: pnpm install
 
       - name: Lint
         working-directory: apps/web
-        run: npm run lint
+        run: pnpm lint
 
   format:
     name: format
@@ -132,19 +136,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: pnpm/action-setup@v6
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: apps/web
-        run: npm ci
+        run: pnpm install
 
       - name: Check formatting
-        working-directory: apps/web
-        run: npm run format:check
+        run: pnpm format:check
 
   security-scan:
     name: security-scan
@@ -175,23 +179,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: pnpm/action-setup@v6
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         working-directory: apps/web
-        run: npm ci
+        run: pnpm install
 
       - name: Audit web dependencies
         working-directory: apps/web
-        run: npm audit --audit-level=high
+        run: pnpm audit --audit-level=high
 
       - name: Audit mobile dependencies
         working-directory: apps/mobile
-        run: npm audit --audit-level=high
+        run: pnpm audit --audit-level=high
         continue-on-error: true
 
   summary:
