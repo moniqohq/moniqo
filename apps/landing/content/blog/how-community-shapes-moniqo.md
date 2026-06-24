@@ -16,9 +16,7 @@ Most product decisions at Moniqo start in GitHub issues. When a user files a bug
 
 ## Community-driven features in v0.4.0
 
-Envelope templates, one of the most-requested features, came directly from a community discussion thread. Three separate users described the same pain point — setting up the same envelope structure every month — and the discussion gave us enough context to design a solution that worked for all three cases.
-
-The improved CSV import also started with community reports. Users shared their bank's export formats, and contributors submitted PRs to add native support for each one.
+The improved CSV import started with community reports. Users shared their bank's export formats, and contributors submitted PRs to add native support for each one.
 
 ## How to contribute
 

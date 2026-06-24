@@ -10,7 +10,7 @@ When implementation begins, the source of truth for *what* to build lives in:
 
 - `docs/moniqo_domain_doctrine.md` — non-negotiable domain invariants (read first)
 - `docs/moniqo_architecture.md` — tenant model, RBAC, planned tech stack, planned monorepo layout
-- `docs/apis/0[1-6]-*.md` — REST API specs for User, Budget, Account, BudgetEnvelope, Transaction, EnvelopeTemplate
+- `docs/apis/0[1-5]-*.md` — REST API specs for User, Budget, Account, BudgetEnvelope, Transaction
 
 Treat the API spec docs as authoritative request/response contracts; do not redesign endpoints without explicit user confirmation.
 
