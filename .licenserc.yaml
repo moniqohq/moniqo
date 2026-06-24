@@ -1,0 +1,86 @@
+header:
+  license:
+    spdx-id: GPL-3.0-only # SPDX identifier for GNU General Public License v3
+    copyright-owner: Moniqo
+    copyright-year: "2026"
+    content: |
+      Moniqo is a personal finance management application designed to help users
+      track, manage, and optimize their financial activities.
+
+      Copyright (C) 2026 Moniqo <support@moniqo.in>
+
+      This program is free software: you can redistribute it and/or modify
+      it under the terms of the GNU General Public License as published by
+      the Free Software Foundation, either version 3 of the License, or
+      (at your option) any later version.
+
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License for more details.
+
+      You should have received a copy of the GNU General Public License
+      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  paths-ignore:
+    # Dependencies / generated artefacts
+    - "node_modules"
+    - "**/node_modules/**"
+    - "**/.next/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/target/**"
+    - "**/out/**"
+
+    # Dependency manifests and lock files
+    - "**/*.sum"
+    - "**/*.lock"
+    - "**/package.json"
+
+    # sqlc-generated query files
+    - "apps/backend/db/query/**"
+
+    # Email templates — Go text/template files; no built-in {{/* */}} style in license-eye
+    - "apps/backend/internal/email/templates/**"
+
+    # shadcn/ui scaffolded components (third-party, MIT)
+    - "apps/web/src/components/ui/**"
+
+    # Configuration / data files
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "**/*.toml"
+    - "**/*.json"
+    - "**/*.env"
+    - "**/*.sql"
+
+    # Documentation and legal
+    - "**/*.md"
+    - "docs/**"
+    - "agreements/**"
+    - "LICENSE"
+    - "NOTICE"
+
+    # CI and tooling config
+    - ".github/**"
+    - "magefiles/**"
+    - "CODEOWNERS"
+
+    # Landing page
+    - "apps/landing/**"
+
+  comment: never
+
+  language:
+    Go:
+      extensions:
+        - ".go"
+      comment_style_id: SlashAsterisk
+    GoMod:
+      filenames:
+        - "go.mod"
+      comment_style_id: DoubleSlash
+
+dependency:
+  files:
+    - go.mod
