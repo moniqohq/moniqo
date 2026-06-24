@@ -40,6 +40,9 @@ header:
     # sqlc-generated query files
     - "apps/backend/db/query/**"
 
+    # Email templates — Go text/template files; no built-in {{/* */}} style in license-eye
+    - "apps/backend/internal/email/templates/**"
+
     # shadcn/ui scaffolded components (third-party, MIT)
     - "apps/web/src/components/ui/**"
 
@@ -61,6 +64,7 @@ header:
     # CI and tooling config
     - ".github/**"
     - "magefiles/**"
+    - "CODEOWNERS"
 
     # Landing page
     - "apps/landing/**"
@@ -72,6 +76,10 @@ header:
       extensions:
         - ".go"
       comment_style_id: SlashAsterisk
+    GoMod:
+      filenames:
+        - "go.mod"
+      comment_style_id: DoubleSlash
 
 dependency:
   files:
