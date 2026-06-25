@@ -41,7 +41,8 @@ func Recover(log *zap.Logger) echo.MiddlewareFunc {
 func handleWithRecover(c echo.Context, next echo.HandlerFunc, log *zap.Logger) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("panic recovered",
+			log.Error(
+				"panic recovered",
 				zap.String("panic", fmt.Sprintf("%v", r)),
 				zap.String("request_id", c.Response().Header().Get(echo.HeaderXRequestID)),
 			)

@@ -365,6 +365,7 @@ type funcPasswordResetService struct {
 func (s *funcPasswordResetService) RequestReset(_ context.Context, _ auth.RequestResetRequest) error {
 	return s.requestErr
 }
+
 func (s *funcPasswordResetService) ConfirmReset(_ context.Context, _ auth.ConfirmResetRequest) error {
 	return s.confirmErr
 }
