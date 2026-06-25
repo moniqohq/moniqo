@@ -1,3 +1,0 @@
-message:
-  pattern: '^(feat|fix|chore|docs|ci|refactor|test|style|perf|build|revert)(\([\w\-\.]+\))?!?: .+'
-  error: "The commit message must follow Conventional Commits: <type>[(scope)]: <description>. Scopes must not contain /."
