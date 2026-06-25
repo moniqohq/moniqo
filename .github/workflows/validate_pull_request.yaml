@@ -41,7 +41,7 @@ jobs:
       - name: Check DCO sign-off on all commits
         run: |
           missing=$(git log "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" \
-            --format="%H %s" | while read -r sha msg; do
+            --no-merges --format="%H %s" | while read -r sha msg; do
               if ! git log -1 --format="%B" "$sha" | grep -qiE "^Signed-off-by: .+ <.+@.+>"; then
                 echo "  $sha $msg"
               fi
