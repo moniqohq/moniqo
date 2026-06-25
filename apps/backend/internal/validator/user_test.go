@@ -87,8 +87,12 @@ func TestValidateRegister(t *testing.T) {
 			input: func() validator.RegisterInput { i := validInput(); i.Password = "Secure1!"; return i }(),
 		},
 		{
-			name:  "password 72 bytes (max)",
-			input: func() validator.RegisterInput { i := validInput(); i.Password = strings.Repeat("a", 70) + "A1"; return i }(),
+			name: "password 72 bytes (max)",
+			input: func() validator.RegisterInput {
+				i := validInput()
+				i.Password = strings.Repeat("a", 70) + "A1"
+				return i
+			}(),
 		},
 		{
 			name:  "nil name is valid",
@@ -269,10 +273,14 @@ func TestValidateReplaceProfile(t *testing.T) {
 		// success
 		{name: "all required fields", input: validReplaceInput()},
 		{name: "with optional name", input: func() validator.ReplaceProfileInput {
-			i := validReplaceInput(); i.Name = strPtr("Saqib Abdul"); return i
+			i := validReplaceInput()
+			i.Name = strPtr("Saqib Abdul")
+			return i
 		}()},
 		{name: "with picture", input: func() validator.ReplaceProfileInput {
-			i := validReplaceInput(); i.Picture = "https://example.com/avatar.png"; return i
+			i := validReplaceInput()
+			i.Picture = "https://example.com/avatar.png"
+			return i
 		}()},
 		// username errors
 		{
@@ -288,8 +296,12 @@ func TestValidateReplaceProfile(t *testing.T) {
 			wantMsg:   "must be between 8 and 12 characters",
 		},
 		{
-			name:      "username too long",
-			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Username = "toolongusrname"; return i }(),
+			name: "username too long",
+			input: func() validator.ReplaceProfileInput {
+				i := validReplaceInput()
+				i.Username = "toolongusrname"
+				return i
+			}(),
 			wantField: "username",
 			wantMsg:   "must be between 8 and 12 characters",
 		},
@@ -314,8 +326,12 @@ func TestValidateReplaceProfile(t *testing.T) {
 			wantMsg:   "must not be empty if provided",
 		},
 		{
-			name:      "name exceeds 100 chars",
-			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Name = strPtr(strings.Repeat("a", 101)); return i }(),
+			name: "name exceeds 100 chars",
+			input: func() validator.ReplaceProfileInput {
+				i := validReplaceInput()
+				i.Name = strPtr(strings.Repeat("a", 101))
+				return i
+			}(),
 			wantField: "name",
 			wantMsg:   "must not exceed 100 characters",
 		},
