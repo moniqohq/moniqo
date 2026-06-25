@@ -62,7 +62,7 @@ func main() {
 		Env:         cfg.Env,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
 

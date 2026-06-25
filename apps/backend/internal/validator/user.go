@@ -75,6 +75,16 @@ func validatePasswordStrength(field, password string) *httpx.FieldError {
 	if fe := validatePassword(field, password); fe != nil {
 		return fe
 	}
+	if !hasRequiredPasswordChars(password) {
+		return &httpx.FieldError{
+			Field: field,
+			Error: "must contain at least one uppercase letter, one lowercase letter, and one digit",
+		}
+	}
+	return nil
+}
+
+func hasRequiredPasswordChars(password string) bool {
 	var hasUpper, hasLower, hasDigit bool
 	for _, r := range password {
 		switch {
@@ -84,18 +94,13 @@ func validatePasswordStrength(field, password string) *httpx.FieldError {
 			hasLower = true
 		case unicode.IsDigit(r):
 			hasDigit = true
+		default:
 		}
 		if hasUpper && hasLower && hasDigit {
-			break
+			return true
 		}
 	}
-	if !hasUpper || !hasLower || !hasDigit {
-		return &httpx.FieldError{
-			Field: field,
-			Error: "must contain at least one uppercase letter, one lowercase letter, and one digit",
-		}
-	}
-	return nil
+	return false
 }
 
 func validateEmail(email string) *httpx.FieldError {

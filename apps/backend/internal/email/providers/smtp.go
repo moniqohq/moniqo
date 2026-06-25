@@ -113,30 +113,30 @@ func buildMIMEMessage(from, fromName string, msg Message) []byte {
 	boundary := mimeRandBoundary()
 
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "From: %s <%s>\r\n", quoteDisplayName(fromName), sanitizeHeader(from))
-	fmt.Fprintf(&buf, "To: %s <%s>\r\n", quoteDisplayName(msg.ToName), sanitizeHeader(msg.To))
-	fmt.Fprintf(&buf, "Subject: %s\r\n", sanitizeHeader(msg.Subject))
-	buf.WriteString("MIME-Version: 1.0\r\n")
-	fmt.Fprintf(&buf, "Content-Type: multipart/alternative; boundary=%q\r\n", boundary)
-	buf.WriteString("\r\n")
+	_, _ = fmt.Fprintf(&buf, "From: %s <%s>\r\n", quoteDisplayName(fromName), sanitizeHeader(from))
+	_, _ = fmt.Fprintf(&buf, "To: %s <%s>\r\n", quoteDisplayName(msg.ToName), sanitizeHeader(msg.To))
+	_, _ = fmt.Fprintf(&buf, "Subject: %s\r\n", sanitizeHeader(msg.Subject))
+	_, _ = buf.WriteString("MIME-Version: 1.0\r\n")
+	_, _ = fmt.Fprintf(&buf, "Content-Type: multipart/alternative; boundary=%q\r\n", boundary)
+	_, _ = buf.WriteString("\r\n")
 
 	// Plain-text part (listed first so older clients prefer it)
-	fmt.Fprintf(&buf, "--%s\r\n", boundary)
-	buf.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	buf.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
-	buf.WriteString("\r\n")
+	_, _ = fmt.Fprintf(&buf, "--%s\r\n", boundary)
+	_, _ = buf.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	_, _ = buf.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+	_, _ = buf.WriteString("\r\n")
 	writeQP(&buf, msg.TextBody)
-	buf.WriteString("\r\n")
+	_, _ = buf.WriteString("\r\n")
 
 	// HTML part
-	fmt.Fprintf(&buf, "--%s\r\n", boundary)
-	buf.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
-	buf.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
-	buf.WriteString("\r\n")
+	_, _ = fmt.Fprintf(&buf, "--%s\r\n", boundary)
+	_, _ = buf.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
+	_, _ = buf.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+	_, _ = buf.WriteString("\r\n")
 	writeQP(&buf, msg.HTMLBody)
-	buf.WriteString("\r\n")
+	_, _ = buf.WriteString("\r\n")
 
-	fmt.Fprintf(&buf, "--%s--\r\n", boundary)
+	_, _ = fmt.Fprintf(&buf, "--%s--\r\n", boundary)
 	return buf.Bytes()
 }
 

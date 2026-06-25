@@ -202,10 +202,10 @@ func (s *Svc) Delete(ctx context.Context, id int64) error {
 // Format: base64url(payload) "." base64url(sig)
 // where payload = "verify:<userID>:<expiryUnix>"
 func (s *Svc) verificationToken(userID int64) string {
-	expiry := time.Now().Add(verificationTokenTTL).Unix()
-	payload := fmt.Sprintf("verify:%d:%d", userID, expiry)
+	expirySec := time.Now().Add(verificationTokenTTL).Unix()
+	payload := fmt.Sprintf("verify:%d:%d", userID, expirySec)
 	mac := hmac.New(sha256.New, s.tokenSecret)
-	mac.Write([]byte(payload))
+	_, _ = mac.Write([]byte(payload))
 	sig := mac.Sum(nil)
 	return base64.RawURLEncoding.EncodeToString([]byte(payload)) +
 		"." +
