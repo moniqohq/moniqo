@@ -88,7 +88,7 @@ func TestValidateRegister(t *testing.T) {
 		},
 		{
 			name:  "password 72 bytes (max)",
-			input: func() validator.RegisterInput { i := validInput(); i.Password = strings.Repeat("a", 72); return i }(),
+			input: func() validator.RegisterInput { i := validInput(); i.Password = strings.Repeat("a", 70) + "A1"; return i }(),
 		},
 		{
 			name:  "nil name is valid",
@@ -166,6 +166,18 @@ func TestValidateRegister(t *testing.T) {
 			wantField: "password",
 			wantMsg:   "must not exceed 72 characters",
 		},
+		{
+			name:      "password all lowercase (no uppercase or digit)",
+			input:     func() validator.RegisterInput { i := validInput(); i.Password = "alllowercase"; return i }(),
+			wantField: "password",
+			wantMsg:   "uppercase",
+		},
+		{
+			name:      "password no digit",
+			input:     func() validator.RegisterInput { i := validInput(); i.Password = "NoDigitPass"; return i }(),
+			wantField: "password",
+			wantMsg:   "digit",
+		},
 		// --- email errors ---
 		{
 			name:      "email empty",
@@ -236,4 +248,180 @@ func TestValidateRegister_AggregatesAllErrors(t *testing.T) {
 	assert.Contains(t, fields, "username")
 	assert.Contains(t, fields, "password")
 	assert.Contains(t, fields, "email")
+}
+
+func validReplaceInput() validator.ReplaceProfileInput {
+	return validator.ReplaceProfileInput{
+		Username: "saqibtest",
+		Email:    "saqib@example.com",
+	}
+}
+
+func TestValidateReplaceProfile(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		input     validator.ReplaceProfileInput
+		wantField string
+		wantMsg   string
+	}{
+		// success
+		{name: "all required fields", input: validReplaceInput()},
+		{name: "with optional name", input: func() validator.ReplaceProfileInput {
+			i := validReplaceInput(); i.Name = strPtr("Saqib Abdul"); return i
+		}()},
+		{name: "with picture", input: func() validator.ReplaceProfileInput {
+			i := validReplaceInput(); i.Picture = "https://example.com/avatar.png"; return i
+		}()},
+		// username errors
+		{
+			name:      "username starts with digit",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Username = "1startdig1"; return i }(),
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		{
+			name:      "username too short",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Username = "short"; return i }(),
+			wantField: "username",
+			wantMsg:   "must be between 8 and 12 characters",
+		},
+		{
+			name:      "username too long",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Username = "toolongusrname"; return i }(),
+			wantField: "username",
+			wantMsg:   "must be between 8 and 12 characters",
+		},
+		// email errors
+		{
+			name:      "email empty",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Email = ""; return i }(),
+			wantField: "email",
+			wantMsg:   "required",
+		},
+		{
+			name:      "email invalid format",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Email = "notanemail"; return i }(),
+			wantField: "email",
+			wantMsg:   "invalid email format",
+		},
+		// name errors
+		{
+			name:      "name empty string is invalid",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Name = new(string); return i }(),
+			wantField: "name",
+			wantMsg:   "must not be empty if provided",
+		},
+		{
+			name:      "name exceeds 100 chars",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Name = strPtr(strings.Repeat("a", 101)); return i }(),
+			wantField: "name",
+			wantMsg:   "must not exceed 100 characters",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fields := errFields(validator.ValidateReplaceProfile(tc.input))
+			if tc.wantField == "" {
+				assert.Empty(t, fields)
+			} else {
+				assert.Contains(t, fields[tc.wantField], tc.wantMsg)
+			}
+		})
+	}
+}
+
+func TestValidateReplaceProfile_AggregatesAllErrors(t *testing.T) {
+	t.Parallel()
+
+	in := validator.ReplaceProfileInput{
+		Username: "x",
+		Email:    "",
+	}
+	fields := errFields(validator.ValidateReplaceProfile(in))
+	assert.Contains(t, fields, "username")
+	assert.Contains(t, fields, "email")
+}
+
+func TestValidatePatchProfile(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		input     validator.PatchProfileInput
+		wantField string
+		wantMsg   string
+	}{
+		// success: individual field updates
+		{name: "update username only", input: validator.PatchProfileInput{Username: strPtr("newuser01")}},
+		{name: "update email only", input: validator.PatchProfileInput{Email: strPtr("new@example.com")}},
+		{name: "update name only", input: validator.PatchProfileInput{Name: strPtr("New Name")}},
+		{name: "update picture only", input: validator.PatchProfileInput{Picture: strPtr("avatar.png")}},
+		{name: "password change with valid new password", input: validator.PatchProfileInput{
+			CurrentPassword: strPtr("OldPass1"),
+			NewPassword:     strPtr("NewPass1"),
+		}},
+		// empty body
+		{
+			name:      "all nil fields rejected",
+			input:     validator.PatchProfileInput{},
+			wantField: "body",
+			wantMsg:   "at least one field",
+		},
+		// username errors
+		{
+			name:      "invalid username",
+			input:     validator.PatchProfileInput{Username: strPtr("1badstart")},
+			wantField: "username",
+			wantMsg:   "must start with a letter",
+		},
+		// email errors
+		{
+			name:      "invalid email",
+			input:     validator.PatchProfileInput{Email: strPtr("notanemail")},
+			wantField: "email",
+			wantMsg:   "invalid email format",
+		},
+		// name errors
+		{
+			name:      "empty name string",
+			input:     validator.PatchProfileInput{Name: new(string)},
+			wantField: "name",
+			wantMsg:   "must not be empty if provided",
+		},
+		// password change errors
+		{
+			name:      "new_password without current_password",
+			input:     validator.PatchProfileInput{NewPassword: strPtr("NewPass1")},
+			wantField: "current_password",
+			wantMsg:   "required when changing password",
+		},
+		{
+			name:      "current_password without new_password",
+			input:     validator.PatchProfileInput{CurrentPassword: strPtr("OldPass1")},
+			wantField: "new_password",
+			wantMsg:   "required when changing password",
+		},
+		{
+			name:      "new_password fails strength check",
+			input:     validator.PatchProfileInput{CurrentPassword: strPtr("OldPass1"), NewPassword: strPtr("alllowercase")},
+			wantField: "new_password",
+			wantMsg:   "uppercase",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fields := errFields(validator.ValidatePatchProfile(tc.input))
+			if tc.wantField == "" {
+				assert.Empty(t, fields)
+			} else {
+				assert.Contains(t, fields[tc.wantField], tc.wantMsg)
+			}
+		})
+	}
 }

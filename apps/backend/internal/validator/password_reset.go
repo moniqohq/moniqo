@@ -58,7 +58,7 @@ func ValidateConfirmReset(in ConfirmResetInput) []httpx.FieldError {
 		errs = append(errs, httpx.FieldError{Field: "token", Error: "must be a 64-character hex string"})
 	}
 
-	if fe := validatePassword("new_password", in.NewPassword); fe != nil {
+	if fe := validatePasswordStrength("new_password", in.NewPassword); fe != nil {
 		errs = append(errs, *fe)
 	}
 

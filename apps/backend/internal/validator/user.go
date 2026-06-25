@@ -23,6 +23,7 @@ package validator
 import (
 	"net/mail"
 	"regexp"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
@@ -54,6 +55,8 @@ func validateUsername(username string) *httpx.FieldError {
 	return nil
 }
 
+// validatePassword checks only length bounds; used at login where the password
+// already exists and character-class strength is irrelevant.
 func validatePassword(field, password string) *httpx.FieldError {
 	plen := len(password)
 	if plen < minPasswordLen {
@@ -61,6 +64,36 @@ func validatePassword(field, password string) *httpx.FieldError {
 	}
 	if plen > maxPasswordLen {
 		return &httpx.FieldError{Field: field, Error: "must not exceed 72 characters"}
+	}
+	return nil
+}
+
+// validatePasswordStrength checks length bounds plus character-class requirements
+// (at least one uppercase letter, one lowercase letter, one digit).
+// Rules: 8–72 bytes; ≥1 uppercase; ≥1 lowercase; ≥1 digit.
+func validatePasswordStrength(field, password string) *httpx.FieldError {
+	if fe := validatePassword(field, password); fe != nil {
+		return fe
+	}
+	var hasUpper, hasLower, hasDigit bool
+	for _, r := range password {
+		switch {
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		}
+		if hasUpper && hasLower && hasDigit {
+			break
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit {
+		return &httpx.FieldError{
+			Field: field,
+			Error: "must contain at least one uppercase letter, one lowercase letter, and one digit",
+		}
 	}
 	return nil
 }
@@ -108,8 +141,8 @@ func ValidateRegister(in RegisterInput) []httpx.FieldError {
 		errs = append(errs, *fe)
 	}
 
-	// Password (byte length — bcrypt truncates at 72 bytes)
-	if fe := validatePassword("password", in.Password); fe != nil {
+	// Password strength (length + character classes)
+	if fe := validatePasswordStrength("password", in.Password); fe != nil {
 		errs = append(errs, *fe)
 	}
 
@@ -191,7 +224,7 @@ func validatePatchPasswordFields(in PatchProfileInput) []httpx.FieldError {
 		errs = append(errs, httpx.FieldError{Field: "new_password", Error: "required when changing password"})
 	}
 	if in.NewPassword != nil {
-		if fe := validatePassword("new_password", *in.NewPassword); fe != nil {
+		if fe := validatePasswordStrength("new_password", *in.NewPassword); fe != nil {
 			errs = append(errs, *fe)
 		}
 	}
