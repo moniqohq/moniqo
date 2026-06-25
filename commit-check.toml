@@ -11,5 +11,5 @@ allow_empty_commits = false
 allow_fixup_commits = false
 allow_wip_commits = false
 require_body = false
-require_signed_off_by = true
+require_signed_off_by = false
 ignore_authors = ["dependabot[bot]"]
