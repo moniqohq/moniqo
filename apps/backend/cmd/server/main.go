@@ -285,6 +285,10 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	usersGroup.PATCH("/:id", userHandler.PatchProfile)
 	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
 
+	registerBudgetRoutes(e, pool, log)
+}
+
+func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 	budgetRepo := budget.NewRepo(pool, log)
 	budgetSvc := budget.NewSvc(budgetRepo, log)
 	budgetHandler := budget.NewHandler(budgetSvc, log)
