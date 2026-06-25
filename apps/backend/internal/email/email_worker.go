@@ -78,7 +78,8 @@ func (w *Worker) Run(ctx context.Context) {
 	ticker := time.NewTicker(w.cfg.PollInterval)
 	defer ticker.Stop()
 
-	w.log.Info("email worker started",
+	w.log.Info(
+		"email worker started",
 		zap.Duration("poll_interval", w.cfg.PollInterval),
 		zap.Int32("batch_size", w.cfg.BatchSize),
 		zap.String("worker_id", w.workerID),
@@ -146,7 +147,8 @@ func (w *Worker) processJob(ctx context.Context, job *ClaimedJob) {
 		HTMLBody: out.HTMLBody,
 		TextBody: out.TextBody,
 	}); err != nil {
-		log.Warn("email worker: send failed, will retry",
+		log.Warn(
+			"email worker: send failed, will retry",
 			zap.Int32("attempt", job.AttemptCount+1),
 			zap.Int32("max_attempts", job.MaxAttempts),
 			zap.Error(err),

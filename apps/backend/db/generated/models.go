@@ -31,6 +31,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type BudgetRole string
+
+const (
+	BudgetRoleOWNER  BudgetRole = "OWNER"
+	BudgetRoleADMIN  BudgetRole = "ADMIN"
+	BudgetRoleEDITOR BudgetRole = "EDITOR"
+	BudgetRoleVIEWER BudgetRole = "VIEWER"
+)
+
+func (e *BudgetRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BudgetRole(s)
+	case string:
+		*e = BudgetRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BudgetRole: %T", src)
+	}
+	return nil
+}
+
+type NullBudgetRole struct {
+	BudgetRole BudgetRole
+	Valid      bool // Valid is true if BudgetRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBudgetRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.BudgetRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BudgetRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBudgetRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BudgetRole), nil
+}
+
 type EmailJobStatus string
 
 const (
@@ -115,6 +159,24 @@ func (ns NullUserStatus) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.UserStatus), nil
+}
+
+type Budget struct {
+	ID        int64
+	Title     string
+	Notes     *string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+}
+
+type BudgetUser struct {
+	ID        int64
+	BudgetID  int64
+	UserID    int64
+	Role      BudgetRole
+	JoinedAt  pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
 }
 
 type EmailJob struct {

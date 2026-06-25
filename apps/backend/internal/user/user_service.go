@@ -92,7 +92,8 @@ func (s *Svc) Register(ctx context.Context, req RegisterRequest) (models.User, e
 	})
 	if err != nil {
 		if errors.Is(err, ErrConflict) {
-			s.log.Debug("registration rejected: username or email already taken",
+			s.log.Debug(
+				"registration rejected: username or email already taken",
 				zap.String("username", req.Username),
 				zap.String("email", req.Email),
 			)
@@ -253,7 +254,8 @@ func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {
 		},
 	})
 	if err != nil {
-		s.log.Error("failed to enqueue verification email",
+		s.log.Error(
+			"failed to enqueue verification email",
 			zap.Int64("user_id", u.ID),
 			zap.Error(err),
 		)

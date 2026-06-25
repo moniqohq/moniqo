@@ -53,7 +53,8 @@ func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
 func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 	raw, err := json.Marshal(p.Payload)
 	if err != nil {
-		r.log.Error("failed to marshal email payload",
+		r.log.Error(
+			"failed to marshal email payload",
 			zap.String("idempotency_key", p.IdempotencyKey),
 			zap.String("template", string(p.Template)),
 			zap.Error(err),
@@ -75,7 +76,8 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 		Payload:        raw,
 		MaxAttempts:    maxAttempts,
 	}); err != nil {
-		r.log.Error("failed to enqueue email job",
+		r.log.Error(
+			"failed to enqueue email job",
 			zap.String("idempotency_key", p.IdempotencyKey),
 			zap.String("template", string(p.Template)),
 			zap.String("to", p.To),
@@ -83,7 +85,8 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 		)
 		return fmt.Errorf("enqueue email job: %w", err)
 	}
-	r.log.Debug("email job enqueued",
+	r.log.Debug(
+		"email job enqueued",
 		zap.String("idempotency_key", p.IdempotencyKey),
 		zap.String("template", string(p.Template)),
 		zap.String("to", p.To),
@@ -136,7 +139,8 @@ func (r *Repo) LockBatch(ctx context.Context, n int32, workerID string) ([]Claim
 // MarkSent transitions a job to the sent state and clears locked_by.
 func (r *Repo) MarkSent(ctx context.Context, id pgtype.UUID) error {
 	if err := db.New(r.pool).MarkEmailJobSent(ctx, id); err != nil {
-		r.log.Error("failed to mark email job sent",
+		r.log.Error(
+			"failed to mark email job sent",
 			zap.String("job_id", uuid.UUID(id.Bytes).String()),
 			zap.Error(err),
 		)
@@ -159,14 +163,16 @@ func (r *Repo) MarkFailed(ctx context.Context, id pgtype.UUID, errMsg string, at
 		LastError:     &errStr,
 		NextAttemptAt: next,
 	}); err != nil {
-		r.log.Error("failed to mark email job failed",
+		r.log.Error(
+			"failed to mark email job failed",
 			zap.String("job_id", uuid.UUID(id.Bytes).String()),
 			zap.Int32("attempt", attempt),
 			zap.Error(err),
 		)
 		return fmt.Errorf("mark email job failed: %w", err)
 	}
-	r.log.Debug("email job marked failed",
+	r.log.Debug(
+		"email job marked failed",
 		zap.String("job_id", uuid.UUID(id.Bytes).String()),
 		zap.Int32("attempt", attempt),
 		zap.Duration("retry_delay", delay),
