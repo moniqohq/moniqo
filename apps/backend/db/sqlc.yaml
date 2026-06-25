@@ -6,6 +6,8 @@ sql:
       - "queries/auth.sql"
       - "queries/email_jobs.sql"
       - "queries/password_reset.sql"
+      - "queries/budgets.sql"
+      - "queries/budget_users.sql"
     schema: "migrations"
     gen:
       go:

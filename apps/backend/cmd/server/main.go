@@ -44,6 +44,8 @@ import (
 
 	"github.com/moniqohq/moniqo/apps/backend/db/migrations"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
+	"github.com/moniqohq/moniqo/apps/backend/internal/authz"
+	"github.com/moniqohq/moniqo/apps/backend/internal/budget"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
 	"github.com/moniqohq/moniqo/apps/backend/internal/email"
 	"github.com/moniqohq/moniqo/apps/backend/internal/email/providers"
@@ -282,6 +284,43 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
 	usersGroup.PATCH("/:id", userHandler.PatchProfile)
 	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
+
+	budgetRepo := budget.NewRepo(pool, log)
+	budgetSvc := budget.NewSvc(budgetRepo, log)
+	budgetHandler := budget.NewHandler(budgetSvc, log)
+
+	membershipRepo := budget.NewMembershipRepo(pool, log)
+	membershipSvc := budget.NewMembershipSvc(membershipRepo, log)
+	membershipHandler := budget.NewMembershipHandler(membershipSvc, log)
+
+	// POST /api/v1/budgets — create; any authenticated user, no :id guard needed.
+	budgetsCreate := e.Group("/api/v1/budgets")
+	budgetsCreate.POST("", budgetHandler.Create)
+
+	// Remaining budget routes require membership + minimum role via guard.
+	budgetsGroup := e.Group("/api/v1/budgets")
+	budgetsGroup.GET("", budgetHandler.List)
+	budgetsGroup.GET("/:id", budgetHandler.Get,
+		budget.RequireBudgetAccess(membershipRepo, authz.BudgetView, log))
+	budgetsGroup.PUT("/:id", budgetHandler.Replace,
+		budget.RequireBudgetAccess(membershipRepo, authz.BudgetEdit, log))
+	budgetsGroup.PATCH("/:id", budgetHandler.Patch,
+		budget.RequireBudgetAccess(membershipRepo, authz.BudgetEdit, log))
+	budgetsGroup.DELETE("/:id", budgetHandler.Delete,
+		budget.RequireBudgetAccess(membershipRepo, authz.BudgetDelete, log))
+
+	// Membership routes — all require ManageMembers (OWNER only).
+	membersGroup := e.Group("/api/v1/budgets")
+	membersGroup.GET("/:id/members", membershipHandler.ListMembers,
+		budget.RequireBudgetAccess(membershipRepo, authz.ManageMembers, log))
+	membersGroup.POST("/:id/members", membershipHandler.AddMember,
+		budget.RequireBudgetAccess(membershipRepo, authz.ManageMembers, log))
+	membersGroup.PATCH("/:id/members/:userId", membershipHandler.UpdateMemberRole,
+		budget.RequireBudgetAccess(membershipRepo, authz.ManageMembers, log))
+	membersGroup.DELETE("/:id/members/:userId", membershipHandler.RemoveMember,
+		budget.RequireBudgetAccess(membershipRepo, authz.ManageMembers, log))
+	membersGroup.POST("/:id/transfer-ownership", membershipHandler.TransferOwnership,
+		budget.RequireBudgetAccess(membershipRepo, authz.TransferOwnership, log))
 }
 
 func runMigrations(dsn string) error {
