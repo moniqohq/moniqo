@@ -137,7 +137,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
               role="dialog"
               aria-modal="true"
               aria-label="Transaction Details"
-              className="bg-[#0A1220]/97 relative my-auto w-full max-w-[1040px] rounded-2xl border border-[#1E2B42] shadow-[0_0_80px_rgba(108,58,237,0.18),0_30px_60px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
+              className="relative my-auto w-full max-w-[1040px] rounded-2xl border border-[#1E2B42] bg-[#0A1220]/97 shadow-[0_0_80px_rgba(108,58,237,0.18),0_30px_60px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
               initial={{ opacity: 0, scale: 0.93, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.93, y: 12 }}
@@ -153,7 +153,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                   {/* Amount */}
                   <div
                     className={cn(
-                      "mt-1 shrink-0 text-[2.25rem] font-bold tabular-nums leading-none",
+                      "mt-1 shrink-0 text-[2.25rem] leading-none font-bold tabular-nums",
                       amountColor,
                     )}
                   >
@@ -169,7 +169,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                       {tx.payee[0]}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-xl font-semibold leading-tight text-[#E8EEF8]">
+                      <p className="truncate text-xl leading-tight font-semibold text-[#E8EEF8]">
                         {tx.payee}
                       </p>
                       {tx.memo && (
@@ -195,7 +195,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                     <span>{formattedDate}</span>
                   </div>
 
-                  <span className="select-none text-[#1E2B42]">|</span>
+                  <span className="text-[#1E2B42] select-none">|</span>
 
                   {/* Type badge */}
                   {isExpense && (
@@ -352,7 +352,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
 
                       <div className="flex items-center gap-3">
                         <ImpactCard label="Envelope Balance Before">
-                          <span className="text-xl font-bold tabular-nums text-[#E8EEF8]">
+                          <span className="text-xl font-bold text-[#E8EEF8] tabular-nums">
                             {formatCurrency(balanceBefore)}
                           </span>
                         </ImpactCard>
@@ -430,7 +430,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                         </IconBox>
                         <div>
                           <p className="mb-0.5 text-xs text-[#5A6A85]">Transaction ID</p>
-                          <p className="break-all font-mono text-xs text-[#A8B4CC]">{txId}</p>
+                          <p className="font-mono text-xs break-all text-[#A8B4CC]">{txId}</p>
                         </div>
                       </div>
                     </div>
@@ -489,7 +489,7 @@ function DetailRow({
       <div className="mt-0.5 shrink-0">{icon}</div>
       <div className="min-w-0">
         <p className="mb-0.5 text-xs text-[#5A6A85]">{label}</p>
-        <p className="break-words text-sm font-medium text-[#E8EEF8]">{value}</p>
+        <p className="text-sm font-medium break-words text-[#E8EEF8]">{value}</p>
       </div>
     </div>
   );
@@ -519,7 +519,7 @@ function ActionBtn({
       className={cn(
         "inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-4 py-2 text-sm font-medium text-[#A8B4CC]",
         "hover:border-[#2A3A54] hover:bg-[#1A2640] hover:text-white",
-        "transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30",
+        "transition-all focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
         className,
       )}
     >

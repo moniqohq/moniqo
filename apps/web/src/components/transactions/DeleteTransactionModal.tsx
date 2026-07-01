@@ -80,7 +80,7 @@ export function DeleteTransactionModal({ tx, open, onClose, onConfirm, loading =
               role="dialog"
               aria-modal="true"
               aria-label="Delete Transaction"
-              className="bg-[#080E1A]/98 relative w-full max-w-[640px] rounded-2xl border border-[#1E2B42] shadow-[0_0_60px_rgba(239,68,68,0.08),0_24px_48px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
+              className="relative w-full max-w-[640px] rounded-2xl border border-[#1E2B42] bg-[#080E1A]/98 shadow-[0_0_60px_rgba(239,68,68,0.08),0_24px_48px_rgba(0,0,0,0.7)] backdrop-blur-2xl"
               initial={{ opacity: 0, scale: 0.94, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 10 }}
@@ -134,7 +134,7 @@ export function DeleteTransactionModal({ tx, open, onClose, onConfirm, loading =
 
                   {/* Info */}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold leading-tight text-[#E8EEF8]">
+                    <p className="truncate text-sm leading-tight font-semibold text-[#E8EEF8]">
                       {tx.payee}
                     </p>
                     <p className="mt-0.5 text-xs text-[#5A6A85]">
@@ -167,7 +167,7 @@ export function DeleteTransactionModal({ tx, open, onClose, onConfirm, loading =
                     className={cn(
                       "inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-5 py-2.5 text-sm font-medium text-[#A8B4CC]",
                       "bg-[#0D1626]/80 hover:border-[#2A3A54] hover:bg-[#1A2640] hover:text-white",
-                      "transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30",
+                      "transition-all focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
                       "disabled:cursor-not-allowed disabled:opacity-50",
                     )}
                   >
@@ -182,7 +182,7 @@ export function DeleteTransactionModal({ tx, open, onClose, onConfirm, loading =
                       "border border-[#EF4444]/30 bg-gradient-to-r from-[#B91C1C] to-[#DC2626]",
                       "shadow-[0_0_20px_rgba(239,68,68,0.3)]",
                       "hover:from-[#C82828] hover:to-[#EF4444] hover:shadow-[0_0_28px_rgba(239,68,68,0.45)]",
-                      "transition-all focus:outline-none focus:ring-2 focus:ring-[#EF4444]/40",
+                      "transition-all focus:ring-2 focus:ring-[#EF4444]/40 focus:outline-none",
                       "disabled:cursor-not-allowed disabled:opacity-60",
                     )}
                   >

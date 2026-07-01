@@ -402,8 +402,8 @@ export default function LoginPage() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080C14] p-4 md:p-8 lg:p-10">
       {/* Ambient background glows */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-[5%] top-[-10%] h-[500px] w-[500px] rounded-full bg-[#6C3AED] opacity-[0.07] blur-[140px]" />
-        <div className="absolute bottom-[-5%] right-[5%] h-[400px] w-[400px] rounded-full bg-[#6C3AED] opacity-[0.06] blur-[120px]" />
+        <div className="absolute top-[-10%] left-[5%] h-[500px] w-[500px] rounded-full bg-[#6C3AED] opacity-[0.07] blur-[140px]" />
+        <div className="absolute right-[5%] bottom-[-5%] h-[400px] w-[400px] rounded-full bg-[#6C3AED] opacity-[0.06] blur-[120px]" />
         {/* Star particles */}
         {Array.from({ length: 30 }).map((_, i) => (
           <div
@@ -439,8 +439,8 @@ export default function LoginPage() {
         {/* ════════════════ LEFT PANEL ════════════════ */}
         <div className="relative flex flex-col overflow-hidden px-8 py-8 lg:w-[42%] lg:px-10 lg:py-10">
           {/* Subtle left-panel glow */}
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-56 bg-gradient-to-t from-[#6C3AED]/10 to-transparent" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6C3AED] opacity-[0.04] blur-[80px]" />
+          <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-56 bg-gradient-to-t from-[#6C3AED]/10 to-transparent" />
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6C3AED] opacity-[0.04] blur-[80px]" />
 
           {/* Logo */}
           <motion.div
@@ -465,7 +465,7 @@ export default function LoginPage() {
           {/* Headline */}
           <motion.div custom={1} initial="hidden" animate="show" variants={fadeUp} className="mb-8">
             <h1
-              className="mb-2 font-black leading-tight"
+              className="mb-2 leading-tight font-black"
               style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)" }}
             >
               <span style={{ color: "#8B5CF6" }}>Welcome</span>{" "}
@@ -536,7 +536,7 @@ export default function LoginPage() {
             <span className="text-sm text-[#5A6A85]">New to Moniqo?</span>
             <Link
               href="/signup"
-              className="hover:bg-[#6C3AED]/12 rounded-xl px-5 py-2 text-sm font-semibold text-[#8B5CF6] transition-all duration-200 active:scale-[0.98]"
+              className="rounded-xl px-5 py-2 text-sm font-semibold text-[#8B5CF6] transition-all duration-200 hover:bg-[#6C3AED]/12 active:scale-[0.98]"
               style={{ border: "1px solid rgba(108, 58, 237, 0.55)" }}
             >
               Create account
@@ -570,12 +570,12 @@ export default function LoginPage() {
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-[#A8B4CC]">Email address</label>
                 <div className="group relative">
-                  <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                  <Mail className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
                   <input
                     type="email"
                     placeholder="Enter your email"
                     autoComplete="email"
-                    className="h-12 w-full rounded-xl pl-11 pr-4 text-sm text-[#E8EEF8] placeholder-[#5A6A85] outline-none transition-all duration-200 focus:shadow-[0_0_0_1.5px_#6C3AED,0_0_16px_rgba(108,58,237,0.18)]"
+                    className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none focus:shadow-[0_0_0_1.5px_#6C3AED,0_0_16px_rgba(108,58,237,0.18)]"
                     style={{
                       background: "#0A0E1A",
                       border: "1px solid #1E2B42",
@@ -590,12 +590,12 @@ export default function LoginPage() {
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-[#A8B4CC]">Password</label>
                 <div className="group relative">
-                  <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                  <Lock className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     autoComplete="current-password"
-                    className="h-12 w-full rounded-xl pl-11 pr-12 text-sm text-[#E8EEF8] placeholder-[#5A6A85] outline-none transition-all duration-200 focus:shadow-[0_0_0_1.5px_#6C3AED,0_0_16px_rgba(108,58,237,0.18)]"
+                    className="h-12 w-full rounded-xl pr-12 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none focus:shadow-[0_0_0_1.5px_#6C3AED,0_0_16px_rgba(108,58,237,0.18)]"
                     style={{
                       background: "#0A0E1A",
                       border: "1px solid #1E2B42",
@@ -606,7 +606,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 hover:text-[#A8B4CC]"
+                    className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 hover:text-[#A8B4CC]"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -646,13 +646,13 @@ export default function LoginPage() {
                     )}
                   </button>
                   <div>
-                    <p className="text-sm font-medium leading-none text-[#A8B4CC]">Remember me</p>
+                    <p className="text-sm leading-none font-medium text-[#A8B4CC]">Remember me</p>
                     <p className="mt-1 text-xs text-[#5A6A85]">Not recommended on shared devices</p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  className="flex-shrink-0 whitespace-nowrap text-sm font-medium text-[#8B5CF6] transition-colors duration-150 hover:text-[#A78BFA]"
+                  className="flex-shrink-0 text-sm font-medium whitespace-nowrap text-[#8B5CF6] transition-colors duration-150 hover:text-[#A78BFA]"
                 >
                   Forgot password?
                 </button>
@@ -661,7 +661,7 @@ export default function LoginPage() {
               {/* Login button */}
               <button
                 type="submit"
-                className="hover:opacity-92 flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99]"
+                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:opacity-92 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99]"
                 style={{
                   background: "linear-gradient(135deg, #7C4AFF 0%, #6333E8 100%)",
                   boxShadow: "0 4px 24px rgba(108,58,237,0.4)",

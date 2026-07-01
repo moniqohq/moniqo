@@ -62,13 +62,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 
 type GoalStatus = "on_track" | "slightly_behind" | "behind" | "completed" | "paused";
 type GoalType =
-  | "emergency_fund"
-  | "vacation"
-  | "vehicle"
-  | "home"
-  | "education"
-  | "technology"
-  | "custom";
+  "emergency_fund" | "vacation" | "vehicle" | "home" | "education" | "technology" | "custom";
 type ViewMode = "grid" | "list";
 type SortKey = "progress" | "target_date" | "target_amount" | "monthly" | "name";
 
@@ -372,7 +366,7 @@ function ProgressRing({
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[21px] font-bold leading-none text-white">{pct}%</span>
+        <span className="text-[21px] leading-none font-bold text-white">{pct}%</span>
       </div>
     </div>
   );
@@ -398,7 +392,7 @@ function StatusBadge({ status }: { status: GoalStatus }) {
   const cfg = STATUS_CFG[status];
   return (
     <span
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+      className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium whitespace-nowrap"
       style={{ background: cfg.bg, color: cfg.text }}
     >
       {cfg.prefix && <span>{cfg.prefix}</span>}
@@ -456,7 +450,7 @@ function GoalActionsMenu({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: 0.12 }}
-            className="absolute right-0 top-full z-50 mt-1 w-44 rounded-xl border border-[#1E2B42] bg-[#0D1525] py-1.5 shadow-xl"
+            className="absolute top-full right-0 z-50 mt-1 w-44 rounded-xl border border-[#1E2B42] bg-[#0D1525] py-1.5 shadow-xl"
           >
             {actions.map(({ icon: Icon, label, danger, onClick }) => (
               <button
@@ -590,7 +584,7 @@ function GoalCard({
 function MetricRow({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex items-center justify-between gap-2 border-b border-[#111827] py-1.5 last:border-0">
-      <span className="text-[15px] font-semibold tabular-nums text-white">{value}</span>
+      <span className="text-[15px] font-semibold text-white tabular-nums">{value}</span>
       <span className="text-[12px] text-[#5A6A85]">{label}</span>
     </div>
   );
@@ -609,7 +603,7 @@ function GoalListTable({ goals }: { goals: GoalData[] }) {
               {cols.map((c) => (
                 <th
                   key={c}
-                  className="whitespace-nowrap px-4 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]"
+                  className="px-4 py-3 text-left text-[11px] font-medium tracking-wider whitespace-nowrap text-[#5A6A85] uppercase"
                 >
                   {c}
                 </th>
@@ -637,10 +631,10 @@ function GoalListTable({ goals }: { goals: GoalData[] }) {
                         {goal.iconEmoji}
                       </div>
                       <div>
-                        <div className="whitespace-nowrap text-[14px] font-medium text-white">
+                        <div className="text-[14px] font-medium whitespace-nowrap text-white">
                           {goal.name}
                         </div>
-                        <div className="text-[11px] capitalize text-[#5A6A85]">
+                        <div className="text-[11px] text-[#5A6A85] capitalize">
                           {goal.type.replace(/_/g, " ")}
                         </div>
                       </div>
@@ -660,19 +654,19 @@ function GoalListTable({ goals }: { goals: GoalData[] }) {
                           style={{ background: goal.ringColor }}
                         />
                       </div>
-                      <span className="text-[12px] tabular-nums text-[#A8B4CC]">{pct}%</span>
+                      <span className="text-[12px] text-[#A8B4CC] tabular-nums">{pct}%</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[14px] tabular-nums text-white">
+                  <td className="px-4 py-3 text-[14px] whitespace-nowrap text-white tabular-nums">
                     ₹{fmt(goal.savedAmount)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[14px] tabular-nums text-[#A8B4CC]">
+                  <td className="px-4 py-3 text-[14px] whitespace-nowrap text-[#A8B4CC] tabular-nums">
                     ₹{fmt(remaining)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[14px] tabular-nums text-[#A8B4CC]">
+                  <td className="px-4 py-3 text-[14px] whitespace-nowrap text-[#A8B4CC] tabular-nums">
                     ₹{fmt(goal.monthlyContribution)}/mo
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] text-[#5A6A85]">
+                  <td className="px-4 py-3 text-[13px] whitespace-nowrap text-[#5A6A85]">
                     {fmtDate(goal.targetDate) ?? <span className="text-[#2A3A55]">—</span>}
                   </td>
                   <td className="px-4 py-3">
@@ -767,7 +761,7 @@ function GoalTimelineCard() {
               </div>
               <span className="truncate text-[13px] text-[#A8B4CC]">{item.name}</span>
             </div>
-            <span className="whitespace-nowrap text-[12px] text-[#5A6A85]">{item.date}</span>
+            <span className="text-[12px] whitespace-nowrap text-[#5A6A85]">{item.date}</span>
           </motion.div>
         ))}
       </div>
@@ -804,7 +798,7 @@ function GoalAllocationChart() {
             </PieChart>
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[11px] font-bold leading-none text-white">₹4,50,000</span>
+            <span className="text-[11px] leading-none font-bold text-white">₹4,50,000</span>
             <span className="mt-0.5 text-center text-[9px] leading-tight text-[#5A6A85]">
               Total
               <br />
@@ -822,7 +816,7 @@ function GoalAllocationChart() {
                 />
                 <span className="truncate text-[11px] text-[#A8B4CC]">{item.name}</span>
               </div>
-              <span className="flex-shrink-0 whitespace-nowrap text-[11px] text-[#5A6A85]">
+              <span className="flex-shrink-0 text-[11px] whitespace-nowrap text-[#5A6A85]">
                 {item.value}%
               </span>
             </div>
@@ -863,7 +857,7 @@ function MonthlySavingsTrend() {
           </ResponsiveContainer>
         </div>
         <div className="flex flex-shrink-0 flex-col items-end pb-5">
-          <span className="text-[18px] font-bold leading-none text-white">₹24,000</span>
+          <span className="text-[18px] leading-none font-bold text-white">₹24,000</span>
           <span className="mt-1 text-right text-[10px] leading-tight text-[#5A6A85]">
             Avg monthly
             <br />
@@ -898,16 +892,16 @@ function GoalStatsCards() {
           }}
         >
           <span
-            className="text-[12px] font-medium leading-tight"
+            className="text-[12px] leading-tight font-medium"
             style={{ color: stat.titleColor }}
           >
             {stat.title}
           </span>
           <div className="mt-2 flex items-end justify-between">
-            <span className="text-[20px] font-bold tabular-nums leading-none text-white">
+            <span className="text-[20px] leading-none font-bold text-white tabular-nums">
               {stat.value}
             </span>
-            <span className="select-none text-[30px] leading-none" aria-hidden>
+            <span className="text-[30px] leading-none select-none" aria-hidden>
               {stat.illustration}
             </span>
           </div>
@@ -1084,14 +1078,14 @@ export function GoalsView() {
             <div className="relative">
               <Search
                 size={14}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5A6A85]"
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]"
               />
               <input
                 type="text"
                 placeholder="Search goals..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-10 w-[350px] rounded-lg border border-[#1E2B42] bg-[#0F1623] pl-9 pr-3 text-[14px] text-white placeholder-[#5A6A85] outline-none transition-colors focus:border-[#6C3AED]"
+                className="h-10 w-[350px] rounded-lg border border-[#1E2B42] bg-[#0F1623] pr-3 pl-9 text-[14px] text-white placeholder-[#5A6A85] transition-colors outline-none focus:border-[#6C3AED]"
               />
             </div>
 
@@ -1120,9 +1114,9 @@ export function GoalsView() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.97 }}
                     transition={{ duration: 0.13 }}
-                    className="absolute left-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1525] py-2 shadow-2xl"
+                    className="absolute top-full left-0 z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1525] py-2 shadow-2xl"
                   >
-                    <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-widest text-[#5A6A85]">
+                    <div className="px-3 pt-1 pb-1.5 text-[10px] font-semibold tracking-widest text-[#5A6A85] uppercase">
                       Status
                     </div>
                     {STATUS_OPTIONS.map((opt) => (
@@ -1143,7 +1137,7 @@ export function GoalsView() {
                       </button>
                     ))}
                     <div className="my-1.5 border-t border-[#1E2B42]" />
-                    <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-[#5A6A85]">
+                    <div className="px-3 pb-1.5 text-[10px] font-semibold tracking-widest text-[#5A6A85] uppercase">
                       Goal Type
                     </div>
                     {TYPE_OPTIONS.map((opt) => (
@@ -1181,7 +1175,7 @@ export function GoalsView() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.97 }}
                     transition={{ duration: 0.13 }}
-                    className="absolute left-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1525] py-2 shadow-2xl"
+                    className="absolute top-full left-0 z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1525] py-2 shadow-2xl"
                   >
                     {SORT_OPTIONS.map((opt) => (
                       <button

@@ -146,20 +146,20 @@ function SparkTooltip({
 function TypeBadge({ type }: { type: Transaction["type"] }) {
   if (type === "expense")
     return (
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(239,68,68,0.12)] px-3 py-1.5 text-xs font-medium text-[#F87171]">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(239,68,68,0.12)] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-[#F87171]">
         <ArrowDownLeft size={12} strokeWidth={2.5} />
         Expense
       </span>
     );
   if (type === "income")
     return (
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(34,197,94,0.12)] px-3 py-1.5 text-xs font-medium text-[#4ADE80]">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(34,197,94,0.12)] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-[#4ADE80]">
         <ArrowUpRight size={12} strokeWidth={2.5} />
         Income
       </span>
     );
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[rgba(99,179,237,0.12)] px-3 py-1.5 text-xs font-medium text-[#7DD3FC]">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(99,179,237,0.12)] px-3 py-1.5 text-xs font-medium whitespace-nowrap text-[#7DD3FC]">
       <ArrowLeftRight size={12} strokeWidth={2.5} />
       Transfer
     </span>
@@ -170,7 +170,7 @@ function TypeBadge({ type }: { type: Transaction["type"] }) {
 function PayeeAvatar({ payee, color }: { payee: string; color?: string }) {
   return (
     <div
-      className="flex h-8 w-8 flex-shrink-0 select-none items-center justify-center rounded-lg text-xs font-bold text-white"
+      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white select-none"
       style={{ backgroundColor: color ?? "#1E2B42" }}
     >
       {payee[0]}
@@ -180,7 +180,7 @@ function PayeeAvatar({ payee, color }: { payee: string; color?: string }) {
 
 /* ── Envelope chip ──────────────────────────────────────── */
 function EnvelopeChip({ name, icon, color }: { name?: string; icon?: string; color?: string }) {
-  if (!name) return <span className="select-none text-sm text-[#2A3A54]">—</span>;
+  if (!name) return <span className="text-sm text-[#2A3A54] select-none">—</span>;
   return (
     <div className="flex items-center gap-2">
       <div
@@ -189,7 +189,7 @@ function EnvelopeChip({ name, icon, color }: { name?: string; icon?: string; col
       >
         {icon ?? name[0]}
       </div>
-      <span className="whitespace-nowrap text-sm text-[#A8B4CC]">{name}</span>
+      <span className="text-sm whitespace-nowrap text-[#A8B4CC]">{name}</span>
     </div>
   );
 }
@@ -229,7 +229,7 @@ function TxRow({
       )}
     >
       {/* Checkbox */}
-      <td className="w-10 py-3 pl-4 pr-2">
+      <td className="w-10 py-3 pr-2 pl-4">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -242,7 +242,7 @@ function TxRow({
       </td>
 
       {/* Date */}
-      <td className="whitespace-nowrap px-4 py-3 text-sm text-[#A8B4CC]">
+      <td className="px-4 py-3 text-sm whitespace-nowrap text-[#A8B4CC]">
         {formatTableDate(tx.date)}
       </td>
 
@@ -251,9 +251,9 @@ function TxRow({
         <div className="flex items-center gap-3">
           <PayeeAvatar payee={tx.payee} color={tx.payeeColor} />
           <div>
-            <p className="text-sm font-medium leading-tight text-[#E8EEF8]">{tx.payee}</p>
+            <p className="text-sm leading-tight font-medium text-[#E8EEF8]">{tx.payee}</p>
             {tx.memo && (
-              <p className="mt-0.5 whitespace-nowrap text-xs leading-tight text-[#5A6A85]">
+              <p className="mt-0.5 text-xs leading-tight whitespace-nowrap text-[#5A6A85]">
                 {tx.memo}
               </p>
             )}
@@ -287,7 +287,7 @@ function TxRow({
             );
           })()}
           <div>
-            <p className="whitespace-nowrap text-sm leading-tight text-[#A8B4CC]">
+            <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">
               {tx.accountInstitution ?? tx.accountName}
             </p>
             <p className="text-xs leading-tight text-[#5A6A85]">{tx.accountSubLabel}</p>
@@ -298,7 +298,7 @@ function TxRow({
       {/* Amount */}
       <td
         className={cn(
-          "whitespace-nowrap px-4 py-3 text-right text-sm font-semibold tabular-nums",
+          "px-4 py-3 text-right text-sm font-semibold whitespace-nowrap tabular-nums",
           amountColor,
         )}
       >
@@ -315,7 +315,7 @@ function TxRow({
       {/* Running Balance */}
       <td
         className={cn(
-          "whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums",
+          "px-4 py-3 text-right text-sm whitespace-nowrap tabular-nums",
           tx.runningBalance !== undefined && tx.runningBalance < 0
             ? "text-[#F87171]"
             : "text-[#A8B4CC]",
@@ -326,7 +326,7 @@ function TxRow({
 
       {/* Actions */}
       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-        <button className="ml-auto flex rounded-lg p-1.5 text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#E8EEF8] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
+        <button className="ml-auto flex rounded-lg p-1.5 text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#E8EEF8] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
           <MoreVertical size={13} />
         </button>
       </td>
@@ -408,10 +408,10 @@ function AccountFilter({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
+        <div className="absolute top-full left-0 z-20 mt-1 w-60 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
           {/* header */}
           <div className="flex items-center justify-between border-b border-[#1A2640] px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+            <span className="text-[11px] font-semibold tracking-wider text-[#3A4A60] uppercase">
               Accounts
             </span>
             {value.size > 0 && (
@@ -545,10 +545,10 @@ function EnvelopeFilter({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
+        <div className="absolute top-full left-0 z-20 mt-1 w-56 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
           {/* header */}
           <div className="flex items-center justify-between border-b border-[#1A2640] px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+            <span className="text-[11px] font-semibold tracking-wider text-[#3A4A60] uppercase">
               Envelopes
             </span>
             {value.size > 0 && (
@@ -694,9 +694,9 @@ function TypeFilter({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-48 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
+        <div className="absolute top-full left-0 z-20 mt-1 w-48 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
           <div className="flex items-center justify-between border-b border-[#1A2640] px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+            <span className="text-[11px] font-semibold tracking-wider text-[#3A4A60] uppercase">
               Type
             </span>
             {value.size > 0 && value.size < TX_TYPES.length && (
@@ -777,12 +777,12 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
     <div ref={ref} className="relative ml-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2640] px-3 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2640] px-3 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
       >
         {value} / page <ChevronDown size={10} />
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 z-20 mb-1 w-32 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
+        <div className="absolute right-0 bottom-full z-20 mb-1 w-32 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
           {PAGE_SIZES.map((n) => (
             <button
               key={n}
@@ -892,7 +892,7 @@ export function TransactionsView() {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#E8EEF8]">Transactions</h1>
-          <p className="mt-1 whitespace-nowrap text-sm text-[#5A6A85]">
+          <p className="mt-1 text-sm whitespace-nowrap text-[#5A6A85]">
             Review and manage all transactions in your budget. Your transactions update your
             accounts and envelopes.
             <br />
@@ -903,14 +903,14 @@ export function TransactionsView() {
 
         {/* Flowbite button group pattern */}
         <div className="mt-0.5 flex flex-shrink-0 items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-4 py-2.5 text-sm font-medium text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
+          <button className="inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-4 py-2.5 text-sm font-medium text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
             <Upload size={14} />
             Import
           </button>
 
           <button
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50"
+            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none"
           >
             <Plus size={14} />
             Add Transaction
@@ -930,7 +930,7 @@ export function TransactionsView() {
             <input
               type="search"
               placeholder="Search transactions..."
-              className="block w-56 rounded-lg border border-[#1A2640] bg-[#080D1A] py-2 pl-9 pr-3 text-sm text-[#A8B4CC] transition-colors placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25"
+              className="block w-56 rounded-lg border border-[#1A2640] bg-[#080D1A] py-2 pr-3 pl-9 text-sm text-[#A8B4CC] transition-colors placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/25 focus:outline-none"
             />
           </div>
 
@@ -956,11 +956,11 @@ export function TransactionsView() {
         <div className="border-b border-[#131E30] px-4 py-3">
           <div className="flex rounded-lg border border-[#1A2640] bg-[#080E1A]">
             {/* Total Inflow */}
-            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#22C55E]">
+            <div className="flex flex-1 flex-col px-5 pt-3 pb-0">
+              <p className="mb-1 text-xs font-semibold tracking-widest text-[#22C55E] uppercase">
                 Total Inflow
               </p>
-              <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">
+              <p className="text-2xl font-bold text-[#E8EEF8] tabular-nums">
                 {formatCurrency(totalInflow)}
               </p>
               <div className="-mx-1 mt-1 h-12">
@@ -990,11 +990,11 @@ export function TransactionsView() {
             <div className="my-3 w-px bg-[#1A2640]" />
 
             {/* Total Outflow */}
-            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#F97316]">
+            <div className="flex flex-1 flex-col px-5 pt-3 pb-0">
+              <p className="mb-1 text-xs font-semibold tracking-widest text-[#F97316] uppercase">
                 Total Outflow
               </p>
-              <p className="text-2xl font-bold tabular-nums text-[#F97316]">
+              <p className="text-2xl font-bold text-[#F97316] tabular-nums">
                 {formatCurrency(totalOutflow)}
               </p>
               <div className="-mx-1 mt-1 h-12">
@@ -1024,10 +1024,10 @@ export function TransactionsView() {
             <div className="my-3 w-px bg-[#1A2640]" />
 
             {/* Net Flow */}
-            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
+            <div className="flex flex-1 flex-col px-5 pt-3 pb-0">
               <p
                 className={cn(
-                  "mb-1 text-xs font-semibold uppercase tracking-widest",
+                  "mb-1 text-xs font-semibold tracking-widest uppercase",
                   netFlow >= 0 ? "text-[#22C55E]" : "text-[#F87171]",
                 )}
               >
@@ -1068,11 +1068,11 @@ export function TransactionsView() {
             <div className="my-3 w-px bg-[#1A2640]" />
 
             {/* Transactions */}
-            <div className="flex flex-1 flex-col px-5 pb-0 pt-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[#5A6A85]">
+            <div className="flex flex-1 flex-col px-5 pt-3 pb-0">
+              <p className="mb-1 text-xs font-semibold tracking-widest text-[#5A6A85] uppercase">
                 Transactions
               </p>
-              <p className="text-2xl font-bold tabular-nums text-[#E8EEF8]">{totalCount}</p>
+              <p className="text-2xl font-bold text-[#E8EEF8] tabular-nums">{totalCount}</p>
               <div className="-mx-1 mt-1 h-12">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -1092,9 +1092,9 @@ export function TransactionsView() {
         {/* Table — Flowbite: divide-y on tbody, text-xs uppercase headers */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#080E1A] text-xs uppercase text-[#5A6A85]">
+            <thead className="bg-[#080E1A] text-xs text-[#5A6A85] uppercase">
               <tr>
-                <th scope="col" className="w-10 py-3 pl-4 pr-2">
+                <th scope="col" className="w-10 py-3 pr-2 pl-4">
                   <button
                     onClick={toggleAll}
                     className="flex text-[#2A3A54] transition-colors hover:text-[#6C3AED] focus:outline-none"
@@ -1159,7 +1159,7 @@ export function TransactionsView() {
           </span>
 
           <div className="inline-flex items-center gap-1" aria-label="Pagination">
-            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
+            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
               ‹
             </button>
             {[1, 2, 3].map((n) => (
@@ -1167,7 +1167,7 @@ export function TransactionsView() {
                 key={n}
                 aria-current={n === 1 ? "page" : undefined}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30",
+                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
                   n === 1
                     ? "border border-[#6C3AED] bg-[#6C3AED] text-white"
                     : "border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
@@ -1176,7 +1176,7 @@ export function TransactionsView() {
                 {n}
               </button>
             ))}
-            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30">
+            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
               ›
             </button>
 

@@ -124,7 +124,7 @@ export function SpendingByEnvelopeReportPage() {
               <SlidersHorizontal size={13} />
               Filters
               {activeFilterCount > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#6C3AED] text-[10px] font-bold leading-none text-white">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#6C3AED] text-[10px] leading-none font-bold text-white">
                   {activeFilterCount}
                 </span>
               )}

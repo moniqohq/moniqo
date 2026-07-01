@@ -60,7 +60,7 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: (v: boole
       onClick={() => onChange(!checked)}
       className={cn(
         "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[4px] border-2 transition-all duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C3AED]",
+        "focus-visible:ring-2 focus-visible:ring-[#6C3AED] focus-visible:outline-none",
         "focus-visible:ring-offset-1 focus-visible:ring-offset-[#0D1520]",
         checked
           ? "border-[#6C3AED] bg-[#6C3AED]"
@@ -135,7 +135,7 @@ function FrequencyOption({
       <div className="min-w-0">
         <p
           className={cn(
-            "text-[13px] font-semibold leading-tight",
+            "text-[13px] leading-tight font-semibold",
             selected ? "text-white" : "text-[#A8B4CC]",
           )}
         >
@@ -217,12 +217,12 @@ export function EmailDigestModal({ open, onClose }: { open: boolean; onClose: ()
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full min-w-0 max-w-[calc(100%-2rem)] gap-0 overflow-hidden rounded-xl border-[#1E2B42] bg-[#0D1520] p-0 sm:max-w-[560px]"
+        className="w-full max-w-[calc(100%-2rem)] min-w-0 gap-0 overflow-hidden rounded-xl border-[#1E2B42] bg-[#0D1520] p-0 sm:max-w-[560px]"
       >
         {/* ── Header ─────────────────────────────────────────── */}
         <div className="flex items-start gap-4 border-b border-[#1E2B42] px-5 py-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[18px] font-semibold leading-tight text-white">Email digest</p>
+            <p className="text-[18px] leading-tight font-semibold text-white">Email digest</p>
             <p className="mt-1 text-[12px] leading-relaxed text-[#5A6A85]">
               Manage summary emails and how often you receive them.
             </p>
@@ -242,8 +242,8 @@ export function EmailDigestModal({ open, onClose }: { open: boolean; onClose: ()
         >
           {/* Digest frequency */}
           <div>
-            <p className="text-[14px] font-semibold leading-tight text-white">Digest frequency</p>
-            <p className="mb-3 mt-0.5 text-[12px] text-[#5A6A85]">
+            <p className="text-[14px] leading-tight font-semibold text-white">Digest frequency</p>
+            <p className="mt-0.5 mb-3 text-[12px] text-[#5A6A85]">
               Choose how often you want to receive email digests.
             </p>
             <div className="flex flex-col gap-2">
@@ -260,8 +260,8 @@ export function EmailDigestModal({ open, onClose }: { open: boolean; onClose: ()
 
           {/* Include in digest */}
           <div>
-            <p className="text-[14px] font-semibold leading-tight text-white">Include in digest</p>
-            <p className="mb-3 mt-0.5 text-[12px] text-[#5A6A85]">
+            <p className="text-[14px] leading-tight font-semibold text-white">Include in digest</p>
+            <p className="mt-0.5 mb-3 text-[12px] text-[#5A6A85]">
               Choose what you want to include in your email summaries.
             </p>
             <div className="flex flex-col">
@@ -286,7 +286,7 @@ export function EmailDigestModal({ open, onClose }: { open: boolean; onClose: ()
                       <Icon size={15} style={{ color: item.iconColor }} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                      <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                         {item.label}
                       </p>
                       <p className="mt-0.5 text-[11px] text-[#5A6A85]">{item.description}</p>
@@ -299,8 +299,8 @@ export function EmailDigestModal({ open, onClose }: { open: boolean; onClose: ()
 
           {/* Send time */}
           <div>
-            <p className="text-[14px] font-semibold leading-tight text-white">Send time</p>
-            <p className="mb-3 mt-0.5 text-[12px] text-[#5A6A85]">
+            <p className="text-[14px] leading-tight font-semibold text-white">Send time</p>
+            <p className="mt-0.5 mb-3 text-[12px] text-[#5A6A85]">
               When should we send your digest emails?
             </p>
             <div className="flex items-center gap-3">
@@ -324,7 +324,7 @@ export function EmailDigestModal({ open, onClose }: { open: boolean; onClose: ()
                     </option>
                   ))}
                 </select>
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5A6A85]">
+                <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[#5A6A85]">
                   <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
                     <path
                       d="M1 1L5 5L9 1"

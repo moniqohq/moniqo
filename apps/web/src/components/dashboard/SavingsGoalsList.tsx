@@ -52,7 +52,7 @@ export function SavingsGoalsList() {
                 <div className="mb-1.5 flex items-center justify-between gap-3">
                   <span className="truncate text-[14px] font-medium text-white">{goal.name}</span>
                   <div className="flex flex-shrink-0 items-center gap-3">
-                    <span className="text-[12px] tabular-nums text-[#5A6A85]">
+                    <span className="text-[12px] text-[#5A6A85] tabular-nums">
                       {fmtAmount(goal.currentAmount)} / {fmtAmount(goal.targetAmount)}
                     </span>
                     <span className="text-[12px] text-[#5A6A85]">{pct.toFixed(0)}%</span>

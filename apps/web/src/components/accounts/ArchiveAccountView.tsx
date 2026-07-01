@@ -264,7 +264,7 @@ function ArchiveConfirmationDialog({
             >
               {understood && <CheckCircle2 size={10} className="text-white" />}
             </div>
-            <span className="select-none text-[12px] leading-relaxed text-[#A8B4CC]">
+            <span className="text-[12px] leading-relaxed text-[#A8B4CC] select-none">
               I understand this account will become read-only.
             </span>
           </label>
@@ -334,12 +334,12 @@ function ArchiveSuccessDialog({
       >
         <button
           onClick={onReturn}
-          className="absolute right-4 top-4 z-10 flex h-7 w-7 items-center justify-center rounded-lg text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#A8B4CC]"
+          className="absolute top-4 right-4 z-10 flex h-7 w-7 items-center justify-center rounded-lg text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#A8B4CC]"
         >
           <X size={14} />
         </button>
 
-        <div className="flex flex-col items-center px-5 pb-4 pt-8 text-center">
+        <div className="flex flex-col items-center px-5 pt-8 pb-4 text-center">
           <div
             className="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
             style={{ background: "rgba(34,197,94,0.15)", border: "2px solid rgba(34,197,94,0.3)" }}
@@ -516,7 +516,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
         {/* ── Header ─────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[22px] font-bold leading-tight text-[#E8EEF8]">Archive Account</h1>
+            <h1 className="text-[22px] leading-tight font-bold text-[#E8EEF8]">Archive Account</h1>
             <p className="mt-1 text-[13px] text-[#5A6A85]">
               Close this account while preserving transaction history
             </p>
@@ -562,7 +562,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
               </p>
             </div>
           </div>
-          <p className="shrink-0 text-right text-[12px] font-semibold leading-snug text-[#F59E0B]">
+          <p className="shrink-0 text-right text-[12px] leading-snug font-semibold text-[#F59E0B]">
             Archived accounts cannot
             <br />
             receive new transactions.
@@ -602,7 +602,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
             {/* Stats */}
             <div className="flex flex-1 flex-wrap items-center gap-8">
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+                <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                   Current Balance
                 </p>
                 <p
@@ -615,14 +615,14 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                 </p>
               </div>
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+                <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                   Last Activity
                 </p>
                 <p className="mt-0.5 text-[14px] font-semibold text-[#E8EEF8]">{lastActivity}</p>
                 <p className="mt-0.5 text-[10px] text-[#5A6A85]">{lastActivityAgo}</p>
               </div>
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+                <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                   Transaction Count
                 </p>
                 <p className="mt-0.5 text-[16px] font-bold text-[#E8EEF8]">{txCount}</p>
@@ -679,7 +679,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                   { label: "Last Reconciled", value: lastReconciled, accent: false },
                 ].map((stat) => (
                   <div key={stat.label}>
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+                    <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                       {stat.label}
                     </p>
                     <p
@@ -815,7 +815,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                     >
                       {action.icon}
                     </div>
-                    <p className="whitespace-pre-line text-center text-[11px] font-medium leading-tight text-[#A8B4CC] transition-colors group-hover:text-[#E8EEF8]">
+                    <p className="text-center text-[11px] leading-tight font-medium whitespace-pre-line text-[#A8B4CC] transition-colors group-hover:text-[#E8EEF8]">
                       {action.label}
                     </p>
                   </button>
@@ -861,9 +861,9 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
         <div className="rounded-2xl border border-[#1E2B42] bg-[#0F1623] p-6">
           <h3 className="mb-6 text-base font-semibold text-white">Account Timeline</h3>
           <div className="relative">
-            <div className="absolute left-0 right-0 top-5 mx-8 h-px bg-[#1E2B42]" />
+            <div className="absolute top-5 right-0 left-0 mx-8 h-px bg-[#1E2B42]" />
             <div
-              className="absolute left-0 top-5 mx-8 h-px transition-all duration-700"
+              className="absolute top-5 left-0 mx-8 h-px transition-all duration-700"
               style={{
                 background: "linear-gradient(90deg, #22C55E 0%, #22C55E 60%, #6C3AED 100%)",
                 right: "25%",
@@ -882,7 +882,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                   >
                     {node.icon}
                   </div>
-                  <p className="mb-1 text-center text-xs font-medium leading-tight text-white">
+                  <p className="mb-1 text-center text-xs leading-tight font-medium text-white">
                     {node.label}
                   </p>
                   <p className="mb-0.5 text-center text-[11px] text-[#5A6A85]">{node.date}</p>

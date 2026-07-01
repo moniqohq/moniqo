@@ -97,7 +97,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
       <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {/* panel */}
-      <div className="fixed bottom-0 right-0 top-0 z-50 flex w-80 flex-col border-l border-[#1E2B42] bg-[#0A0E1A] shadow-2xl">
+      <div className="fixed top-0 right-0 bottom-0 z-50 flex w-80 flex-col border-l border-[#1E2B42] bg-[#0A0E1A] shadow-2xl">
         <div className="flex items-center justify-between border-b border-[#1E2B42] px-5 py-4">
           <div className="flex items-center gap-2">
             <SlidersHorizontal size={14} className="text-[#6C3AED]" />
@@ -114,7 +114,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
         <div className="flex-1 space-y-6 overflow-y-auto px-5 py-4">
           {/* Envelope */}
           <div>
-            <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+            <label className="mb-2 block text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
               Envelope
             </label>
             <MultiSelect
@@ -126,7 +126,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
 
           {/* Type */}
           <div>
-            <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+            <label className="mb-2 block text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
               Envelope Type
             </label>
             <MultiSelect
@@ -141,7 +141,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
 
           {/* Nature */}
           <div>
-            <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+            <label className="mb-2 block text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
               Envelope Nature
             </label>
             <MultiSelect
@@ -158,7 +158,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
 
           {/* Budget Status */}
           <div>
-            <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+            <label className="mb-2 block text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
               Budget Status
             </label>
             <MultiSelect
@@ -174,7 +174,7 @@ export function ReportFiltersDrawer({ open, onClose, filters, onChange, envelope
 
           {/* Amount Range */}
           <div>
-            <label className="mb-2 block text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+            <label className="mb-2 block text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
               Amount Range (Spent)
             </label>
             <div className="flex items-center gap-2">

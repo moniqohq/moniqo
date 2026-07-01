@@ -212,7 +212,7 @@ export function ForceDeleteAccountDialog({
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="DELETE"
-                  className="w-full rounded-lg border border-[#1A2540] bg-[#060C18] px-3 py-2 font-mono text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#EF4444] focus:outline-none focus:ring-2 focus:ring-[#EF4444]/30"
+                  className="w-full rounded-lg border border-[#1A2540] bg-[#060C18] px-3 py-2 font-mono text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#EF4444] focus:ring-2 focus:ring-[#EF4444]/30 focus:outline-none"
                 />
               </div>
 

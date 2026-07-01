@@ -149,7 +149,7 @@ function AccountGroup({
       >
         <span
           className={cn(
-            "text-[10px] font-bold uppercase tracking-widest transition-colors",
+            "text-[10px] font-bold tracking-widest uppercase transition-colors",
             archived ? "text-[#3A4A60]" : "text-[#5A6A85]",
           )}
         >
@@ -196,7 +196,7 @@ export function AccountNavPanel({ accounts, selectedId, onSelect }: Props) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120]">
-      <div className="border-b border-[#1A2540] px-4 pb-3 pt-4">
+      <div className="border-b border-[#1A2540] px-4 pt-4 pb-3">
         <h3 className="text-sm font-bold text-white">Accounts</h3>
         <p className="mt-0.5 text-xs text-[#5A6A85]">
           {accounts.length} {accounts.length === 1 ? "account" : "accounts"}

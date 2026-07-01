@@ -479,7 +479,7 @@ export default function SignupPage() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080C14] p-4 md:p-8 lg:p-10">
       {/* Ambient background glows */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute right-[8%] top-[-10%] h-[480px] w-[480px] rounded-full bg-[#6C3AED] opacity-[0.07] blur-[140px]" />
+        <div className="absolute top-[-10%] right-[8%] h-[480px] w-[480px] rounded-full bg-[#6C3AED] opacity-[0.07] blur-[140px]" />
         <div className="absolute bottom-[-5%] left-[5%] h-[380px] w-[380px] rounded-full bg-[#6C3AED] opacity-[0.06] blur-[120px]" />
         {Array.from({ length: 28 }).map((_, i) => (
           <div
@@ -514,8 +514,8 @@ export default function SignupPage() {
       >
         {/* ════════════════ LEFT PANEL ════════════════ */}
         <div className="relative flex flex-col overflow-hidden px-8 py-8 lg:w-[42%] lg:px-10 lg:py-10">
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-56 bg-gradient-to-t from-[#6C3AED]/10 to-transparent" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6C3AED] opacity-[0.04] blur-[80px]" />
+          <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-56 bg-gradient-to-t from-[#6C3AED]/10 to-transparent" />
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6C3AED] opacity-[0.04] blur-[80px]" />
 
           {/* Logo */}
           <motion.div
@@ -540,7 +540,7 @@ export default function SignupPage() {
           {/* Headline */}
           <motion.div custom={1} initial="hidden" animate="show" variants={fadeUp} className="mb-4">
             <h1
-              className="mb-3 font-black leading-[1.15]"
+              className="mb-3 leading-[1.15] font-black"
               style={{ fontSize: "clamp(1.9rem, 3.8vw, 2.6rem)" }}
             >
               <span className="text-white">Your money.</span>
@@ -615,7 +615,7 @@ export default function SignupPage() {
             <span className="text-sm text-[#5A6A85]">Already have an account?</span>
             <Link
               href="/login"
-              className="hover:bg-[#6C3AED]/12 rounded-xl px-5 py-2 text-sm font-semibold text-[#8B5CF6] transition-all duration-200 active:scale-[0.98]"
+              className="rounded-xl px-5 py-2 text-sm font-semibold text-[#8B5CF6] transition-all duration-200 hover:bg-[#6C3AED]/12 active:scale-[0.98]"
               style={{ border: "1px solid rgba(108, 58, 237, 0.55)" }}
             >
               Log in
@@ -648,12 +648,12 @@ export default function SignupPage() {
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-[#A8B4CC]">Full name</label>
               <div className="group relative">
-                <UserRound className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                <UserRound className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
                 <input
                   type="text"
                   placeholder="Enter your full name"
                   autoComplete="name"
-                  className="h-12 w-full rounded-xl pl-11 pr-4 text-sm text-[#E8EEF8] placeholder-[#5A6A85] outline-none transition-all duration-200"
+                  className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
                   style={inputBase}
                   onFocus={focusOn}
                   onBlur={focusOff}
@@ -665,12 +665,12 @@ export default function SignupPage() {
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-[#A8B4CC]">Email address</label>
               <div className="group relative">
-                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                <Mail className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
                 <input
                   type="email"
                   placeholder="Enter your email address"
                   autoComplete="email"
-                  className="h-12 w-full rounded-xl pl-11 pr-4 text-sm text-[#E8EEF8] placeholder-[#5A6A85] outline-none transition-all duration-200"
+                  className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
                   style={inputBase}
                   onFocus={focusOn}
                   onBlur={focusOff}
@@ -682,14 +682,14 @@ export default function SignupPage() {
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-[#A8B4CC]">Password</label>
               <div className="group relative">
-                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                <Lock className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Create a strong password"
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 w-full rounded-xl pl-11 pr-12 text-sm text-[#E8EEF8] placeholder-[#5A6A85] outline-none transition-all duration-200"
+                  className="h-12 w-full rounded-xl pr-12 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
                   style={inputBase}
                   onFocus={focusOn}
                   onBlur={focusOff}
@@ -697,7 +697,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 hover:text-[#A8B4CC]"
+                  className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 hover:text-[#A8B4CC]"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -722,12 +722,12 @@ export default function SignupPage() {
                   <ChevronDown className="h-3.5 w-3.5 text-[#5A6A85]" />
                 </button>
                 <div className="group relative flex-1">
-                  <Phone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                  <Phone className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
                   <input
                     type="tel"
                     placeholder="Enter your phone number"
                     autoComplete="tel"
-                    className="h-12 w-full rounded-xl pl-11 pr-4 text-sm text-[#E8EEF8] placeholder-[#5A6A85] outline-none transition-all duration-200"
+                    className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
                     style={inputBase}
                     onFocus={focusOn}
                     onBlur={focusOff}
@@ -786,7 +786,7 @@ export default function SignupPage() {
             {/* Create account button */}
             <button
               type="submit"
-              className="hover:opacity-92 mt-1 flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99]"
+              className="mt-1 flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:opacity-92 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99]"
               style={{
                 background: "linear-gradient(135deg, #7C4AFF 0%, #6333E8 100%)",
                 boxShadow: "0 4px 24px rgba(108,58,237,0.4)",

@@ -79,7 +79,7 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: b
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40",
+        "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none",
         checked
           ? "bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] shadow-[0_0_12px_rgba(108,58,237,0.5)]"
           : "bg-[#1A2540]",
@@ -144,7 +144,7 @@ function BalanceSummaryCard({
           <p className="mb-1.5 text-xs font-medium text-[#5A6A85]">Current Balance</p>
           <p
             className={cn(
-              "text-xl font-bold tabular-nums leading-tight",
+              "text-xl leading-tight font-bold tabular-nums",
               currentBalance >= 0 ? "text-white" : "text-[#F87171]",
             )}
           >
@@ -158,7 +158,7 @@ function BalanceSummaryCard({
           <p className="mb-1.5 text-xs font-medium text-[#5A6A85]">Cleared Balance</p>
           <p
             className={cn(
-              "text-xl font-bold tabular-nums leading-tight",
+              "text-xl leading-tight font-bold tabular-nums",
               clearedBalance >= 0 ? "text-white" : "text-[#F87171]",
             )}
           >
@@ -171,7 +171,7 @@ function BalanceSummaryCard({
         <div className="flex items-start justify-between px-5 py-4">
           <div>
             <p className="mb-1.5 text-xs font-medium text-[#5A6A85]">Last Reconciled</p>
-            <p className="text-xl font-bold leading-tight text-white">{lastReconciled}</p>
+            <p className="text-xl leading-tight font-bold text-white">{lastReconciled}</p>
           </div>
           <CalendarDays size={18} className="mt-1 flex-shrink-0 text-[#3D4E6A]" />
         </div>
@@ -204,7 +204,7 @@ function AccountSettingsRow({
         <RefreshCw size={18} strokeWidth={1.8} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold leading-tight text-white">
+        <p className="text-sm leading-tight font-semibold text-white">
           Enable reconciliation workflow
         </p>
         <p className="mt-0.5 text-xs text-[#7A8BA8]">
@@ -240,7 +240,7 @@ function ArchiveAccountCard({ onArchive }: { onArchive: () => void }) {
 
       {/* Text */}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold leading-tight text-white">Archive Account</p>
+        <p className="text-sm leading-tight font-semibold text-white">Archive Account</p>
         <p className="mt-0.5 text-xs leading-relaxed text-[#7A6A4A]">
           Archived accounts remain in reports and historical transactions but can no longer accept
           new transactions.
@@ -357,9 +357,9 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/40 to-transparent" />
 
               {/* ── Header ── */}
-              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pb-4 pt-6">
+              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pt-6 pb-4">
                 <div>
-                  <h2 className="text-[1.4rem] font-bold leading-tight text-white">
+                  <h2 className="text-[1.4rem] leading-tight font-bold text-white">
                     Modify Account
                   </h2>
                   <p className="mt-0.5 text-sm text-[#4A5A75]">
@@ -369,7 +369,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5 rounded-full border border-[#3A2A00] bg-[#1A1200] px-3 py-1.5">
                     <span className="h-1.5 w-1.5 flex-shrink-0 animate-pulse rounded-full bg-amber-400" />
-                    <span className="whitespace-nowrap text-xs font-medium text-amber-400">
+                    <span className="text-xs font-medium whitespace-nowrap text-amber-400">
                       Unsaved changes
                     </span>
                   </div>
@@ -398,7 +398,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                       <input
                         value={accountName}
                         onChange={(e) => setAccountName(e.target.value)}
-                        className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                        className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                       />
                     </div>
 
@@ -411,7 +411,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                         <button
                           type="button"
                           onClick={() => setTypeOpen((o) => !o)}
-                          className="flex w-full items-center gap-3 rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 transition-all hover:border-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                          className="flex w-full items-center gap-3 rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 transition-all hover:border-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                         >
                           <div
                             className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
@@ -432,7 +432,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                         </button>
 
                         {typeOpen && (
-                          <div className="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
+                          <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
                             {ACCOUNT_TYPES.map(({ type, label, icon: Icon }) => {
                               const meta = TYPE_META[type];
                               return (
@@ -486,7 +486,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                         <Timer size={18} strokeWidth={1.8} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold leading-tight text-white">
+                        <p className="text-sm leading-tight font-semibold text-white">
                           Include in budget
                         </p>
                         <p className="mt-0.5 text-xs text-[#7A8BA8]">
@@ -507,7 +507,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                         <Lock size={18} strokeWidth={1.8} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold leading-tight text-white">
+                        <p className="text-sm leading-tight font-semibold text-white">
                           Lock transactions (Prevent editing)
                         </p>
                         <p className="mt-0.5 text-xs text-[#7A8BA8]">
@@ -530,9 +530,9 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                       onChange={(e) => setNotes(e.target.value.slice(0, 300))}
                       placeholder="Optional notes about this account…"
                       rows={3}
-                      className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                      className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                     />
-                    <span className="absolute bottom-2.5 right-3.5 text-[10px] tabular-nums text-[#2A3A54]">
+                    <span className="absolute right-3.5 bottom-2.5 text-[10px] text-[#2A3A54] tabular-nums">
                       {notes.length} / 300
                     </span>
                   </div>
@@ -559,7 +559,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                   </button>
                   <button
                     onClick={handleSave}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:outline-none focus:ring-4 focus:ring-[#6C3AED]/30"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
                   >
                     Save Changes
                   </button>
