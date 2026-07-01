@@ -74,7 +74,7 @@ export function StatCard({
       className="flex flex-col gap-3 rounded-xl border border-[#1E2B42] bg-[#0F1623] p-5"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium uppercase tracking-wider text-[#5A6A85]">
+        <span className="text-[13px] font-medium tracking-wider text-[#5A6A85] uppercase">
           {label}
         </span>
         <div
@@ -86,7 +86,7 @@ export function StatCard({
       </div>
 
       <div>
-        <div className="text-[24px] font-semibold leading-none tracking-tight text-white">
+        <div className="text-[24px] leading-none font-semibold tracking-tight text-white">
           {formatCurrencyCompact(amount)}
         </div>
         <div

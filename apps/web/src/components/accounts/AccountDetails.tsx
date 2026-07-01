@@ -368,7 +368,7 @@ function MetaCard({
 }) {
   return (
     <div className="rounded-xl border border-[#1A2540] bg-[#0B1120] p-3">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+      <p className="mb-1 text-[10px] font-semibold tracking-wider text-[#5A6A85] uppercase">
         {label}
       </p>
       <div className="flex items-center justify-between gap-2">
@@ -624,7 +624,7 @@ export function AccountDetails({ accountId }: Props) {
             <div className="relative max-w-[220px] flex-1">
               <Search
                 size={13}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5A6A85]"
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]"
               />
               <input
                 value={search}
@@ -632,7 +632,7 @@ export function AccountDetails({ accountId }: Props) {
                   setSearch(e.target.value);
                 }}
                 placeholder="Search transactions…"
-                className="w-full rounded-lg border border-[#1A2540] bg-[#0D1525] py-1.5 pl-8 pr-3 text-xs text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                className="w-full rounded-lg border border-[#1A2540] bg-[#0D1525] py-1.5 pr-3 pl-8 text-xs text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
               />
             </div>
             <button className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-2.5 py-1.5 text-xs text-[#7A8BA8] transition-colors hover:text-white">
@@ -650,7 +650,7 @@ export function AccountDetails({ accountId }: Props) {
                 {["Date", "Payee", "Category", "Amount", "Status"].map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-[#5A6A85]"
+                    className="px-4 py-2.5 text-left text-[10px] font-bold tracking-wider text-[#5A6A85] uppercase"
                   >
                     {col}
                   </th>
@@ -672,7 +672,7 @@ export function AccountDetails({ accountId }: Props) {
                     animate={{ opacity: 1 }}
                     className="cursor-pointer transition-colors hover:bg-[#0D1525]"
                   >
-                    <td className="whitespace-nowrap px-4 py-3 text-[#8A9AB5]">
+                    <td className="px-4 py-3 whitespace-nowrap text-[#8A9AB5]">
                       {new Date(tx.date + "T00:00:00").toLocaleDateString("en-IN", {
                         day: "numeric",
                         month: "short",
@@ -708,7 +708,7 @@ export function AccountDetails({ accountId }: Props) {
                     </td>
                     <td
                       className={cn(
-                        "whitespace-nowrap px-4 py-3 font-bold tabular-nums",
+                        "px-4 py-3 font-bold whitespace-nowrap tabular-nums",
                         tx.amount >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
                       )}
                     >

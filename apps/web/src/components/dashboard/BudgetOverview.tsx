@@ -78,7 +78,7 @@ export function BudgetOverview() {
       </div>
 
       {/* CTA */}
-      <div className="px-4 pb-5 pt-4">
+      <div className="px-4 pt-4 pb-5">
         <button
           className="w-full rounded-xl py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-80"
           style={{ background: "rgba(108,58,237,0.55)", border: "1px solid rgba(108,58,237,0.3)" }}

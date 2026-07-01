@@ -122,20 +122,20 @@ function EnvelopeSearchSelect({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12 }}
-            className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-[#1A2540] bg-[#0D1B2E] shadow-xl"
+            className="absolute top-full right-0 left-0 z-50 mt-1 overflow-hidden rounded-xl border border-[#1A2540] bg-[#0D1B2E] shadow-xl"
           >
             <div className="border-b border-[#111B2D] p-2">
               <div className="relative">
                 <Search
                   size={12}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3A4A60]"
+                  className="absolute top-1/2 left-3 -translate-y-1/2 text-[#3A4A60]"
                 />
                 <input
                   autoFocus
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search..."
-                  className="w-full rounded-lg border border-[#1A2540] bg-[#060C18] py-2 pl-8 pr-3 text-xs text-white placeholder:text-[#2A3A54] focus:outline-none"
+                  className="w-full rounded-lg border border-[#1A2540] bg-[#060C18] py-2 pr-3 pl-8 text-xs text-white placeholder:text-[#2A3A54] focus:outline-none"
                 />
               </div>
             </div>
@@ -232,7 +232,7 @@ export function ArchiveEnvelopeModal({ open, onClose, envelopeId }: ArchiveEnvel
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/50 to-transparent" />
 
               {/* ── Header ─────────────────────────────────── */}
-              <div className="flex flex-shrink-0 items-center justify-between border-b border-[#111B2D] px-7 pb-5 pt-6">
+              <div className="flex flex-shrink-0 items-center justify-between border-b border-[#111B2D] px-7 pt-6 pb-5">
                 <div className="flex items-center gap-4">
                   <div
                     className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-2xl"
@@ -247,7 +247,7 @@ export function ArchiveEnvelopeModal({ open, onClose, envelopeId }: ArchiveEnvel
                     <Archive size={22} />
                   </div>
                   <div>
-                    <h2 className="text-[1.35rem] font-bold leading-tight text-white">
+                    <h2 className="text-[1.35rem] leading-tight font-bold text-white">
                       Archive Envelope
                     </h2>
                     <p className="mt-0.5 text-sm text-[#6B7A94]">
@@ -346,7 +346,7 @@ export function ArchiveEnvelopeModal({ open, onClose, envelopeId }: ArchiveEnvel
                       >
                         <p className="mb-1.5 text-[11px] text-[#5A6A85]">{m.label}</p>
                         <p
-                          className="text-[18px] font-bold tabular-nums leading-tight"
+                          className="text-[18px] leading-tight font-bold tabular-nums"
                           style={{ color: m.valueColor }}
                         >
                           {m.value}

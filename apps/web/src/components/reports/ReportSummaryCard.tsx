@@ -67,7 +67,7 @@ export function ReportSummaryCard({ budgeted, spent }: Props) {
           <div className="grid grid-cols-4 gap-6">
             {/* Total Budgeted */}
             <div>
-              <p className="mb-1 text-[11px] uppercase tracking-wider text-[#5A6A85]">
+              <p className="mb-1 text-[11px] tracking-wider text-[#5A6A85] uppercase">
                 Total Budgeted
               </p>
               <p className="text-[20px] font-semibold tracking-tight text-white">
@@ -77,7 +77,7 @@ export function ReportSummaryCard({ budgeted, spent }: Props) {
 
             {/* Total Spent */}
             <div>
-              <p className="mb-1 text-[11px] uppercase tracking-wider text-[#5A6A85]">
+              <p className="mb-1 text-[11px] tracking-wider text-[#5A6A85] uppercase">
                 Total Spent
               </p>
               <p className="text-[20px] font-semibold tracking-tight text-white">{fmtINR(spent)}</p>
@@ -85,7 +85,7 @@ export function ReportSummaryCard({ budgeted, spent }: Props) {
 
             {/* Remaining */}
             <div>
-              <p className="mb-1 text-[11px] uppercase tracking-wider text-[#5A6A85]">Remaining</p>
+              <p className="mb-1 text-[11px] tracking-wider text-[#5A6A85] uppercase">Remaining</p>
               <p className="text-[20px] font-semibold tracking-tight" style={{ color: "#22C55E" }}>
                 {fmtINR(remaining)}
               </p>
@@ -93,7 +93,7 @@ export function ReportSummaryCard({ budgeted, spent }: Props) {
 
             {/* % Used */}
             <div>
-              <p className="mb-1 text-[11px] uppercase tracking-wider text-[#5A6A85]">
+              <p className="mb-1 text-[11px] tracking-wider text-[#5A6A85] uppercase">
                 Percent of Budget Used
               </p>
               <p className="mb-2 text-[20px] font-semibold text-white">{pctUsed}%</p>

@@ -224,7 +224,7 @@ function RoleBadge({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[150px] overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1520] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+        <div className="absolute top-full left-0 z-50 mt-1 min-w-[150px] overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1520] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
           {ASSIGNABLE_ROLES.map((r) => {
             const rc = ROLE_CONFIG[r];
             const RIcon = rc.icon;
@@ -279,7 +279,7 @@ function ActionsMenu({ member, onRemove }: { member: Member; onRemove: () => voi
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 min-w-[184px] overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1520] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+        <div className="absolute top-full right-0 z-50 mt-1 min-w-[184px] overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1520] py-1 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
           <button
             onClick={() => setOpen(false)}
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12px] text-[#A8B4CC] transition-colors hover:bg-[#131C2E]"
@@ -333,7 +333,7 @@ function InviteMemberModal({ onClose }: { onClose: () => void }) {
               <Users size={15} className="text-[#FB923C]" />
             </div>
             <div>
-              <h3 className="text-[14px] font-semibold leading-tight text-white">Invite member</h3>
+              <h3 className="text-[14px] leading-tight font-semibold text-white">Invite member</h3>
               <p className="mt-0.5 text-[11px] text-[#5A6A85]">
                 Send an invitation to collaborate on this budget
               </p>
@@ -351,7 +351,7 @@ function InviteMemberModal({ onClose }: { onClose: () => void }) {
         <div className="flex flex-col gap-4 p-5">
           {/* Email */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+            <label className="text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
               Email address
             </label>
             <input
@@ -369,7 +369,7 @@ function InviteMemberModal({ onClose }: { onClose: () => void }) {
 
           {/* Role selector */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+            <label className="text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
               Role
             </label>
             <div className="flex gap-2">
@@ -461,8 +461,8 @@ function RoleSummaryCard({ role, count }: { role: Role; count: number }) {
         <Icon size={18} style={{ color: cfg.color }} />
       </div>
       <div>
-        <span className="text-[22px] font-bold leading-none text-white">{count}</span>
-        <p className="mt-0.5 text-[13px] font-semibold leading-tight text-white">{role}</p>
+        <span className="text-[22px] leading-none font-bold text-white">{count}</span>
+        <p className="mt-0.5 text-[13px] leading-tight font-semibold text-white">{role}</p>
         <p className="mt-0.5 text-[11px] text-[#5A6A85]">{cfg.description}</p>
       </div>
     </div>
@@ -476,7 +476,7 @@ function PermissionCard({ role }: { role: Role }) {
   const Icon = cfg.icon;
   return (
     <div
-      className="flex flex-col gap-3 rounded-xl border bg-[#0D1520] p-4 transition-all hover:border-opacity-60"
+      className="hover:border-opacity-60 flex flex-col gap-3 rounded-xl border bg-[#0D1520] p-4 transition-all"
       style={{ borderColor: cfg.border }}
     >
       <div className="flex items-center gap-2.5">
@@ -575,7 +575,7 @@ export function MembersPermissionsView() {
               {["MEMBER", "ROLE", "JOINED", "LAST ACTIVE", "ACCESS", ""].map((col, i) => (
                 <span
                   key={i}
-                  className="text-[10px] font-semibold uppercase tracking-widest text-[#3A4A60]"
+                  className="text-[10px] font-semibold tracking-widest text-[#3A4A60] uppercase"
                 >
                   {col}
                 </span>
@@ -607,7 +607,7 @@ export function MembersPermissionsView() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-[13px] font-medium leading-tight text-white">
+                        <p className="truncate text-[13px] leading-tight font-medium text-white">
                           {member.name}
                         </p>
                         {member.isCurrentUser && (

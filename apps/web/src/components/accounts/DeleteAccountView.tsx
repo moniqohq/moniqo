@@ -180,7 +180,7 @@ function RequirementCard({ check }: { check: DeletionCheck }) {
         ) : (
           <XCircle size={16} className="mt-0.5 shrink-0 text-[#EF4444]" />
         )}
-        <span className="text-[13px] font-semibold leading-tight text-[#E8EEF8]">
+        <span className="text-[13px] leading-tight font-semibold text-[#E8EEF8]">
           {check.label}
         </span>
       </div>
@@ -262,7 +262,7 @@ function TransactionTable({ transactions }: { transactions: typeof mockTransacti
           className="grid grid-cols-6 gap-4 border-b border-[#1E2B42]/50 px-4 py-3 transition-colors hover:bg-[#0F1623]/60"
         >
           <span className="text-[12px] text-[#A8B4CC]">{tx.date}</span>
-          <span className="text-[12px] capitalize text-[#A8B4CC]">{tx.type}</span>
+          <span className="text-[12px] text-[#A8B4CC] capitalize">{tx.type}</span>
           <span className="text-[12px] text-[#E8EEF8]">{tx.payee}</span>
           <span className="text-[12px] text-[#A8B4CC]">{tx.envelopeName ?? "—"}</span>
           <span
@@ -330,12 +330,12 @@ function RiskIndicator({ level }: { level: "Low" | "Medium" | "High" }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+      <span className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
         Risk Level
       </span>
       <div className="flex items-center gap-2">
         <div className="relative flex w-32 items-center gap-0">
-          <div className="absolute inset-y-1/2 left-0 right-0 h-[2px] -translate-y-1/2 bg-[#1E2B42]" />
+          <div className="absolute inset-y-1/2 right-0 left-0 h-[2px] -translate-y-1/2 bg-[#1E2B42]" />
           {stops.map((s, i) => (
             <div key={s} className="relative flex flex-1 flex-col items-center gap-1">
               <div
@@ -381,7 +381,7 @@ function TimelineNode({ step, isLast }: { step: TimelineStep; isLast: boolean })
   return (
     <div className="relative flex flex-1 flex-col items-center gap-3">
       {!isLast && (
-        <div className="absolute left-1/2 top-5 h-[2px] w-full" style={{ background: c.line }} />
+        <div className="absolute top-5 left-1/2 h-[2px] w-full" style={{ background: c.line }} />
       )}
       <div
         className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2"
@@ -482,7 +482,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
         {/* ── Header ─────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[22px] font-bold leading-tight text-[#E8EEF8]">Delete Account</h1>
+            <h1 className="text-[22px] leading-tight font-bold text-[#E8EEF8]">Delete Account</h1>
             <p className="mt-1 text-[13px] text-[#5A6A85]">
               Permanently remove an unused ledger account
             </p>
@@ -534,7 +534,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
               Accounts with activity should be archived instead.
             </p>
           </div>
-          <button className="shrink-0 whitespace-nowrap rounded-xl border border-[#2A3A54] bg-[#0F1623] px-4 py-2 text-[12px] font-semibold text-[#E8EEF8] transition-all hover:bg-[#1A2438]">
+          <button className="shrink-0 rounded-xl border border-[#2A3A54] bg-[#0F1623] px-4 py-2 text-[12px] font-semibold whitespace-nowrap text-[#E8EEF8] transition-all hover:bg-[#1A2438]">
             Archive Instead
           </button>
         </motion.div>
@@ -568,7 +568,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
           {/* Stats */}
           <div className="flex flex-1 flex-wrap items-center gap-8">
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+              <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                 Current Balance
               </p>
               <p
@@ -585,19 +585,19 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+              <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                 Transaction Count
               </p>
               <p className="mt-0.5 text-[16px] font-bold text-[#E8EEF8]">{txCount}</p>
             </div>
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+              <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                 Created Date
               </p>
               <p className="mt-0.5 text-[14px] font-semibold text-[#E8EEF8]">{createdDate}</p>
             </div>
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+              <p className="text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                 Last Activity
               </p>
               <p className="mt-0.5 text-[14px] font-semibold text-[#E8EEF8]">{lastActivity}</p>
@@ -610,7 +610,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
           {/* Eligibility + Risk */}
           <div className="flex flex-col gap-3">
             <div>
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[#5A6A85]">
+              <p className="mb-1.5 text-[10px] font-medium tracking-wide text-[#5A6A85] uppercase">
                 Delete Eligibility
               </p>
               <span

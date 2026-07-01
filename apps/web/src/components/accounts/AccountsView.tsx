@@ -105,7 +105,7 @@ function FilterDropdown({
         <Filter size={15} />
         Filter
         {activeCount > 0 && (
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#6C3AED] text-[10px] font-bold leading-none text-white">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#6C3AED] text-[10px] leading-none font-bold text-white">
             {activeCount}
           </span>
         )}
@@ -118,11 +118,11 @@ function FilterDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.97 }}
             transition={{ duration: 0.12 }}
-            className="absolute right-0 top-full z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0F1623] shadow-2xl"
+            className="absolute top-full right-0 z-50 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0F1623] shadow-2xl"
           >
             {/* Account Status section */}
-            <div className="px-3 pb-1 pt-3">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-[#3A4A60]">
+            <div className="px-3 pt-3 pb-1">
+              <p className="mb-1.5 text-[10px] font-bold tracking-widest text-[#3A4A60] uppercase">
                 Account Status
               </p>
               {STATUS_OPTIONS.map((opt) => (
@@ -148,8 +148,8 @@ function FilterDropdown({
             <div className="mx-3 my-2 h-px bg-[#1E2B42]" />
 
             {/* Account Type section */}
-            <div className="px-3 pb-3 pt-1">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-[#3A4A60]">
+            <div className="px-3 pt-1 pb-3">
+              <p className="mb-1.5 text-[10px] font-bold tracking-widest text-[#3A4A60] uppercase">
                 Account Type
               </p>
               {TYPE_OPTIONS.map((opt) => (
@@ -252,7 +252,7 @@ function SummaryCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="mb-1 text-xs font-medium text-[#5A6A85]">{label}</p>
-          <p className="truncate text-lg font-bold tabular-nums text-white">{value}</p>
+          <p className="truncate text-lg font-bold text-white tabular-nums">{value}</p>
           <div className="mt-1 flex items-center gap-1">
             {positive !== undefined &&
               (positive ? (
@@ -482,11 +482,11 @@ export function AccountsView() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5A6A85]" />
+            <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]" />
             <input
               type="text"
               placeholder="Search accounts…"
-              className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pl-8 pr-3 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
+              className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
           </div>
           <FilterDropdown
@@ -525,7 +525,7 @@ export function AccountsView() {
           <div className="mb-3 flex items-start justify-between">
             <div>
               <p className="mb-1 text-xs font-medium text-[#5A6A85]">Net Worth</p>
-              <p className="text-2xl font-bold tabular-nums text-white">
+              <p className="text-2xl font-bold text-white tabular-nums">
                 {formatCurrency(netWorth)}
               </p>
               <div className="mt-1 flex items-center gap-1">

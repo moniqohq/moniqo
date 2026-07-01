@@ -105,7 +105,7 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: b
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40",
+        "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none",
         checked
           ? "bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] shadow-[0_0_12px_rgba(108,58,237,0.5)]"
           : "bg-[#1E2B42]",
@@ -163,7 +163,7 @@ function AccountTypeCard({
       </div>
       <span
         className={cn(
-          "text-center text-[11px] font-medium leading-tight",
+          "text-center text-[11px] leading-tight font-medium",
           selected ? "text-[#C4B5FD]" : "text-[#5A6A85]",
         )}
       >
@@ -203,7 +203,7 @@ function ToggleSettingRow({
         <Icon size={16} strokeWidth={1.8} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold leading-tight text-white">{title}</p>
+        <p className="text-sm leading-tight font-semibold text-white">{title}</p>
         {description && (
           <p className="mt-0.5 text-xs leading-relaxed text-[#7A8BA8]">{description}</p>
         )}
@@ -312,7 +312,7 @@ function PreviewPanel({
       </div>
 
       {/* Identity */}
-      <div className="flex flex-col items-center gap-2 border-b border-white/[0.05] px-4 pb-4 pt-5">
+      <div className="flex flex-col items-center gap-2 border-b border-white/[0.05] px-4 pt-5 pb-4">
         <motion.div
           key={accountType}
           initial={{ scale: 0.85, opacity: 0 }}
@@ -345,7 +345,7 @@ function PreviewPanel({
       </div>
 
       {/* Info rows */}
-      <div className="space-y-3 px-4 pb-1 pt-3">
+      <div className="space-y-3 px-4 pt-3 pb-1">
         {/* Initial balance */}
         <div>
           <p className="mb-0.5 text-[11px] font-medium text-[#8A9BB5]">Initial balance</p>
@@ -400,7 +400,7 @@ function PreviewPanel({
 
       {/* Security notes */}
       <div
-        className="mx-3 mb-3 mt-3 space-y-2 rounded-xl px-3 py-2.5"
+        className="mx-3 mt-3 mb-3 space-y-2 rounded-xl px-3 py-2.5"
         style={{
           background: "rgba(255,255,255,0.03)",
           border: "1px solid rgba(255,255,255,0.06)",
@@ -509,9 +509,9 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/40 to-transparent" />
 
               {/* ── Header ── */}
-              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pb-4 pt-5">
+              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pt-5 pb-4">
                 <div>
-                  <h2 className="text-[1.35rem] font-bold leading-tight text-white">Add Account</h2>
+                  <h2 className="text-[1.35rem] leading-tight font-bold text-white">Add Account</h2>
                   <p className="mt-0.5 text-sm text-[#4A5A75]">
                     Create a financial account inside this budget
                   </p>
@@ -519,7 +519,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5 rounded-full border border-[#3A2A00] bg-[#1A1200] px-3 py-1.5">
                     <span className="h-1.5 w-1.5 flex-shrink-0 animate-pulse rounded-full bg-amber-400" />
-                    <span className="whitespace-nowrap text-xs font-medium text-amber-400">
+                    <span className="text-xs font-medium whitespace-nowrap text-amber-400">
                       Unsaved changes
                     </span>
                   </div>
@@ -538,7 +538,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                 {/* LEFT COLUMN */}
                 <div className="min-w-0 flex-1 space-y-4">
                   {/* Section label */}
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7A8BA8]">
+                  <p className="text-[10px] font-semibold tracking-[0.12em] text-[#7A8BA8] uppercase">
                     Account identity
                   </p>
 
@@ -551,7 +551,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                       {nameError && (
                         <AlertCircle
                           size={15}
-                          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#F87171]"
+                          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[#F87171]"
                         />
                       )}
                       <input
@@ -564,7 +564,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                         className={cn(
                           "w-full rounded-xl bg-[#0D1525] py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:outline-none",
                           nameError
-                            ? "border border-[#F87171]/60 pl-10 pr-3 ring-2 ring-[#F87171]/20"
+                            ? "border border-[#F87171]/60 pr-3 pl-10 ring-2 ring-[#F87171]/20"
                             : "border border-[#1E2B42] px-3 focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40",
                         )}
                       />
@@ -609,7 +609,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                         <TypeIcon size={14} strokeWidth={1.8} />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold leading-tight text-[#E8EEF8]">
+                        <p className="text-sm leading-tight font-semibold text-[#E8EEF8]">
                           {typeInfo.title}
                         </p>
                         <p className="mt-0.5 text-xs leading-relaxed text-[#5C6E8A]">
@@ -643,7 +643,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                           Initial balance
                         </label>
                         <div className="relative flex items-center rounded-xl border border-[#1A2540] bg-[#0B1120] transition-all focus-within:border-[#6C3AED] focus-within:ring-2 focus-within:ring-[#6C3AED]/40">
-                          <span className="flex-shrink-0 pl-3 pr-1 text-sm text-[#4A5A75]">₹</span>
+                          <span className="flex-shrink-0 pr-1 pl-3 text-sm text-[#4A5A75]">₹</span>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -652,7 +652,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                               setInitialBalance(e.target.value.replace(/[^0-9.]/g, ""))
                             }
                             placeholder="0.00"
-                            className="flex-1 bg-transparent py-2.5 pr-3 text-sm tabular-nums text-white placeholder:text-[#2A3A54] focus:outline-none"
+                            className="flex-1 bg-transparent py-2.5 pr-3 text-sm text-white tabular-nums placeholder:text-[#2A3A54] focus:outline-none"
                           />
                         </div>
                       </div>
@@ -724,9 +724,9 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                         onChange={(e) => setNotes(e.target.value.slice(0, 200))}
                         placeholder="Optional notes about this account…"
                         rows={3}
-                        className="w-full resize-none rounded-xl border border-[#252F42] bg-[#0D1525] px-3 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                        className="w-full resize-none rounded-xl border border-[#252F42] bg-[#0D1525] px-3 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                       />
-                      <span className="absolute bottom-2.5 right-3 text-[10px] tabular-nums text-[#2A3A54]">
+                      <span className="absolute right-3 bottom-2.5 text-[10px] text-[#2A3A54] tabular-nums">
                         {notes.length} / 200
                       </span>
                     </div>
@@ -767,7 +767,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                   </button>
                   <button
                     onClick={handleCreate}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:outline-none focus:ring-4 focus:ring-[#6C3AED]/30"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
                   >
                     <Plus size={15} />
                     Create Account

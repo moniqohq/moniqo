@@ -50,7 +50,7 @@
 @layer components {
   /* ── Buttons ─────────────────────────────────────── */
   .btn {
-    @apply inline-flex cursor-pointer select-none items-center justify-center gap-2 font-semibold transition-all duration-200;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 font-semibold transition-all duration-200 select-none;
     border-radius: 12px;
   }
 
@@ -137,7 +137,7 @@
   }
 
   .section-label {
-    @apply inline-block text-xs font-bold uppercase tracking-widest;
+    @apply inline-block text-xs font-bold tracking-widest uppercase;
     color: #a855f7;
     letter-spacing: 0.14em;
   }
@@ -179,16 +179,16 @@
     font-family: "Plus Jakarta Sans", sans-serif;
   }
   .prose h1 {
-    @apply mb-5 mt-8 text-4xl;
+    @apply mt-8 mb-5 text-4xl;
   }
   .prose h2 {
-    @apply mb-4 mt-10 text-3xl;
+    @apply mt-10 mb-4 text-3xl;
   }
   .prose h3 {
-    @apply mb-3 mt-8 text-2xl;
+    @apply mt-8 mb-3 text-2xl;
   }
   .prose h4 {
-    @apply mb-2 mt-6 text-xl;
+    @apply mt-6 mb-2 text-xl;
   }
   .prose p {
     @apply mb-5 leading-relaxed text-gray-300;
@@ -252,7 +252,7 @@
     @apply p-0;
   }
   .highlight table td:first-child {
-    @apply select-none border-r border-gray-800 pr-4 text-right text-gray-500;
+    @apply border-r border-gray-800 pr-4 text-right text-gray-500 select-none;
   }
   .highlight table td:last-child {
     @apply w-full pl-4;
@@ -301,7 +301,7 @@
     color: #a855f7;
   }
   .table-of-contents ul {
-    @apply ml-4 mt-2 list-none space-y-1.5;
+    @apply mt-2 ml-4 list-none space-y-1.5;
   }
 }
 

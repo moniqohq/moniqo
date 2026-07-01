@@ -115,7 +115,7 @@ function MonthGrid({ year, month, from, to, hovered, onSelect, onHover }: MonthP
               onMouseEnter={() => onHover(day)}
               onMouseLeave={() => onHover(null)}
               className={cn(
-                "relative h-8 rounded-lg text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-[#6C3AED]/50",
+                "relative h-8 rounded-lg text-xs transition-colors focus:ring-1 focus:ring-[#6C3AED]/50 focus:outline-none",
                 isEdge && "z-10 bg-[#6C3AED] font-semibold text-white",
                 isHovered && !isEdge && "bg-[#6C3AED]/30 text-white",
                 inRange && !isEdge && "rounded-none bg-[#6C3AED]/15 text-[#A8B4CC]",
@@ -215,7 +215,7 @@ export function DateRangePicker({ value, onChange, triggerClassName }: DateRange
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-1.5 whitespace-nowrap text-sm transition-all",
+          "inline-flex items-center gap-1.5 text-sm whitespace-nowrap transition-all",
           triggerClassName,
           open && "border-[#6C3AED]/60 text-[#A8B4CC]",
         )}
@@ -235,7 +235,7 @@ export function DateRangePicker({ value, onChange, triggerClassName }: DateRange
 
       {/* popover */}
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-2 rounded-xl border border-[#1A2640] bg-[#0D1B2E] p-4 shadow-2xl">
+        <div className="absolute top-full left-0 z-30 mt-2 rounded-xl border border-[#1A2640] bg-[#0D1B2E] p-4 shadow-2xl">
           {/* nav header */}
           <div className="mb-3 flex items-center justify-between">
             <button

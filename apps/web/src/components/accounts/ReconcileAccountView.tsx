@@ -347,7 +347,7 @@ function CircularProgress({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold leading-none text-white">{Math.round(value)}%</span>
+        <span className="text-lg leading-none font-bold text-white">{Math.round(value)}%</span>
         <span className="mt-0.5 text-[10px] text-[#5A6A85]">Complete</span>
       </div>
     </div>
@@ -393,7 +393,7 @@ function ReconciliationSuccessDialog({
           >
             <button
               onClick={onClose}
-              className="absolute right-4 top-4 text-[#5A6A85] transition-colors hover:text-white"
+              className="absolute top-4 right-4 text-[#5A6A85] transition-colors hover:text-white"
             >
               <X size={18} />
             </button>
@@ -518,9 +518,9 @@ function ReconciliationTimeline({ progress }: { progress: number }) {
     <div className="rounded-2xl border border-[#1E2B42] bg-[#0F1623] p-6">
       <h3 className="mb-6 text-base font-semibold text-white">Reconciliation Timeline</h3>
       <div className="relative">
-        <div className="absolute left-0 right-0 top-5 mx-8 h-px bg-[#1E2B42]" />
+        <div className="absolute top-5 right-0 left-0 mx-8 h-px bg-[#1E2B42]" />
         <div
-          className="absolute left-0 top-5 mx-8 h-px transition-all duration-700"
+          className="absolute top-5 left-0 mx-8 h-px transition-all duration-700"
           style={{
             background: "linear-gradient(90deg, #22C55E 0%, #22C55E 75%, #6C3AED 100%)",
             right: "20%",
@@ -540,7 +540,7 @@ function ReconciliationTimeline({ progress }: { progress: number }) {
               >
                 {node.icon}
               </div>
-              <p className="mb-1 text-center text-xs font-medium leading-tight text-white">
+              <p className="mb-1 text-center text-xs leading-tight font-medium text-white">
                 {node.title}
               </p>
               <p className="mb-0.5 text-center text-[11px] text-[#5A6A85]">{node.date}</p>
@@ -731,7 +731,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="whitespace-nowrap text-base font-bold text-white">
+                  <span className="text-base font-bold whitespace-nowrap text-white">
                     {account.institution
                       ? `${account.institution} ${account.name.replace(account.institution, "").trim()}`
                       : account.name}
@@ -816,7 +816,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-3 border-b border-[#1E2B42] px-4 py-3">
               {/* Search */}
-              <div className="flex h-9 min-w-[160px] max-w-xs flex-1 items-center gap-2 rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3">
+              <div className="flex h-9 max-w-xs min-w-[160px] flex-1 items-center gap-2 rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3">
                 <Search size={14} className="flex-shrink-0 text-[#5A6A85]" />
                 <input
                   value={search}
@@ -850,7 +850,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
-                      className="absolute left-0 top-full z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#131C2E] py-1 shadow-xl"
+                      className="absolute top-full left-0 z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#131C2E] py-1 shadow-xl"
                     >
                       {(
                         ["all", "cleared", "uncleared", "income", "expense", "transfer"] as const
@@ -915,7 +915,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
-                      className="absolute right-0 top-full z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#131C2E] py-1 shadow-xl"
+                      className="absolute top-full right-0 z-20 mt-1.5 w-44 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#131C2E] py-1 shadow-xl"
                     >
                       {[
                         { value: "date-newest", label: "Date (Newest)" },
@@ -961,7 +961,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                         className="h-4 w-4 cursor-pointer rounded border-[#2A3A54] bg-[#131C2E] accent-[#6C3AED]"
                       />
                     </th>
-                    <th className="whitespace-nowrap py-3 pr-4 text-left text-[11px] font-medium text-[#5A6A85]">
+                    <th className="py-3 pr-4 text-left text-[11px] font-medium whitespace-nowrap text-[#5A6A85]">
                       Date
                     </th>
                     <th className="py-3 pr-4 text-left text-[11px] font-medium text-[#5A6A85]">
@@ -1012,7 +1012,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                             )}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap py-3 pr-4 text-sm text-[#8899AA]">
+                        <td className="py-3 pr-4 text-sm whitespace-nowrap text-[#8899AA]">
                           {fmtDate(tx.date)}
                         </td>
                         <td className="py-3 pr-4">
@@ -1176,7 +1176,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                       type="date"
                       value={statementDate}
                       onChange={(e) => setStatementDate(e.target.value)}
-                      className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none [color-scheme:dark]"
+                      className="min-w-0 flex-1 bg-transparent text-sm text-white [color-scheme:dark] outline-none"
                     />
                     <Calendar size={14} className="flex-shrink-0 text-[#5A6A85]" />
                   </div>
@@ -1218,7 +1218,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                     <div key={item.label} className="flex items-center justify-between gap-2">
                       <span className="text-[11px] leading-tight text-[#5A6A85]">{item.label}</span>
                       <span
-                        className="whitespace-nowrap text-xs font-semibold"
+                        className="text-xs font-semibold whitespace-nowrap"
                         style={{ color: item.color }}
                       >
                         {item.value}

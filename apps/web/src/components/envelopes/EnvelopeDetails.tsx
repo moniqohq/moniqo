@@ -229,7 +229,7 @@ function NatureBadge({ nature }: { nature: Nature }) {
   const c = cfg[nature];
   return (
     <span
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium"
+      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
       style={{ backgroundColor: c.bg, color: c.text, borderColor: c.border }}
     >
       {c.icon} {nature}
@@ -249,7 +249,7 @@ function HealthBadge({ pct }: { pct: number }) {
   const text = pct > 100 ? "#F87171" : pct >= 80 ? "#FCD34D" : "#4ADE80";
   return (
     <span
-      className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium"
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
       style={{ backgroundColor: bg, color: text }}
     >
       {label}
@@ -309,8 +309,8 @@ function KpiCard({
           {icon}
         </div>
         <div className="min-w-0">
-          <p className="whitespace-nowrap text-xs text-[#5A6A85]">{label}</p>
-          <p className="mt-0.5 truncate text-xl font-bold tabular-nums leading-tight text-[#E8EEF8]">
+          <p className="text-xs whitespace-nowrap text-[#5A6A85]">{label}</p>
+          <p className="mt-0.5 truncate text-xl leading-tight font-bold text-[#E8EEF8] tabular-nums">
             {value}
           </p>
           <p className="mt-0.5 truncate text-xs" style={{ color: subColor ?? "#5A6A85" }}>
@@ -361,7 +361,7 @@ function AnalyticsCard({
         <div className="min-w-0">
           <p className="mb-0.5 text-[11px] text-[#5A6A85]">{label}</p>
           <p
-            className="text-lg font-bold tabular-nums leading-tight"
+            className="text-lg leading-tight font-bold tabular-nums"
             style={{ color: valueColor ?? "#E8EEF8" }}
           >
             {value}
@@ -391,7 +391,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-all",
+          "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm whitespace-nowrap transition-all",
           "border-[#1A2640] bg-[#0D1525] text-[#7A8BA8]",
           "hover:border-[#2A3A54] hover:text-[#C8D4E8]",
           open && "border-[#6C3AED]/50 text-[#A8B4CC]",
@@ -402,7 +402,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
         <ChevronDown size={11} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 w-48 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
+        <div className="absolute top-full right-0 z-20 mt-1 w-48 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
           {SORT_OPTIONS.map((opt) => (
             <button
               key={opt}
@@ -448,7 +448,7 @@ function MoreDropdown() {
         <ChevronDown size={11} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
+        <div className="absolute top-full right-0 z-30 mt-1 w-44 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
           {["Duplicate Envelope", "Export Data", "View History", "Reset Allocation"].map((item) => (
             <button
               key={item}
@@ -486,7 +486,7 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
         {value} / page <ChevronDown size={10} />
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 z-20 mb-1 w-32 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
+        <div className="absolute right-0 bottom-full z-20 mb-1 w-32 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
           {PAGE_SIZES.map((n) => (
             <button
               key={n}
@@ -563,7 +563,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
             <ShoppingCart size={28} />
           </div>
           <div>
-            <h1 className="text-[26px] font-bold leading-tight tracking-tight text-white">
+            <h1 className="text-[26px] leading-tight font-bold tracking-tight text-white">
               Groceries
             </h1>
             <p className="mt-0.5 text-[13px] text-[#5A6A85]">
@@ -583,7 +583,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         <div className="flex flex-shrink-0 items-center gap-2">
           <button
             onClick={() => setAddTxOpen(true)}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap text-white transition-all"
             style={{
               background: "linear-gradient(135deg, #6C3AED 0%, #7C4AFF 100%)",
               boxShadow: "0 0 20px rgba(108,58,237,0.35)",
@@ -594,7 +594,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           </button>
           <button
             onClick={() => setModifyOpen(true)}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-all"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
             style={{
               background: "linear-gradient(135deg, #854D0E 0%, #CA8A04 100%)",
               color: "#fff",
@@ -607,7 +607,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           </button>
           <button
             onClick={() => setArchiveOpen(true)}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-all"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
             style={{
               background: "linear-gradient(135deg, #92400E 0%, #C2651A 100%)",
               color: "#fff",
@@ -620,7 +620,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           </button>
           <button
             onClick={() => setForceDeleteOpen(true)}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-all"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
             style={{
               background: "linear-gradient(135deg, #7F1D1D 0%, #DC2626 100%)",
               color: "#fff",
@@ -714,7 +714,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
                 <ShoppingCart size={32} />
               </div>
               <div>
-                <h2 className="text-[20px] font-bold leading-tight text-white">Groceries</h2>
+                <h2 className="text-[20px] leading-tight font-bold text-white">Groceries</h2>
                 <p className="mt-1 text-[13px] leading-relaxed text-[#7A8BA8]">
                   Food and groceries for the household.
                 </p>
@@ -744,13 +744,13 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
             <div className="mb-5 grid grid-cols-3 gap-4">
               <div>
                 <p className="mb-1 text-[11px] text-[#5A6A85]">Allocated</p>
-                <p className="text-2xl font-bold tabular-nums text-white">
+                <p className="text-2xl font-bold text-white tabular-nums">
                   {formatCurrency(allocated)}
                 </p>
               </div>
               <div>
                 <p className="mb-1 text-[11px] text-[#5A6A85]">Spent</p>
-                <p className="text-2xl font-bold tabular-nums text-white">
+                <p className="text-2xl font-bold text-white tabular-nums">
                   {formatCurrency(spent)}
                 </p>
               </div>
@@ -860,7 +860,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
             <div className="relative">
               <Search
                 size={13}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#3A4A60]"
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#3A4A60]"
               />
               <input
                 value={search}
@@ -869,7 +869,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
                   setPage(1);
                 }}
                 placeholder="Search transactions..."
-                className="w-64 rounded-lg border border-[#1A2540] bg-[#0D1525] py-2 pl-8 pr-3 text-xs text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
+                className="w-64 rounded-lg border border-[#1A2540] bg-[#0D1525] py-2 pr-3 pl-8 text-xs text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
               />
             </div>
             <button className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-3 py-2 text-xs text-[#7A8BA8] transition-all hover:border-[#2A3A54] hover:text-white">
@@ -908,7 +908,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
                   <th
                     key={label}
                     className={cn(
-                      "px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-[#5A6A85]",
+                      "px-4 py-3 text-left text-[10px] font-bold tracking-wider text-[#5A6A85] uppercase",
                       cls,
                     )}
                   >
@@ -944,7 +944,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
                     className="group cursor-pointer transition-colors hover:bg-[#0D1828]"
                   >
                     {/* Date */}
-                    <td className="whitespace-nowrap px-4 py-3.5 text-[#8A9AB5]">{tx.date}</td>
+                    <td className="px-4 py-3.5 whitespace-nowrap text-[#8A9AB5]">{tx.date}</td>
 
                     {/* Title */}
                     <td className="px-4 py-3.5">
@@ -987,7 +987,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
 
                     {/* Amount */}
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-bold tabular-nums text-[#F87171]">
+                      <span className="font-bold text-[#F87171] tabular-nums">
                         {formatCurrency(tx.amount)}
                       </span>
                     </td>

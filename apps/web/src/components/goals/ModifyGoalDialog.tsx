@@ -229,7 +229,7 @@ function GoalProgressRing({
         )}
       </svg>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[28px] font-bold leading-none text-white">{Math.min(pct, 100)}%</span>
+        <span className="text-[28px] leading-none font-bold text-white">{Math.min(pct, 100)}%</span>
         <span className="mt-1 text-[11px] text-[#7A8BA8]">complete</span>
       </div>
     </div>
@@ -384,7 +384,7 @@ function DateInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "h-11 w-full appearance-none rounded-xl border bg-[#0D1525] pl-3 pr-10 text-sm text-white transition-all [color-scheme:dark] focus:outline-none",
+          "h-11 w-full appearance-none rounded-xl border bg-[#0D1525] pr-10 pl-3 text-sm text-white [color-scheme:dark] transition-all focus:outline-none",
           error
             ? "border-[#F87171]/60 ring-2 ring-[#F87171]/20"
             : "border-[#1E2B42] hover:border-[#3A4A62] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/30",
@@ -392,7 +392,7 @@ function DateInput({
       />
       <Calendar
         size={14}
-        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#3A4A62]"
+        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[#3A4A62]"
       />
     </div>
   );
@@ -456,18 +456,18 @@ function SuggestedSavingCard({ amount }: { amount: number }) {
         border: "1px solid rgba(108,58,237,0.3)",
       }}
     >
-      <div className="absolute right-10 top-3 h-2 w-2 rounded-full bg-white/20" />
-      <div className="absolute bottom-4 right-6 h-3 w-3 rounded-full bg-purple-400/30" />
-      <div className="absolute right-4 top-5 h-1.5 w-1.5 rounded-full bg-white/30" />
+      <div className="absolute top-3 right-10 h-2 w-2 rounded-full bg-white/20" />
+      <div className="absolute right-6 bottom-4 h-3 w-3 rounded-full bg-purple-400/30" />
+      <div className="absolute top-5 right-4 h-1.5 w-1.5 rounded-full bg-white/30" />
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-[#6C3AED]/30 bg-[rgba(108,58,237,0.2)]">
           <TrendingUp size={18} className="text-[#A855F7]" />
         </div>
         <div>
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-[#9B7EDC]">
+          <p className="mb-0.5 text-[10px] font-semibold tracking-widest text-[#9B7EDC] uppercase">
             Suggested Monthly Saving
           </p>
-          <p className="text-[17px] font-bold leading-tight text-white">
+          <p className="text-[17px] leading-tight font-bold text-white">
             Save ₹{fmt(amount)}{" "}
             <span className="text-[13px] font-normal text-[#9B7EDC]">
               / month to reach your target
@@ -486,7 +486,7 @@ function SuggestedSavingCard({ amount }: { amount: number }) {
 
 function HeroIllustration() {
   return (
-    <div className="pointer-events-none relative flex h-[130px] select-none items-center justify-center">
+    <div className="pointer-events-none relative flex h-[130px] items-center justify-center select-none">
       <div className="absolute inset-0 flex items-center justify-center">
         <div
           className="h-28 w-28 rounded-full opacity-30"
@@ -495,15 +495,15 @@ function HeroIllustration() {
           }}
         />
       </div>
-      <div className="absolute left-[42%] top-3 h-1.5 w-1.5 rounded-full bg-white/60" />
-      <div className="absolute right-[28%] top-6 h-1 w-1 rounded-full bg-purple-400/80" />
+      <div className="absolute top-3 left-[42%] h-1.5 w-1.5 rounded-full bg-white/60" />
+      <div className="absolute top-6 right-[28%] h-1 w-1 rounded-full bg-purple-400/80" />
       <div className="absolute bottom-4 left-[30%] h-1 w-1 rounded-full bg-purple-300/60" />
-      <div className="absolute left-[20%] top-10 h-2 w-2 rounded-full bg-white/20" />
+      <div className="absolute top-10 left-[20%] h-2 w-2 rounded-full bg-white/20" />
       <div className="absolute bottom-3 left-6 flex gap-1.5 opacity-40">
         <div className="h-5 w-10 rounded-full bg-[#1A2438]" />
         <div className="mt-1 h-4 w-7 rounded-full bg-[#1E2B42]" />
       </div>
-      <div className="absolute bottom-2 right-5 flex gap-1.5 opacity-30">
+      <div className="absolute right-5 bottom-2 flex gap-1.5 opacity-30">
         <div className="h-4 w-8 rounded-full bg-[#1A2438]" />
         <div className="mt-0.5 h-3 w-5 rounded-full bg-[#1E2B42]" />
       </div>
@@ -524,7 +524,7 @@ function HeroIllustration() {
             </div>
           </div>
           <div
-            className="absolute -right-1 -top-2 h-10 w-1 origin-bottom rounded-full"
+            className="absolute -top-2 -right-1 h-10 w-1 origin-bottom rounded-full"
             style={{
               background: "linear-gradient(to bottom, #F97316, #A855F7)",
               transform: "rotate(35deg)",
@@ -532,7 +532,7 @@ function HeroIllustration() {
             }}
           />
         </div>
-        <div className="absolute -bottom-1 -right-7 flex flex-col items-center gap-[2px]">
+        <div className="absolute -right-7 -bottom-1 flex flex-col items-center gap-[2px]">
           {[...Array(4)].map((_, i) => (
             <div
               key={i}
@@ -548,7 +548,7 @@ function HeroIllustration() {
         </div>
         <div className="absolute -bottom-1 -left-6 opacity-70">
           <div className="mx-auto h-6 w-1 rounded-full bg-[#22C55E]" />
-          <div className="-ml-1.5 -mt-2 h-3 w-4 rotate-[-20deg] rounded-full bg-[#16A34A]" />
+          <div className="-mt-2 -ml-1.5 h-3 w-4 rotate-[-20deg] rounded-full bg-[#16A34A]" />
           <div className="-mt-2 ml-1 h-3 w-4 rotate-[20deg] rounded-full bg-[#22C55E]" />
         </div>
       </div>
@@ -591,14 +591,14 @@ function GoalPreviewCard({
       <div className="border-b border-[#1A2438] px-4 py-3">
         <h4 className="text-[13px] font-semibold text-white">Goal Preview</h4>
       </div>
-      <div className="relative flex justify-center pb-2 pt-4">
-        <div className="absolute left-8 top-3 h-1.5 w-1.5 rounded-full bg-white/30" />
-        <div className="absolute right-10 top-6 h-1 w-1 rounded-full bg-purple-400/50" />
+      <div className="relative flex justify-center pt-4 pb-2">
+        <div className="absolute top-3 left-8 h-1.5 w-1.5 rounded-full bg-white/30" />
+        <div className="absolute top-6 right-10 h-1 w-1 rounded-full bg-purple-400/50" />
         <div className="absolute bottom-2 left-12 h-1 w-1 rounded-full bg-white/20" />
         <div className="relative">
           <GoalProgressRing pct={pct} size={140} color={colorHex} />
           <div
-            className="absolute bottom-[18px] right-[10px] flex h-9 w-9 items-center justify-center rounded-full text-lg"
+            className="absolute right-[10px] bottom-[18px] flex h-9 w-9 items-center justify-center rounded-full text-lg"
             style={{
               background: `${colorHex}22`,
               border: `2px solid ${colorHex}55`,
@@ -748,7 +748,7 @@ function ArchiveGoalDialog({
                     <AlertTriangle size={20} className="text-[#F59E0B]" />
                   </div>
                   <div>
-                    <h3 className="text-[17px] font-bold leading-tight text-white">Archive Goal</h3>
+                    <h3 className="text-[17px] leading-tight font-bold text-white">Archive Goal</h3>
                     <p className="mt-1.5 text-[13px] leading-relaxed text-[#5A6A85]">
                       Archived goals are hidden from active planning but their contribution history
                       remains available.
@@ -989,9 +989,9 @@ export function ModifyGoalDialog({
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/50 to-transparent" />
 
                 {/* ── Header ── */}
-                <div className="relative flex items-start justify-between border-b border-[#111B2D] px-7 pb-5 pt-6">
+                <div className="relative flex items-start justify-between border-b border-[#111B2D] px-7 pt-6 pb-5">
                   <div>
-                    <h2 className="text-[1.5rem] font-bold leading-tight text-white">
+                    <h2 className="text-[1.5rem] leading-tight font-bold text-white">
                       Modify Savings Goal
                     </h2>
                     <p className="mt-1 text-[14px] text-[#4A5A75]">
@@ -1011,7 +1011,7 @@ export function ModifyGoalDialog({
                 </div>
 
                 {/* ── Body ── */}
-                <div className="flex max-h-[calc(95vh-140px)] gap-5 overflow-y-auto px-7 pb-5 pt-5">
+                <div className="flex max-h-[calc(95vh-140px)] gap-5 overflow-y-auto px-7 pt-5 pb-5">
                   {/* LEFT COLUMN (65%) */}
                   <div className="min-w-0 flex-[65] space-y-4">
                     {/* ── SECTION 1: Goal Information ── */}
@@ -1058,9 +1058,9 @@ export function ModifyGoalDialog({
                               onChange={(e) => setDescription(e.target.value)}
                               placeholder="e.g. Saving for a trip to Japan in spring 2027"
                               rows={3}
-                              className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] hover:border-[#3A4A62] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
+                              className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] hover:border-[#3A4A62] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
                             />
-                            <span className="absolute bottom-2 right-3 text-[10px] text-[#3A4A62]">
+                            <span className="absolute right-3 bottom-2 text-[10px] text-[#3A4A62]">
                               {description.length} / 120
                             </span>
                           </div>
@@ -1315,7 +1315,7 @@ export function ModifyGoalDialog({
                       whileTap={{ scale: 0.98 }}
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex h-10 items-center gap-2 rounded-xl px-7 text-[13.5px] font-semibold text-white transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 disabled:cursor-not-allowed disabled:opacity-70"
+                      className="flex h-10 items-center gap-2 rounded-xl px-7 text-[13.5px] font-semibold text-white transition-all focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70"
                       style={{
                         background:
                           "linear-gradient(135deg, #5B21B6 0%, #6C3AED 50%, #7C3AED 100%)",

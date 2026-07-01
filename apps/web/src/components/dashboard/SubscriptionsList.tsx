@@ -58,7 +58,7 @@ export function SubscriptionsList() {
 
       {/* Total */}
       <div
-        className="mx-4 mb-4 mt-2 rounded-xl px-4 py-3 text-center"
+        className="mx-4 mt-2 mb-4 rounded-xl px-4 py-3 text-center"
         style={{ background: "rgba(30,43,66,0.6)" }}
       >
         <p className="text-[13px] font-semibold text-white">{formatCurrency(total)} / month</p>

@@ -61,19 +61,19 @@ export function EnvelopeSpendingTable({ envelopes }: Props) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-[#1E2B42]">
-              <th className="px-5 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-5 py-2.5 text-left text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
                 Envelope
               </th>
-              <th className="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-3 py-2.5 text-right text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
                 Budgeted
               </th>
-              <th className="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-3 py-2.5 text-right text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
                 Spent
               </th>
-              <th className="px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-3 py-2.5 text-right text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
                 Remaining
               </th>
-              <th className="px-5 py-2.5 text-right text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-5 py-2.5 text-right text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
                 % Used
               </th>
             </tr>
@@ -104,7 +104,7 @@ export function EnvelopeSpendingTable({ envelopes }: Props) {
                         {env.iconEmoji}
                       </div>
                       <div>
-                        <p className="text-[13px] font-medium leading-none text-[#E8EEF8]">
+                        <p className="text-[13px] leading-none font-medium text-[#E8EEF8]">
                           {env.name}
                         </p>
                         <div className="mt-1.5">

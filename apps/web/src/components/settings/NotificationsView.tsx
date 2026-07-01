@@ -45,7 +45,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
-        "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2",
+        "transition-colors duration-200 focus-visible:ring-2 focus-visible:outline-none",
         "focus-visible:ring-[#6C3AED] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F1623]",
         checked ? "bg-[#6C3AED]" : "bg-[#1E2B42]",
       )}
@@ -90,7 +90,7 @@ function NotifRow({
         <Icon size={14} style={{ color: iconColor }} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">{label}</p>
+        <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">{label}</p>
         <p className="mt-0.5 text-[11px] leading-relaxed text-[#5A6A85]">{description}</p>
       </div>
       <Toggle checked={checked} onChange={onChange} />
@@ -114,7 +114,7 @@ function SectionHeader({
   return (
     <div className="flex items-start justify-between gap-4 border-b border-[#1E2B42] pb-3">
       <div>
-        <p className="text-[14px] font-semibold leading-tight text-white">{label}</p>
+        <p className="text-[14px] leading-tight font-semibold text-white">{label}</p>
         <p className="mt-0.5 text-[12px] text-[#5A6A85]">{description}</p>
       </div>
       <div className="flex shrink-0 items-center gap-2.5">
@@ -159,7 +159,7 @@ function TabCard({
         <Icon size={16} style={{ color: iconColor }} />
       </div>
       <div className="min-w-0">
-        <p className="text-[13px] font-semibold leading-tight text-[#A8B4CC] transition-colors group-hover:text-white">
+        <p className="text-[13px] leading-tight font-semibold text-[#A8B4CC] transition-colors group-hover:text-white">
           {label}
         </p>
         <p className="mt-0.5 text-[11px] leading-tight text-[#5A6A85]">{description}</p>

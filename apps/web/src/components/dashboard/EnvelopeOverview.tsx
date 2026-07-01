@@ -29,7 +29,7 @@ export function EnvelopeOverview() {
 
   const renderGroup = (label: string, envelopes: typeof mockEnvelopes) => (
     <div>
-      <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-widest text-[#2A3A54]">
+      <div className="mb-2 px-1 text-[11px] font-semibold tracking-widest text-[#2A3A54] uppercase">
         {label}
       </div>
       <div className="space-y-1.5">

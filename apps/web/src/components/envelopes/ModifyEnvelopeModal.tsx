@@ -167,7 +167,7 @@ function NatureCard({
         <Icon size={13} strokeWidth={selected ? 2 : 1.8} />
       </div>
       <span
-        className="whitespace-nowrap text-sm font-medium transition-all duration-200"
+        className="text-sm font-medium whitespace-nowrap transition-all duration-200"
         style={{ color: option.iconColor, opacity: selected ? 1 : 0.6 }}
       >
         {option.label}
@@ -249,7 +249,7 @@ function AllocationInput({ value, onChange }: { value: string; onChange: (v: str
           inputMode="decimal"
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/[^0-9.,]/g, ""))}
-          className="min-w-0 flex-1 bg-transparent px-3.5 py-3.5 text-base font-bold tabular-nums text-white placeholder:text-[#4A5A75] focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent px-3.5 py-3.5 text-base font-bold text-white tabular-nums placeholder:text-[#4A5A75] focus:outline-none"
         />
 
         {/* Stepper */}
@@ -308,8 +308,8 @@ function EnvelopePreviewCard({
       }}
     >
       {/* Preview header */}
-      <div className="border-b border-[#111B2D] px-5 pb-4 pt-5 text-center">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-[#5A6A85]">
+      <div className="border-b border-[#111B2D] px-5 pt-5 pb-4 text-center">
+        <p className="mb-4 text-xs font-semibold tracking-wider text-[#5A6A85] uppercase">
           Envelope preview
         </p>
 
@@ -337,7 +337,7 @@ function EnvelopePreviewCard({
 
         {/* Envelope name */}
         <h3
-          className="mb-2 text-xl font-bold leading-tight text-white"
+          className="mb-2 text-xl leading-tight font-bold text-white"
           style={{ textShadow: "0 1px 8px rgba(108,58,237,0.15)" }}
         >
           {title || "Envelope"}
@@ -367,13 +367,13 @@ function EnvelopePreviewCard({
         {/* Allocated */}
         <div className="px-5 py-3.5">
           <p className="mb-0.5 text-xs text-[#5A6A85]">Allocated amount</p>
-          <p className="text-lg font-bold tabular-nums text-white">{fmtPreview(allocated)}</p>
+          <p className="text-lg font-bold text-white tabular-nums">{fmtPreview(allocated)}</p>
         </div>
 
         {/* Spent */}
         <div className="px-5 py-3.5">
           <p className="mb-0.5 text-xs text-[#5A6A85]">Spent amount</p>
-          <p className="text-lg font-bold tabular-nums text-white">{fmtPreview(spent)}</p>
+          <p className="text-lg font-bold text-white tabular-nums">{fmtPreview(spent)}</p>
         </div>
 
         {/* Remaining */}
@@ -557,9 +557,9 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/40 to-transparent" />
 
               {/* ── Header ── */}
-              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pb-4 pt-6">
+              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pt-6 pb-4">
                 <div>
-                  <h2 className="text-[1.4rem] font-bold leading-tight text-white">
+                  <h2 className="text-[1.4rem] leading-tight font-bold text-white">
                     Modify Envelope
                   </h2>
                   <p className="mt-0.5 text-sm text-[#4A5A75]">
@@ -569,7 +569,7 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5 rounded-full border border-[#3A2A00] bg-[#1A1200] px-3 py-1.5">
                     <span className="h-1.5 w-1.5 flex-shrink-0 animate-pulse rounded-full bg-amber-400" />
-                    <span className="whitespace-nowrap text-xs font-medium text-amber-400">
+                    <span className="text-xs font-medium whitespace-nowrap text-amber-400">
                       Unsaved changes
                     </span>
                   </div>
@@ -596,7 +596,7 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="e.g., Groceries"
-                      className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                      className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                     />
                     <p className="mt-1.5 text-xs text-[#7A8BA8]">
                       A clear name for this spending category.
@@ -648,9 +648,9 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
                         onChange={(e) => setDescription(e.target.value.slice(0, 140))}
                         placeholder="Optional notes about this envelope…"
                         rows={4}
-                        className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                        className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                       />
-                      <span className="pointer-events-none absolute bottom-3 right-3.5 text-[11px] tabular-nums text-[#5A6A85]">
+                      <span className="pointer-events-none absolute right-3.5 bottom-3 text-[11px] text-[#5A6A85] tabular-nums">
                         {description.length} / 140
                       </span>
                     </div>
@@ -690,7 +690,7 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
                   <button
                     type="button"
                     onClick={handleSave}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:outline-none focus:ring-4 focus:ring-[#6C3AED]/30"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
                   >
                     <Save size={14} />
                     Save Changes
