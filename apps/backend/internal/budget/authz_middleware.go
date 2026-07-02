@@ -54,20 +54,30 @@ type MembershipReader interface {
 //  5. Injects the resolved models.BudgetUser into the request context for
 //     downstream handlers.
 func RequireBudgetAccess(repo MembershipReader, action authz.Action, log *zap.Logger) echo.MiddlewareFunc {
+	return RequireBudgetAccessParam(repo, "id", action, log)
+}
+
+// RequireBudgetAccessParam is like RequireBudgetAccess but reads the budget ID
+// from the named path parameter instead of the default ":id". Use this for
+// routes where the budget ID is in a param other than ":id" (e.g. ":budget_id").
+func RequireBudgetAccessParam(repo MembershipReader, param string, action authz.Action, log *zap.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			return checkBudgetAccess(c, next, repo, action, log)
+			return checkBudgetAccessParam(c, next, repo, param, action, log)
 		}
 	}
 }
 
-func checkBudgetAccess(c echo.Context, next echo.HandlerFunc, repo MembershipReader, action authz.Action, log *zap.Logger) error {
+func checkBudgetAccessParam(
+	c echo.Context, next echo.HandlerFunc,
+	repo MembershipReader, param string, action authz.Action, log *zap.Logger,
+) error {
 	user, ok := auth.UserFromContext(c)
 	if !ok {
 		return httpx.Unauthorized(c, "not authenticated")
 	}
 
-	budgetID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	budgetID, err := strconv.ParseInt(c.Param(param), 10, 64)
 	if err != nil {
 		return httpx.NotFound(c, "budget not found")
 	}

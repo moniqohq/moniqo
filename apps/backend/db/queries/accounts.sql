@@ -1,0 +1,65 @@
+-- name: CreateAccount :one
+INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, notes)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at;
+
+-- name: GetAccountByID :one
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+FROM accounts
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: ListAccountsByBudget :many
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+FROM accounts
+WHERE budget_id = $1 AND deleted_at IS NULL
+ORDER BY lower(name) ASC;
+
+-- name: UpdateAccount :one
+UPDATE accounts
+SET name           = $3,
+    type           = $4,
+    requires_recon = $5,
+    is_on_budget   = $6,
+    notes          = $7,
+    updated_at     = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at;
+
+-- name: PatchAccount :one
+UPDATE accounts
+SET name           = COALESCE(sqlc.narg(name), name),
+    type           = COALESCE(sqlc.narg(type), type),
+    requires_recon = COALESCE(sqlc.narg(requires_recon), requires_recon),
+    is_on_budget   = COALESCE(sqlc.narg(is_on_budget), is_on_budget),
+    notes          = COALESCE(sqlc.narg(notes), notes),
+    updated_at     = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at;
+
+-- name: SoftDeleteAccount :exec
+UPDATE accounts
+SET deleted_at = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: HardDeleteAccount :exec
+DELETE FROM accounts
+WHERE id = $1 AND budget_id = $2;
+
+-- name: AccountExistsByName :one
+SELECT EXISTS (
+    SELECT 1
+    FROM accounts
+    WHERE budget_id  = $1
+      AND lower(name) = lower($2)
+      AND deleted_at IS NULL
+) AS exists;
+
+-- name: AccountExistsByNameExcluding :one
+SELECT EXISTS (
+    SELECT 1
+    FROM accounts
+    WHERE budget_id   = $1
+      AND lower(name)  = lower($2)
+      AND id           != $3
+      AND deleted_at   IS NULL
+) AS exists;

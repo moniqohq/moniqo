@@ -242,7 +242,7 @@ func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
 	profileFields := in.Name != nil || in.Username != nil || in.Email != nil || in.Picture != nil
 	passwordFields := in.CurrentPassword != nil || in.NewPassword != nil
 	if !profileFields && !passwordFields {
-		return []httpx.FieldError{{Field: "body", Error: "request body must contain at least one field"}}
+		return []httpx.FieldError{{Field: "body", Error: errEmptyBody}}
 	}
 	errs := validatePatchProfileFields(in)
 	return append(errs, validatePatchPasswordFields(in)...)

@@ -30,6 +30,8 @@ const (
 	minBudgetTitleLen = 3
 	maxBudgetTitleLen = 100
 	maxBudgetNotesLen = 500
+
+	errEmptyBody = "request body must contain at least one field"
 )
 
 func validateBudgetTitle(title string) *httpx.FieldError {
@@ -86,7 +88,7 @@ type PatchBudgetInput struct {
 // Returns an error if the body is empty (no fields provided).
 func ValidatePatchBudget(in PatchBudgetInput) []httpx.FieldError {
 	if in.Title == nil && in.Notes == nil {
-		return []httpx.FieldError{{Field: "body", Error: "request body must contain at least one field"}}
+		return []httpx.FieldError{{Field: "body", Error: errEmptyBody}}
 	}
 	var errs []httpx.FieldError
 	if in.Title != nil {
