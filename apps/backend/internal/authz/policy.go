@@ -52,12 +52,18 @@ const (
 	EnvelopeEdit
 	// EnvelopeDelete allows deleting envelopes (OWNER and ADMIN only).
 	EnvelopeDelete
+	// TransactionView allows reading transactions (any member).
+	TransactionView
+	// TransactionEdit allows creating, updating, and deleting transactions (EDITOR and above).
+	TransactionEdit
 )
 
 type rolePolicy = map[Action]bool
 
 // policyTable maps each (role, action) pair to an allow/deny decision.
 // Every cell must have an explicit entry — gaps are security bugs.
+//
+//nolint:funlen
 func policyTable() map[models.Role]rolePolicy {
 	return map[models.Role]rolePolicy{
 		models.RoleOwner: {
@@ -72,6 +78,8 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeView:      true,
 			EnvelopeEdit:      true,
 			EnvelopeDelete:    true,
+			TransactionView:   true,
+			TransactionEdit:   true,
 		},
 		models.RoleAdmin: {
 			BudgetView:        true,
@@ -85,6 +93,8 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeView:      true,
 			EnvelopeEdit:      true,
 			EnvelopeDelete:    true,
+			TransactionView:   true,
+			TransactionEdit:   true,
 		},
 		models.RoleEditor: {
 			BudgetView:        true,
@@ -98,6 +108,8 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeView:      true,
 			EnvelopeEdit:      true,
 			EnvelopeDelete:    false,
+			TransactionView:   true,
+			TransactionEdit:   true,
 		},
 		models.RoleViewer: {
 			BudgetView:        true,
@@ -111,6 +123,8 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeView:      true,
 			EnvelopeEdit:      false,
 			EnvelopeDelete:    false,
+			TransactionView:   true,
+			TransactionEdit:   false,
 		},
 	}
 }

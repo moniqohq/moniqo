@@ -63,9 +63,9 @@ func (a Amount) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes a JSON number (integer or decimal) into minor units.
 // For example, 10000.00 or 10000 both decode to Amount(1000000).
-// Returns an error if the value is negative or not a valid number.
+// Negative values are allowed (e.g. outflow transactions use negative amounts).
 //
-//nolint:revive
+//nolint:revive,cyclop
 func (a *Amount) UnmarshalJSON(b []byte) error {
 	s := strings.TrimSpace(string(b))
 
@@ -74,26 +74,27 @@ func (a *Amount) UnmarshalJSON(b []byte) error {
 		return errors.New("money: amount must be a JSON number, got string")
 	}
 
-	// Reject negative values upfront.
-	if strings.HasPrefix(s, "-") {
-		return errors.New("money: amount must be non-negative")
+	negative := strings.HasPrefix(s, "-")
+	if negative {
+		s = s[1:]
 	}
 
 	parts := strings.SplitN(s, ".", decimalPlaces)
+	var minor int64
 	switch len(parts) {
 	case 1:
 		// Integer input, e.g. "10000".
 		whole, err := strconv.ParseInt(parts[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("money: invalid amount %q: %w", s, err)
+			return fmt.Errorf("money: invalid amount: %w", err)
 		}
-		*a = Amount(whole * minorUnitFactor)
+		minor = whole * minorUnitFactor
 
 	case decimalPlaces:
 		// Decimal input, e.g. "10000.50" or "10000.5".
 		whole, err := strconv.ParseInt(parts[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("money: invalid amount %q: %w", s, err)
+			return fmt.Errorf("money: invalid amount: %w", err)
 		}
 
 		fracStr := parts[1]
@@ -109,18 +110,18 @@ func (a *Amount) UnmarshalJSON(b []byte) error {
 
 		frac, err := strconv.ParseInt(fracStr, 10, 64)
 		if err != nil {
-			return fmt.Errorf("money: invalid amount %q: %w", s, err)
+			return fmt.Errorf("money: invalid amount: %w", err)
 		}
 
-		*a = Amount(whole*minorUnitFactor + frac)
+		minor = whole*minorUnitFactor + frac
 
 	default:
 		return fmt.Errorf("money: invalid amount %q", s)
 	}
 
-	if int64(*a) < 0 {
-		return errors.New("money: amount must be non-negative")
+	if negative {
+		minor = -minor
 	}
-
+	*a = Amount(minor)
 	return nil
 }

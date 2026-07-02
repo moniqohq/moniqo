@@ -84,6 +84,15 @@ func TestCan(t *testing.T) {
 		{models.RoleViewer, authz.EnvelopeView, true},
 		{models.RoleViewer, authz.EnvelopeEdit, false},
 		{models.RoleViewer, authz.EnvelopeDelete, false},
+		// Transactions — View=all, Edit=EDITOR+
+		{models.RoleOwner, authz.TransactionView, true},
+		{models.RoleOwner, authz.TransactionEdit, true},
+		{models.RoleAdmin, authz.TransactionView, true},
+		{models.RoleAdmin, authz.TransactionEdit, true},
+		{models.RoleEditor, authz.TransactionView, true},
+		{models.RoleEditor, authz.TransactionEdit, true},
+		{models.RoleViewer, authz.TransactionView, true},
+		{models.RoleViewer, authz.TransactionEdit, false},
 		// Unknown role
 		{models.Role("SUPERADMIN"), authz.BudgetView, false},
 	}
@@ -121,6 +130,10 @@ func actionName(a authz.Action) string {
 		return "EnvelopeEdit"
 	case authz.EnvelopeDelete:
 		return "EnvelopeDelete"
+	case authz.TransactionView:
+		return "TransactionView"
+	case authz.TransactionEdit:
+		return "TransactionEdit"
 	default:
 		return "Unknown"
 	}

@@ -295,14 +295,18 @@ type RevokedAccessToken struct {
 }
 
 type Transaction struct {
-	ID         int64
-	BudgetID   int64
-	AccountID  int64
-	Amount     int64
-	Memo       *string
-	CreatedAt  pgtype.Timestamptz
-	DeletedAt  pgtype.Timestamptz
-	EnvelopeID *int64
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	Amount            int64
+	Memo              *string
+	CreatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+	EnvelopeID        *int64
+	Date              pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
 }
 
 type User struct {
