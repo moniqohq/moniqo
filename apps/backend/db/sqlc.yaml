@@ -8,6 +8,8 @@ sql:
       - "queries/password_reset.sql"
       - "queries/budgets.sql"
       - "queries/budget_users.sql"
+      - "queries/accounts.sql"
+      - "queries/transactions.sql"
     schema: "migrations"
     gen:
       go:

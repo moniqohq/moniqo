@@ -40,6 +40,12 @@ const (
 	ManageMembers
 	// TransferOwnership allows transferring the OWNER role to another member.
 	TransferOwnership
+	// AccountView allows reading accounts and their balances (any member).
+	AccountView
+	// AccountEdit allows creating and modifying accounts (EDITOR and above).
+	AccountEdit
+	// AccountDelete allows deleting accounts (OWNER and ADMIN only).
+	AccountDelete
 )
 
 type rolePolicy = map[Action]bool
@@ -54,6 +60,9 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetDelete:      true,
 			ManageMembers:     true,
 			TransferOwnership: true,
+			AccountView:       true,
+			AccountEdit:       true,
+			AccountDelete:     true,
 		},
 		models.RoleAdmin: {
 			BudgetView:        true,
@@ -61,6 +70,9 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetDelete:      false,
 			ManageMembers:     false,
 			TransferOwnership: false,
+			AccountView:       true,
+			AccountEdit:       true,
+			AccountDelete:     true,
 		},
 		models.RoleEditor: {
 			BudgetView:        true,
@@ -68,6 +80,9 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetDelete:      false,
 			ManageMembers:     false,
 			TransferOwnership: false,
+			AccountView:       true,
+			AccountEdit:       true,
+			AccountDelete:     false,
 		},
 		models.RoleViewer: {
 			BudgetView:        true,
@@ -75,6 +90,9 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetDelete:      false,
 			ManageMembers:     false,
 			TransferOwnership: false,
+			AccountView:       true,
+			AccountEdit:       false,
+			AccountDelete:     false,
 		},
 	}
 }

@@ -43,6 +43,7 @@ import (
 	echomw "github.com/labstack/echo/v4/middleware"
 
 	"github.com/moniqohq/moniqo/apps/backend/db/migrations"
+	"github.com/moniqohq/moniqo/apps/backend/internal/account"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/authz"
 	"github.com/moniqohq/moniqo/apps/backend/internal/budget"
@@ -286,6 +287,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
 
 	registerBudgetRoutes(e, pool, log)
+	registerAccountRoutes(e, pool, log)
 }
 
 func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
@@ -325,6 +327,29 @@ func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 		budget.RequireBudgetAccess(membershipRepo, authz.ManageMembers, log))
 	membersGroup.POST("/:id/transfer-ownership", membershipHandler.TransferOwnership,
 		budget.RequireBudgetAccess(membershipRepo, authz.TransferOwnership, log))
+}
+
+func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
+	membershipRepo := budget.NewMembershipRepo(pool, log)
+
+	accountRepo := account.NewRepo(pool, log)
+	accountSvc := account.NewSvc(accountRepo, log)
+	accountHandler := account.NewHandler(accountSvc, log)
+
+	// Account routes are nested under a budget; budget_id is the membership scope.
+	accountsGroup := e.Group("/api/v1/budgets/:budget_id/accounts")
+	accountsGroup.GET("", accountHandler.ListAccounts,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
+	accountsGroup.POST("", accountHandler.CreateAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
+	accountsGroup.GET("/:id", accountHandler.GetAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
+	accountsGroup.PUT("/:id", accountHandler.ReplaceAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
+	accountsGroup.PATCH("/:id", accountHandler.PatchAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
+	accountsGroup.DELETE("/:id", accountHandler.DeleteAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
 }
 
 func runMigrations(dsn string) error {
