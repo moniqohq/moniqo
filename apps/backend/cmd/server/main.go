@@ -50,6 +50,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
 	"github.com/moniqohq/moniqo/apps/backend/internal/email"
 	"github.com/moniqohq/moniqo/apps/backend/internal/email/providers"
+	"github.com/moniqohq/moniqo/apps/backend/internal/envelope"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
@@ -288,6 +289,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 
 	registerBudgetRoutes(e, pool, log)
 	registerAccountRoutes(e, pool, log)
+	registerEnvelopeRoutes(e, pool, log)
 }
 
 func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
@@ -350,6 +352,33 @@ func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
 	accountsGroup.DELETE("/:id", accountHandler.DeleteAccount,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
+}
+
+func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
+	membershipRepo := budget.NewMembershipRepo(pool, log)
+
+	envelopeRepo := envelope.NewRepo(pool, log)
+	envelopeSvc := envelope.NewSvc(envelopeRepo, log)
+	envelopeHandler := envelope.NewHandler(envelopeSvc, log)
+
+	// Envelope routes are nested under a budget; budget_id is the membership scope.
+	envelopesGroup := e.Group("/api/v1/budgets/:budget_id/envelopes")
+	envelopesGroup.GET("", envelopeHandler.ListEnvelopes,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeView, log))
+	envelopesGroup.POST("", envelopeHandler.CreateEnvelope,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeEdit, log))
+	envelopesGroup.GET("/:id", envelopeHandler.GetEnvelope,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeView, log))
+	envelopesGroup.PUT("/:id", envelopeHandler.ReplaceEnvelope,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeEdit, log))
+	envelopesGroup.PATCH("/:id", envelopeHandler.PatchEnvelope,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeEdit, log))
+	envelopesGroup.DELETE("/:id", envelopeHandler.DeleteEnvelope,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeView, log))
+
+	// Budget summary endpoint.
+	e.GET("/api/v1/budgets/:budget_id/summary", envelopeHandler.GetBudgetSummary,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.BudgetView, log))
 }
 
 func runMigrations(dsn string) error {

@@ -27,6 +27,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const accountHasTransactions = `-- name: AccountHasTransactions :one
@@ -62,14 +64,24 @@ type CreateTransactionParams struct {
 	Memo      *string
 }
 
-func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error) {
+type CreateTransactionRow struct {
+	ID        int64
+	BudgetID  int64
+	AccountID int64
+	Amount    int64
+	Memo      *string
+	CreatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionParams) (CreateTransactionRow, error) {
 	row := q.db.QueryRow(ctx, createTransaction,
 		arg.BudgetID,
 		arg.AccountID,
 		arg.Amount,
 		arg.Memo,
 	)
-	var i Transaction
+	var i CreateTransactionRow
 	err := row.Scan(
 		&i.ID,
 		&i.BudgetID,
@@ -80,6 +92,26 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const envelopeHasTransactions = `-- name: EnvelopeHasTransactions :one
+SELECT EXISTS (
+    SELECT 1
+    FROM transactions
+    WHERE envelope_id = $1 AND budget_id = $2 AND deleted_at IS NULL
+) AS exists
+`
+
+type EnvelopeHasTransactionsParams struct {
+	EnvelopeID *int64
+	BudgetID   int64
+}
+
+func (q *Queries) EnvelopeHasTransactions(ctx context.Context, arg EnvelopeHasTransactionsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, envelopeHasTransactions, arg.EnvelopeID, arg.BudgetID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const sumAccountBalance = `-- name: SumAccountBalance :one
@@ -98,4 +130,39 @@ func (q *Queries) SumAccountBalance(ctx context.Context, arg SumAccountBalancePa
 	var balance int64
 	err := row.Scan(&balance)
 	return balance, err
+}
+
+const sumEnvelopeSpent = `-- name: SumEnvelopeSpent :one
+SELECT COALESCE(SUM(amount), 0)::BIGINT AS spent
+FROM transactions
+WHERE envelope_id = $1 AND budget_id = $2 AND deleted_at IS NULL
+`
+
+type SumEnvelopeSpentParams struct {
+	EnvelopeID *int64
+	BudgetID   int64
+}
+
+func (q *Queries) SumEnvelopeSpent(ctx context.Context, arg SumEnvelopeSpentParams) (int64, error) {
+	row := q.db.QueryRow(ctx, sumEnvelopeSpent, arg.EnvelopeID, arg.BudgetID)
+	var spent int64
+	err := row.Scan(&spent)
+	return spent, err
+}
+
+const sumOnBudgetAccountBalances = `-- name: SumOnBudgetAccountBalances :one
+SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS total_balance
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id    = $1
+  AND a.is_on_budget = true
+  AND a.deleted_at   IS NULL
+  AND t.deleted_at   IS NULL
+`
+
+func (q *Queries) SumOnBudgetAccountBalances(ctx context.Context, budgetID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, sumOnBudgetAccountBalances, budgetID)
+	var total_balance int64
+	err := row.Scan(&total_balance)
+	return total_balance, err
 }

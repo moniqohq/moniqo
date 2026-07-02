@@ -46,6 +46,12 @@ const (
 	AccountEdit
 	// AccountDelete allows deleting accounts (OWNER and ADMIN only).
 	AccountDelete
+	// EnvelopeView allows reading envelopes and their balances (any member).
+	EnvelopeView
+	// EnvelopeEdit allows creating and modifying envelopes (EDITOR and above).
+	EnvelopeEdit
+	// EnvelopeDelete allows deleting envelopes (OWNER and ADMIN only).
+	EnvelopeDelete
 )
 
 type rolePolicy = map[Action]bool
@@ -63,6 +69,9 @@ func policyTable() map[models.Role]rolePolicy {
 			AccountView:       true,
 			AccountEdit:       true,
 			AccountDelete:     true,
+			EnvelopeView:      true,
+			EnvelopeEdit:      true,
+			EnvelopeDelete:    true,
 		},
 		models.RoleAdmin: {
 			BudgetView:        true,
@@ -73,6 +82,9 @@ func policyTable() map[models.Role]rolePolicy {
 			AccountView:       true,
 			AccountEdit:       true,
 			AccountDelete:     true,
+			EnvelopeView:      true,
+			EnvelopeEdit:      true,
+			EnvelopeDelete:    true,
 		},
 		models.RoleEditor: {
 			BudgetView:        true,
@@ -83,6 +95,9 @@ func policyTable() map[models.Role]rolePolicy {
 			AccountView:       true,
 			AccountEdit:       true,
 			AccountDelete:     false,
+			EnvelopeView:      true,
+			EnvelopeEdit:      true,
+			EnvelopeDelete:    false,
 		},
 		models.RoleViewer: {
 			BudgetView:        true,
@@ -93,6 +108,9 @@ func policyTable() map[models.Role]rolePolicy {
 			AccountView:       true,
 			AccountEdit:       false,
 			AccountDelete:     false,
+			EnvelopeView:      true,
+			EnvelopeEdit:      false,
+			EnvelopeDelete:    false,
 		},
 	}
 }

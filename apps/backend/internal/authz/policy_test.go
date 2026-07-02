@@ -61,6 +61,29 @@ func TestCan(t *testing.T) {
 		{models.RoleViewer, authz.BudgetDelete, false},
 		{models.RoleViewer, authz.ManageMembers, false},
 		{models.RoleViewer, authz.TransferOwnership, false},
+		// Accounts
+		{models.RoleOwner, authz.AccountView, true},
+		{models.RoleOwner, authz.AccountEdit, true},
+		{models.RoleOwner, authz.AccountDelete, true},
+		{models.RoleViewer, authz.AccountView, true},
+		{models.RoleViewer, authz.AccountEdit, false},
+		{models.RoleViewer, authz.AccountDelete, false},
+		{models.RoleEditor, authz.AccountEdit, true},
+		{models.RoleEditor, authz.AccountDelete, false},
+		{models.RoleAdmin, authz.AccountDelete, true},
+		// Envelopes — mirror Accounts
+		{models.RoleOwner, authz.EnvelopeView, true},
+		{models.RoleOwner, authz.EnvelopeEdit, true},
+		{models.RoleOwner, authz.EnvelopeDelete, true},
+		{models.RoleAdmin, authz.EnvelopeView, true},
+		{models.RoleAdmin, authz.EnvelopeEdit, true},
+		{models.RoleAdmin, authz.EnvelopeDelete, true},
+		{models.RoleEditor, authz.EnvelopeView, true},
+		{models.RoleEditor, authz.EnvelopeEdit, true},
+		{models.RoleEditor, authz.EnvelopeDelete, false},
+		{models.RoleViewer, authz.EnvelopeView, true},
+		{models.RoleViewer, authz.EnvelopeEdit, false},
+		{models.RoleViewer, authz.EnvelopeDelete, false},
 		// Unknown role
 		{models.Role("SUPERADMIN"), authz.BudgetView, false},
 	}
@@ -86,6 +109,18 @@ func actionName(a authz.Action) string {
 		return "ManageMembers"
 	case authz.TransferOwnership:
 		return "TransferOwnership"
+	case authz.AccountView:
+		return "AccountView"
+	case authz.AccountEdit:
+		return "AccountEdit"
+	case authz.AccountDelete:
+		return "AccountDelete"
+	case authz.EnvelopeView:
+		return "EnvelopeView"
+	case authz.EnvelopeEdit:
+		return "EnvelopeEdit"
+	case authz.EnvelopeDelete:
+		return "EnvelopeDelete"
 	default:
 		return "Unknown"
 	}

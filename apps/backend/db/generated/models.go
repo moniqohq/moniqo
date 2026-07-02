@@ -255,6 +255,17 @@ type EmailJob struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type Envelope struct {
+	ID           int64
+	BudgetID     int64
+	Title        string
+	AllocatedAmt int64
+	Description  *string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+}
+
 type PasswordResetToken struct {
 	ID        pgtype.UUID
 	UserID    int64
@@ -284,13 +295,14 @@ type RevokedAccessToken struct {
 }
 
 type Transaction struct {
-	ID        int64
-	BudgetID  int64
-	AccountID int64
-	Amount    int64
-	Memo      *string
-	CreatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID         int64
+	BudgetID   int64
+	AccountID  int64
+	Amount     int64
+	Memo       *string
+	CreatedAt  pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+	EnvelopeID *int64
 }
 
 type User struct {
