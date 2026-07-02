@@ -47,7 +47,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
-        "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2",
+        "transition-colors duration-200 focus-visible:ring-2 focus-visible:outline-none",
         "focus-visible:ring-[#6C3AED] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F1623]",
         checked ? "bg-[#6C3AED]" : "bg-[#1E2B42]",
       )}
@@ -75,7 +75,7 @@ function DataExportCard() {
           <Download size={16} className="text-[#34D399]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-tight text-white">Export your data</h3>
+          <h3 className="text-[14px] leading-tight font-semibold text-white">Export your data</h3>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">
             Download your financial data in CSV or JSON format.
           </p>
@@ -109,7 +109,7 @@ function DataImportCard() {
           <Upload size={16} className="text-[#60A5FA]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-tight text-white">Import data</h3>
+          <h3 className="text-[14px] leading-tight font-semibold text-white">Import data</h3>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">Import transactions from a CSV file.</p>
         </div>
         <button
@@ -144,7 +144,7 @@ function SyncSettingsCard() {
           <CloudSync size={16} className="text-[#C084FC]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-tight text-white">
+          <h3 className="text-[14px] leading-tight font-semibold text-white">
             Data synchronization
           </h3>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">
@@ -161,7 +161,7 @@ function SyncSettingsCard() {
       </div>
 
       {/* Sync details */}
-      <div className="flex items-start gap-8 border-t border-[#1A2640] px-5 pb-4 pt-3">
+      <div className="flex items-start gap-8 border-t border-[#1A2640] px-5 pt-3 pb-4">
         <div>
           <p className="text-[11px] leading-tight text-[#5A6A85]">Last synced</p>
           <p className="mt-0.5 text-[12px] text-[#A8B4CC]">May 24, 2025 at 3:15 PM</p>
@@ -193,7 +193,7 @@ function PrivacyModeCard() {
           <EyeOff size={16} className="text-[#FBBF24]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-tight text-white">Privacy mode</h3>
+          <h3 className="text-[14px] leading-tight font-semibold text-white">Privacy mode</h3>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">Hide sensitive amounts in the app.</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -221,7 +221,7 @@ function DeleteDataCard() {
           <Trash2 size={16} className="text-[#F87171]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-tight text-white">Delete my data</h3>
+          <h3 className="text-[14px] leading-tight font-semibold text-white">Delete my data</h3>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">
             Permanently delete all your data. This action cannot be undone.
           </p>
@@ -270,7 +270,7 @@ function PermissionToggleCard({
         <Icon size={14} style={{ color: iconColor }} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">{title}</p>
+        <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">{title}</p>
         <p className="mt-0.5 text-[11px] text-[#5A6A85]">{description}</p>
       </div>
       <Toggle checked={checked} onChange={onChange} />
@@ -296,7 +296,7 @@ function PermissionsCard() {
           <FileText size={16} className="text-[#A78BFA]" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-tight text-white">Data permissions</h3>
+          <h3 className="text-[14px] leading-tight font-semibold text-white">Data permissions</h3>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">Control how Moniqo uses your data.</p>
         </div>
         <ChevronRight size={14} className="shrink-0 text-[#3A4A60]" />

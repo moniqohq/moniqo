@@ -89,10 +89,10 @@ export function SpendingDistributionChart({ envelopes }: Props) {
             </ResponsiveContainer>
             {/* center label */}
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-[9px] uppercase leading-none tracking-wider text-[#5A6A85]">
+              <p className="text-[9px] leading-none tracking-wider text-[#5A6A85] uppercase">
                 Total Spent
               </p>
-              <p className="mt-0.5 text-[13px] font-bold leading-tight text-white">
+              <p className="mt-0.5 text-[13px] leading-tight font-bold text-white">
                 {fmtINR(totalSpent)}
               </p>
             </div>

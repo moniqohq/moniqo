@@ -95,7 +95,7 @@ export function Sidebar() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
-                className="text-[22px] font-semibold leading-none tracking-tight text-white"
+                className="text-[22px] leading-none font-semibold tracking-tight text-white"
               >
                 <div>Moniqo</div>
                 <div className="mt-0.5 text-[11px] font-normal tracking-wide text-[#5A6A85]">
@@ -119,7 +119,7 @@ export function Sidebar() {
           {/* Section title */}
           {!sidebarCollapsed && (
             <div className="mb-1 px-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7FA3]">
+              <span className="text-[10px] font-semibold tracking-widest text-[#6B7FA3] uppercase">
                 General
               </span>
             </div>
@@ -168,8 +168,8 @@ export function Sidebar() {
 
           {/* Extras section */}
           {!sidebarCollapsed && (
-            <div className="mb-1 mt-4 px-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#6B7FA3]">
+            <div className="mt-4 mb-1 px-2">
+              <span className="text-[10px] font-semibold tracking-widest text-[#6B7FA3] uppercase">
                 Extras
               </span>
             </div>

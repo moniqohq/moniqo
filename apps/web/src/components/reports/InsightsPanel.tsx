@@ -105,7 +105,7 @@ export function InsightsPanel({ envelopes }: Props) {
                 {ins.icon}
               </div>
               <div className="min-w-0">
-                <p className="text-[12px] font-semibold leading-snug text-[#E8EEF8]">{ins.title}</p>
+                <p className="text-[12px] leading-snug font-semibold text-[#E8EEF8]">{ins.title}</p>
                 <p className="mt-0.5 text-[11px] leading-relaxed text-[#5A6A85]">
                   {ins.description}
                 </p>

@@ -282,7 +282,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
               role="dialog"
               aria-modal="true"
               aria-label="Edit Transaction"
-              className="bg-[#080E1C]/98 relative my-auto w-full max-w-[1100px] rounded-2xl border border-[#1A2A40] shadow-[0_0_100px_rgba(108,58,237,0.22),0_40px_80px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+              className="relative my-auto w-full max-w-[1100px] rounded-2xl border border-[#1A2A40] bg-[#080E1C]/98 shadow-[0_0_100px_rgba(108,58,237,0.22),0_40px_80px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
               initial={{ opacity: 0, scale: 0.94, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 14 }}
@@ -305,7 +305,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                     {/* Amount */}
                     <div
                       className={cn(
-                        "mt-0.5 shrink-0 text-[2.6rem] font-bold tabular-nums leading-none",
+                        "mt-0.5 shrink-0 text-[2.6rem] leading-none font-bold tabular-nums",
                         amountDisplayColor,
                       )}
                     >
@@ -321,7 +321,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                         {tx.payee[0]}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-xl font-semibold leading-tight text-[#E8EEF8]">
+                        <p className="truncate text-xl leading-tight font-semibold text-[#E8EEF8]">
                           {tx.payee}
                         </p>
                         {tx.memo && (
@@ -349,7 +349,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                     <Calendar size={13} className="text-[#3A4A60]" />
                     <span>{formatInputDate(tx.date)}</span>
                   </div>
-                  <span className="select-none text-[#1E2B42]">|</span>
+                  <span className="text-[#1E2B42] select-none">|</span>
                   <span
                     className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
                     style={{ backgroundColor: typeMeta.bg, color: typeMeta.color }}
@@ -405,7 +405,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           <ChevronDown size={13} className="shrink-0 text-[#5A6A85]" />
                         </button>
                         {typeOpen && (
-                          <div className="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
+                          <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
                             {TX_TYPES.map((t) => (
                               <button
                                 key={t.value}
@@ -483,14 +483,14 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           </div>
                           <span className="flex-1 truncate text-left text-sm text-white">
                             {selectedAccount.institution ?? selectedAccount.name}
-                            <span className="ml-1 text-xs capitalize text-[#5A6A85]">
+                            <span className="ml-1 text-xs text-[#5A6A85] capitalize">
                               ({selectedAccount.type})
                             </span>
                           </span>
                           <ChevronDown size={13} className="shrink-0 text-[#5A6A85]" />
                         </button>
                         {accountOpen && (
-                          <div className="absolute left-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
+                          <div className="absolute top-full left-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
                             {mockAccounts.map((acc) => {
                               const meta = ACCOUNT_TYPE_META[acc.type];
                               return (
@@ -521,7 +521,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                     <p className="text-sm leading-tight text-white">
                                       {acc.institution ?? acc.name}
                                     </p>
-                                    <p className="text-xs capitalize text-[#5A6A85]">
+                                    <p className="text-xs text-[#5A6A85] capitalize">
                                       {acc.type} · {formatCurrency(acc.balance)}
                                     </p>
                                   </div>
@@ -567,7 +567,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                             <ChevronDown size={13} className="shrink-0 text-[#5A6A85]" />
                           </button>
                           {envOpen && (
-                            <div className="absolute left-0 top-full z-30 mt-1 max-h-56 w-64 overflow-y-auto rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
+                            <div className="absolute top-full left-0 z-30 mt-1 max-h-56 w-64 overflow-y-auto rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
                               {mockEnvelopes.map((env) => (
                                 <button
                                   key={env.id}
@@ -614,7 +614,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           value={amount}
                           onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                           placeholder="0.00"
-                          className="flex-1 bg-transparent text-base font-semibold tabular-nums text-white focus:outline-none"
+                          className="flex-1 bg-transparent text-base font-semibold text-white tabular-nums focus:outline-none"
                         />
                       </div>
                     </div>
@@ -650,7 +650,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           <ArrowRight size={13} className="shrink-0 text-[#2A3A54]" />
                         </button>
                         {transferOpen && (
-                          <div className="absolute left-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
+                          <div className="absolute top-full left-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -711,7 +711,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           rows={3}
                           className={cn(inputCls, "resize-none")}
                         />
-                        <span className="absolute bottom-2.5 right-3 text-[10px] tabular-nums text-[#2A3A54]">
+                        <span className="absolute right-3 bottom-2.5 text-[10px] text-[#2A3A54] tabular-nums">
                           {notes.length} / 200
                         </span>
                       </div>
@@ -796,7 +796,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                       <div>
                         <p
                           className={cn(
-                            "text-sm font-semibold leading-tight",
+                            "text-sm leading-tight font-semibold",
                             isOverspent ? "text-[#F87171]" : "text-[#4ADE80]",
                           )}
                         >
@@ -817,14 +817,14 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
               <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-[#111B2D] px-6 py-4">
                 <button
                   onClick={onClose}
-                  className="rounded-xl border border-[#1E2B42] bg-transparent px-6 py-2.5 text-sm font-medium text-[#A8B4CC] transition-all hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
+                  className="rounded-xl border border-[#1E2B42] bg-transparent px-6 py-2.5 text-sm font-medium text-[#A8B4CC] transition-all hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#6C3AED] to-[#8B5CF6] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#7C4AFF] hover:to-[#9C6FFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#6C3AED] to-[#8B5CF6] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#7C4AFF] hover:to-[#9C6FFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none disabled:opacity-50"
                 >
                   <Save size={14} />
                   {saving ? "Saving…" : "Save"}

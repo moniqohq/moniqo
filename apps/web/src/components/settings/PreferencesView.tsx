@@ -138,7 +138,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
-        "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2",
+        "transition-colors duration-200 focus-visible:ring-2 focus-visible:outline-none",
         "focus-visible:ring-[#6C3AED] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F1623]",
         checked ? "bg-[#6C3AED]" : "bg-[#1E2B42]",
       )}
@@ -169,7 +169,7 @@ function ToggleRow({
   return (
     <div className="flex items-start justify-between gap-4 border-b border-[#1A2640] py-3 last:border-0">
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">{label}</p>
+        <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">{label}</p>
         {description && (
           <p className="mt-0.5 text-[11px] leading-relaxed text-[#5A6A85]">{description}</p>
         )}
@@ -198,7 +198,7 @@ function PrefSelect({
     <div
       className={cn("flex w-full flex-col gap-1.5", disabled && "pointer-events-none opacity-50")}
     >
-      <Label className="text-[12px] font-medium uppercase tracking-wider text-[#5A6A85]">
+      <Label className="text-[12px] font-medium tracking-wider text-[#5A6A85] uppercase">
         {label}
       </Label>
       <Select value={value} onValueChange={(v) => v && onValueChange(v)} disabled={disabled}>
@@ -245,7 +245,7 @@ function SectionHeader({
         <Icon size={16} style={{ color: iconColor }} />
       </div>
       <div>
-        <p className="text-[14px] font-semibold leading-tight text-white">{title}</p>
+        <p className="text-[14px] leading-tight font-semibold text-white">{title}</p>
         <p className="mt-0.5 text-[11px] text-[#5A6A85]">{description}</p>
       </div>
     </div>
@@ -288,7 +288,7 @@ function ThemeCard({
       )}
     >
       {selected && (
-        <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#6C3AED]">
+        <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#6C3AED]">
           <Check size={9} className="text-white" />
         </span>
       )}
@@ -470,7 +470,7 @@ export function PreferencesView() {
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[rgba(108,58,237,0.15)]">
                   <SlidersHorizontal size={13} className="text-[#A78BFA]" />
                 </div>
-                <p className="text-[13px] font-semibold leading-tight text-white">
+                <p className="text-[13px] leading-tight font-semibold text-white">
                   Preferences sync across devices
                 </p>
               </div>
@@ -496,7 +496,7 @@ export function PreferencesView() {
                 {/* Default Budget inline field */}
                 <div className="flex items-start justify-between gap-4 border-b border-[#1A2640] py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                    <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                       Default Budget
                     </p>
                     <p className="mt-0.5 text-[11px] leading-relaxed text-[#5A6A85]">
@@ -599,7 +599,7 @@ export function PreferencesView() {
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                    <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                       Default transaction view
                     </p>
                     <p className="mt-0.5 text-[11px] text-[#5A6A85]">
@@ -633,7 +633,7 @@ export function PreferencesView() {
 
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                    <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                       Items per page
                     </p>
                     <p className="mt-0.5 text-[11px] text-[#5A6A85]">

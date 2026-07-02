@@ -191,7 +191,7 @@ function GoalCompletionHero({ icon }: { icon: string }) {
             "0 0 0 3px rgba(250,189,0,0.5), 0 0 40px rgba(108,58,237,0.7), 0 0 80px rgba(108,58,237,0.3)",
         }}
       >
-        <span className="select-none text-[64px]">{icon}</span>
+        <span className="text-[64px] select-none">{icon}</span>
       </motion.div>
 
       {/* Sparkle dots */}
@@ -344,7 +344,7 @@ function StatCard({
         {icon}
       </div>
       <p className="mb-1 text-[12px] font-medium text-[#7A8BA8]">{title}</p>
-      <p className="mb-1 text-[22px] font-bold leading-none" style={{ color: valueColor }}>
+      <p className="mb-1 text-[22px] leading-none font-bold" style={{ color: valueColor }}>
         {value}
       </p>
       <p className="text-[12px] text-[#5A6A85]">{description}</p>
@@ -414,7 +414,7 @@ function WhatsNextCard({ onCreateNewGoal }: { onCreateNewGoal?: () => void }) {
       className="flex items-center gap-4 rounded-2xl border border-[#1E2B42] px-5 py-4"
       style={{ background: "linear-gradient(135deg, #0F1730 0%, #0D1525 100%)" }}
     >
-      <span className="flex-shrink-0 select-none text-[36px]">🥳</span>
+      <span className="flex-shrink-0 text-[36px] select-none">🥳</span>
       <div className="min-w-0 flex-1">
         <p className="text-[16px] font-bold text-white">What&apos;s next?</p>
         <p className="mt-0.5 text-[13px] text-[#5A6A85]">
@@ -457,7 +457,7 @@ function GoalCompletionActions({
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
         onClick={onCelebrate}
-        className="h-13 relative flex-1 overflow-hidden rounded-xl py-3.5 text-[14.5px] font-bold text-white transition-all"
+        className="relative h-13 flex-1 overflow-hidden rounded-xl py-3.5 text-[14.5px] font-bold text-white transition-all"
         style={{
           background: "linear-gradient(135deg, #6C3AED 0%, #9B5CF6 40%, #EC4899 100%)",
           boxShadow: "0 8px 32px rgba(108,58,237,0.55), 0 0 0 1px rgba(255,255,255,0.1) inset",
@@ -545,7 +545,7 @@ export function GoalCompletionDialog({
 
               {/* Purple center glow */}
               <div
-                className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2"
+                className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2"
                 style={{
                   width: 500,
                   height: 300,
@@ -557,7 +557,7 @@ export function GoalCompletionDialog({
 
               {/* Pink glow - bottom-left */}
               <div
-                className="pointer-events-none absolute -left-20 bottom-32"
+                className="pointer-events-none absolute bottom-32 -left-20"
                 style={{
                   width: 300,
                   height: 300,
@@ -567,7 +567,7 @@ export function GoalCompletionDialog({
 
               {/* Gold glow - top right area */}
               <div
-                className="pointer-events-none absolute right-8 top-8"
+                className="pointer-events-none absolute top-8 right-8"
                 style={{
                   width: 200,
                   height: 200,
@@ -582,7 +582,7 @@ export function GoalCompletionDialog({
               <div className="relative z-20">
                 <button
                   onClick={onClose}
-                  className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-[#1E2B42] bg-[#111B2D] text-[#5A6A85] transition-all hover:border-[#2A3A55] hover:bg-[#1A2540] hover:text-white focus:outline-none"
+                  className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full border border-[#1E2B42] bg-[#111B2D] text-[#5A6A85] transition-all hover:border-[#2A3A55] hover:bg-[#1A2540] hover:text-white focus:outline-none"
                   aria-label="Close"
                 >
                   <X size={15} />
@@ -590,7 +590,7 @@ export function GoalCompletionDialog({
               </div>
 
               {/* ── Content ── */}
-              <div className="relative z-10 space-y-5 px-7 pb-7 pt-10">
+              <div className="relative z-10 space-y-5 px-7 pt-10 pb-7">
                 {/* Hero section */}
                 <div className="flex flex-col items-center gap-4">
                   <GoalCompletionHero icon={goal.icon} />
@@ -601,7 +601,7 @@ export function GoalCompletionDialog({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.9, duration: 0.4 }}
-                      className="text-[34px] font-bold leading-tight tracking-tight text-white"
+                      className="text-[34px] leading-tight font-bold tracking-tight text-white"
                     >
                       Congratulations, {userName}! 🎉
                     </motion.h1>

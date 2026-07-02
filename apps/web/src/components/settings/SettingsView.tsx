@@ -200,7 +200,7 @@ function NavItemButton({
       <div className="min-w-0 flex-1">
         <p
           className={cn(
-            "text-[13px] font-medium leading-tight",
+            "text-[13px] leading-tight font-medium",
             active ? "text-white" : "text-[#A8B4CC] transition-colors group-hover:text-white",
           )}
         >
@@ -234,7 +234,7 @@ function FormField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-[12px] font-medium uppercase tracking-wider text-[#5A6A85]">
+      <Label className="text-[12px] font-medium tracking-wider text-[#5A6A85] uppercase">
         {label}
       </Label>
       {children}
@@ -356,13 +356,13 @@ export function SettingsView() {
               <div className="relative">
                 <Search
                   size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#5A6A85]"
+                  className="absolute top-1/2 left-2.5 -translate-y-1/2 text-[#5A6A85]"
                 />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search settings..."
-                  className="h-8 w-full rounded-lg border border-[#1E2B42] bg-[#0D1520] pl-8 pr-3 text-[13px] text-[#A8B4CC] outline-none transition-all placeholder:text-[#3A4A60] focus:border-[#6C3AED] focus:ring-2 focus:ring-[rgba(108,58,237,0.2)]"
+                  className="h-8 w-full rounded-lg border border-[#1E2B42] bg-[#0D1520] pr-3 pl-8 text-[13px] text-[#A8B4CC] transition-all outline-none placeholder:text-[#3A4A60] focus:border-[#6C3AED] focus:ring-2 focus:ring-[rgba(108,58,237,0.2)]"
                 />
               </div>
             </div>
@@ -371,7 +371,7 @@ export function SettingsView() {
             <nav className="flex flex-1 flex-col gap-4 p-3">
               {filteredGroups.map((group) => (
                 <div key={group.label} className="flex flex-col gap-1">
-                  <p className="mb-0.5 px-1 text-[10px] font-semibold uppercase tracking-widest text-[#3A4A60]">
+                  <p className="mb-0.5 px-1 text-[10px] font-semibold tracking-widest text-[#3A4A60] uppercase">
                     {group.label}
                   </p>
                   {group.items.map((item) => (
@@ -398,7 +398,7 @@ export function SettingsView() {
                     )}
                   </div>
                   <div>
-                    <p className="text-[12px] font-semibold leading-tight text-[#A8B4CC]">
+                    <p className="text-[12px] leading-tight font-semibold text-[#A8B4CC]">
                       {activeNav === "members"
                         ? "Share with confidence"
                         : "Your data is safe with Moniqo"}
@@ -456,7 +456,7 @@ export function SettingsView() {
                         </div>
                       )}
                       <button
-                        className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border border-[#2A3A54] bg-[#1E2B42] transition-colors hover:bg-[#2A3A54]"
+                        className="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full border border-[#2A3A54] bg-[#1E2B42] transition-colors hover:bg-[#2A3A54]"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <Camera size={12} className="text-[#A8B4CC]" />
@@ -651,7 +651,7 @@ export function SettingsView() {
                           <Icon size={15} style={{ color: card.color }} />
                         </div>
                         <div>
-                          <p className="text-[13px] font-semibold leading-tight text-white">
+                          <p className="text-[13px] leading-tight font-semibold text-white">
                             {card.title}
                           </p>
                           <p className="mt-1 text-[11px] leading-relaxed text-[#5A6A85]">

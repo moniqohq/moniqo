@@ -298,7 +298,7 @@ function NatureBadge({ nature }: { nature: Nature }) {
   const c = cfg[nature];
   return (
     <span
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium"
+      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
       style={{ backgroundColor: c.bg, color: c.text, borderColor: c.border }}
     >
       {c.icon}
@@ -318,7 +318,7 @@ function StatusBadge({ status }: { status: Status }) {
   const c = cfg[status];
   return (
     <span
-      className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium"
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
       style={{ backgroundColor: c.bg, color: c.text }}
     >
       {status}
@@ -339,7 +339,7 @@ function EnvelopeProgress({ pct }: { pct: number }) {
           style={{ width: `${capped}%`, backgroundColor: color }}
         />
       </div>
-      <span className="w-9 text-right text-xs tabular-nums text-[#A8B4CC]">{Math.round(pct)}%</span>
+      <span className="w-9 text-right text-xs text-[#A8B4CC] tabular-nums">{Math.round(pct)}%</span>
     </div>
   );
 }
@@ -397,10 +397,10 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-all",
+          "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm whitespace-nowrap transition-all",
           "border-[#1A2640] bg-[#080D1A] text-[#7A8BA8]",
           "hover:border-[#2A3A54] hover:text-[#C8D4E8]",
-          "focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25",
+          "focus:ring-2 focus:ring-[#6C3AED]/25 focus:outline-none",
           open && "border-[#6C3AED]/60 text-[#A8B4CC]",
         )}
       >
@@ -409,7 +409,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
         <ChevronDown size={11} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-48 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
+        <div className="absolute top-full left-0 z-20 mt-1 w-48 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
           {SORT_OPTIONS.map((opt) => (
             <button
               key={opt}
@@ -477,10 +477,10 @@ function FilterDropdown({
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-all",
+          "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm whitespace-nowrap transition-all",
           "border-[#1A2640] bg-[#080D1A] text-[#7A8BA8]",
           "hover:border-[#2A3A54] hover:text-[#C8D4E8]",
-          "focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25",
+          "focus:ring-2 focus:ring-[#6C3AED]/25 focus:outline-none",
           open && "border-[#6C3AED]/60 text-[#A8B4CC]",
         )}
       >
@@ -495,9 +495,9 @@ function FilterDropdown({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
+        <div className="absolute top-full left-0 z-20 mt-1 w-56 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] shadow-lg">
           <div className="flex items-center justify-between border-b border-[#1A2640] px-3 py-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+            <span className="text-[11px] font-semibold tracking-wider text-[#3A4A60] uppercase">
               Filters
             </span>
             {total > 0 && (
@@ -513,8 +513,8 @@ function FilterDropdown({
             )}
           </div>
 
-          <div className="px-3 pb-1 pt-2">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+          <div className="px-3 pt-2 pb-1">
+            <p className="mb-1 text-[10px] font-semibold tracking-wider text-[#3A4A60] uppercase">
               Nature
             </p>
             {FILTER_NATURES.map((n) => {
@@ -554,8 +554,8 @@ function FilterDropdown({
             })}
           </div>
 
-          <div className="px-3 pb-2 pt-1">
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#3A4A60]">
+          <div className="px-3 pt-1 pb-2">
+            <p className="mb-1 text-[10px] font-semibold tracking-wider text-[#3A4A60] uppercase">
               Status
             </p>
             {FILTER_STATUSES.map((s) => {
@@ -619,12 +619,12 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
     <div ref={ref} className="relative ml-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2640] px-3 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2640] px-3 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
       >
         {value} / page <ChevronDown size={10} />
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 z-20 mb-1 w-32 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
+        <div className="absolute right-0 bottom-full z-20 mb-1 w-32 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-lg">
           {PAGE_SIZES.map((n) => (
             <button
               key={n}
@@ -680,8 +680,8 @@ function SummaryCard({
           {icon}
         </div>
         <div className="min-w-0">
-          <p className="whitespace-nowrap text-xs text-[#5A6A85]">{title}</p>
-          <p className="mt-0.5 truncate text-xl font-bold tabular-nums leading-tight text-[#E8EEF8]">
+          <p className="text-xs whitespace-nowrap text-[#5A6A85]">{title}</p>
+          <p className="mt-0.5 truncate text-xl leading-tight font-bold text-[#E8EEF8] tabular-nums">
             {amount}
           </p>
           <p className="mt-0.5 truncate text-xs" style={{ color: subColor ?? "#5A6A85" }}>
@@ -736,7 +736,7 @@ function HealthRadial({ score }: { score: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold tabular-nums text-[#E8EEF8]">{score}</span>
+          <span className="text-3xl font-bold text-[#E8EEF8] tabular-nums">{score}</span>
         </div>
       </div>
       <div>
@@ -922,7 +922,7 @@ export function EnvelopesView() {
                 setPage(1);
               }}
               placeholder="Search envelopes..."
-              className="block w-72 rounded-lg border border-[#1A2640] bg-[#080D1A] py-2 pl-9 pr-3 text-sm text-[#A8B4CC] transition-colors placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/25"
+              className="block w-72 rounded-lg border border-[#1A2640] bg-[#080D1A] py-2 pr-3 pl-9 text-sm text-[#A8B4CC] transition-colors placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/25 focus:outline-none"
             />
           </div>
 
@@ -969,7 +969,7 @@ export function EnvelopesView() {
 
           <button
             onClick={() => setAddOpen(true)}
-            className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/50"
+            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-4 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none"
           >
             <Plus size={14} />
             Add Envelope
@@ -1042,7 +1042,7 @@ export function EnvelopesView() {
             <div className="overflow-hidden rounded-xl border border-[#1A2640] bg-[#0B1220] shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-[#080E1A] text-xs uppercase text-[#5A6A85]">
+                  <thead className="bg-[#080E1A] text-xs text-[#5A6A85] uppercase">
                     <tr>
                       <th className="px-4 py-3 tracking-wider">Envelope</th>
                       <th className="px-4 py-3 tracking-wider">Nature</th>
@@ -1094,7 +1094,7 @@ export function EnvelopesView() {
                                   {icon.el}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium leading-tight text-[#E8EEF8]">
+                                  <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
                                     {env.name}
                                   </p>
                                   <p className="mt-0.5 text-xs leading-tight text-[#5A6A85]">
@@ -1110,19 +1110,19 @@ export function EnvelopesView() {
                             </td>
 
                             {/* Allocated */}
-                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-[#A8B4CC]">
+                            <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
                               {formatCurrency(env.allocated)}
                             </td>
 
                             {/* Spent */}
-                            <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-[#A8B4CC]">
+                            <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
                               {formatCurrency(env.spent)}
                             </td>
 
                             {/* Remaining */}
                             <td
                               className={cn(
-                                "whitespace-nowrap px-4 py-3 text-right text-sm font-semibold tabular-nums",
+                                "px-4 py-3 text-right text-sm font-semibold whitespace-nowrap tabular-nums",
                                 remainColor,
                               )}
                             >
@@ -1177,7 +1177,7 @@ export function EnvelopesView() {
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="rounded-lg border border-[#1A2640] p-1.5 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 disabled:cursor-not-allowed disabled:opacity-30"
+                    className="rounded-lg border border-[#1A2640] p-1.5 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     <ChevronLeft size={14} />
                   </button>
@@ -1186,7 +1186,7 @@ export function EnvelopesView() {
                       key={n}
                       onClick={() => setPage(n)}
                       className={cn(
-                        "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30",
+                        "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
                         n === page
                           ? "border border-[#6C3AED] bg-[#6C3AED] text-white"
                           : "border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
@@ -1198,7 +1198,7 @@ export function EnvelopesView() {
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages || totalPages === 0}
-                    className="rounded-lg border border-[#1A2640] p-1.5 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 disabled:cursor-not-allowed disabled:opacity-30"
+                    className="rounded-lg border border-[#1A2640] p-1.5 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     <ChevronRight size={14} />
                   </button>
@@ -1246,7 +1246,7 @@ export function EnvelopesView() {
                             {icon.el}
                           </div>
                           <div>
-                            <p className="text-sm font-medium leading-tight text-[#E8EEF8]">
+                            <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
                               {env.name}
                             </p>
                             <p className="text-[11px] leading-tight text-[#5A6A85]">
@@ -1274,18 +1274,18 @@ export function EnvelopesView() {
 
                       <div className="mt-3 flex items-center justify-between border-t border-[#1A2640] pt-3">
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-[#3A4A60]">
+                          <p className="text-[10px] tracking-wider text-[#3A4A60] uppercase">
                             Allocated
                           </p>
-                          <p className="text-xs font-medium tabular-nums text-[#A8B4CC]">
+                          <p className="text-xs font-medium text-[#A8B4CC] tabular-nums">
                             {formatCurrency(env.allocated)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] uppercase tracking-wider text-[#3A4A60]">
+                          <p className="text-[10px] tracking-wider text-[#3A4A60] uppercase">
                             Spent
                           </p>
-                          <p className="text-xs font-medium tabular-nums text-[#A8B4CC]">
+                          <p className="text-xs font-medium text-[#A8B4CC] tabular-nums">
                             {formatCurrency(env.spent)}
                           </p>
                         </div>
@@ -1330,7 +1330,7 @@ export function EnvelopesView() {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-[#A8B4CC]">{env.name}</p>
-                        <p className="text-[11px] font-semibold tabular-nums text-[#A78BFA]">
+                        <p className="text-[11px] font-semibold text-[#A78BFA] tabular-nums">
                           {formatCurrency(env.spent)} spent
                         </p>
                       </div>
@@ -1351,7 +1351,7 @@ export function EnvelopesView() {
           {/* Monthly Progress */}
           <SideCard title="Monthly Progress">
             <div className="mb-3 text-center">
-              <p className="text-4xl font-bold tabular-nums text-[#4ADE80]">
+              <p className="text-4xl font-bold text-[#4ADE80] tabular-nums">
                 {Math.round((totalSpent / totalAllocated) * 100)}%
               </p>
               <p className="mt-1 text-xs text-[#5A6A85]">of budget used</p>

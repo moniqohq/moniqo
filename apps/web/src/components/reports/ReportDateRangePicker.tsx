@@ -80,7 +80,7 @@ export function ReportDateRangePicker({ from, to, onChange }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1623] py-1.5 shadow-2xl">
+        <div className="absolute top-full right-0 z-40 mt-1.5 w-52 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1623] py-1.5 shadow-2xl">
           {presets.map((p) => {
             const active = p.from.getTime() === from.getTime() && p.to.getTime() === to.getTime();
             return (

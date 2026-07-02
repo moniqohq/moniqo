@@ -96,7 +96,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
-        "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2",
+        "transition-colors duration-200 focus-visible:ring-2 focus-visible:outline-none",
         "focus-visible:ring-[#6C3AED] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0D1520]",
         checked ? "bg-[#6C3AED]" : "bg-[#1E2B42]",
       )}
@@ -121,7 +121,7 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: (v: boole
       onClick={() => onChange(!checked)}
       className={cn(
         "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C3AED]",
+        "focus-visible:ring-2 focus-visible:ring-[#6C3AED] focus-visible:outline-none",
         "focus-visible:ring-offset-1 focus-visible:ring-offset-[#0F1623]",
         checked
           ? "border-[#6C3AED] bg-[#6C3AED]"
@@ -177,7 +177,7 @@ export function NotificationChannelsModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full min-w-0 max-w-[calc(100%-2rem)] gap-0 overflow-hidden rounded-xl border-[#1E2B42] bg-[#0D1520] p-0 sm:max-w-[780px]"
+        className="w-full max-w-[calc(100%-2rem)] min-w-0 gap-0 overflow-hidden rounded-xl border-[#1E2B42] bg-[#0D1520] p-0 sm:max-w-[780px]"
       >
         {/* ── Header ───────────────────────────────────────── */}
         <div className="flex items-center gap-4 border-b border-[#1E2B42] px-5 py-4">
@@ -185,7 +185,7 @@ export function NotificationChannelsModal({
             <Globe size={18} className="text-[#FB923C]" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[16px] font-semibold leading-tight text-white">Configure webhook</p>
+            <p className="text-[16px] leading-tight font-semibold text-white">Configure webhook</p>
             <p className="mt-0.5 text-[12px] text-[#5A6A85]">
               Manage your webhook endpoint and delivery settings.
             </p>
@@ -203,7 +203,7 @@ export function NotificationChannelsModal({
           {/* Enable toggle */}
           <div className="flex items-start justify-between gap-4 border-b border-[#1E2B42] pb-4">
             <div>
-              <p className="text-[13px] font-semibold leading-tight text-white">Enable webhooks</p>
+              <p className="text-[13px] leading-tight font-semibold text-white">Enable webhooks</p>
               <p className="mt-1 max-w-sm text-[12px] leading-relaxed text-[#5A6A85]">
                 Send real-time event notifications to your webhook endpoints.
               </p>
@@ -241,7 +241,7 @@ export function NotificationChannelsModal({
                 <span className="text-[10px] font-bold tracking-wide text-[#A78BFA]">WH</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium leading-tight text-white">
+                <p className="text-[13px] leading-tight font-medium text-white">
                   Moniqo Integration
                 </p>
                 <p className="mt-0.5 truncate text-[11px] text-[#5A6A85]">
@@ -286,7 +286,7 @@ export function NotificationChannelsModal({
 
             <div className="mt-3 flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-[#1E2B42] bg-[#0F1623] px-3.5 py-2.5">
-                <span className="select-none truncate text-[15px] tracking-[0.15em] text-[#A8B4CC]">
+                <span className="truncate text-[15px] tracking-[0.15em] text-[#A8B4CC] select-none">
                   {showSecret ? MOCK_SECRET : "••••••••••••••••••••••••••••••"}
                 </span>
                 <div className="flex shrink-0 items-center gap-1.5">
@@ -343,7 +343,7 @@ export function NotificationChannelsModal({
                       <Icon size={14} style={{ color: group.iconColor }} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                      <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                         {group.label}
                       </p>
                       <p className="mt-0.5 text-[11px] text-[#5A6A85]">{group.description}</p>

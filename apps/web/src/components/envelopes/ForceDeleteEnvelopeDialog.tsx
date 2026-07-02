@@ -152,13 +152,13 @@ export function ForceDeleteEnvelopeDialog({
                 disabled={loading}
                 onClick={() => onOpenChange(false)}
                 aria-label="Close dialog"
-                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-[#5A6A85] transition-colors hover:bg-white/5 hover:text-[#E8EEF8] disabled:cursor-not-allowed disabled:opacity-40"
+                className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full text-[#5A6A85] transition-colors hover:bg-white/5 hover:text-[#E8EEF8] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <X size={16} />
               </button>
 
               {/* Content */}
-              <div className="flex flex-col gap-5 px-7 pb-7 pt-8">
+              <div className="flex flex-col gap-5 px-7 pt-8 pb-7">
                 {/* Warning icon */}
                 <div className="flex justify-center">
                   <div
@@ -175,7 +175,7 @@ export function ForceDeleteEnvelopeDialog({
 
                 {/* Title + subtitle */}
                 <div className="flex flex-col gap-1.5 text-center">
-                  <h2 className="text-[22px] font-bold leading-tight tracking-tight text-[#E8EEF8]">
+                  <h2 className="text-[22px] leading-tight font-bold tracking-tight text-[#E8EEF8]">
                     Force delete this envelope?
                   </h2>
                   <p className="text-[15px] text-[#6A7A94]">
@@ -288,7 +288,7 @@ export function ForceDeleteEnvelopeDialog({
                     autoComplete="off"
                     spellCheck={false}
                     className={cn(
-                      "w-full rounded-xl px-4 py-3 text-sm text-[#E8EEF8] outline-none transition-all placeholder:text-[#2A3A54]",
+                      "w-full rounded-xl px-4 py-3 text-sm text-[#E8EEF8] transition-all outline-none placeholder:text-[#2A3A54]",
                       "border bg-[#0D1525] disabled:cursor-not-allowed disabled:opacity-50",
                       confirmText === "DELETE"
                         ? "border-[#EF4444]/50 ring-2 ring-[#EF4444]/10"

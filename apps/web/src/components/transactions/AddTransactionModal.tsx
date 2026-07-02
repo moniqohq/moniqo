@@ -247,9 +247,9 @@ export function AddTransactionModal({
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/35 to-transparent" />
 
               {/* ── Header ──────────────────────────────── */}
-              <div className="flex items-start justify-between px-6 pb-4 pt-6">
+              <div className="flex items-start justify-between px-6 pt-6 pb-4">
                 <div>
-                  <h2 className="text-[1.4rem] font-bold leading-tight text-white">
+                  <h2 className="text-[1.4rem] leading-tight font-bold text-white">
                     {isTransfer ? "Transfer Money" : isExpense ? "Add Expense" : "Add Income"}
                   </h2>
                   <p className="mt-0.5 text-sm text-[#4A5A75]">
@@ -311,7 +311,7 @@ export function AddTransactionModal({
                               <Building2 size={16} className="text-[#3B82F6]" />
                             </div>
                             <div className="flex-1 text-left">
-                              <p className="text-sm font-semibold leading-tight text-white">
+                              <p className="text-sm leading-tight font-semibold text-white">
                                 {fromAccount.institution ?? fromAccount.name}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
@@ -321,7 +321,7 @@ export function AddTransactionModal({
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                           </button>
                           {fromOpen && (
-                            <div className="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
+                            <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
                               {mockAccounts
                                 .filter((a) => a.id !== toAccountId)
                                 .map((acc) => (
@@ -371,7 +371,7 @@ export function AddTransactionModal({
                               <Building2 size={16} className="text-[#7C3AED]" />
                             </div>
                             <div className="flex-1 text-left">
-                              <p className="text-sm font-semibold leading-tight text-white">
+                              <p className="text-sm leading-tight font-semibold text-white">
                                 {toAccount.institution ?? toAccount.name}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
@@ -381,7 +381,7 @@ export function AddTransactionModal({
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                           </button>
                           {toOpen && (
-                            <div className="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
+                            <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
                               {mockAccounts
                                 .filter((a) => a.id !== fromAccountId)
                                 .map((acc) => (
@@ -423,10 +423,10 @@ export function AddTransactionModal({
                             <Building2 size={16} className="text-[#3B82F6]" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold leading-tight text-white">
+                            <p className="text-sm leading-tight font-semibold text-white">
                               {fromAccount.institution ?? fromAccount.name}
                             </p>
-                            <p className="text-xs tabular-nums text-[#4A5A75]">
+                            <p className="text-xs text-[#4A5A75] tabular-nums">
                               {formatCurrency(fromAccount.balance)}
                             </p>
                           </div>
@@ -443,10 +443,10 @@ export function AddTransactionModal({
                             <Building2 size={16} className="text-[#7C3AED]" />
                           </div>
                           <div>
-                            <p className="text-sm font-semibold leading-tight text-white">
+                            <p className="text-sm leading-tight font-semibold text-white">
                               {toAccount.institution ?? toAccount.name}
                             </p>
-                            <p className="text-xs tabular-nums text-[#4A5A75]">
+                            <p className="text-xs text-[#4A5A75] tabular-nums">
                               {formatCurrency(toAccount.balance)}
                             </p>
                           </div>
@@ -464,12 +464,12 @@ export function AddTransactionModal({
                             value={amount}
                             onChange={handleAmountChange}
                             placeholder="0.00"
-                            className="flex-1 bg-transparent text-right text-[2.4rem] font-bold tabular-nums leading-none text-white focus:outline-none"
+                            className="flex-1 bg-transparent text-right text-[2.4rem] leading-none font-bold text-white tabular-nums focus:outline-none"
                             aria-label="Amount"
                           />
                         </div>
                         {wordsLabel && (
-                          <p className="mt-1.5 px-1 text-xs capitalize italic text-[#4A5A75]">
+                          <p className="mt-1.5 px-1 text-xs text-[#4A5A75] capitalize italic">
                             {wordsLabel}
                           </p>
                         )}
@@ -498,7 +498,7 @@ export function AddTransactionModal({
                               className={cn(inputCls, "resize-none")}
                               aria-label="Memo"
                             />
-                            <span className="absolute bottom-2.5 right-3 text-[10px] tabular-nums text-[#2A3A54]">
+                            <span className="absolute right-3 bottom-2.5 text-[10px] text-[#2A3A54] tabular-nums">
                               {memo.length} / 200
                             </span>
                           </div>
@@ -523,7 +523,7 @@ export function AddTransactionModal({
                               <Building2 size={16} className="text-[#7A8BA8]" />
                             </div>
                             <div className="flex-1 text-left">
-                              <p className="text-sm font-semibold leading-tight text-white">
+                              <p className="text-sm leading-tight font-semibold text-white">
                                 {selectedAccount.institution ?? selectedAccount.name}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
@@ -533,7 +533,7 @@ export function AddTransactionModal({
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                           </button>
                           {accountOpen && (
-                            <div className="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
+                            <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
                               {mockAccounts.map((acc) => (
                                 <button
                                   key={acc.id}
@@ -555,7 +555,7 @@ export function AddTransactionModal({
                                     <p className="text-sm text-white">
                                       {acc.institution ?? acc.name}
                                     </p>
-                                    <p className="text-xs capitalize text-[#5A6A85]">
+                                    <p className="text-xs text-[#5A6A85] capitalize">
                                       {acc.type} · {formatCurrency(acc.balance)}
                                     </p>
                                   </div>
@@ -574,7 +574,7 @@ export function AddTransactionModal({
                         <div className="relative">
                           <Search
                             size={14}
-                            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#4A5A75]"
+                            className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#4A5A75]"
                           />
                           <input
                             value={payee}
@@ -582,12 +582,12 @@ export function AddTransactionModal({
                             placeholder={
                               isIncome ? "Employer, client, refund source..." : "BigBasket"
                             }
-                            className="w-full rounded-xl border border-[#1A2540] bg-[#0D1525] py-2.5 pl-10 pr-9 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                            className="w-full rounded-xl border border-[#1A2540] bg-[#0D1525] py-2.5 pr-9 pl-10 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                           />
                           {payee && (
                             <button
                               onClick={() => setPayee("")}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4A5A75] transition-colors hover:text-white"
+                              className="absolute top-1/2 right-3 -translate-y-1/2 text-[#4A5A75] transition-colors hover:text-white"
                               aria-label="Clear"
                             >
                               <X size={14} />
@@ -626,7 +626,7 @@ export function AddTransactionModal({
                               <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                             </button>
                             {envelopeOpen && (
-                              <div className="absolute left-0 top-full z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
+                              <div className="absolute top-full left-0 z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
                                 {mockEnvelopes.map((env) => (
                                   <button
                                     key={env.id}
@@ -669,10 +669,10 @@ export function AddTransactionModal({
                           <div className="flex flex-1 items-baseline justify-end">
                             {displayInt || displayDec ? (
                               <>
-                                <span className="text-[2.6rem] font-bold tabular-nums leading-none text-white">
+                                <span className="text-[2.6rem] leading-none font-bold text-white tabular-nums">
                                   {displayInt || "0"}
                                 </span>
-                                <span className="text-[2.6rem] font-bold tabular-nums leading-none text-white">
+                                <span className="text-[2.6rem] leading-none font-bold text-white tabular-nums">
                                   .{displayDec || "00"}
                                 </span>
                               </>
@@ -683,7 +683,7 @@ export function AddTransactionModal({
                                 value={amount}
                                 onChange={handleAmountChange}
                                 placeholder="0.00"
-                                className="flex-1 bg-transparent text-right text-[2.6rem] font-bold tabular-nums leading-none text-white placeholder:text-[#1E2B42] focus:outline-none"
+                                className="flex-1 bg-transparent text-right text-[2.6rem] leading-none font-bold text-white tabular-nums placeholder:text-[#1E2B42] focus:outline-none"
                                 aria-label="Amount"
                               />
                             )}
@@ -702,7 +702,7 @@ export function AddTransactionModal({
                           </div>
                         </div>
                         {wordsLabel && (
-                          <p className="mt-1.5 px-1 text-xs capitalize italic leading-relaxed text-[#4A5A75]">
+                          <p className="mt-1.5 px-1 text-xs leading-relaxed text-[#4A5A75] capitalize italic">
                             {wordsLabel}
                           </p>
                         )}
@@ -733,7 +733,7 @@ export function AddTransactionModal({
                               className={cn(inputCls, "resize-none text-sm")}
                               aria-label="Memo"
                             />
-                            <span className="absolute bottom-2.5 right-3 text-[10px] tabular-nums text-[#2A3A54]">
+                            <span className="absolute right-3 bottom-2.5 text-[10px] text-[#2A3A54] tabular-nums">
                               {memo.length} / 200
                             </span>
                           </div>
@@ -875,7 +875,7 @@ export function AddTransactionModal({
                                 initial={{ opacity: 0.6, y: -2 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.15 }}
-                                className="text-xs font-semibold tabular-nums text-[#4ADE80]"
+                                className="text-xs font-semibold text-[#4ADE80] tabular-nums"
                               >
                                 {numericAmount > 0 ? `+${formatCurrency(numericAmount)}` : "—"}
                               </motion.span>
@@ -906,7 +906,7 @@ export function AddTransactionModal({
                               {selectedEnvelope.icon}
                             </div>
                             <div>
-                              <p className="text-sm font-semibold leading-tight text-white">
+                              <p className="text-sm leading-tight font-semibold text-white">
                                 Category: {selectedEnvelope.name}
                               </p>
                               <p className="text-xs text-[#4A5A75]">Monthly Budget</p>
@@ -917,13 +917,13 @@ export function AddTransactionModal({
                           <dl className="space-y-2">
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Monthly Budget</dt>
-                              <dd className="text-xs font-semibold tabular-nums text-white">
+                              <dd className="text-xs font-semibold text-white tabular-nums">
                                 {formatCurrency(selectedEnvelope.monthlyBudget)}
                               </dd>
                             </div>
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Available before</dt>
-                              <dd className="text-xs font-semibold tabular-nums text-white">
+                              <dd className="text-xs font-semibold text-white tabular-nums">
                                 {formatCurrency(availableBefore)}
                               </dd>
                             </div>
@@ -934,7 +934,7 @@ export function AddTransactionModal({
                                 initial={{ opacity: 0.6, y: -2 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.15 }}
-                                className="text-xs font-semibold tabular-nums text-[#F87171]"
+                                className="text-xs font-semibold text-[#F87171] tabular-nums"
                               >
                                 {numericAmount > 0 ? `−${formatCurrency(numericAmount)}` : "—"}
                               </motion.dd>
@@ -967,14 +967,14 @@ export function AddTransactionModal({
                             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[#1E2B42]">
                               <Building2 size={14} className="text-[#7A8BA8]" />
                             </div>
-                            <p className="text-sm font-semibold leading-tight text-white">
+                            <p className="text-sm leading-tight font-semibold text-white">
                               Account: {selectedAccount.institution ?? selectedAccount.name}
                             </p>
                           </div>
                           <dl className="space-y-2">
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Current balance</dt>
-                              <dd className="text-xs font-semibold tabular-nums text-white">
+                              <dd className="text-xs font-semibold text-white tabular-nums">
                                 {formatCurrency(selectedAccount.balance)}
                               </dd>
                             </div>
@@ -985,7 +985,7 @@ export function AddTransactionModal({
                                 initial={{ opacity: 0.6, y: -2 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.15 }}
-                                className="text-xs font-semibold tabular-nums text-white"
+                                className="text-xs font-semibold text-white tabular-nums"
                               >
                                 {formatCurrency(acctAfterExpense)}
                               </motion.dd>
@@ -1020,13 +1020,13 @@ export function AddTransactionModal({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={onClose}
-                    className="rounded-xl border border-[#1A2540] bg-transparent px-6 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30"
+                    className="rounded-xl border border-[#1A2540] bg-transparent px-6 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
                   >
                     Cancel
                   </button>
                   <button
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all focus:outline-none focus:ring-4",
+                      "inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all focus:ring-4 focus:outline-none",
                       isTransfer
                         ? "bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] shadow-[0_0_20px_rgba(29,78,216,0.4)] hover:from-[#2563EB] hover:to-[#3B82F6] hover:shadow-[0_0_28px_rgba(29,78,216,0.55)] focus:ring-[#1D4ED8]/30"
                         : "bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] shadow-[0_0_20px_rgba(108,58,237,0.4)] hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-[#6C3AED]/30",

@@ -335,7 +335,7 @@ function GoalProgressRing({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <motion.span
-          className="text-[32px] font-bold tabular-nums leading-none text-white"
+          className="text-[32px] leading-none font-bold text-white tabular-nums"
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.5, ease: "easeOut" }}
@@ -376,7 +376,7 @@ function MetricPill({
       <div className="min-w-0">
         <div className="mb-1 text-[10px] leading-none text-[#5A6A85]">{label}</div>
         <div
-          className="truncate text-[13px] font-semibold leading-none"
+          className="truncate text-[13px] leading-none font-semibold"
           style={{ color: valueColor ?? "#E8EEF8" }}
         >
           {value}
@@ -403,14 +403,14 @@ function GoalSummaryCard({ goal }: { goal: GoalDetailData }) {
           <div className="mb-5 grid grid-cols-3 gap-4">
             <div>
               <div className="mb-1 text-[11px] text-[#5A6A85]">Total Target</div>
-              <div className="text-[22px] font-bold tabular-nums leading-none text-white">
+              <div className="text-[22px] leading-none font-bold text-white tabular-nums">
                 ₹{fmt(goal.targetAmount)}
               </div>
             </div>
             <div>
               <div className="mb-1 text-[11px] text-[#5A6A85]">Saved</div>
               <div
-                className="text-[22px] font-bold tabular-nums leading-none"
+                className="text-[22px] leading-none font-bold tabular-nums"
                 style={{ color: "#22C55E" }}
               >
                 ₹{fmt(goal.savedAmount)}
@@ -418,7 +418,7 @@ function GoalSummaryCard({ goal }: { goal: GoalDetailData }) {
             </div>
             <div>
               <div className="mb-1 text-[11px] text-[#5A6A85]">Remaining</div>
-              <div className="text-[22px] font-bold tabular-nums leading-none text-white">
+              <div className="text-[22px] leading-none font-bold text-white tabular-nums">
                 ₹{fmt(remaining)}
               </div>
             </div>
@@ -470,7 +470,7 @@ function GoalOverviewCard({ goal }: { goal: GoalDetailData }) {
           <Pencil size={13} />
         </button>
       </div>
-      <p className="whitespace-pre-line text-[14px] leading-relaxed text-[#A8B4CC]">
+      <p className="text-[14px] leading-relaxed whitespace-pre-line text-[#A8B4CC]">
         {goal.overview}
       </p>
     </div>
@@ -504,7 +504,7 @@ function ContributionTimelineItem({
           style={{ background: cfg.color, borderColor: cfg.color }}
         />
         {!isLast && (
-          <div className="mb-0 mt-1.5 min-h-[32px] w-px flex-1" style={{ background: "#1E2B42" }} />
+          <div className="mt-1.5 mb-0 min-h-[32px] w-px flex-1" style={{ background: "#1E2B42" }} />
         )}
       </div>
 
@@ -596,7 +596,7 @@ function GoalNotesCard({ goal }: { goal: GoalDetailData }) {
           <Pencil size={13} />
         </button>
       </div>
-      <p className="whitespace-pre-line text-[14px] leading-relaxed text-[#A8B4CC]">{goal.notes}</p>
+      <p className="text-[14px] leading-relaxed whitespace-pre-line text-[#A8B4CC]">{goal.notes}</p>
     </div>
   );
 }
@@ -642,7 +642,7 @@ function GoalInsightsCard({ goal }: { goal: GoalDetailData }) {
           >
             <InsightIcon type={insight.icon} bg={insight.iconBg} color={insight.iconColor} />
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold leading-snug text-white">
+              <div className="text-[13px] leading-snug font-semibold text-white">
                 {insight.title}
               </div>
               <div className="mt-0.5 text-[12px] leading-relaxed text-[#A8B4CC]">
@@ -715,7 +715,7 @@ function GoalProgressChart({ goal }: { goal: GoalDetailData }) {
 
         {/* Current value badge */}
         <div
-          className="absolute right-3 top-0 rounded-lg bg-[#6C3AED] px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg"
+          className="absolute top-0 right-3 rounded-lg bg-[#6C3AED] px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg"
           style={{ boxShadow: "0 0 12px rgba(108,58,237,0.4)" }}
         >
           ₹{fmt(lastValue)}
@@ -781,7 +781,7 @@ function GoalMotivationCard() {
     >
       {/* Background glow */}
       <div
-        className="pointer-events-none absolute -right-4 -top-4 h-24 w-24 rounded-full opacity-20"
+        className="pointer-events-none absolute -top-4 -right-4 h-24 w-24 rounded-full opacity-20"
         style={{ background: "radial-gradient(circle, #EC4899, transparent)" }}
       />
       <div
@@ -792,7 +792,7 @@ function GoalMotivationCard() {
       {/* Illustration */}
       <div className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center">
         <div
-          className="select-none text-[42px]"
+          className="text-[42px] select-none"
           style={{ filter: "drop-shadow(0 0 8px rgba(236,72,153,0.4))" }}
         >
           🎉
@@ -801,7 +801,7 @@ function GoalMotivationCard() {
 
       {/* Text */}
       <div className="relative min-w-0">
-        <div className="text-[15px] font-bold leading-snug text-white">
+        <div className="text-[15px] leading-snug font-bold text-white">
           You&apos;ve got this! ✨
         </div>
         <div className="mt-1 text-[12px] leading-relaxed text-[#C4B5FD]">
@@ -864,7 +864,7 @@ function GoalActionsDropdown({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: 0.12 }}
-            className="absolute right-0 top-full z-[200] mt-1.5 w-48 rounded-xl border border-[#1E2B42] bg-[#0D1525] py-1.5 shadow-2xl"
+            className="absolute top-full right-0 z-[200] mt-1.5 w-48 rounded-xl border border-[#1E2B42] bg-[#0D1525] py-1.5 shadow-2xl"
             style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
           >
             {actions.map(({ icon: Icon, label, danger, onClick }) => (
@@ -940,7 +940,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
           >
             {/* Top gradient accent */}
             <div
-              className="absolute left-0 right-0 top-0 h-px"
+              className="absolute top-0 right-0 left-0 h-px"
               style={{ background: "linear-gradient(90deg, transparent, #6C3AED80, transparent)" }}
             />
 
@@ -967,7 +967,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
                     Amount
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-medium text-[#5A6A85]">
+                    <span className="absolute top-1/2 left-3 -translate-y-1/2 text-[14px] font-medium text-[#5A6A85]">
                       ₹
                     </span>
                     <input
@@ -977,7 +977,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
                       placeholder="0"
                       required
                       min={1}
-                      className="h-10 w-full rounded-xl border border-[#1E2B42] bg-[#131C2E] pl-7 pr-3 text-[14px] text-white placeholder-[#2A3A55] outline-none transition-colors focus:border-[#6C3AED]"
+                      className="h-10 w-full rounded-xl border border-[#1E2B42] bg-[#131C2E] pr-3 pl-7 text-[14px] text-white placeholder-[#2A3A55] transition-colors outline-none focus:border-[#6C3AED]"
                     />
                   </div>
                 </div>
@@ -990,7 +990,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
                   <select
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
-                    className="h-10 w-full appearance-none rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3 text-[14px] text-white outline-none transition-colors focus:border-[#6C3AED]"
+                    className="h-10 w-full appearance-none rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3 text-[14px] text-white transition-colors outline-none focus:border-[#6C3AED]"
                   >
                     <option value="savings">Savings Account</option>
                     <option value="salary">Salary Account</option>
@@ -1008,7 +1008,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     required
-                    className="h-10 w-full rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3 text-[14px] text-white outline-none transition-colors [color-scheme:dark] focus:border-[#6C3AED]"
+                    className="h-10 w-full rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3 text-[14px] text-white [color-scheme:dark] transition-colors outline-none focus:border-[#6C3AED]"
                   />
                 </div>
 
@@ -1022,7 +1022,7 @@ function AddContributionDialog({ open, onClose }: { open: boolean; onClose: () =
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Add a note..."
                     rows={2}
-                    className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3 py-2.5 text-[14px] text-white placeholder-[#2A3A55] outline-none transition-colors focus:border-[#6C3AED]"
+                    className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#131C2E] px-3 py-2.5 text-[14px] text-white placeholder-[#2A3A55] transition-colors outline-none focus:border-[#6C3AED]"
                   />
                 </div>
 
@@ -1147,7 +1147,7 @@ export function GoalDetailsModal({ goalId, onClose, onEdit, onDelete }: GoalDeta
               >
                 {/* Top gradient accent line */}
                 <div
-                  className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-px"
+                  className="pointer-events-none absolute top-0 right-0 left-0 z-10 h-px"
                   style={{
                     background:
                       "linear-gradient(90deg, transparent 0%, #6C3AED60 30%, #EC489940 70%, transparent 100%)",
@@ -1161,7 +1161,7 @@ export function GoalDetailsModal({ goalId, onClose, onEdit, onDelete }: GoalDeta
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-[28px] font-bold leading-none text-white">{goal.name}</h1>
+                      <h1 className="text-[28px] leading-none font-bold text-white">{goal.name}</h1>
                       <StatusBadge status={goal.status} />
                     </div>
                     <p className="mt-2 text-[14px] text-[#5A6A85]">{goal.tagline}</p>

@@ -181,7 +181,7 @@ function NatureSelect({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.12 }}
-            className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1B2E] py-1 shadow-xl"
+            className="absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1B2E] py-1 shadow-xl"
           >
             <button
               type="button"
@@ -278,9 +278,9 @@ export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/40 to-transparent" />
 
               {/* ── Header ── */}
-              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pb-4 pt-5">
+              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pt-5 pb-4">
                 <div>
-                  <h2 className="text-[1.35rem] font-bold leading-tight text-white">
+                  <h2 className="text-[1.35rem] leading-tight font-bold text-white">
                     Add Envelope
                   </h2>
                   <p className="mt-0.5 text-sm text-[#6B7A94]">
@@ -307,7 +307,7 @@ export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g., Groceries"
-                    className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                    className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                   />
                   <p className="mt-1.5 text-xs text-[#9AAABF]">
                     A short, clear name for this envelope.
@@ -329,7 +329,7 @@ export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                       placeholder="0.00"
-                      className="flex-1 bg-transparent px-3.5 py-3 text-sm tabular-nums text-white placeholder:text-[#4A5A75] focus:outline-none"
+                      className="flex-1 bg-transparent px-3.5 py-3 text-sm text-white tabular-nums placeholder:text-[#4A5A75] focus:outline-none"
                     />
                   </div>
                   <p className="mt-1.5 text-xs text-[#9AAABF]">
@@ -381,9 +381,9 @@ export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
                       onChange={(e) => setDescription(e.target.value.slice(0, 140))}
                       placeholder="Add a description (optional)..."
                       rows={4}
-                      className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/40"
+                      className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                     />
-                    <span className="pointer-events-none absolute bottom-3 right-3 text-[11px] tabular-nums text-[#5A6A85]">
+                    <span className="pointer-events-none absolute right-3 bottom-3 text-[11px] text-[#5A6A85] tabular-nums">
                       {description.length} / 140
                     </span>
                   </div>
@@ -408,7 +408,7 @@ export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:outline-none focus:ring-4 focus:ring-[#6C3AED]/30"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
                 >
                   <Plus size={15} />
                   Create Envelope

@@ -105,7 +105,7 @@ function DeleteGoalHero() {
         transition={{ delay: 0.35, duration: 0.35 }}
         className="space-y-2 text-center"
       >
-        <h2 className="text-[28px] font-bold leading-tight text-white">
+        <h2 className="text-[28px] leading-tight font-bold text-white">
           Delete Goal <span className="text-[#EF4444]">Permanently</span>?
         </h2>
         <div className="space-y-1">
@@ -159,7 +159,7 @@ function DeleteGoalSummaryCard({ goal }: { goal: DeleteGoalTarget }) {
         <div className="flex-shrink-0 text-right">
           <p
             className={cn(
-              "text-[22px] font-bold leading-none",
+              "text-[22px] leading-none font-bold",
               isCompleted ? "text-[#22C55E]" : "text-[#E8EEF8]",
             )}
           >
@@ -219,7 +219,7 @@ function DeleteGoalWarningCard({ contributionCount }: { contributionCount: numbe
         <AlertTriangle size={18} className="text-[#F59E0B]" />
       </div>
       <div>
-        <p className="text-[13.5px] font-semibold leading-snug text-[#FCD34D]">
+        <p className="text-[13.5px] leading-snug font-semibold text-[#FCD34D]">
           This goal has transactions and contributions.
         </p>
         <p className="mt-1 text-[13px] leading-relaxed text-[#A8894A]">
@@ -286,7 +286,7 @@ function DeleteGoalConfirmationInput({
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 320, damping: 20 }}
-            className="absolute right-3 top-1/2 -translate-y-1/2"
+            className="absolute top-1/2 right-3 -translate-y-1/2"
           >
             <CheckCircle2 size={18} className="text-[#22C55E]" />
           </motion.div>
@@ -541,7 +541,7 @@ export function DeleteGoalDialog({ open, goal, onClose, onDeleted }: DeleteGoalD
 
                 {/* Red glow — top center */}
                 <div
-                  className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2"
+                  className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2"
                   style={{
                     width: 400,
                     height: 250,
@@ -570,14 +570,14 @@ export function DeleteGoalDialog({ open, goal, onClose, onDeleted }: DeleteGoalD
                 <button
                   onClick={handleClose}
                   disabled={deleting}
-                  className="absolute right-4 top-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A1010] bg-[#1A0808] text-[#5A6A85] transition-all hover:border-[#4A1818] hover:bg-[#2A1010] hover:text-white focus:outline-none disabled:opacity-40"
+                  className="absolute top-4 right-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg border border-[#2A1010] bg-[#1A0808] text-[#5A6A85] transition-all hover:border-[#4A1818] hover:bg-[#2A1010] hover:text-white focus:outline-none disabled:opacity-40"
                   aria-label="Close"
                 >
                   <X size={15} />
                 </button>
 
                 {/* Content */}
-                <div className="relative z-10 space-y-5 px-8 pb-7 pt-10">
+                <div className="relative z-10 space-y-5 px-8 pt-10 pb-7">
                   {/* Hero */}
                   <DeleteGoalHero />
 

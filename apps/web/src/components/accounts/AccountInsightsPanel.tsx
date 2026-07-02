@@ -117,7 +117,7 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
     <div className="flex h-full flex-col gap-4">
       {/* Quick Actions */}
       <div className="overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120]">
-        <div className="border-b border-[#1A2540] px-4 pb-3 pt-4">
+        <div className="border-b border-[#1A2540] px-4 pt-4 pb-3">
           <h3 className="text-sm font-bold text-white">Quick Actions</h3>
         </div>
         <div className="space-y-1 p-3">
@@ -138,7 +138,7 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
                 {icon}
               </div>
               <div className="min-w-0 flex-1 text-left">
-                <p className="text-xs font-semibold leading-tight text-[#C8D4E8] transition-colors group-hover:text-white">
+                <p className="text-xs leading-tight font-semibold text-[#C8D4E8] transition-colors group-hover:text-white">
                   {title}
                 </p>
                 <p className="mt-0.5 text-[10px] leading-tight text-[#5A6A85]">{desc}</p>
@@ -154,7 +154,7 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
 
       {/* Account Insights */}
       <div className="overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120]">
-        <div className="border-b border-[#1A2540] px-4 pb-3 pt-4">
+        <div className="border-b border-[#1A2540] px-4 pt-4 pb-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-white">Account Insights</h3>
             <span className="rounded-full border border-[#1A2540] bg-[#0D1525] px-2 py-0.5 text-[10px] text-[#3A4A60]">
@@ -192,7 +192,7 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
             </div>
             {largestExpense ? (
               <div className="flex-shrink-0 text-right">
-                <p className="text-xs font-bold tabular-nums text-[#F87171]">
+                <p className="text-xs font-bold text-[#F87171] tabular-nums">
                   {formatCurrency(Math.abs(largestExpense.amount))}
                 </p>
                 <p className="max-w-[80px] truncate text-[10px] text-[#3A4A60]">
@@ -234,7 +234,7 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
             </div>
             {daysSinceLast !== null ? (
               <div className="flex-shrink-0 text-right">
-                <p className="text-xs font-bold tabular-nums text-[#C8D4E8]">
+                <p className="text-xs font-bold text-[#C8D4E8] tabular-nums">
                   {daysSinceLast} {daysSinceLast === 1 ? "day" : "days"} ago
                 </p>
                 <p className="text-[10px] text-[#3A4A60]">{lastTxn!.payee}</p>

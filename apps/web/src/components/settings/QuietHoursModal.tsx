@@ -34,7 +34,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
-        "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2",
+        "transition-colors duration-200 focus-visible:ring-2 focus-visible:outline-none",
         "focus-visible:ring-[#6C3AED] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0D1520]",
         checked ? "bg-[#6C3AED]" : "bg-[#1E2B42]",
       )}
@@ -104,7 +104,7 @@ function SelectField({
     <div className={cn("flex flex-col gap-1.5", wide ? "flex-1" : "")}>
       <div className="flex items-center gap-1.5">
         <Icon size={12} className="text-[#5A6A85]" />
-        <span className="text-[11px] font-medium uppercase tracking-wider text-[#5A6A85]">
+        <span className="text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
           {label}
         </span>
       </div>
@@ -125,7 +125,7 @@ function SelectField({
             </option>
           ))}
         </select>
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#5A6A85]">
+        <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[#5A6A85]">
           <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
             <path
               d="M1 1L5 5L9 1"
@@ -153,7 +153,7 @@ export function QuietHoursModal({ open, onClose }: { open: boolean; onClose: () 
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="w-full min-w-0 max-w-[calc(100%-2rem)] gap-0 overflow-hidden rounded-xl border-[#1E2B42] bg-[#0D1520] p-0 sm:max-w-[600px]"
+        className="w-full max-w-[calc(100%-2rem)] min-w-0 gap-0 overflow-hidden rounded-xl border-[#1E2B42] bg-[#0D1520] p-0 sm:max-w-[600px]"
       >
         {/* ── Header ─────────────────────────────────────────── */}
         <div className="flex items-center gap-4 border-b border-[#1E2B42] px-5 py-4">
@@ -161,7 +161,7 @@ export function QuietHoursModal({ open, onClose }: { open: boolean; onClose: () 
             <Moon size={18} className="text-[#A78BFA]" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[16px] font-semibold leading-tight text-white">Quiet Hours</p>
+            <p className="text-[16px] leading-tight font-semibold text-white">Quiet Hours</p>
             <p className="mt-0.5 text-[12px] text-[#5A6A85]">
               Pause non-urgent notifications during these times.
             </p>

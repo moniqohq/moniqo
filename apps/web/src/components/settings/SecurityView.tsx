@@ -55,7 +55,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent",
-        "transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2",
+        "transition-colors duration-200 focus-visible:ring-2 focus-visible:outline-none",
         "focus-visible:ring-[#6C3AED] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F1623]",
         checked ? "bg-[#6C3AED]" : "bg-[#1E2B42]",
       )}
@@ -87,7 +87,7 @@ function PasswordField({
 }) {
   return (
     <div className="relative">
-      <div className="absolute left-3 top-1/2 -translate-y-1/2">
+      <div className="absolute top-1/2 left-3 -translate-y-1/2">
         <Lock size={12} className="text-[#5A6A85]" />
       </div>
       <input
@@ -96,7 +96,7 @@ function PasswordField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "h-8 w-full rounded-lg border border-[#1E2B42] bg-[#0D1520] pl-8 pr-8",
+          "h-8 w-full rounded-lg border border-[#1E2B42] bg-[#0D1520] pr-8 pl-8",
           "text-[12px] text-[#A8B4CC] outline-none placeholder:text-[#3A4A60]",
           "transition-all focus:border-[#6C3AED] focus:ring-2 focus:ring-[rgba(108,58,237,0.2)]",
         )}
@@ -104,7 +104,7 @@ function PasswordField({
       <button
         type="button"
         onClick={onToggleShow}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5A6A85] transition-colors hover:text-[#A8B4CC]"
+        className="absolute top-1/2 right-3 -translate-y-1/2 text-[#5A6A85] transition-colors hover:text-[#A8B4CC]"
       >
         {show ? <EyeOff size={12} /> : <Eye size={12} />}
       </button>
@@ -133,7 +133,7 @@ function PasswordCard() {
           <Lock size={16} className="text-[#A78BFA]" />
         </div>
         <div className="flex-1">
-          <h2 className="text-[14px] font-semibold leading-tight text-white">Change Password</h2>
+          <h2 className="text-[14px] leading-tight font-semibold text-white">Change Password</h2>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">
             Update your password regularly to keep your account secure.
           </p>
@@ -189,7 +189,7 @@ function PasswordCard() {
           className={cn(
             "mt-2 h-8 w-full rounded-lg text-[12px] font-semibold text-white transition-all",
             "bg-gradient-to-r from-[#6C3AED] to-[#8B5CF6] hover:from-[#5B2FD0] hover:to-[#7C3AED]",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C3AED]",
+            "focus-visible:ring-2 focus-visible:ring-[#6C3AED] focus-visible:outline-none",
             "shadow-[0_0_16px_rgba(108,58,237,0.35)] hover:shadow-[0_0_20px_rgba(108,58,237,0.5)]",
           )}
         >
@@ -263,7 +263,7 @@ function TwoFactorCard() {
           <Shield size={16} className="text-[#34D399]" />
         </div>
         <div className="flex-1">
-          <h2 className="text-[14px] font-semibold leading-tight text-white">
+          <h2 className="text-[14px] leading-tight font-semibold text-white">
             Two-Factor Authentication (2FA)
           </h2>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">
@@ -279,7 +279,7 @@ function TwoFactorCard() {
           <div className="mb-4 flex items-center gap-3 rounded-xl border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.08)] px-4 py-3">
             <CheckCircle2 size={16} className="shrink-0 text-[#34D399]" />
             <div>
-              <p className="text-[13px] font-semibold leading-tight text-[#34D399]">
+              <p className="text-[13px] leading-tight font-semibold text-[#34D399]">
                 2FA is enabled
               </p>
               <p className="mt-0.5 text-[11px] text-[#5A6A85]">
@@ -305,7 +305,7 @@ function TwoFactorCard() {
                 <Icon size={14} className="text-[#5A6A85]" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                   {method.label}
                 </p>
                 <p className="mt-0.5 text-[11px] text-[#5A6A85]">{method.description}</p>
@@ -387,7 +387,7 @@ function SessionsCard() {
           <Monitor size={16} className="text-[#60A5FA]" />
         </div>
         <div className="flex-1">
-          <h2 className="text-[14px] font-semibold leading-tight text-white">Active Sessions</h2>
+          <h2 className="text-[14px] leading-tight font-semibold text-white">Active Sessions</h2>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">
             Manage your active sessions across devices.
           </p>
@@ -418,7 +418,7 @@ function SessionsCard() {
                   <DeviceIcon type={session.icon} />
                 </div>
                 {session.isCurrent && (
-                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-sm bg-[#6C3AED] px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
+                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-sm bg-[#6C3AED] px-1.5 py-0.5 text-[9px] leading-none font-bold whitespace-nowrap text-white">
                     Current
                   </span>
                 )}
@@ -426,7 +426,7 @@ function SessionsCard() {
 
               {/* Info */}
               <div className="min-w-0 flex-1 pl-1">
-                <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                   {session.device}
                 </p>
                 <p className="mt-0.5 text-[11px] text-[#5A6A85]">
@@ -511,7 +511,7 @@ function TrustedDevicesCard() {
           <Smartphone size={16} className="text-[#C084FC]" />
         </div>
         <div className="flex-1">
-          <h2 className="text-[14px] font-semibold leading-tight text-white">Trusted Devices</h2>
+          <h2 className="text-[14px] leading-tight font-semibold text-white">Trusted Devices</h2>
           <p className="mt-0.5 text-[12px] text-[#5A6A85]">
             Devices you trust and won&apos;t require 2FA codes.
           </p>
@@ -542,7 +542,7 @@ function TrustedDevicesCard() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-[13px] font-medium leading-tight text-[#A8B4CC]">
+                  <p className="text-[13px] leading-tight font-medium text-[#A8B4CC]">
                     {device.name}
                   </p>
                   {device.isCurrent && (
@@ -590,7 +590,7 @@ function SecurityStatusBadge() {
         <ShieldCheck size={15} className="text-[#34D399]" />
       </div>
       <div>
-        <p className="text-[13px] font-semibold leading-tight text-white">
+        <p className="text-[13px] leading-tight font-semibold text-white">
           Your account is secured
         </p>
         <p className="mt-0.5 text-[11px] text-[#5A6A85]">Last checked just now</p>

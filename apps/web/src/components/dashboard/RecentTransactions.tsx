@@ -69,19 +69,19 @@ export function RecentTransactions() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-[#1E2B42]">
-              <th className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-5 py-2.5 text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
                 Merchant
               </th>
-              <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-4 py-2.5 text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
                 Envelope
               </th>
-              <th className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-4 py-2.5 text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
                 Date
               </th>
-              <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-4 py-2.5 text-right text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
                 Amount
               </th>
-              <th className="px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-[#5A6A85]">
+              <th className="px-5 py-2.5 text-right text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
                 Status
               </th>
             </tr>
@@ -109,13 +109,13 @@ export function RecentTransactions() {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div
-                        className="flex h-7 w-7 flex-shrink-0 select-none items-center justify-center rounded-lg text-[11px] font-bold text-white"
+                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white select-none"
                         style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
                       >
                         {tx.payee[0]}
                       </div>
                       <div>
-                        <p className="max-w-[140px] truncate text-[13px] font-medium leading-tight text-[#E8EEF8]">
+                        <p className="max-w-[140px] truncate text-[13px] leading-tight font-medium text-[#E8EEF8]">
                           {tx.payee}
                         </p>
                         {tx.memo && (
@@ -137,24 +137,24 @@ export function RecentTransactions() {
                         >
                           {tx.envelopeIcon ?? tx.envelopeName[0]}
                         </div>
-                        <span className="whitespace-nowrap text-[13px] text-[#A8B4CC]">
+                        <span className="text-[13px] whitespace-nowrap text-[#A8B4CC]">
                           {tx.envelopeName}
                         </span>
                       </div>
                     ) : (
-                      <span className="select-none text-sm text-[#2A3A54]">—</span>
+                      <span className="text-sm text-[#2A3A54] select-none">—</span>
                     )}
                   </td>
 
                   {/* Date */}
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] text-[#A8B4CC]">
+                  <td className="px-4 py-3 text-[13px] whitespace-nowrap text-[#A8B4CC]">
                     {formatTableDate(tx.date)}
                   </td>
 
                   {/* Amount */}
                   <td
                     className={cn(
-                      "whitespace-nowrap px-4 py-3 text-right text-[13px] font-semibold tabular-nums",
+                      "px-4 py-3 text-right text-[13px] font-semibold whitespace-nowrap tabular-nums",
                       amountColor,
                     )}
                   >
