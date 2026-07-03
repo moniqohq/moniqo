@@ -40,37 +40,31 @@ import {
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 
+import type { BudgetEnvelope } from "@/types";
+
 /* ── Types ────────────────────────────────────────────────── */
 export interface ArchiveEnvelopeModalProps {
   open: boolean;
   onClose: () => void;
-  envelopeId?: string;
+  envelope: BudgetEnvelope;
+  budgetId: number;
+  envelopes: BudgetEnvelope[];
+  onDeleted: () => void;
 }
 
 type ReassignOption = "budgeted" | "envelope";
-
-const ACTIVE_ENVELOPES = [
-  "Rent",
-  "Utilities",
-  "Dining Out",
-  "Shopping",
-  "Entertainment",
-  "Transport",
-  "Savings – Emergency",
-  "Health",
-  "Subscriptions",
-  "Investments",
-];
 
 /* ── Envelope search dropdown ─────────────────────────────── */
 function EnvelopeSearchSelect({
   value,
   onChange,
   disabled,
+  options,
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled: boolean;
+  options: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -84,7 +78,7 @@ function EnvelopeSearchSelect({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const filtered = ACTIVE_ENVELOPES.filter(
+  const filtered = options.filter(
     (e) => !query || e.toLowerCase().includes(query.toLowerCase()),
   );
 
@@ -175,10 +169,15 @@ function EnvelopeSearchSelect({
 export function ArchiveEnvelopeModal({
   open,
   onClose,
-  envelopeId: _envelopeId,
+  envelope,
+  budgetId,
+  envelopes,
+  onDeleted,
 }: ArchiveEnvelopeModalProps) {
   const [option, setOption] = useState<ReassignOption>("budgeted");
   const [targetEnv, setTargetEnv] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* ESC + body lock */
   useEffect(() => {
@@ -194,10 +193,31 @@ export function ArchiveEnvelopeModal({
     };
   }, [open, onClose]);
 
-  const remaining = 5000;
-  const allocated = 12000;
-  const spent = 7000;
+  const remaining = envelope.allocated_amt - envelope.spent_amt;
+  const allocated = envelope.allocated_amt;
+  const spent = envelope.spent_amt;
+  const otherEnvelopeTitles = envelopes
+    .filter((e) => e.id !== envelope.id)
+    .map((e) => e.title);
   const toLabel = option === "budgeted" ? "To Be Budgeted" : targetEnv || "—";
+
+  const handleDelete = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`,
+        { method: "DELETE" },
+      );
+      const body = await res.json();
+      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to archive envelope.");
+      onDeleted();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected error.");
+      setLoading(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -296,7 +316,7 @@ export function ArchiveEnvelopeModal({
                     {/* Name + badge */}
                     <div className="pt-0.5">
                       <div className="mb-0.5 flex flex-wrap items-center gap-3">
-                        <span className="text-[22px] font-bold text-white">Groceries</span>
+                        <span className="text-[22px] font-bold text-white">{envelope.title}</span>
                         <span
                           className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
                           style={{
@@ -527,6 +547,7 @@ export function ArchiveEnvelopeModal({
                         value={targetEnv}
                         onChange={setTargetEnv}
                         disabled={option !== "envelope"}
+                        options={otherEnvelopeTitles}
                       />
                     </div>
                   </div>
@@ -552,7 +573,7 @@ export function ArchiveEnvelopeModal({
                       </div>
                       <div>
                         <p className="mb-0.5 text-[11px] text-[#5A6A85]">From</p>
-                        <p className="text-base font-bold text-white">Groceries</p>
+                        <p className="text-base font-bold text-white">{envelope.title}</p>
                       </div>
                     </div>
 
@@ -666,6 +687,7 @@ export function ArchiveEnvelopeModal({
 
                 {/* Action buttons */}
                 <div className="flex flex-shrink-0 items-center gap-3">
+                  {error && <p className="text-sm text-[#F87171]">{error}</p>}
                   <button
                     type="button"
                     onClick={onClose}
@@ -675,15 +697,16 @@ export function ArchiveEnvelopeModal({
                   </button>
                   <button
                     type="button"
-                    onClick={onClose}
-                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all"
+                    disabled={loading}
+                    onClick={handleDelete}
+                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       background: "linear-gradient(135deg, #6C3AED 0%, #7C4AFF 100%)",
                       boxShadow: "0 0 20px rgba(108,58,237,0.4)",
                     }}
                   >
                     <Archive size={15} />
-                    Archive Envelope
+                    {loading ? "Archiving…" : "Archive Envelope"}
                   </button>
                 </div>
               </div>
