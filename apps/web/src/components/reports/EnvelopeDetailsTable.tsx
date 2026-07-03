@@ -81,19 +81,6 @@ function SortIcon({ col, current, dir }: { col: SortKey; current: SortKey; dir: 
   );
 }
 
-const GROUP_LABELS: Record<string, string> = {
-  want: "Want",
-  should: "Should",
-  need: "Need",
-  must: "Must",
-  income: "Income",
-  expense: "Expense",
-  under: "Under Budget",
-  near: "Near Budget",
-  over: "Over Budget",
-  none: "",
-};
-
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 export function EnvelopeDetailsTable({ envelopes }: Props) {

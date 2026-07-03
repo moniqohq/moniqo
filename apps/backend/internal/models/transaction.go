@@ -27,7 +27,7 @@ import (
 )
 
 // Transaction is the API-facing representation of a ledger entry.
-// Amount is stored as minor units (BIGINT) and serialised as a decimal by money.Amount.
+// Amount is stored as minor units (BIGINT) and serialized as a decimal by money.Amount.
 type Transaction struct {
 	ID                int64        `json:"id"`
 	BudgetID          int64        `json:"budget_id"`

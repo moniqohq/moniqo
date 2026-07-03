@@ -24,7 +24,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency = "INR", locale = "en-IN"): string {
+export function formatCurrency(amount: number, _currency = "INR", locale = "en-IN"): string {
   const num = new Intl.NumberFormat(locale, {
     style: "decimal",
     minimumFractionDigits: 0,

@@ -172,7 +172,11 @@ function EnvelopeSearchSelect({
 }
 
 /* ── Main modal ───────────────────────────────────────────── */
-export function ArchiveEnvelopeModal({ open, onClose, envelopeId }: ArchiveEnvelopeModalProps) {
+export function ArchiveEnvelopeModal({
+  open,
+  onClose,
+  envelopeId: _envelopeId,
+}: ArchiveEnvelopeModalProps) {
   const [option, setOption] = useState<ReassignOption>("budgeted");
   const [targetEnv, setTargetEnv] = useState("");
 

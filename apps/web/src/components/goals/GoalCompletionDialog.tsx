@@ -20,9 +20,8 @@
 "use client";
 
 import { useState, useEffect, useId } from "react";
-import { motion, AnimatePresence, useAnimate, stagger } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2, Calendar, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -147,7 +146,7 @@ function ConfettiField() {
 // ─── GoalCompletionHero ───────────────────────────────────────────────────────
 
 function GoalCompletionHero({ icon }: { icon: string }) {
-  const uid = useId().replace(/:/g, "");
+  const _uid = useId().replace(/:/g, "");
   return (
     <div className="relative flex h-[160px] w-[160px] items-center justify-center">
       {/* Outer golden aura */}
@@ -238,7 +237,7 @@ function GoalAchievementBadge() {
 // ─── GoalSummaryCard ──────────────────────────────────────────────────────────
 
 function GoalSummaryCard({ goal, completedDate }: { goal: CompletionGoal; completedDate: string }) {
-  const uid = useId().replace(/:/g, "");
+  const _uid = useId().replace(/:/g, "");
   const [barWidth, setBarWidth] = useState(0);
 
   useEffect(() => {

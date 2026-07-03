@@ -367,7 +367,11 @@ function AccountFilter({
 
   function toggle(id: string) {
     const next = new Set(value);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     onChange(next);
   }
 
@@ -506,7 +510,11 @@ function EnvelopeFilter({
 
   function toggle(id: string) {
     const next = new Set(value);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     onChange(next);
   }
 
@@ -661,7 +669,11 @@ function TypeFilter({
 
   function toggle(id: TxTypeId) {
     const next = new Set(value);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     onChange(next);
   }
 
@@ -848,7 +860,11 @@ export function TransactionsView() {
   function toggleRow(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }

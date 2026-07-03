@@ -27,7 +27,6 @@ import {
   Pencil,
   Archive,
   Trash2,
-  MoreVertical,
   ChevronDown,
   Search,
   Filter,
@@ -35,14 +34,12 @@ import {
   Download,
   Shield,
   Info,
-  Building2,
   Wallet,
   TrendingUp,
   Activity,
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  Zap,
   Star,
   Heart,
   Hash,
@@ -418,44 +415,6 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
               )}
             >
               {opt}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── More dropdown ───────────────────────────────────────── */
-function MoreDropdown() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function h(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-[#1A2540] bg-[#0D1525] px-3 py-1.5 text-xs font-medium text-[#E2EAF4] transition-all hover:border-[#2A3A54] hover:bg-[#111B2D]"
-      >
-        <Zap size={13} />
-        More
-        <ChevronDown size={11} />
-      </button>
-      {open && (
-        <div className="absolute top-full right-0 z-30 mt-1 w-44 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
-          {["Duplicate Envelope", "Export Data", "View History", "Reset Allocation"].map((item) => (
-            <button
-              key={item}
-              onClick={() => setOpen(false)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-[#A8B4CC]"
-            >
-              {item}
             </button>
           ))}
         </div>

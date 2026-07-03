@@ -265,7 +265,7 @@ function PrefCard({ children, className }: { children: React.ReactNode; classNam
 // ── Theme option card ─────────────────────────────────────────────
 
 function ThemeCard({
-  value,
+  value: _value,
   label,
   icon: Icon,
   selected,

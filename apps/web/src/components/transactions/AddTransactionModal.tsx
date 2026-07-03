@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -152,7 +152,7 @@ export function AddTransactionModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, onClose, defaultType]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* derived */

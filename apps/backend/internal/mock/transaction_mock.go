@@ -45,30 +45,39 @@ type TransactionService struct {
 	DeleteFn         func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 }
 
+// Create delegates to the CreateFn stub.
 func (m *TransactionService) Create(ctx context.Context, budgetID int64, req transaction.CreateRequest) (models.Transaction, error) {
 	return m.CreateFn(ctx, budgetID, req)
 }
 
-func (m *TransactionService) CreateTransfer(ctx context.Context, budgetID int64, req transaction.CreateRequest) (models.Transaction, error) {
+// CreateTransfer delegates to the CreateTransferFn stub.
+func (m *TransactionService) CreateTransfer(
+	ctx context.Context, budgetID int64, req transaction.CreateRequest,
+) (models.Transaction, error) {
 	return m.CreateTransferFn(ctx, budgetID, req)
 }
 
+// GetByID delegates to the GetByIDFn stub.
 func (m *TransactionService) GetByID(ctx context.Context, id, budgetID int64) (models.Transaction, error) {
 	return m.GetByIDFn(ctx, id, budgetID)
 }
 
+// List delegates to the ListFn stub.
 func (m *TransactionService) List(ctx context.Context, budgetID int64, f transaction.ListFilters) ([]models.Transaction, int, error) {
 	return m.ListFn(ctx, budgetID, f)
 }
 
+// Replace delegates to the ReplaceFn stub.
 func (m *TransactionService) Replace(ctx context.Context, id, budgetID int64, req transaction.ReplaceRequest) (models.Transaction, error) {
 	return m.ReplaceFn(ctx, id, budgetID, req)
 }
 
+// Patch delegates to the PatchFn stub.
 func (m *TransactionService) Patch(ctx context.Context, id, budgetID int64, req transaction.PatchRequest) (models.Transaction, error) {
 	return m.PatchFn(ctx, id, budgetID, req)
 }
 
+// Delete delegates to the DeleteFn stub.
 func (m *TransactionService) Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
 	return m.DeleteFn(ctx, id, budgetID, callerRole)
 }
@@ -82,59 +91,90 @@ type TransactionRepository struct {
 	mock.Mock
 }
 
+// Create records the call and returns the configured stub values.
 func (m *TransactionRepository) Create(_ context.Context, p transaction.CreateParams) (models.Transaction, error) {
 	args := m.Called(p)
-	t, _ := args.Get(0).(models.Transaction)
+	t, ok := args.Get(0).(models.Transaction)
+	if !ok {
+		return models.Transaction{}, args.Error(1)
+	}
 	return t, args.Error(1)
 }
 
+// GetByID records the call and returns the configured stub values.
 func (m *TransactionRepository) GetByID(_ context.Context, id, budgetID int64) (models.Transaction, error) {
 	args := m.Called(id, budgetID)
-	t, _ := args.Get(0).(models.Transaction)
+	t, ok := args.Get(0).(models.Transaction)
+	if !ok {
+		return models.Transaction{}, args.Error(1)
+	}
 	return t, args.Error(1)
 }
 
+// List records the call and returns the configured stub values.
 func (m *TransactionRepository) List(_ context.Context, budgetID int64, f transaction.ListFilters) ([]models.Transaction, error) {
 	args := m.Called(budgetID, f)
-	ts, _ := args.Get(0).([]models.Transaction)
+	ts, ok := args.Get(0).([]models.Transaction)
+	if !ok {
+		return nil, args.Error(1)
+	}
 	return ts, args.Error(1)
 }
 
+// Count records the call and returns the configured stub values.
 func (m *TransactionRepository) Count(_ context.Context, budgetID int64, f transaction.ListFilters) (int, error) {
 	args := m.Called(budgetID, f)
 	return args.Int(0), args.Error(1)
 }
 
+// Update records the call and returns the configured stub values.
 func (m *TransactionRepository) Update(_ context.Context, p transaction.UpdateParams) (models.Transaction, error) {
 	args := m.Called(p)
-	t, _ := args.Get(0).(models.Transaction)
+	t, ok := args.Get(0).(models.Transaction)
+	if !ok {
+		return models.Transaction{}, args.Error(1)
+	}
 	return t, args.Error(1)
 }
 
+// Patch records the call and returns the configured stub values.
 func (m *TransactionRepository) Patch(_ context.Context, p transaction.PatchParams) (models.Transaction, error) {
 	args := m.Called(p)
-	t, _ := args.Get(0).(models.Transaction)
+	t, ok := args.Get(0).(models.Transaction)
+	if !ok {
+		return models.Transaction{}, args.Error(1)
+	}
 	return t, args.Error(1)
 }
 
+// SoftDelete records the call and returns the configured stub values.
 func (m *TransactionRepository) SoftDelete(_ context.Context, id, budgetID int64) error {
 	args := m.Called(id, budgetID)
 	return args.Error(0)
 }
 
+// GetByGroupID records the call and returns the configured stub values.
 func (m *TransactionRepository) GetByGroupID(_ context.Context, groupID string, budgetID int64) ([]models.Transaction, error) {
 	args := m.Called(groupID, budgetID)
-	ts, _ := args.Get(0).([]models.Transaction)
+	ts, ok := args.Get(0).([]models.Transaction)
+	if !ok {
+		return nil, args.Error(1)
+	}
 	return ts, args.Error(1)
 }
 
+// SoftDeleteByGroupID records the call and returns the configured stub values.
 func (m *TransactionRepository) SoftDeleteByGroupID(_ context.Context, groupID string, budgetID int64) error {
 	args := m.Called(groupID, budgetID)
 	return args.Error(0)
 }
 
-func (m *TransactionRepository) WithTx(tx pgx.Tx) transaction.Repository {
+// WithTx records the call and returns the configured stub values.
+func (m *TransactionRepository) WithTx(tx pgx.Tx) transaction.Repository { //nolint:ireturn
 	args := m.Called(tx)
-	r, _ := args.Get(0).(transaction.Repository)
+	r, ok := args.Get(0).(transaction.Repository)
+	if !ok {
+		return nil
+	}
 	return r
 }

@@ -167,7 +167,7 @@ function BudgetSwitcher() {
 }
 
 export function Topbar() {
-  const { toggleSidebar, setMobileSidebar } = useUIStore();
+  const { setMobileSidebar } = useUIStore();
 
   return (
     <header className="relative flex h-16 flex-shrink-0 items-center gap-3 border-b border-[#1E2B42] bg-[#080C14] px-4">

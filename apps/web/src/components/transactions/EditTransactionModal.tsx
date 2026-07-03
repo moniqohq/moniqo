@@ -223,7 +223,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;
   const accountBefore = selectedAccount.balance - signedAmount;
-  const accountAfter = selectedAccount.balance;
+  const _accountAfter = selectedAccount.balance;
   const realAccountBefore = accountBefore;
   const realAccountAfter = accountBefore + signedAmount;
 
