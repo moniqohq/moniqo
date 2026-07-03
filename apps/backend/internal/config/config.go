@@ -24,6 +24,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -55,6 +56,7 @@ type Config struct {
 	RefreshTokenMaxAge    time.Duration
 	PasswordResetTokenTTL time.Duration
 	AppBaseURL            string
+	CORSOrigins           []string // CORS_ORIGINS comma-separated; defaults to AppBaseURL
 	Email                 EmailConfig
 }
 
@@ -99,8 +101,27 @@ func Load() Config {
 		RefreshTokenMaxAge:    envDuration("REFRESH_TOKEN_MAX_AGE", defaultRefreshTokenMaxAge),
 		PasswordResetTokenTTL: envDuration("PASSWORD_RESET_TOKEN_TTL", defaultPasswordResetTokenTTL),
 		AppBaseURL:            envOrDefault("APP_BASE_URL", "http://localhost:3000"),
+		CORSOrigins:           corsOrigins(envOrDefault("APP_BASE_URL", "http://localhost:3000")),
 		Email:                 loadEmailConfig(env),
 	}
+}
+
+// corsOrigins returns the list of allowed CORS origins. CORS_ORIGINS env var
+// overrides the default (which is the AppBaseURL). Multiple origins are
+// comma-separated, e.g. "http://localhost:3000,https://app.moniqo.in".
+func corsOrigins(appBaseURL string) []string {
+	if v := os.Getenv("CORS_ORIGINS"); v != "" {
+		var origins []string
+		for _, o := range strings.Split(v, ",") {
+			if trimmed := strings.TrimSpace(o); trimmed != "" {
+				origins = append(origins, trimmed)
+			}
+		}
+		if len(origins) > 0 {
+			return origins
+		}
+	}
+	return []string{appBaseURL}
 }
 
 func envOrDefault(key, fallback string) string {
