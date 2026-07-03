@@ -50,9 +50,8 @@ export function EnvelopeOverview() {
     <div className="space-y-1.5">
       {displayed.map((env, i) => {
         const available = env.allocated_amt - env.spent_amt;
-        const pct = env.allocated_amt > 0
-          ? Math.min((env.spent_amt / env.allocated_amt) * 100, 100)
-          : 0;
+        const pct =
+          env.allocated_amt > 0 ? Math.min((env.spent_amt / env.allocated_amt) * 100, 100) : 0;
         const low = available <= env.allocated_amt * 0.1;
         const empty = available <= 0;
         const barColor = empty ? "#EF4444" : low ? "#F59E0B" : "#6C3AED";

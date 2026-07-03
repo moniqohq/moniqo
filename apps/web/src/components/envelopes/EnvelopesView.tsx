@@ -36,7 +36,6 @@ import {
   ShoppingBag,
   TrendingUp,
   AlertTriangle,
-  PiggyBank,
   ArrowRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -743,7 +742,10 @@ export function EnvelopesView() {
           {loading ? (
             <div className="overflow-hidden rounded-xl border border-[#1A2640] bg-[#0B1220]">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-14 animate-pulse border-b border-[#0F1A2C] bg-[#0B1220]" />
+                <div
+                  key={i}
+                  className="h-14 animate-pulse border-b border-[#0F1A2C] bg-[#0B1220]"
+                />
               ))}
             </div>
           ) : view === "list" ? (
@@ -797,7 +799,10 @@ export function EnvelopesView() {
                               <div className="flex items-center gap-3">
                                 <div
                                   className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-sm"
-                                  style={{ backgroundColor: "rgba(108,58,237,0.18)", color: "#A78BFA" }}
+                                  style={{
+                                    backgroundColor: "rgba(108,58,237,0.18)",
+                                    color: "#A78BFA",
+                                  }}
                                 >
                                   💼
                                 </div>

@@ -58,9 +58,7 @@ export function useEnvelopes() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<BudgetEnvelope[]>(
-        `/api/v1/budgets/${budgetId}/envelopes`,
-      );
+      const data = await apiFetch<BudgetEnvelope[]>(`/api/v1/budgets/${budgetId}/envelopes`);
       setEnvelopes(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load envelopes");
@@ -70,18 +68,33 @@ export function useEnvelopes() {
   }, [budgetId, validBudgetId]);
 
   useEffect(() => {
-    fetchEnvelopes();
-  }, [fetchEnvelopes]);
+    if (!validBudgetId) return;
+    let ignore = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    setError(null);
+    apiFetch<BudgetEnvelope[]>(`/api/v1/budgets/${budgetId}/envelopes`)
+      .then((data) => {
+        if (!ignore) setEnvelopes(data);
+      })
+      .catch((err) => {
+        if (!ignore)
+          setError(err instanceof Error ? err.message : "Failed to load envelopes");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [budgetId, validBudgetId]);
 
   const createEnvelope = async (payload: CreateEnvelopePayload): Promise<BudgetEnvelope> => {
-    const data = await apiFetch<BudgetEnvelope>(
-      `/api/v1/budgets/${budgetId}/envelopes`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
-    );
+    const data = await apiFetch<BudgetEnvelope>(`/api/v1/budgets/${budgetId}/envelopes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
     await fetchEnvelopes();
     return data;
   };
@@ -90,14 +103,11 @@ export function useEnvelopes() {
     id: number,
     payload: PatchEnvelopePayload,
   ): Promise<BudgetEnvelope> => {
-    const data = await apiFetch<BudgetEnvelope>(
-      `/api/v1/budgets/${budgetId}/envelopes/${id}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
-    );
+    const data = await apiFetch<BudgetEnvelope>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
     await fetchEnvelopes();
     return data;
   };

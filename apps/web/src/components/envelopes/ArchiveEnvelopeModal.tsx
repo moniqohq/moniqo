@@ -78,9 +78,7 @@ function EnvelopeSearchSelect({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const filtered = options.filter(
-    (e) => !query || e.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filtered = options.filter((e) => !query || e.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <div ref={ref} className="relative mt-3">
@@ -196,19 +194,16 @@ export function ArchiveEnvelopeModal({
   const remaining = envelope.allocated_amt - envelope.spent_amt;
   const allocated = envelope.allocated_amt;
   const spent = envelope.spent_amt;
-  const otherEnvelopeTitles = envelopes
-    .filter((e) => e.id !== envelope.id)
-    .map((e) => e.title);
+  const otherEnvelopeTitles = envelopes.filter((e) => e.id !== envelope.id).map((e) => e.title);
   const toLabel = option === "budgeted" ? "To Be Budgeted" : targetEnv || "—";
 
   const handleDelete = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`,
-        { method: "DELETE" },
-      );
+      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`, {
+        method: "DELETE",
+      });
       const body = await res.json();
       if (!res.ok || !body.success) throw new Error(body.msg || "Failed to archive envelope.");
       onDeleted();
@@ -699,7 +694,7 @@ export function ArchiveEnvelopeModal({
                     type="button"
                     disabled={loading}
                     onClick={handleDelete}
-                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50"
                     style={{
                       background: "linear-gradient(135deg, #6C3AED 0%, #7C4AFF 100%)",
                       boxShadow: "0 0 20px rgba(108,58,237,0.4)",

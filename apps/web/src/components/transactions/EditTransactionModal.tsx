@@ -233,9 +233,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
   const envelopeAvailable = selectedEnvelope
     ? selectedEnvelope.allocated_amt - selectedEnvelope.spent_amt
     : 0;
-  const envBefore = selectedEnvelope
-    ? envelopeAvailable + (isExpense ? numericAmount : 0)
-    : 0;
+  const envBefore = selectedEnvelope ? envelopeAvailable + (isExpense ? numericAmount : 0) : 0;
   const envAfter = selectedEnvelope ? envelopeAvailable : 0;
 
   const isOverspent = isExpense && selectedEnvelope && envAfter < 0;
@@ -601,7 +599,9 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                       💼
                                     </div>
                                     <div className="flex-1 text-left">
-                                      <p className="text-sm leading-tight text-white">{env.title}</p>
+                                      <p className="text-sm leading-tight text-white">
+                                        {env.title}
+                                      </p>
                                       <p className="text-xs text-[#5A6A85]">
                                         Available: {formatCurrency(envAvail)}
                                       </p>

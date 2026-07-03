@@ -496,7 +496,13 @@ function EnvelopeInfoCard() {
 
 /* ── ModifyEnvelopeModal ─────────────────────────────────── */
 
-export function ModifyEnvelopeModal({ open, onClose, envelope, budgetId, onUpdated }: ModifyEnvelopeModalProps) {
+export function ModifyEnvelopeModal({
+  open,
+  onClose,
+  envelope,
+  budgetId,
+  onUpdated,
+}: ModifyEnvelopeModalProps) {
   const [title, setTitle] = useState(envelope.title);
   const [allocatedRaw, setAllocatedRaw] = useState(
     new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
@@ -528,18 +534,15 @@ export function ModifyEnvelopeModal({ open, onClose, envelope, budgetId, onUpdat
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: title.trim(),
-            allocated_amt: allocatedNum,
-            description: description.trim() || undefined,
-          }),
-        },
-      );
+      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          allocated_amt: allocatedNum,
+          description: description.trim() || undefined,
+        }),
+      });
       const body = await res.json();
       if (!res.ok || !body.success) throw new Error(body.msg || "Failed to save changes.");
       onUpdated();
@@ -716,7 +719,7 @@ export function ModifyEnvelopeModal({ open, onClose, envelope, budgetId, onUpdat
                     type="button"
                     disabled={loading}
                     onClick={handleSave}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Save size={14} />
                     {loading ? "Saving…" : "Save Changes"}

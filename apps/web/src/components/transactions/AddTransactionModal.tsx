@@ -121,7 +121,8 @@ export function AddTransactionModal({
   const [payee, setPayee] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(mockAccounts[0]);
   const [selectedEnvelopeId, setSelectedEnvelopeId] = useState<number | null>(null);
-  const selectedEnvelope = envelopes.find((e) => e.id === selectedEnvelopeId) ?? envelopes[0] ?? null;
+  const selectedEnvelope =
+    envelopes.find((e) => e.id === selectedEnvelopeId) ?? envelopes[0] ?? null;
   const [date] = useState("May 15, 2026");
   const [memo, setMemo] = useState("");
 
