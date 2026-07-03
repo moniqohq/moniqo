@@ -239,6 +239,9 @@ func newAuthSkipper() echomw.Skipper {
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
+		if req.Method == http.MethodOptions {
+			return true
+		}
 		for _, r := range routes {
 			if r.matches(req.Method, req.URL.Path) {
 				return true

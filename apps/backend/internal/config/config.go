@@ -164,6 +164,23 @@ func loadEmailConfig(env string) EmailConfig {
 	}
 }
 
+func envStringSlice(key string, fallback []string) []string {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	var result []string
+	for _, s := range strings.Split(v, ",") {
+		if t := strings.TrimSpace(s); t != "" {
+			result = append(result, t)
+		}
+	}
+	if len(result) == 0 {
+		return fallback
+	}
+	return result
+}
+
 func envInt(key string, fallback int) int {
 	v := os.Getenv(key)
 	if v == "" {
