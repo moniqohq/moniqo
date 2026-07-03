@@ -110,16 +110,18 @@ func Load() Config {
 // overrides the default (which is the AppBaseURL). Multiple origins are
 // comma-separated, e.g. "http://localhost:3000,https://app.moniqo.in".
 func corsOrigins(appBaseURL string) []string {
-	if v := os.Getenv("CORS_ORIGINS"); v != "" {
-		var origins []string
-		for _, o := range strings.Split(v, ",") {
-			if trimmed := strings.TrimSpace(o); trimmed != "" {
-				origins = append(origins, trimmed)
-			}
+	v := os.Getenv("CORS_ORIGINS")
+	if v == "" {
+		return []string{appBaseURL}
+	}
+	var origins []string
+	for o := range strings.SplitSeq(v, ",") {
+		if trimmed := strings.TrimSpace(o); trimmed != "" {
+			origins = append(origins, trimmed)
 		}
-		if len(origins) > 0 {
-			return origins
-		}
+	}
+	if len(origins) > 0 {
+		return origins
 	}
 	return []string{appBaseURL}
 }
