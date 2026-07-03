@@ -44,7 +44,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
-import { mockTransactions, mockEnvelopes, mockAccounts } from "@/mock/data";
+import { mockTransactions, mockAccounts } from "@/mock/data";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from "@/lib/utils";
 import { AddTransactionModal } from "./AddTransactionModal";
 import { TransactionDetailsModal } from "./TransactionDetailsModal";
@@ -492,10 +493,12 @@ function EnvelopeFilter({
   value,
   onChange,
   triggerClassName,
+  envelopes,
 }: {
   value: Set<string>;
   onChange: (ids: Set<string>) => void;
   triggerClassName?: string;
+  envelopes: import("@/types").BudgetEnvelope[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -521,13 +524,14 @@ function EnvelopeFilter({
   function triggerLabel() {
     if (value.size === 0) return "All Envelopes";
     if (value.size === 1) {
-      const env = mockEnvelopes.find((e) => e.id === [...value][0]);
-      return env ? env.name : "All Envelopes";
+      const env = envelopes.find((e) => String(e.id) === [...value][0]);
+      return env ? env.title : "All Envelopes";
     }
     return `${value.size} Envelopes`;
   }
 
-  const firstSelected = value.size === 1 ? mockEnvelopes.find((e) => e.id === [...value][0]) : null;
+  const firstSelected =
+    value.size === 1 ? envelopes.find((e) => String(e.id) === [...value][0]) : null;
 
   return (
     <div ref={ref} className="relative">
@@ -538,9 +542,9 @@ function EnvelopeFilter({
         {firstSelected && (
           <span
             className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[10px]"
-            style={{ backgroundColor: firstSelected.color }}
+            style={{ backgroundColor: "rgba(108,58,237,0.4)" }}
           >
-            {firstSelected.icon}
+            💼
           </span>
         )}
         {value.size > 1 && (
@@ -571,12 +575,16 @@ function EnvelopeFilter({
 
           {/* list */}
           <div className="max-h-64 overflow-y-auto py-1">
-            {mockEnvelopes.map((env) => {
-              const checked = value.has(env.id);
+            {envelopes.length === 0 && (
+              <p className="px-3 py-3 text-xs text-[#5A6A85]">No envelopes.</p>
+            )}
+            {envelopes.map((env) => {
+              const envId = String(env.id);
+              const checked = value.has(envId);
               return (
                 <button
                   key={env.id}
-                  onClick={() => toggle(env.id)}
+                  onClick={() => toggle(envId)}
                   className={cn(
                     "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
                     checked
@@ -605,11 +613,11 @@ function EnvelopeFilter({
                   </span>
                   <span
                     className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
-                    style={{ backgroundColor: env.color }}
+                    style={{ backgroundColor: "rgba(108,58,237,0.4)" }}
                   >
-                    {env.icon}
+                    💼
                   </span>
-                  <span className="truncate text-[#A8B4CC]">{env.name}</span>
+                  <span className="truncate text-[#A8B4CC]">{env.title}</span>
                 </button>
               );
             })}
@@ -820,6 +828,8 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
+  const { envelopes } = useEnvelopes();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -959,6 +969,7 @@ export function TransactionsView() {
             value={envelopeFilter}
             onChange={setEnvelopeFilter}
             triggerClassName={filterBtn}
+            envelopes={envelopes}
           />
           <DateRangePicker value={dateRange} onChange={setDateRange} triggerClassName={filterBtn} />
           <TypeFilter value={typeFilter} onChange={setTypeFilter} triggerClassName={filterBtn} />

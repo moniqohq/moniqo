@@ -55,6 +55,7 @@ import { AddTransactionModal } from "@/components/transactions/AddTransactionMod
 import { ModifyEnvelopeModal } from "./ModifyEnvelopeModal";
 import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { ForceDeleteEnvelopeDialog } from "./ForceDeleteEnvelopeDialog";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
 
 /* ── Types ───────────────────────────────────────────────── */
 type Nature = "Must" | "Need" | "Should" | "Want";
@@ -471,6 +472,9 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 
 /* ── Main component ──────────────────────────────────────── */
 export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) {
+  const { envelopes, budgetId, refresh } = useEnvelopes();
+  const currentEnvelope = envelopes.find((e) => e.id === parseInt(envelopeId, 10)) ?? null;
+
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -1076,12 +1080,25 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         onClose={() => setAddTxOpen(false)}
         defaultType="expense"
       />
-      <ModifyEnvelopeModal open={modifyOpen} onClose={() => setModifyOpen(false)} />
-      <ArchiveEnvelopeModal
-        open={archiveOpen}
-        onClose={() => setArchiveOpen(false)}
-        envelopeId={envelopeId}
-      />
+      {modifyOpen && currentEnvelope && budgetId !== null && (
+        <ModifyEnvelopeModal
+          open={modifyOpen}
+          onClose={() => setModifyOpen(false)}
+          envelope={currentEnvelope}
+          budgetId={budgetId}
+          onUpdated={refresh}
+        />
+      )}
+      {archiveOpen && currentEnvelope && budgetId !== null && (
+        <ArchiveEnvelopeModal
+          open={archiveOpen}
+          onClose={() => setArchiveOpen(false)}
+          envelope={currentEnvelope}
+          budgetId={budgetId}
+          envelopes={envelopes}
+          onDeleted={refresh}
+        />
+      )}
       <ForceDeleteEnvelopeDialog
         open={forceDeleteOpen}
         onOpenChange={setForceDeleteOpen}

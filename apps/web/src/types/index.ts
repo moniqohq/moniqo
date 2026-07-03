@@ -61,16 +61,12 @@ export interface Account {
 }
 
 export interface BudgetEnvelope {
-  id: string;
-  budgetId: string;
-  name: string;
-  icon?: string;
-  color?: string;
-  allocated: number;
-  spent: number;
-  available: number;
-  monthlyBudget: number;
-  groupName?: string;
+  id: number;
+  budget_id: number;
+  title: string;
+  allocated_amt: number;
+  spent_amt: number;
+  description?: string;
 }
 
 export interface Transaction {

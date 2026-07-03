@@ -36,7 +36,8 @@ import {
   ArrowRight,
   ArrowDown,
 } from "lucide-react";
-import { mockAccounts, mockEnvelopes } from "@/mock/data";
+import { mockAccounts } from "@/mock/data";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { TransactionType } from "@/types";
 
@@ -112,12 +113,16 @@ export function AddTransactionModal({
   onClose,
   defaultType = "expense",
 }: AddTransactionModalProps) {
+  const { envelopes } = useEnvelopes();
+
   /* core state */
   const [txType, setTxType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState("");
   const [payee, setPayee] = useState("");
   const [selectedAccount, setSelectedAccount] = useState(mockAccounts[0]);
-  const [selectedEnvelope, setSelectedEnvelope] = useState(mockEnvelopes[0]);
+  const [selectedEnvelopeId, setSelectedEnvelopeId] = useState<number | null>(null);
+  const selectedEnvelope =
+    envelopes.find((e) => e.id === selectedEnvelopeId) ?? envelopes[0] ?? null;
   const [date] = useState("May 15, 2026");
   const [memo, setMemo] = useState("");
 
@@ -161,8 +166,11 @@ export function AddTransactionModal({
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
 
-  const availableBefore = selectedEnvelope.available;
-  const availableAfter = selectedEnvelope.available - numericAmount;
+  const envelopeAvailable = selectedEnvelope
+    ? selectedEnvelope.allocated_amt - selectedEnvelope.spent_amt
+    : 0;
+  const availableBefore = envelopeAvailable;
+  const availableAfter = envelopeAvailable - numericAmount;
   const acctAfterExpense = selectedAccount.balance - numericAmount;
   const acctAfterIncome = selectedAccount.balance + numericAmount;
 
@@ -610,14 +618,14 @@ export function AddTransactionModal({
                             >
                               <div
                                 className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-base"
-                                style={{ background: `${selectedEnvelope.color}30` }}
+                                style={{ background: "rgba(108,58,237,0.18)" }}
                               >
-                                {selectedEnvelope.icon}
+                                💼
                               </div>
                               <div className="flex-1 text-left">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-sm font-semibold text-white">
-                                    {selectedEnvelope.name}
+                                    {selectedEnvelope?.title ?? "Select envelope"}
                                   </span>
                                   <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                                 </div>
@@ -627,34 +635,40 @@ export function AddTransactionModal({
                             </button>
                             {envelopeOpen && (
                               <div className="absolute top-full left-0 z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
-                                {mockEnvelopes.map((env) => (
-                                  <button
-                                    key={env.id}
-                                    onClick={() => {
-                                      setSelectedEnvelope(env);
-                                      setEnvelopeOpen(false);
-                                    }}
-                                    className={cn(
-                                      "flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors",
-                                      selectedEnvelope.id === env.id
-                                        ? "bg-[#6C3AED]/15 text-white"
-                                        : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
-                                    )}
-                                  >
-                                    <div
-                                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-sm"
-                                      style={{ background: `${env.color}30` }}
+                                {envelopes.length === 0 && (
+                                  <p className="px-4 py-3 text-sm text-[#5A6A85]">No envelopes.</p>
+                                )}
+                                {envelopes.map((env) => {
+                                  const envAvailable = env.allocated_amt - env.spent_amt;
+                                  return (
+                                    <button
+                                      key={env.id}
+                                      onClick={() => {
+                                        setSelectedEnvelopeId(env.id);
+                                        setEnvelopeOpen(false);
+                                      }}
+                                      className={cn(
+                                        "flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors",
+                                        selectedEnvelope?.id === env.id
+                                          ? "bg-[#6C3AED]/15 text-white"
+                                          : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
+                                      )}
                                     >
-                                      {env.icon}
-                                    </div>
-                                    <div className="text-left">
-                                      <p className="text-sm text-white">{env.name}</p>
-                                      <p className="text-xs text-[#5A6A85]">
-                                        Available: {formatCurrency(env.available)}
-                                      </p>
-                                    </div>
-                                  </button>
-                                ))}
+                                      <div
+                                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-sm"
+                                        style={{ background: "rgba(108,58,237,0.18)" }}
+                                      >
+                                        💼
+                                      </div>
+                                      <div className="text-left">
+                                        <p className="text-sm text-white">{env.title}</p>
+                                        <p className="text-xs text-[#5A6A85]">
+                                          Available: {formatCurrency(envAvailable)}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -901,13 +915,13 @@ export function AddTransactionModal({
                           <div className="mb-3 flex items-center gap-2.5">
                             <div
                               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-base"
-                              style={{ background: `${selectedEnvelope.color}30` }}
+                              style={{ background: "rgba(108,58,237,0.18)" }}
                             >
-                              {selectedEnvelope.icon}
+                              💼
                             </div>
                             <div>
                               <p className="text-sm leading-tight font-semibold text-white">
-                                Category: {selectedEnvelope.name}
+                                Category: {selectedEnvelope?.title ?? "—"}
                               </p>
                               <p className="text-xs text-[#4A5A75]">Monthly Budget</p>
                             </div>
@@ -918,7 +932,7 @@ export function AddTransactionModal({
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Monthly Budget</dt>
                               <dd className="text-xs font-semibold text-white tabular-nums">
-                                {formatCurrency(selectedEnvelope.monthlyBudget)}
+                                {formatCurrency(selectedEnvelope?.allocated_amt ?? 0)}
                               </dd>
                             </div>
                             <div className="flex items-center justify-between">
