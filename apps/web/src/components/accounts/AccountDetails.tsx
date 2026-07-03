@@ -192,7 +192,9 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
-  const { transactions: allTxns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
+  const { transactions: allTxns } = useTransactions(budgetId, accountMap, envelopeMap, {
+    accountId,
+  });
 
   const meta: AccountMeta = {
     accountNumber: "—",

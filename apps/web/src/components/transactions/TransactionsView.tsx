@@ -216,7 +216,9 @@ function TxRow({
         <div className="flex items-center gap-2">
           {(() => {
             const acc = accounts.find((a) => String(a.id) === tx.accountId);
-            const meta = (acc ? ACCOUNT_TYPE_META[acc.type as AccountType] : undefined) ?? ACCOUNT_TYPE_META.checking;
+            const meta =
+              (acc ? ACCOUNT_TYPE_META[acc.type as AccountType] : undefined) ??
+              ACCOUNT_TYPE_META.checking;
             return (
               <div
                 className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
@@ -289,10 +291,11 @@ function AccountFilter({
   triggerClassName,
   accounts,
 }: {
-  value: Set<number>;
-  onChange: (ids: Set<number>) => void;
+  value: Set<string>;
+  onChange: (ids: Set<string>) => void;
   triggerClassName?: string;
-  accounts: ApiAccount[];}) {
+  accounts: ApiAccount[];
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -304,7 +307,7 @@ function AccountFilter({
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  function toggle(id: number) {
+  function toggle(id: string) {
     const next = new Set(value);
     if (next.has(id)) {
       next.delete(id);
@@ -317,12 +320,14 @@ function AccountFilter({
   function triggerLabel() {
     if (value.size === 0) return "All Accounts";
     if (value.size === 1) {
-      const acc = accounts.find((a) => String(a.id) === [...value][0]);      return acc ? acc.name : "All Accounts";
+      const acc = accounts.find((a) => String(a.id) === [...value][0]);
+      return acc ? acc.name : "All Accounts";
     }
     return `${value.size} Accounts`;
   }
 
-  const firstSelected = value.size === 1 ? accounts.find((a) => String(a.id) === [...value][0]) : null;
+  const firstSelected =
+    value.size === 1 ? accounts.find((a) => String(a.id) === [...value][0]) : null;
   return (
     <div ref={ref} className="relative">
       <button
@@ -332,10 +337,21 @@ function AccountFilter({
         {firstSelected && (
           <span
             className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
-            style={{ backgroundColor: `${(ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking).color}22` }}
+            style={{
+              backgroundColor: `${(ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking).color}22`,
+            }}
           >
-            <span style={{ color: (ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking).color }}>
-              {(ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking).icon}
+            <span
+              style={{
+                color: (
+                  ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking
+                ).color,
+              }}
+            >
+              {
+                (ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking)
+                  .icon
+              }
             </span>
           </span>
         )}
@@ -369,7 +385,8 @@ function AccountFilter({
           <div className="max-h-64 overflow-y-auto py-1">
             {accounts.map((acc) => {
               const checked = value.has(String(acc.id));
-              const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;              return (
+              const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;
+              return (
                 <button
                   key={acc.id}
                   onClick={() => toggle(String(acc.id))}
@@ -406,7 +423,32 @@ function AccountFilter({
                   >
                     {meta.icon}
                   </span>
-  envelopes: ApiEnvelope[];}) {
+                  {/* name */}
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] leading-tight text-[#A8B4CC]">{acc.name}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Envelope filter dropdown (multi-select) ────────────── */
+function EnvelopeFilter({
+  value,
+  onChange,
+  triggerClassName,
+  envelopes,
+}: {
+  value: Set<string>;
+  onChange: (ids: Set<string>) => void;
+  triggerClassName?: string;
+  envelopes: ApiEnvelope[];
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -418,7 +460,7 @@ function AccountFilter({
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  function toggle(id: number) {
+  function toggle(id: string) {
     const next = new Set(value);
     if (next.has(id)) {
       next.delete(id);
@@ -432,11 +474,13 @@ function AccountFilter({
     if (value.size === 0) return "All Envelopes";
     if (value.size === 1) {
       const env = envelopes.find((e) => String(e.id) === [...value][0]);
-      return env ? env.title : "All Envelopes";    }
+      return env ? env.title : "All Envelopes";
+    }
     return `${value.size} Envelopes`;
   }
 
-  const firstSelected = value.size === 1 ? envelopes.find((e) => String(e.id) === [...value][0]) : null;
+  const firstSelected =
+    value.size === 1 ? envelopes.find((e) => String(e.id) === [...value][0]) : null;
   return (
     <div ref={ref} className="relative">
       <button
@@ -445,7 +489,8 @@ function AccountFilter({
       >
         {firstSelected && (
           <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded bg-[#6C3AED]/20 text-[10px] text-[#8B5CF6]">
-            {firstSelected.title[0]}          </span>
+            {firstSelected.title[0]}{" "}
+          </span>
         )}
         {value.size > 1 && (
           <span className="inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#6C3AED] text-[9px] font-bold text-white">
@@ -476,7 +521,8 @@ function AccountFilter({
           {/* list */}
           <div className="max-h-64 overflow-y-auto py-1">
             {envelopes.map((env) => {
-              const checked = value.has(String(env.id));              return (
+              const checked = value.has(String(env.id));
+              return (
                 <button
                   key={env.id}
                   onClick={() => toggle(String(env.id))}
@@ -507,7 +553,8 @@ function AccountFilter({
                     )}
                   </span>
                   <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#6C3AED]/20 text-[11px] text-[#8B5CF6]">
-                    {env.title[0]}                  </span>
+                    {env.title[0]}{" "}
+                  </span>
                   <span className="truncate text-[#A8B4CC]">{env.title}</span>
                 </button>
               );
@@ -744,18 +791,19 @@ export function TransactionsView() {
 
   const { accounts, accountMap } = useAccounts(activeBudgetId);
   const { envelopes, envelopeMap } = useEnvelopes(activeBudgetId);
-  const { transactions, total: totalCount, loading: txLoading, error: txError, refetch } = useTransactions(
-    activeBudgetId,
-    accountMap,
-    envelopeMap,
-    {
-      accountId: accountFilter.size === 1 ? Number([...accountFilter][0]) : undefined,
-      envelopeId: envelopeFilter.size === 1 ? Number([...envelopeFilter][0]) : undefined,
-      dateFrom: dateRange.from?.toISOString(),
-      dateTo: dateRange.to?.toISOString(),
-      pageSize,
-    },
-  );
+  const {
+    transactions,
+    total: totalCount,
+    loading: txLoading,
+    error: txError,
+    refetch,
+  } = useTransactions(activeBudgetId, accountMap, envelopeMap, {
+    accountId: accountFilter.size === 1 ? Number([...accountFilter][0]) : undefined,
+    envelopeId: envelopeFilter.size === 1 ? Number([...envelopeFilter][0]) : undefined,
+    dateFrom: dateRange.from?.toISOString(),
+    dateTo: dateRange.to?.toISOString(),
+    pageSize,
+  });
   const allSelected = selected.size === transactions.length && transactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
 
@@ -798,7 +846,9 @@ export function TransactionsView() {
     setDeleteLoading(true);
     setDeleteError(null);
     try {
-      const res = await apiFetch(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, {
+        method: "DELETE",
+      });
       const body = await res.json();
       if (!res.ok || !body.success) throw new Error(body.msg || "Failed to delete transaction.");
       refetch();
@@ -1094,20 +1144,21 @@ export function TransactionsView() {
                   </td>
                 </tr>
               )}
-              {!txLoading && transactions.map((tx, i) => (
-                <TxRow
-                  key={tx.id}
-                  tx={tx}
-                  index={i}
-                  accounts={accounts}
-                  selected={selected.has(tx.id)}
-                  onSelect={() => toggleRow(tx.id)}
-                  onRowClick={() => {
-                    setDetailTx(tx);
-                    setDetailOpen(true);
-                  }}
-                />
-              ))}
+              {!txLoading &&
+                transactions.map((tx, i) => (
+                  <TxRow
+                    key={tx.id}
+                    tx={tx}
+                    index={i}
+                    accounts={accounts}
+                    selected={selected.has(tx.id)}
+                    onSelect={() => toggleRow(tx.id)}
+                    onRowClick={() => {
+                      setDetailTx(tx);
+                      setDetailOpen(true);
+                    }}
+                  />
+                ))}
             </tbody>
           </table>
         </div>

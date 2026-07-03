@@ -58,23 +58,25 @@ export function useEnvelopes(budgetId: number | null) {
   useEffect(() => {
     if (budgetId == null) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
-    apiFetch(`/api/v1/budgets/${budgetId}/envelopes`)
-      .then((res) => res.json() as Promise<ApiListResponse<ApiEnvelope>>)
-      .then((body) => {
+    const fetchEnvelopes = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await apiFetch(`/api/v1/budgets/${budgetId}/envelopes`);
+        const body = (await res.json()) as ApiListResponse<ApiEnvelope>;
         if (cancelled) return;
         if (!body.success) throw new Error(body.msg || "Failed to fetch envelopes");
         setEnvelopes(body.data ?? []);
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unexpected error");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+
+    void fetchEnvelopes();
 
     return () => {
       cancelled = true;
@@ -99,10 +101,7 @@ export function useEnvelopes(budgetId: number | null) {
     return body.data as ApiEnvelope;
   };
 
-  const patchEnvelope = async (
-    id: number,
-    payload: PatchEnvelopePayload,
-  ): Promise<ApiEnvelope> => {
+  const patchEnvelope = async (id: number, payload: PatchEnvelopePayload): Promise<ApiEnvelope> => {
     const res = await apiFetch(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

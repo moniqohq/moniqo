@@ -67,7 +67,9 @@ export function RecentTransactions() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { accountMap } = useAccounts(activeBudgetId);
   const { envelopeMap } = useEnvelopes(activeBudgetId);
-  const { transactions, loading } = useTransactions(activeBudgetId, accountMap, envelopeMap, { pageSize: 7 });
+  const { transactions, loading } = useTransactions(activeBudgetId, accountMap, envelopeMap, {
+    pageSize: 7,
+  });
   const recent = transactions;
 
   return (
@@ -108,87 +110,88 @@ export function RecentTransactions() {
                 </td>
               </tr>
             )}
-            {!loading && recent.map((tx, i) => {
-              const amountColor =
-                tx.type === "income"
-                  ? "text-[#4ADE80]"
-                  : tx.type === "transfer"
-                    ? tx.amount >= 0
-                      ? "text-[#4ADE80]"
-                      : "text-[#F87171]"
-                    : "text-[#F87171]";
+            {!loading &&
+              recent.map((tx, i) => {
+                const amountColor =
+                  tx.type === "income"
+                    ? "text-[#4ADE80]"
+                    : tx.type === "transfer"
+                      ? tx.amount >= 0
+                        ? "text-[#4ADE80]"
+                        : "text-[#F87171]"
+                      : "text-[#F87171]";
 
-              return (
-                <motion.tr
-                  key={tx.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="cursor-pointer transition-colors hover:bg-[#0D1828]"
-                >
-                  {/* Merchant */}
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white select-none"
-                        style={{ backgroundColor: "#1E2B42" }}
-                      >
-                        {(tx.payee || tx.accountName || "T")[0]}
-                      </div>
-                      <div>
-                        <p className="max-w-[140px] truncate text-[13px] leading-tight font-medium text-[#E8EEF8]">
-                          {tx.payee}
-                        </p>
-                        {tx.memo && (
-                          <p className="max-w-[140px] truncate text-[11px] leading-tight text-[#5A6A85]">
-                            {tx.memo}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Envelope */}
-                  <td className="px-4 py-3">
-                    {tx.envelopeName ? (
-                      <div className="flex items-center gap-2">
+                return (
+                  <motion.tr
+                    key={tx.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="cursor-pointer transition-colors hover:bg-[#0D1828]"
+                  >
+                    {/* Merchant */}
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
                         <div
-                          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white select-none"
                           style={{ backgroundColor: "#1E2B42" }}
                         >
-                          {tx.envelopeName?.[0] ?? "E"}
+                          {(tx.payee || tx.accountName || "T")[0]}
                         </div>
-                        <span className="text-[13px] whitespace-nowrap text-[#A8B4CC]">
-                          {tx.envelopeName}
-                        </span>
+                        <div>
+                          <p className="max-w-[140px] truncate text-[13px] leading-tight font-medium text-[#E8EEF8]">
+                            {tx.payee}
+                          </p>
+                          {tx.memo && (
+                            <p className="max-w-[140px] truncate text-[11px] leading-tight text-[#5A6A85]">
+                              {tx.memo}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-sm text-[#2A3A54] select-none">—</span>
-                    )}
-                  </td>
+                    </td>
 
-                  {/* Date */}
-                  <td className="px-4 py-3 text-[13px] whitespace-nowrap text-[#A8B4CC]">
-                    {formatTableDate(tx.date)}
-                  </td>
+                    {/* Envelope */}
+                    <td className="px-4 py-3">
+                      {tx.envelopeName ? (
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
+                            style={{ backgroundColor: "#1E2B42" }}
+                          >
+                            {tx.envelopeName?.[0] ?? "E"}
+                          </div>
+                          <span className="text-[13px] whitespace-nowrap text-[#A8B4CC]">
+                            {tx.envelopeName}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-[#2A3A54] select-none">—</span>
+                      )}
+                    </td>
 
-                  {/* Amount */}
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right text-[13px] font-semibold whitespace-nowrap tabular-nums",
-                      amountColor,
-                    )}
-                  >
-                    {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
-                  </td>
+                    {/* Date */}
+                    <td className="px-4 py-3 text-[13px] whitespace-nowrap text-[#A8B4CC]">
+                      {formatTableDate(tx.date)}
+                    </td>
 
-                  {/* Status */}
-                  <td className="px-5 py-3 text-right">
-                    <StatusBadge status={STATUSES[i % STATUSES.length]} />
-                  </td>
-                </motion.tr>
-              );
-            })}
+                    {/* Amount */}
+                    <td
+                      className={cn(
+                        "px-4 py-3 text-right text-[13px] font-semibold whitespace-nowrap tabular-nums",
+                        amountColor,
+                      )}
+                    >
+                      {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-5 py-3 text-right">
+                      <StatusBadge status={STATUSES[i % STATUSES.length]} />
+                    </td>
+                  </motion.tr>
+                );
+              })}
           </tbody>
         </table>
       </div>

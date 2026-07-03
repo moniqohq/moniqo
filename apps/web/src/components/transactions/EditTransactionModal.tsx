@@ -151,7 +151,15 @@ interface Props {
 
 /* ── component ────────────────────────────────────────────── */
 
-export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, accounts = [], envelopes = [] }: Props) {
+export function EditTransactionModal({
+  tx,
+  open,
+  onClose,
+  onSave,
+  budgetId,
+  accounts = [],
+  envelopes = [],
+}: Props) {
   /* form state */
   const [txType, setTxType] = useState<TransactionType>("expense");
   const [date, setDate] = useState("");
@@ -221,7 +229,9 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
   const selectedAccount = accounts.find((a) => String(a.id) === accountId) ?? accounts[0] ?? null;
   const selectedEnvelope = envelopes.find((e) => String(e.id) === envId) ?? null;
   const selectedTransferAccount = accounts.find((a) => String(a.id) === transferTo) ?? null;
-  const accMeta = selectedAccount ? ACCOUNT_TYPE_META[selectedAccount.type as AccountType] ?? ACCOUNT_TYPE_META.checking : ACCOUNT_TYPE_META.checking;
+  const accMeta = selectedAccount
+    ? (ACCOUNT_TYPE_META[selectedAccount.type as AccountType] ?? ACCOUNT_TYPE_META.checking)
+    : ACCOUNT_TYPE_META.checking;
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;
   const accountBefore = Number(selectedAccount?.balance ?? 0) - signedAmount;
@@ -272,7 +282,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
       // error is surfaced inline in a future iteration
     } finally {
       setSaving(false);
-    }  }
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -497,7 +508,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                             {accMeta.icon}
                           </div>
                           <span className="flex-1 truncate text-left text-sm text-white">
-                            {selectedAccount?.name ?? "Select account"}                            <span className="ml-1 text-xs text-[#5A6A85] capitalize">
+                            {selectedAccount?.name ?? "Select account"}{" "}
+                            <span className="ml-1 text-xs text-[#5A6A85] capitalize">
                               ({selectedAccount?.type ?? ""})
                             </span>
                           </span>
@@ -506,7 +518,10 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                         {accountOpen && (
                           <div className="absolute top-full left-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
                             {accounts.map((acc) => {
-                              const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;                              return (
+                              const meta =
+                                ACCOUNT_TYPE_META[acc.type as AccountType] ??
+                                ACCOUNT_TYPE_META.checking;
+                              return (
                                 <button
                                   key={acc.id}
                                   onClick={(e) => {
@@ -531,9 +546,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                                     {meta.icon}
                                   </div>
                                   <div className="flex-1 text-left">
-                                    <p className="text-sm leading-tight text-white">
-                                      {acc.name}
-                                    </p>                                    <p className="text-xs text-[#5A6A85] capitalize">
+                                    <p className="text-sm leading-tight text-white">{acc.name}</p>{" "}
+                                    <p className="text-xs text-[#5A6A85] capitalize">
                                       {acc.type} · {formatCurrency(Number(acc.balance))}
                                     </p>
                                   </div>
@@ -568,7 +582,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                                   {selectedEnvelope?.title?.[0] ?? "E"}
                                 </div>
                                 <span className="flex-1 truncate text-left text-sm text-white">
-                                  {selectedEnvelope?.title ?? "Select envelope"}                                </span>
+                                  {selectedEnvelope?.title ?? "Select envelope"}{" "}
+                                </span>
                               </>
                             ) : (
                               <span className="flex-1 text-left text-sm text-[#2A3A54]">
@@ -598,7 +613,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px]"
                                     style={{ backgroundColor: `${"#6C3AED"}30` }}
                                   >
-                                    {env.title[0]}                                  </div>
+                                    {env.title[0]}{" "}
+                                  </div>
                                   <div className="flex-1 text-left">
                                     <p className="text-sm leading-tight text-white">{env.title}</p>
                                     <p className="text-xs text-[#5A6A85]">
@@ -650,7 +666,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                           <span className="flex-1 text-left text-sm">
                             {selectedTransferAccount ? (
                               <span className="text-white">
-                                {selectedTransferAccount?.name ?? "—"}                              </span>
+                                {selectedTransferAccount?.name ?? "—"}{" "}
+                              </span>
                             ) : (
                               "Select account (optional)"
                             )}
@@ -670,8 +687,11 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                               None
                             </button>
                             {accounts
-                              .filter((a) => String(a.id) !== accountId)                              .map((acc) => {
-                                const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;
+                              .filter((a) => String(a.id) !== accountId)
+                              .map((acc) => {
+                                const meta =
+                                  ACCOUNT_TYPE_META[acc.type as AccountType] ??
+                                  ACCOUNT_TYPE_META.checking;
                                 return (
                                   <button
                                     key={acc.id}
@@ -737,7 +757,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                       <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                         Account Impact{" "}
                         <span className="font-normal text-[#5A6A85]">
-                          ({selectedAccount?.name ?? "Select account"})                        </span>
+                          ({selectedAccount?.name ?? "Select account"}){" "}
+                        </span>
                       </p>
                       <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">
                         <ImpactLine
@@ -763,7 +784,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, acco
                         <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                           Envelope Impact{" "}
                           <span className="font-normal text-[#5A6A85]">
-                            ({selectedEnvelope?.title ?? "Select envelope"})                          </span>
+                            ({selectedEnvelope?.title ?? "Select envelope"}){" "}
+                          </span>
                         </p>
                         <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">
                           <ImpactLine

@@ -37,23 +37,25 @@ export function useAccounts(budgetId: number | null): UseAccountsResult {
   useEffect(() => {
     if (budgetId == null) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
-    apiFetch(`/api/v1/budgets/${budgetId}/accounts`)
-      .then((res) => res.json() as Promise<ApiListResponse<ApiAccount>>)
-      .then((body) => {
+    const fetchAccounts = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await apiFetch(`/api/v1/budgets/${budgetId}/accounts`);
+        const body = (await res.json()) as ApiListResponse<ApiAccount>;
         if (cancelled) return;
         if (!body.success) throw new Error(body.msg || "Failed to fetch accounts");
         setAccounts(body.data ?? []);
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unexpected error");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+
+    void fetchAccounts();
 
     return () => {
       cancelled = true;

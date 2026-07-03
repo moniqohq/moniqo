@@ -408,7 +408,9 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
 
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap } = useEnvelopes(budgetId);
-  const { transactions: accountTransactions } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
+  const { transactions: accountTransactions } = useTransactions(budgetId, accountMap, envelopeMap, {
+    accountId,
+  });
 
   const account = accounts.find((a) => a.id === accountId);
   const meta = account ? TYPE_META[account.type] : TYPE_META.checking;

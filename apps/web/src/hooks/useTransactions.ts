@@ -70,30 +70,41 @@ export function useTransactions(
     const url = `/api/v1/budgets/${budgetId}/transactions${query ? `?${query}` : ""}`;
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
 
-    apiFetch(url)
-      .then((res) => res.json() as Promise<ApiListResponse<ApiTransaction>>)
-      .then((body) => {
+    const fetchTransactions = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await apiFetch(url);
+        const body = (await res.json()) as ApiListResponse<ApiTransaction>;
         if (cancelled) return;
         if (!body.success) throw new Error(body.msg || "Failed to fetch transactions");
         setTransactions((body.data ?? []).map((raw) => adaptTransaction(raw, accounts, envelopes)));
         setTotal(body.meta?.total ?? body.data?.length ?? 0);
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unexpected error");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+
+    void fetchTransactions();
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [budgetId, tick, filters?.accountId, filters?.envelopeId, filters?.dateFrom, filters?.dateTo, filters?.page, filters?.pageSize]);
+  }, [
+    budgetId,
+    tick,
+    filters?.accountId,
+    filters?.envelopeId,
+    filters?.dateFrom,
+    filters?.dateTo,
+    filters?.page,
+    filters?.pageSize,
+  ]);
 
   return { transactions, total, loading, error, refetch };
 }
