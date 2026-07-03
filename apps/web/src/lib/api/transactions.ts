@@ -34,7 +34,7 @@ export type TransactionFilters = {
 
 export function listTransactions(
   budgetId: number,
-  filters: TransactionFilters = {}
+  filters: TransactionFilters = {},
 ): Promise<ApiTransaction[]> {
   const params = new URLSearchParams();
   if (filters.account_id != null) params.set("account_id", String(filters.account_id));
@@ -56,8 +56,20 @@ export function getTransaction(budgetId: number, id: number): Promise<ApiTransac
 export function createTransaction(
   budgetId: number,
   req:
-    | { account_id: number; budget_envelope_id: number; amount: number; date: string; memo?: string }
-    | { account_id: number; transfer_account_id: number; amount: number; date: string; memo?: string }
+    | {
+        account_id: number;
+        budget_envelope_id: number;
+        amount: number;
+        date: string;
+        memo?: string;
+      }
+    | {
+        account_id: number;
+        transfer_account_id: number;
+        amount: number;
+        date: string;
+        memo?: string;
+      },
 ): Promise<ApiTransaction> {
   return apiFetch<ApiTransaction>(base(budgetId), {
     method: "POST",
@@ -75,7 +87,7 @@ export function patchTransaction(
     amount: number;
     date: string;
     memo: string | null;
-  }>
+  }>,
 ): Promise<ApiTransaction> {
   return apiFetch<ApiTransaction>(`${base(budgetId)}/${id}`, {
     method: "PATCH",

@@ -38,7 +38,7 @@ export function createBudget(req: { title: string; notes?: string }): Promise<Ap
 
 export function patchBudget(
   id: number,
-  req: Partial<{ title: string; notes: string | null }>
+  req: Partial<{ title: string; notes: string | null }>,
 ): Promise<ApiBudget> {
   return apiFetch<ApiBudget>(`/api/v1/budgets/${id}`, {
     method: "PATCH",

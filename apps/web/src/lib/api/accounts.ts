@@ -40,7 +40,7 @@ export function createAccount(
     is_on_budget?: boolean;
     notes?: string;
     initial_balance: number;
-  }
+  },
 ): Promise<ApiAccount> {
   return apiFetch<ApiAccount>(base(budgetId), {
     method: "POST",
@@ -57,7 +57,7 @@ export function patchAccount(
     requires_recon: boolean;
     is_on_budget: boolean;
     notes: string | null;
-  }>
+  }>,
 ): Promise<ApiAccount> {
   return apiFetch<ApiAccount>(`${base(budgetId)}/${id}`, {
     method: "PATCH",

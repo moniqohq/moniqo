@@ -27,7 +27,6 @@ import {
   PiggyBank,
   CreditCard,
   Wallet,
-  TrendingUp,
   Landmark,
   ChevronDown,
   Info,
@@ -260,7 +259,12 @@ function ArchiveAccountCard({ onArchive }: { onArchive: () => void }) {
 
 /* ── main modal ───────────────────────────────────────── */
 
-export function ModifyAccountModal({ open, onClose, accountId, budgetId }: ModifyAccountModalProps) {
+export function ModifyAccountModal({
+  open,
+  onClose,
+  accountId,
+  budgetId,
+}: ModifyAccountModalProps) {
   const { data: accounts, refetch } = useAccounts(budgetId);
   const account = accounts.find((a) => a.id === accountId);
 
@@ -271,8 +275,8 @@ export function ModifyAccountModal({ open, onClose, accountId, budgetId }: Modif
   const [reconciliation, setReconciliation] = useState(account?.requiresRecon ?? true);
   const [lockTransactions, setLockTransactions] = useState(false);
   const [notes, setNotes] = useState(account?.notes ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_saving, setSaving] = useState(false);
+  const [_error, setError] = useState<string | null>(null);
 
   /* reset form whenever the modal opens with a new account */
   /* eslint-disable react-hooks/set-state-in-effect */

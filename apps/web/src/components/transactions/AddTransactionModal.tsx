@@ -128,7 +128,7 @@ export function AddTransactionModal({
   const [date] = useState(new Date().toISOString().split("T")[0]);
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
 
   /* expense dropdowns */
   const [accountOpen, setAccountOpen] = useState(false);
@@ -351,9 +351,7 @@ export function AddTransactionModal({
                                       <Building2 size={14} className="text-[#3B82F6]" />
                                     </div>
                                     <div className="text-left">
-                                      <p className="text-sm text-white">
-                                        {acc.name}
-                                      </p>
+                                      <p className="text-sm text-white">{acc.name}</p>
                                       <p className="text-xs text-[#5A6A85]">
                                         {formatCurrency(acc.balance)}
                                       </p>
@@ -411,9 +409,7 @@ export function AddTransactionModal({
                                       <Building2 size={14} className="text-[#7C3AED]" />
                                     </div>
                                     <div className="text-left">
-                                      <p className="text-sm text-white">
-                                        {acc.name}
-                                      </p>
+                                      <p className="text-sm text-white">{acc.name}</p>
                                       <p className="text-xs text-[#5A6A85]">
                                         {formatCurrency(acc.balance)}
                                       </p>
@@ -536,7 +532,8 @@ export function AddTransactionModal({
                                 {selectedAccount?.name ?? "Account"}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
-                                Available balance&nbsp;{formatCurrency(selectedAccount?.balance ?? 0)}
+                                Available balance&nbsp;
+                                {formatCurrency(selectedAccount?.balance ?? 0)}
                               </p>
                             </div>
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
@@ -561,9 +558,7 @@ export function AddTransactionModal({
                                     <Building2 size={14} className="text-[#7A8BA8]" />
                                   </div>
                                   <div className="text-left">
-                                    <p className="text-sm text-white">
-                                      {acc.name}
-                                    </p>
+                                    <p className="text-sm text-white">{acc.name}</p>
                                     <p className="text-xs text-[#5A6A85] capitalize">
                                       {acc.type} · {formatCurrency(acc.balance)}
                                     </p>
@@ -621,7 +616,7 @@ export function AddTransactionModal({
                                 className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-base"
                                 style={{ background: `${"#6C3AED"}30` }}
                               >
-                                {(selectedEnvelope?.name?.[0] ?? "?")}
+                                {selectedEnvelope?.name?.[0] ?? "?"}
                               </div>
                               <div className="flex-1 text-left">
                                 <div className="flex items-center gap-1.5">
@@ -912,7 +907,7 @@ export function AddTransactionModal({
                               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-base"
                               style={{ background: `${"#6C3AED"}30` }}
                             >
-                              {(selectedEnvelope?.name?.[0] ?? "?")}
+                              {selectedEnvelope?.name?.[0] ?? "?"}
                             </div>
                             <div>
                               <p className="text-sm leading-tight font-semibold text-white">
@@ -1048,7 +1043,11 @@ export function AddTransactionModal({
                             date,
                             memo: memo || undefined,
                           });
-                        } else if ((isExpense || isIncome) && selectedAccount?.id != null && selectedEnvelope?.id != null) {
+                        } else if (
+                          (isExpense || isIncome) &&
+                          selectedAccount?.id != null &&
+                          selectedEnvelope?.id != null
+                        ) {
                           await createTransaction(activeBudgetId, {
                             account_id: selectedAccount.id,
                             budget_envelope_id: selectedEnvelope.id,
@@ -1073,7 +1072,13 @@ export function AddTransactionModal({
                     )}
                   >
                     <Save size={15} />
-                    {saving ? "Saving…" : isIncome ? "Save Income" : isExpense ? "Save Transaction" : "Save Transfer"}
+                    {saving
+                      ? "Saving…"
+                      : isIncome
+                        ? "Save Income"
+                        : isExpense
+                          ? "Save Transaction"
+                          : "Save Transfer"}
                   </button>
                 </div>
               </div>

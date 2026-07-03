@@ -27,5 +27,7 @@ interface Props {
 
 export default async function DeleteAccountPage({ params }: Props) {
   const { budgetId, accountId } = await params;
-  return <DeleteAccountView budgetId={parseInt(budgetId, 10)} accountId={parseInt(accountId, 10)} />;
+  return (
+    <DeleteAccountView budgetId={parseInt(budgetId, 10)} accountId={parseInt(accountId, 10)} />
+  );
 }

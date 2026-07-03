@@ -72,6 +72,7 @@ export function useEnvelopes(budgetId: number | null) {
   }, [budgetId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetch();
   }, [fetch]);
 

@@ -37,7 +37,7 @@ export function getBudgetSummary(budgetId: number): Promise<ApiBudgetSummary> {
 
 export function createEnvelope(
   budgetId: number,
-  req: { title: string; allocated_amt: number; description?: string }
+  req: { title: string; allocated_amt: number; description?: string },
 ): Promise<ApiEnvelope> {
   return apiFetch<ApiEnvelope>(base(budgetId), {
     method: "POST",
@@ -48,7 +48,7 @@ export function createEnvelope(
 export function patchEnvelope(
   budgetId: number,
   id: number,
-  req: Partial<{ title: string; allocated_amt: number; description: string | null }>
+  req: Partial<{ title: string; allocated_amt: number; description: string | null }>,
 ): Promise<ApiEnvelope> {
   return apiFetch<ApiEnvelope>(`${base(budgetId)}/${id}`, {
     method: "PATCH",

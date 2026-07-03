@@ -25,8 +25,15 @@ import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrencyCompact } from "@/lib/utils";
 
 const COLORS = [
-  "#6C3AED", "#00E6B4", "#F59E0B", "#EF4444", "#22C55E",
-  "#3B82F6", "#A855F7", "#F97316", "#06B6D4",
+  "#6C3AED",
+  "#00E6B4",
+  "#F59E0B",
+  "#EF4444",
+  "#22C55E",
+  "#3B82F6",
+  "#A855F7",
+  "#F97316",
+  "#06B6D4",
 ];
 
 export function CategorySpendingList() {
@@ -35,13 +42,13 @@ export function CategorySpendingList() {
 
   if (isLoading && envelopes.length === 0) {
     return (
-      <div className="flex items-center justify-center py-6 text-[#3A4A60] text-sm">Loading…</div>
+      <div className="flex items-center justify-center py-6 text-sm text-[#3A4A60]">Loading…</div>
     );
   }
 
   if (envelopes.length === 0) {
     return (
-      <div className="flex items-center justify-center py-6 text-[#3A4A60] text-sm">
+      <div className="flex items-center justify-center py-6 text-sm text-[#3A4A60]">
         No envelopes yet
       </div>
     );

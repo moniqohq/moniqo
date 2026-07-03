@@ -96,11 +96,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
   const isIncome = tx.type === "income";
   const isTransfer = tx.type === "transfer";
 
-  const amountColor = isIncome
-    ? "text-[#4ADE80]"
-    : isExpense
-      ? "text-[#F87171]"
-      : "text-[#93C5FD]";
+  const amountColor = isIncome ? "text-[#4ADE80]" : isExpense ? "text-[#F87171]" : "text-[#93C5FD]";
 
   const accMeta = ACCOUNT_TYPE_META.checking;
 
@@ -315,11 +311,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                             </IconBox>
                           }
                           label="Running Balance After Transaction"
-                          value={
-                            false
-                              ? formatCurrency(0)
-                              : "—"
-                          }
+                          value={false ? formatCurrency(0) : "—"}
                         />
 
                         {/* Notes */}

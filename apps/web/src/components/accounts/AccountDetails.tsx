@@ -35,8 +35,6 @@ import {
   CheckCircle,
   Edit2,
   Archive,
-  RotateCcw,
-  Trash2,
   Search,
   Filter,
   Eye,
@@ -102,224 +100,6 @@ interface AccountMeta {
   monthChangePct: number;
   balanceHistory: ChartPoint[];
 }
-
-const ACCOUNT_META: Record<string, AccountMeta> = {
-  a1: {
-    accountNumber: "00001234",
-    createdDate: "Jan 1, 2026",
-    lastActivity: "May 15, 2026",
-    lastReconciled: "May 1, 2026",
-    onBudget: true,
-    requiresReconciliation: true,
-    notes: "Primary checking account for daily expenses",
-    monthChangePct: 3.8,
-    clearedBalance: 448500,
-    unclearedBalance: 9750,
-    balanceHistory: [
-      { date: "May 15", value: 432000 },
-      { date: "May 16", value: 433300 },
-      { date: "May 17", value: 434600 },
-      { date: "May 18", value: 435900 },
-      { date: "May 19", value: 437100 },
-      { date: "May 20", value: 438400 },
-      { date: "May 21", value: 439700 },
-      { date: "May 22", value: 441000 },
-      { date: "May 23", value: 440300 },
-      { date: "May 24", value: 439600 },
-      { date: "May 25", value: 438900 },
-      { date: "May 26", value: 438100 },
-      { date: "May 27", value: 437400 },
-      { date: "May 28", value: 436700 },
-      { date: "May 29", value: 436000 },
-      { date: "May 30", value: 438100 },
-      { date: "May 31", value: 440300 },
-      { date: "Jun 01", value: 442400 },
-      { date: "Jun 02", value: 444600 },
-      { date: "Jun 03", value: 446700 },
-      { date: "Jun 04", value: 448900 },
-      { date: "Jun 05", value: 451000 },
-      { date: "Jun 06", value: 452000 },
-      { date: "Jun 07", value: 453100 },
-      { date: "Jun 08", value: 454100 },
-      { date: "Jun 09", value: 455100 },
-      { date: "Jun 10", value: 456200 },
-      { date: "Jun 11", value: 457200 },
-      { date: "Jun 12", value: 458250 },
-    ],
-  },
-  a2: {
-    accountNumber: "00005678",
-    createdDate: "Jan 1, 2026",
-    lastActivity: "May 14, 2026",
-    lastReconciled: "Apr 30, 2026",
-    onBudget: true,
-    requiresReconciliation: false,
-    notes: "Emergency fund and long-term savings",
-    monthChangePct: 5.2,
-    clearedBalance: 121500,
-    unclearedBalance: 3500,
-    balanceHistory: [
-      { date: "May 15", value: 112000 },
-      { date: "May 16", value: 112600 },
-      { date: "May 17", value: 113100 },
-      { date: "May 18", value: 113700 },
-      { date: "May 19", value: 114300 },
-      { date: "May 20", value: 114900 },
-      { date: "May 21", value: 115400 },
-      { date: "May 22", value: 116000 },
-      { date: "May 23", value: 116400 },
-      { date: "May 24", value: 116900 },
-      { date: "May 25", value: 117300 },
-      { date: "May 26", value: 117700 },
-      { date: "May 27", value: 118100 },
-      { date: "May 28", value: 118600 },
-      { date: "May 29", value: 119000 },
-      { date: "May 30", value: 119400 },
-      { date: "May 31", value: 119900 },
-      { date: "Jun 01", value: 120300 },
-      { date: "Jun 02", value: 120700 },
-      { date: "Jun 03", value: 121100 },
-      { date: "Jun 04", value: 121600 },
-      { date: "Jun 05", value: 122000 },
-      { date: "Jun 06", value: 122400 },
-      { date: "Jun 07", value: 122900 },
-      { date: "Jun 08", value: 123300 },
-      { date: "Jun 09", value: 123700 },
-      { date: "Jun 10", value: 124100 },
-      { date: "Jun 11", value: 124600 },
-      { date: "Jun 12", value: 125000 },
-    ],
-  },
-  a3: {
-    accountNumber: "00009012",
-    createdDate: "Mar 15, 2026",
-    lastActivity: "May 13, 2026",
-    lastReconciled: "May 1, 2026",
-    onBudget: true,
-    requiresReconciliation: true,
-    notes: "Used for online and subscription payments",
-    monthChangePct: -2.1,
-    clearedBalance: -15200,
-    unclearedBalance: -3200,
-    balanceHistory: [
-      { date: "May 15", value: 2000 },
-      { date: "May 16", value: 2400 },
-      { date: "May 17", value: 2700 },
-      { date: "May 18", value: 3100 },
-      { date: "May 19", value: 3400 },
-      { date: "May 20", value: 3800 },
-      { date: "May 21", value: 4100 },
-      { date: "May 22", value: 4500 },
-      { date: "May 23", value: 4300 },
-      { date: "May 24", value: 4100 },
-      { date: "May 25", value: 3900 },
-      { date: "May 26", value: 3600 },
-      { date: "May 27", value: 3400 },
-      { date: "May 28", value: 3200 },
-      { date: "May 29", value: 3000 },
-      { date: "May 30", value: 3400 },
-      { date: "May 31", value: 3900 },
-      { date: "Jun 01", value: 4300 },
-      { date: "Jun 02", value: 4700 },
-      { date: "Jun 03", value: 5100 },
-      { date: "Jun 04", value: 5600 },
-      { date: "Jun 05", value: 6000 },
-      { date: "Jun 06", value: 6300 },
-      { date: "Jun 07", value: 6600 },
-      { date: "Jun 08", value: 6800 },
-      { date: "Jun 09", value: 7100 },
-      { date: "Jun 10", value: 7400 },
-      { date: "Jun 11", value: 7700 },
-      { date: "Jun 12", value: 8000 },
-    ],
-  },
-  a4: {
-    accountNumber: "—",
-    createdDate: "Jan 1, 2026",
-    lastActivity: "May 14, 2026",
-    lastReconciled: "—",
-    onBudget: true,
-    requiresReconciliation: false,
-    notes: "Petty cash for small purchases",
-    monthChangePct: -8.7,
-    clearedBalance: 4200,
-    unclearedBalance: 0,
-    balanceHistory: [
-      { date: "May 15", value: 1500 },
-      { date: "May 16", value: 1700 },
-      { date: "May 17", value: 1900 },
-      { date: "May 18", value: 2100 },
-      { date: "May 19", value: 2400 },
-      { date: "May 20", value: 2600 },
-      { date: "May 21", value: 2800 },
-      { date: "May 22", value: 3000 },
-      { date: "May 23", value: 2900 },
-      { date: "May 24", value: 2800 },
-      { date: "May 25", value: 2700 },
-      { date: "May 26", value: 2600 },
-      { date: "May 27", value: 2500 },
-      { date: "May 28", value: 2500 },
-      { date: "May 29", value: 2500 },
-      { date: "May 30", value: 2700 },
-      { date: "May 31", value: 3000 },
-      { date: "Jun 01", value: 3200 },
-      { date: "Jun 02", value: 3400 },
-      { date: "Jun 03", value: 3700 },
-      { date: "Jun 04", value: 3900 },
-      { date: "Jun 05", value: 4000 },
-      { date: "Jun 06", value: 4000 },
-      { date: "Jun 07", value: 4100 },
-      { date: "Jun 08", value: 4100 },
-      { date: "Jun 09", value: 4100 },
-      { date: "Jun 10", value: 4200 },
-      { date: "Jun 11", value: 4200 },
-      { date: "Jun 12", value: 4200 },
-    ],
-  },
-  a5: {
-    accountNumber: "00003456",
-    createdDate: "Mar 15, 2026",
-    lastActivity: "May 12, 2026",
-    lastReconciled: "Apr 30, 2026",
-    onBudget: true,
-    requiresReconciliation: false,
-    notes: "Shared office account for team expenses",
-    monthChangePct: 4.6,
-    clearedBalance: 69500,
-    unclearedBalance: 4500,
-    balanceHistory: [
-      { date: "May 15", value: 66000 },
-      { date: "May 16", value: 66600 },
-      { date: "May 17", value: 67100 },
-      { date: "May 18", value: 67700 },
-      { date: "May 19", value: 68300 },
-      { date: "May 20", value: 68900 },
-      { date: "May 21", value: 69400 },
-      { date: "May 22", value: 70000 },
-      { date: "May 23", value: 69700 },
-      { date: "May 24", value: 69400 },
-      { date: "May 25", value: 69100 },
-      { date: "May 26", value: 68800 },
-      { date: "May 27", value: 68400 },
-      { date: "May 28", value: 68200 },
-      { date: "May 29", value: 68000 },
-      { date: "May 30", value: 68900 },
-      { date: "May 31", value: 69700 },
-      { date: "Jun 01", value: 70600 },
-      { date: "Jun 02", value: 71400 },
-      { date: "Jun 03", value: 71700 },
-      { date: "Jun 04", value: 71900 },
-      { date: "Jun 05", value: 72000 },
-      { date: "Jun 06", value: 72300 },
-      { date: "Jun 07", value: 72600 },
-      { date: "Jun 08", value: 72900 },
-      { date: "Jun 09", value: 73200 },
-      { date: "Jun 10", value: 73500 },
-      { date: "Jun 11", value: 73700 },
-      { date: "Jun 12", value: 74000 },
-    ],
-  },
-};
 
 /* ── sub-components ──────────────────────────────────── */
 
@@ -410,11 +190,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
-  const { data: allTxns } = useTransactions(
-    budgetId,
-    { account_id: accountId },
-    accountMap
-  );
+  const { data: allTxns } = useTransactions(budgetId, { account_id: accountId }, accountMap);
 
   const meta: AccountMeta = {
     accountNumber: "—",
@@ -440,7 +216,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
 
   if (!account) {
     return (
-      <div className="flex h-64 items-center justify-center text-[#3A4A60] text-sm">
+      <div className="flex h-64 items-center justify-center text-sm text-[#3A4A60]">
         Loading account…
       </div>
     );
@@ -480,49 +256,48 @@ export function AccountDetails({ accountId, budgetId }: Props) {
           {/* Action buttons */}
           <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             {(
-                [
-                  {
-                    icon: <Plus size={14} />,
-                    label: "Add Transaction",
-                    onClick: () => {
-                      setAddTxDefault("expense");
-                      setAddTxOpen(true);
-                    },
+              [
+                {
+                  icon: <Plus size={14} />,
+                  label: "Add Transaction",
+                  onClick: () => {
+                    setAddTxDefault("expense");
+                    setAddTxOpen(true);
                   },
-                  {
-                    icon: <ArrowLeftRight size={14} />,
-                    label: "Transfer",
-                    onClick: () => {
-                      setAddTxDefault("transfer");
-                      setAddTxOpen(true);
-                    },
+                },
+                {
+                  icon: <ArrowLeftRight size={14} />,
+                  label: "Transfer",
+                  onClick: () => {
+                    setAddTxDefault("transfer");
+                    setAddTxOpen(true);
                   },
-                  {
-                    icon: <CheckCircle size={14} />,
-                    label: "Reconcile",
-                    onClick: () =>
-                      router.push(`/budgets/${account.budgetId}/accounts/${accountId}/reconcile`),
-                  },
-                  { icon: <Edit2 size={14} />, label: "Edit", onClick: () => setModifyOpen(true) },
-                  {
-                    icon: <Archive size={14} />,
-                    label: "Archive",
-                    onClick: () =>
-                      router.push(`/budgets/${account.budgetId}/accounts/${accountId}/archive`),
-                  },
-                ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
-              ).map(({ icon, label, onClick }) => (
-                <button
-                  key={label}
-                  title={label}
-                  onClick={onClick}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-3 py-1.5 text-xs font-medium text-[#E2EAF4] transition-all hover:border-[#2A3A54] hover:bg-[#111B2D] hover:text-white"
-                >
-                  {icon}
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))
-            )}
+                },
+                {
+                  icon: <CheckCircle size={14} />,
+                  label: "Reconcile",
+                  onClick: () =>
+                    router.push(`/budgets/${account.budgetId}/accounts/${accountId}/reconcile`),
+                },
+                { icon: <Edit2 size={14} />, label: "Edit", onClick: () => setModifyOpen(true) },
+                {
+                  icon: <Archive size={14} />,
+                  label: "Archive",
+                  onClick: () =>
+                    router.push(`/budgets/${account.budgetId}/accounts/${accountId}/archive`),
+                },
+              ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
+            ).map(({ icon, label, onClick }) => (
+              <button
+                key={label}
+                title={label}
+                onClick={onClick}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-3 py-1.5 text-xs font-medium text-[#E2EAF4] transition-all hover:border-[#2A3A54] hover:bg-[#111B2D] hover:text-white"
+              >
+                {icon}
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
           </div>
         </div>
 

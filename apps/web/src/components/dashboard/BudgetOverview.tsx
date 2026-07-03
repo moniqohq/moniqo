@@ -35,9 +35,7 @@ export function BudgetOverview() {
 
   if (isLoading && summary == null) {
     return (
-      <div className="flex h-full items-center justify-center text-[#3A4A60] text-sm">
-        Loading…
-      </div>
+      <div className="flex h-full items-center justify-center text-sm text-[#3A4A60]">Loading…</div>
     );
   }
 

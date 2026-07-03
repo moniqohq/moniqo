@@ -33,7 +33,6 @@ import {
   PiggyBank,
   CreditCard,
   Wallet,
-  TrendingUp,
   Landmark,
   Info,
   AlertTriangle,
@@ -43,7 +42,6 @@ import {
 import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useEnvelopes } from "@/hooks/use-envelopes";
-import { patchTransaction } from "@/lib/api/transactions";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Transaction, TransactionType, AccountType } from "@/types";
 
@@ -225,7 +223,9 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
   const selectedAccount = accounts.find((a) => a.id === accountId) ?? accounts[0] ?? null;
   const selectedEnvelope = envelopes.find((e) => e.id === envId) ?? null;
   const selectedTransferAccount = accounts.find((a) => a.id === transferTo) ?? null;
-  const accMeta = selectedAccount ? (ACCOUNT_TYPE_META[selectedAccount.type] ?? ACCOUNT_TYPE_META.checking) : ACCOUNT_TYPE_META.checking;
+  const accMeta = selectedAccount
+    ? (ACCOUNT_TYPE_META[selectedAccount.type] ?? ACCOUNT_TYPE_META.checking)
+    : ACCOUNT_TYPE_META.checking;
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;
   const accountBefore = (selectedAccount?.balance ?? 0) - signedAmount;
@@ -522,9 +522,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                     {meta.icon}
                                   </div>
                                   <div className="flex-1 text-left">
-                                    <p className="text-sm leading-tight text-white">
-                                      {acc.name}
-                                    </p>
+                                    <p className="text-sm leading-tight text-white">{acc.name}</p>
                                     <p className="text-xs text-[#5A6A85] capitalize">
                                       {acc.type} · {formatCurrency(acc.balance)}
                                     </p>
@@ -557,7 +555,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs"
                                   style={{ backgroundColor: `${"#6C3AED"}30` }}
                                 >
-                                  {(selectedEnvelope?.name?.[0] ?? "?")}
+                                  {selectedEnvelope?.name?.[0] ?? "?"}
                                 </div>
                                 <span className="flex-1 truncate text-left text-sm text-white">
                                   {selectedEnvelope?.name ?? ""}
@@ -645,7 +643,8 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                             {selectedTransferAccount ? (
                               <span className="text-white">
                                 {selectedTransferAccount.institution ??
-                                  selectedTransferAccount?.name ?? "Account"}
+                                  selectedTransferAccount?.name ??
+                                  "Account"}
                               </span>
                             ) : (
                               "Select account (optional)"

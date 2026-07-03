@@ -75,130 +75,6 @@ interface EnvelopeTx {
   status: TxStatus;
 }
 
-/* ── Mock data ───────────────────────────────────────────── */
-const MOCK_TRANSACTIONS: EnvelopeTx[] = [
-  {
-    id: "t1",
-    date: "May 12, 2026",
-    title: "Big Basket",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -1450,
-    runningImpact: -5200,
-    status: "Cleared",
-  },
-  {
-    id: "t2",
-    date: "May 08, 2026",
-    title: "DMart",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -980,
-    runningImpact: -3750,
-    status: "Cleared",
-  },
-  {
-    id: "t3",
-    date: "May 05, 2026",
-    title: "Reliance Fresh",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -1120,
-    runningImpact: -2770,
-    status: "Cleared",
-  },
-  {
-    id: "t4",
-    date: "May 02, 2026",
-    title: "Milk & Vegetables",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -430,
-    runningImpact: -1650,
-    status: "Pending",
-  },
-  {
-    id: "t5",
-    date: "Apr 29, 2026",
-    title: "Local Market",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -650,
-    runningImpact: -1220,
-    status: "Reconciled",
-  },
-  {
-    id: "t6",
-    date: "Apr 25, 2026",
-    title: "More Supermarket",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -870,
-    runningImpact: -570,
-    status: "Cleared",
-  },
-  {
-    id: "t7",
-    date: "Apr 20, 2026",
-    title: "Nilgiris",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -320,
-    runningImpact: 300,
-    status: "Cleared",
-  },
-  {
-    id: "t8",
-    date: "Apr 18, 2026",
-    title: "Zepto Delivery",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -580,
-    runningImpact: 620,
-    status: "Cleared",
-  },
-  {
-    id: "t9",
-    date: "Apr 14, 2026",
-    title: "Big Basket",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -1100,
-    runningImpact: 1200,
-    status: "Reconciled",
-  },
-  {
-    id: "t10",
-    date: "Apr 10, 2026",
-    title: "Blinkit Order",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -290,
-    runningImpact: 2300,
-    status: "Cleared",
-  },
-  {
-    id: "t11",
-    date: "Apr 07, 2026",
-    title: "Spencer's",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -940,
-    runningImpact: 2590,
-    status: "Cleared",
-  },
-  {
-    id: "t12",
-    date: "Apr 04, 2026",
-    title: "Local Market",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -490,
-    runningImpact: 3530,
-    status: "Cleared",
-  },
-];
-
 /* ── Nature badge ────────────────────────────────────────── */
 function NatureBadge({ nature }: { nature: Nature }) {
   const cfg: Record<Nature, { icon: React.ReactNode; bg: string; text: string; border: string }> = {
@@ -486,7 +362,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   const { data: apiTransactions } = useTransactions(
     activeBudgetId,
     { budget_envelope_id: envelopeIdNum },
-    accountMap
+    accountMap,
   );
 
   const [addTxOpen, setAddTxOpen] = useState(false);
@@ -508,7 +384,11 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   /* Map API transactions to local type */
   const txRows: EnvelopeTx[] = apiTransactions.map((t) => ({
     id: String(t.id),
-    date: new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    date: new Date(t.date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
     title: t.payee || t.accountName,
     account: t.accountName,
     accountType: "bank" as const,
@@ -518,17 +398,19 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   }));
 
   /* Filter + sort transactions */
-  const filtered = txRows.filter(
-    (tx) =>
-      !search ||
-      tx.title.toLowerCase().includes(search.toLowerCase()) ||
-      tx.account.toLowerCase().includes(search.toLowerCase()),
-  ).sort((a, b) => {
-    if (sort === "Largest Amount") return a.amount - b.amount;
-    if (sort === "Smallest Amount") return b.amount - a.amount;
-    if (sort === "Oldest") return a.id.localeCompare(b.id);
-    return b.id.localeCompare(a.id);
-  });
+  const filtered = txRows
+    .filter(
+      (tx) =>
+        !search ||
+        tx.title.toLowerCase().includes(search.toLowerCase()) ||
+        tx.account.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort((a, b) => {
+      if (sort === "Largest Amount") return a.amount - b.amount;
+      if (sort === "Smallest Amount") return b.amount - a.amount;
+      if (sort === "Oldest") return a.id.localeCompare(b.id);
+      return b.id.localeCompare(a.id);
+    });
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);

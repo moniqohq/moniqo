@@ -33,7 +33,6 @@ import {
   PiggyBank,
   CreditCard,
   Wallet,
-  TrendingUp,
   Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

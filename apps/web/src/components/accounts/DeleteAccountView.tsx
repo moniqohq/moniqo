@@ -33,7 +33,6 @@ import {
   FileText,
   PiggyBank,
   Trash2,
-  TrendingUp,
   Wallet,
   XCircle,
   Clock,
@@ -414,7 +413,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
   const { data: accountTransactions } = useTransactions(
     budgetId,
     { account_id: accountId },
-    accountMap
+    accountMap,
   );
   const txCount = accountTransactions.length;
   const balance = account?.balance ?? 0;
@@ -550,7 +549,9 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[16px] font-bold text-[#E8EEF8]">{account?.name ?? "Account"}</span>
+                <span className="text-[16px] font-bold text-[#E8EEF8]">
+                  {account?.name ?? "Account"}
+                </span>
                 <span
                   className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
                   style={{ background: meta.bg, color: meta.color }}

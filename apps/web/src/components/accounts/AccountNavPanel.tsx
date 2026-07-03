@@ -26,11 +26,9 @@ import {
   PiggyBank,
   CreditCard,
   Wallet,
-  TrendingUp,
   Landmark,
   ChevronDown,
   Plus,
-  Archive,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Account, AccountType } from "@/types";
@@ -94,9 +92,7 @@ function AccountRow({
             {account.name}
           </p>
         </div>
-        {account.notes && (
-          <p className="truncate text-[10px] text-[#5A6A85]">{account.notes}</p>
-        )}
+        {account.notes && <p className="truncate text-[10px] text-[#5A6A85]">{account.notes}</p>}
       </div>
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <span

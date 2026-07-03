@@ -27,5 +27,7 @@ interface Props {
 
 export default async function ArchiveAccountPage({ params }: Props) {
   const { budgetId, accountId } = await params;
-  return <ArchiveAccountView budgetId={parseInt(budgetId, 10)} accountId={parseInt(accountId, 10)} />;
+  return (
+    <ArchiveAccountView budgetId={parseInt(budgetId, 10)} accountId={parseInt(accountId, 10)} />
+  );
 }

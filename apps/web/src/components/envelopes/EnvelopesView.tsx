@@ -548,7 +548,7 @@ function SideCard({
 /* ── Main view ──────────────────────────────────────────── */
 export function EnvelopesView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: apiEnvelopes, isLoading, refetch } = useEnvelopes(activeBudgetId);
+  const { data: apiEnvelopes } = useEnvelopes(activeBudgetId);
 
   const envelopes: EnvelopeRow[] = apiEnvelopes.map((e) => ({
     id: String(e.id),
@@ -573,24 +573,26 @@ export function EnvelopesView() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   /* Filtering + sorting */
-  const filtered = envelopes.filter((e) => {
-    if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterStatuses.size > 0 && !filterStatuses.has(getStatus(e))) return false;
-    return true;
-  }).sort((a, b) => {
-    switch (sort) {
-      case "Highest Allocated":
-        return b.allocated - a.allocated;
-      case "Highest Spent":
-        return b.spent - a.spent;
-      case "Most Remaining":
-        return getRemaining(b) - getRemaining(a);
-      case "Overspent First":
-        return getRemaining(a) < 0 ? -1 : 1;
-      default:
-        return a.name.localeCompare(b.name);
-    }
-  });
+  const filtered = envelopes
+    .filter((e) => {
+      if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filterStatuses.size > 0 && !filterStatuses.has(getStatus(e))) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sort) {
+        case "Highest Allocated":
+          return b.allocated - a.allocated;
+        case "Highest Spent":
+          return b.spent - a.spent;
+        case "Most Remaining":
+          return getRemaining(b) - getRemaining(a);
+        case "Overspent First":
+          return getRemaining(a) < 0 ? -1 : 1;
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);

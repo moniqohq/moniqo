@@ -27,14 +27,10 @@ import type { ApiTransaction } from "@/lib/api/types";
 export function apiTransactionToUI(
   t: ApiTransaction,
   accountMap: Map<number, string>,
-  envelopeMap?: Map<number, string>
+  envelopeMap?: Map<number, string>,
 ): Transaction {
   const isTransfer = t.transfer_account_id != null;
-  const type: TransactionType = isTransfer
-    ? "transfer"
-    : t.amount >= 0
-    ? "income"
-    : "expense";
+  const type: TransactionType = isTransfer ? "transfer" : t.amount >= 0 ? "income" : "expense";
 
   return {
     id: t.id,
@@ -42,9 +38,10 @@ export function apiTransactionToUI(
     accountId: t.account_id,
     accountName: accountMap.get(t.account_id) ?? "Unknown",
     envelopeId: t.budget_envelope_id ?? undefined,
-    envelopeName: t.budget_envelope_id != null
-      ? (envelopeMap?.get(t.budget_envelope_id) ?? undefined)
-      : undefined,
+    envelopeName:
+      t.budget_envelope_id != null
+        ? (envelopeMap?.get(t.budget_envelope_id) ?? undefined)
+        : undefined,
     transferAccountId: t.transfer_account_id ?? undefined,
     payee: t.memo ?? (isTransfer ? "Transfer" : ""),
     amount: Math.abs(t.amount),
@@ -59,7 +56,7 @@ export function useTransactions(
   budgetId: number | null,
   filters: TransactionFilters = {},
   accountMap: Map<number, string> = new Map(),
-  envelopeMap: Map<number, string> = new Map()
+  envelopeMap: Map<number, string> = new Map(),
 ) {
   const [data, setData] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,10 +77,11 @@ export function useTransactions(
     } finally {
       setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [budgetId, filtersKey, accountMapKey]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetch();
   }, [fetch]);
 

@@ -37,7 +37,6 @@ import {
   CreditCard,
   PiggyBank,
   Wallet,
-  TrendingUp,
   Landmark,
   ArrowUp,
   ArrowDown,
@@ -214,13 +213,14 @@ function TxRow({
         <div className="flex items-center gap-2">
           <div
             className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
-            style={{ backgroundColor: `${ACCOUNT_TYPE_META.checking.color}22`, color: ACCOUNT_TYPE_META.checking.color }}
+            style={{
+              backgroundColor: `${ACCOUNT_TYPE_META.checking.color}22`,
+              color: ACCOUNT_TYPE_META.checking.color,
+            }}
           >
             {ACCOUNT_TYPE_META.checking.icon}
           </div>
-          <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">
-            {tx.accountName}
-          </p>
+          <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">{tx.accountName}</p>
         </div>
       </td>
 
@@ -232,7 +232,11 @@ function TxRow({
         )}
       >
         <span className="inline-flex items-center justify-end gap-1.5">
-          {tx.type === "income" ? `+${formatCurrency(tx.amount)}` : tx.type === "expense" ? `-${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
+          {tx.type === "income"
+            ? `+${formatCurrency(tx.amount)}`
+            : tx.type === "expense"
+              ? `-${formatCurrency(tx.amount)}`
+              : formatCurrency(tx.amount)}
           {tx.type === "income" ? (
             <ArrowUp size={13} strokeWidth={2.5} />
           ) : tx.type === "expense" ? (
@@ -242,7 +246,7 @@ function TxRow({
       </td>
 
       {/* Running Balance */}
-      <td className="px-4 py-3 text-right text-sm whitespace-nowrap tabular-nums text-[#A8B4CC]">
+      <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
         —
       </td>
 
@@ -408,8 +412,15 @@ function AccountFilter({
 
 /* ── Envelope filter dropdown (multi-select) ────────────── */
 const ENVELOPE_COLORS_LIST = [
-  "#6C3AED", "#00E6B4", "#F59E0B", "#EF4444", "#22C55E",
-  "#3B82F6", "#A855F7", "#F97316", "#06B6D4",
+  "#6C3AED",
+  "#00E6B4",
+  "#F59E0B",
+  "#EF4444",
+  "#22C55E",
+  "#3B82F6",
+  "#A855F7",
+  "#F97316",
+  "#06B6D4",
 ];
 
 function EnvelopeFilter({
@@ -465,7 +476,9 @@ function EnvelopeFilter({
         {firstSelected && (
           <span
             className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-white"
-            style={{ backgroundColor: ENVELOPE_COLORS_LIST[firstSelectedIdx % ENVELOPE_COLORS_LIST.length] }}
+            style={{
+              backgroundColor: ENVELOPE_COLORS_LIST[firstSelectedIdx % ENVELOPE_COLORS_LIST.length],
+            }}
           >
             {firstSelected.name[0]}
           </span>
@@ -783,12 +796,11 @@ export function TransactionsView() {
     page_size: pageSize,
   };
 
-  const { data: transactions, isLoading: txLoading, refetch: refetchTx } = useTransactions(
-    activeBudgetId,
-    apiFilters,
-    accountMap,
-    envelopeMap
-  );
+  const {
+    data: transactions,
+    isLoading: txLoading,
+    refetch: refetchTx,
+  } = useTransactions(activeBudgetId, apiFilters, accountMap, envelopeMap);
 
   const allSelected = selected.size === transactions.length && transactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
@@ -1120,19 +1132,21 @@ export function TransactionsView() {
                     No transactions found
                   </td>
                 </tr>
-              ) : transactions.map((tx, i) => (
-                <TxRow
-                  key={tx.id}
-                  tx={tx}
-                  index={i}
-                  selected={selected.has(tx.id)}
-                  onSelect={() => toggleRow(tx.id)}
-                  onRowClick={() => {
-                    setDetailTx(tx);
-                    setDetailOpen(true);
-                  }}
-                />
-              ))}
+              ) : (
+                transactions.map((tx, i) => (
+                  <TxRow
+                    key={tx.id}
+                    tx={tx}
+                    index={i}
+                    selected={selected.has(tx.id)}
+                    onSelect={() => toggleRow(tx.id)}
+                    onRowClick={() => {
+                      setDetailTx(tx);
+                      setDetailOpen(true);
+                    }}
+                  />
+                ))
+              )}
             </tbody>
           </table>
         </div>

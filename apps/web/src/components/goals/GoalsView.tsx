@@ -1075,7 +1075,9 @@ export function GoalsView() {
         <span className="text-3xl">🎯</span>
       </div>
       <h2 className="text-xl font-bold text-white">Goals coming soon</h2>
-      <p className="mt-2 text-[#5A6A85]">Track your savings targets and financial milestones here</p>
+      <p className="mt-2 text-[#5A6A85]">
+        Track your savings targets and financial milestones here
+      </p>
     </div>
   );
 

@@ -98,7 +98,9 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
   const outflows = txns.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   const net = inflows - outflows;
 
-  const largestExpense = txns.filter((t) => t.type === "expense").sort((a, b) => b.amount - a.amount)[0];
+  const largestExpense = txns
+    .filter((t) => t.type === "expense")
+    .sort((a, b) => b.amount - a.amount)[0];
 
   const categoryTotals = txns
     .filter((t) => t.type === "expense" && t.envelopeName)

@@ -59,6 +59,7 @@ export function useBudgets() {
   }, [activeBudgetId, setActiveBudget]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetch();
   }, [fetch]);
 

@@ -23,8 +23,7 @@ import type { ApiResponse } from "./types";
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("moniqo_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("moniqo_token") : null;
 
   const res = await fetch(`${BASE}${path}`, {
     ...init,

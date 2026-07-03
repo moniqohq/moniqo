@@ -221,7 +221,8 @@ export function Topbar() {
               <div className="h-5 w-px bg-[#1E2B42]" />
               <div className="flex flex-col items-start">
                 <span className="text-sm leading-tight font-semibold text-[#F87171] tabular-nums">
-                  {summary.overspentEnvelopesCount} envelope{summary.overspentEnvelopesCount > 1 ? "s" : ""}
+                  {summary.overspentEnvelopesCount} envelope
+                  {summary.overspentEnvelopesCount > 1 ? "s" : ""}
                 </span>
                 <span className="mt-0.5 text-[10px] leading-tight tracking-wider text-[#3A4A60] uppercase">
                   Overspent
