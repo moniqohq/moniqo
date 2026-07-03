@@ -127,6 +127,12 @@ const tokenCleanupInterval = time.Hour
 func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
+	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
+		AllowOrigins:     cfg.CORSOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type", "X-Request-ID"},
+		AllowCredentials: true,
+	}))
 	e.Use(echomw.RequestID())
 	e.Use(appmw.Recover(log))
 	e.Use(appmw.RequestLogger(log))

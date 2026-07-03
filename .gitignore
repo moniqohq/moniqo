@@ -72,6 +72,7 @@ build/
 
 # Go backend build output
 apps/backend/bin/
+apps/backend/server
 
 # pnpm
 .pnpm-store/
