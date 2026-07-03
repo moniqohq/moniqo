@@ -78,8 +78,7 @@ export function useEnvelopes() {
         if (!ignore) setEnvelopes(data);
       })
       .catch((err) => {
-        if (!ignore)
-          setError(err instanceof Error ? err.message : "Failed to load envelopes");
+        if (!ignore) setError(err instanceof Error ? err.message : "Failed to load envelopes");
       })
       .finally(() => {
         if (!ignore) setLoading(false);
