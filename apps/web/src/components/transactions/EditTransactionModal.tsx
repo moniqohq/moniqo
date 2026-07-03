@@ -39,11 +39,10 @@ import {
   ArrowRight,
   Save,
 } from "lucide-react";
-import { useUIStore } from "@/stores/ui.store";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Transaction, TransactionType, AccountType } from "@/types";
+import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
+import { apiFetch } from "@/lib/api";
 
 /* ── helpers ──────────────────────────────────────────────── */
 
@@ -144,16 +143,15 @@ interface Props {
   tx: Transaction | null;
   open: boolean;
   onClose: () => void;
-  onSave?: (updated: Transaction) => void;
+  onSave?: () => void;
+  budgetId?: number | null;
+  accounts?: ApiAccount[];
+  envelopes?: ApiEnvelope[];
 }
 
 /* ── component ────────────────────────────────────────────── */
 
-export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
-  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: accounts } = useAccounts(activeBudgetId);
-  const { data: envelopes } = useEnvelopes(activeBudgetId);
-
+export function EditTransactionModal({ tx, open, onClose, onSave, budgetId, accounts = [], envelopes = [] }: Props) {
   /* form state */
   const [txType, setTxType] = useState<TransactionType>("expense");
   const [date, setDate] = useState("");
@@ -220,22 +218,21 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
 
-  const selectedAccount = accounts.find((a) => a.id === accountId) ?? accounts[0] ?? null;
-  const selectedEnvelope = envelopes.find((e) => e.id === envId) ?? null;
-  const selectedTransferAccount = accounts.find((a) => a.id === transferTo) ?? null;
-  const accMeta = selectedAccount
-    ? (ACCOUNT_TYPE_META[selectedAccount.type] ?? ACCOUNT_TYPE_META.checking)
-    : ACCOUNT_TYPE_META.checking;
+  const selectedAccount = accounts.find((a) => String(a.id) === accountId) ?? accounts[0] ?? null;
+  const selectedEnvelope = envelopes.find((e) => String(e.id) === envId) ?? null;
+  const selectedTransferAccount = accounts.find((a) => String(a.id) === transferTo) ?? null;
+  const accMeta = selectedAccount ? ACCOUNT_TYPE_META[selectedAccount.type as AccountType] ?? ACCOUNT_TYPE_META.checking : ACCOUNT_TYPE_META.checking;
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;
-  const accountBefore = (selectedAccount?.balance ?? 0) - signedAmount;
+  const accountBefore = Number(selectedAccount?.balance ?? 0) - signedAmount;
+  const _accountAfter = Number(selectedAccount?.balance ?? 0);
   const realAccountBefore = accountBefore;
   const realAccountAfter = accountBefore + signedAmount;
 
-  const envelopeAvailable = selectedEnvelope?.available ?? 0;
-  const envBefore = selectedEnvelope ? envelopeAvailable + (isExpense ? numericAmount : 0) : 0;
-  const envAfter = selectedEnvelope ? envelopeAvailable : 0;
-
+  const envBefore = selectedEnvelope
+    ? Number(selectedEnvelope?.spent_amt ?? 0) + (isExpense ? numericAmount : 0)
+    : 0;
+  const envAfter = selectedEnvelope ? Number(selectedEnvelope?.spent_amt ?? 0) : 0;
   const isOverspent = isExpense && selectedEnvelope && envAfter < 0;
   const typeMeta = TX_TYPES.find((t) => t.value === txType)!;
 
@@ -248,20 +245,34 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
         : "text-[#F87171]";
 
   async function handleSave() {
+    if (!tx || !budgetId || saving) return;
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    onSave?.({
-      ...tx!,
-      type: txType,
-      payee,
-      accountId: accountId ?? tx!.accountId,
-      envelopeId: envId || undefined,
-      amount: signedAmount,
-      memo: notes || undefined,
-    });
-    onClose();
-  }
+    try {
+      const payload: Record<string, unknown> = {
+        amount: signedAmount,
+        date: tx.date,
+        memo: notes || undefined,
+      };
+      if (txType === "transfer") {
+        payload.account_id = Number(accountId) || undefined;
+        payload.transfer_account_id = Number(transferTo) || undefined;
+      } else {
+        payload.account_id = Number(accountId) || undefined;
+        payload.budget_envelope_id = Number(envId) || null;
+      }
+      const res = await apiFetch(`/api/v1/budgets/${budgetId}/transactions/${tx.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to update transaction.");
+      onSave?.();
+      onClose();
+    } catch {
+      // error is surfaced inline in a future iteration
+    } finally {
+      setSaving(false);
+    }  }
 
   return (
     <AnimatePresence>
@@ -486,8 +497,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                             {accMeta.icon}
                           </div>
                           <span className="flex-1 truncate text-left text-sm text-white">
-                            {selectedAccount?.name ?? "Account"}
-                            <span className="ml-1 text-xs text-[#5A6A85] capitalize">
+                            {selectedAccount?.name ?? "Select account"}                            <span className="ml-1 text-xs text-[#5A6A85] capitalize">
                               ({selectedAccount?.type ?? ""})
                             </span>
                           </span>
@@ -496,18 +506,17 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                         {accountOpen && (
                           <div className="absolute top-full left-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
                             {accounts.map((acc) => {
-                              const meta = ACCOUNT_TYPE_META[acc.type];
-                              return (
+                              const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;                              return (
                                 <button
                                   key={acc.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setAccountId(acc.id);
+                                    setAccountId(String(acc.id));
                                     setAccountOpen(false);
                                   }}
                                   className={cn(
                                     "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                    accountId === acc.id
+                                    accountId === String(acc.id)
                                       ? "bg-[#6C3AED]/15 text-white"
                                       : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                   )}
@@ -522,9 +531,10 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                     {meta.icon}
                                   </div>
                                   <div className="flex-1 text-left">
-                                    <p className="text-sm leading-tight text-white">{acc.name}</p>
-                                    <p className="text-xs text-[#5A6A85] capitalize">
-                                      {acc.type} · {formatCurrency(acc.balance)}
+                                    <p className="text-sm leading-tight text-white">
+                                      {acc.name}
+                                    </p>                                    <p className="text-xs text-[#5A6A85] capitalize">
+                                      {acc.type} · {formatCurrency(Number(acc.balance))}
                                     </p>
                                   </div>
                                 </button>
@@ -555,11 +565,10 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs"
                                   style={{ backgroundColor: `${"#6C3AED"}30` }}
                                 >
-                                  {selectedEnvelope?.name?.[0] ?? "?"}
+                                  {selectedEnvelope?.title?.[0] ?? "E"}
                                 </div>
                                 <span className="flex-1 truncate text-left text-sm text-white">
-                                  {selectedEnvelope?.name ?? ""}
-                                </span>
+                                  {selectedEnvelope?.title ?? "Select envelope"}                                </span>
                               </>
                             ) : (
                               <span className="flex-1 text-left text-sm text-[#2A3A54]">
@@ -575,12 +584,12 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                   key={env.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setEnvId(env.id);
+                                    setEnvId(String(env.id));
                                     setEnvOpen(false);
                                   }}
                                   className={cn(
                                     "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                    envId === env.id
+                                    envId === String(env.id)
                                       ? "bg-[#6C3AED]/15 text-white"
                                       : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                   )}
@@ -589,12 +598,11 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px]"
                                     style={{ backgroundColor: `${"#6C3AED"}30` }}
                                   >
-                                    {env.name[0]}
-                                  </div>
+                                    {env.title[0]}                                  </div>
                                   <div className="flex-1 text-left">
-                                    <p className="text-sm leading-tight text-white">{env.name}</p>
+                                    <p className="text-sm leading-tight text-white">{env.title}</p>
                                     <p className="text-xs text-[#5A6A85]">
-                                      Available: {formatCurrency(env.available)}
+                                      Available: {formatCurrency(Number(env.spent_amt))}
                                     </p>
                                   </div>
                                 </button>
@@ -642,8 +650,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           <span className="flex-1 text-left text-sm">
                             {selectedTransferAccount ? (
                               <span className="text-white">
-                                {selectedTransferAccount?.name ?? "Account"}
-                              </span>
+                                {selectedTransferAccount?.name ?? "—"}                              </span>
                             ) : (
                               "Select account (optional)"
                             )}
@@ -663,20 +670,19 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                               None
                             </button>
                             {accounts
-                              .filter((a) => a.id !== accountId)
-                              .map((acc) => {
-                                const meta = ACCOUNT_TYPE_META[acc.type];
+                              .filter((a) => String(a.id) !== accountId)                              .map((acc) => {
+                                const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;
                                 return (
                                   <button
                                     key={acc.id}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setTransferTo(acc.id);
+                                      setTransferTo(String(acc.id));
                                       setTransferOpen(false);
                                     }}
                                     className={cn(
                                       "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                      transferTo === acc.id
+                                      transferTo === String(acc.id)
                                         ? "bg-[#6C3AED]/15 text-white"
                                         : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                     )}
@@ -731,8 +737,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                       <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                         Account Impact{" "}
                         <span className="font-normal text-[#5A6A85]">
-                          ({selectedAccount?.name ?? "Account"})
-                        </span>
+                          ({selectedAccount?.name ?? "Select account"})                        </span>
                       </p>
                       <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">
                         <ImpactLine
@@ -758,8 +763,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                         <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                           Envelope Impact{" "}
                           <span className="font-normal text-[#5A6A85]">
-                            ({selectedEnvelope?.name ?? ""})
-                          </span>
+                            ({selectedEnvelope?.title ?? "Select envelope"})                          </span>
                         </p>
                         <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">
                           <ImpactLine

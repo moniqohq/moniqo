@@ -36,17 +36,19 @@ import {
   ArrowRight,
   ArrowDown,
 } from "lucide-react";
-import { useUIStore } from "@/stores/ui.store";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useEnvelopes } from "@/hooks/use-envelopes";
-import { createTransaction } from "@/lib/api/transactions";
 import { formatCurrency, cn } from "@/lib/utils";
-import type { TransactionType, Account, BudgetEnvelope } from "@/types";
+import type { TransactionType } from "@/types";
+import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
+import { apiFetch } from "@/lib/api";
 
 interface AddTransactionModalProps {
   open: boolean;
   onClose: () => void;
   defaultType?: TransactionType;
+  onSuccess?: () => void;
+  budgetId?: number | null;
+  accounts?: ApiAccount[];
+  envelopes?: ApiEnvelope[];
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
@@ -114,21 +116,21 @@ export function AddTransactionModal({
   open,
   onClose,
   defaultType = "expense",
+  onSuccess,
+  budgetId,
+  accounts = [],
+  envelopes = [],
 }: AddTransactionModalProps) {
-  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: accounts } = useAccounts(activeBudgetId);
-  const { data: envelopes } = useEnvelopes(activeBudgetId);
-
   /* core state */
   const [txType, setTxType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState("");
   const [payee, setPayee] = useState("");
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [selectedEnvelope, setSelectedEnvelope] = useState<BudgetEnvelope | null>(null);
-  const [date] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedAccount, setSelectedAccount] = useState<ApiAccount | null>(null);
+  const [selectedEnvelope, setSelectedEnvelope] = useState<ApiEnvelope | null>(null);
+  const [date] = useState(() => new Date().toISOString().slice(0, 10));
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
-  const [_error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   /* expense dropdowns */
   const [accountOpen, setAccountOpen] = useState(false);
@@ -170,13 +172,48 @@ export function AddTransactionModal({
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
 
-  const availableBefore = selectedEnvelope?.available ?? 0;
+  async function handleSave() {
+    if (!budgetId || saving) return;
+    const absAmount = Math.abs(numericAmount);
+    if (absAmount === 0) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const payload: Record<string, unknown> = {
+        date: new Date(date).toISOString(),
+        memo: memo || undefined,
+      };
+      if (isTransfer) {
+        payload.account_id = fromAccountId;
+        payload.transfer_account_id = toAccountId;
+        payload.amount = -absAmount;
+      } else {
+        payload.account_id = selectedAccount?.id;
+        payload.budget_envelope_id = selectedEnvelope?.id ?? null;
+        payload.amount = isIncome ? absAmount : -absAmount;
+      }
+      const res = await apiFetch(`/api/v1/budgets/${budgetId}/transactions`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to create transaction.");
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Unexpected error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const availableBefore = Number(selectedEnvelope?.spent_amt ?? 0);
   const availableAfter = availableBefore - numericAmount;
   const acctAfterExpense = (selectedAccount?.balance ?? 0) - numericAmount;
   const acctAfterIncome = (selectedAccount?.balance ?? 0) + numericAmount;
 
-  const fromAccount = accounts.find((a) => a.id === fromAccountId) ?? accounts[0];
-  const toAccount = accounts.find((a) => a.id === toAccountId) ?? accounts[1];
+  const fromAccount = accounts.find((a) => a.id === fromAccountId) ?? accounts[0] ?? null;
+  const toAccount = accounts.find((a) => a.id === toAccountId) ?? accounts[1] ?? null;
   const fromAfter = (fromAccount?.balance ?? 0) - numericAmount;
   const toAfter = (toAccount?.balance ?? 0) + numericAmount;
 
@@ -321,8 +358,7 @@ export function AddTransactionModal({
                             </div>
                             <div className="flex-1 text-left">
                               <p className="text-sm leading-tight font-semibold text-white">
-                                {fromAccount?.name ?? "Account"}
-                              </p>
+{fromAccount?.name ?? "—"}                              </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
                                 Available balance&nbsp;{formatCurrency(fromAccount?.balance ?? 0)}
                               </p>
@@ -351,9 +387,10 @@ export function AddTransactionModal({
                                       <Building2 size={14} className="text-[#3B82F6]" />
                                     </div>
                                     <div className="text-left">
-                                      <p className="text-sm text-white">{acc.name}</p>
-                                      <p className="text-xs text-[#5A6A85]">
-                                        {formatCurrency(acc.balance)}
+<p className="text-sm text-white">
+                                        {acc.name}
+                                      </p>                                      <p className="text-xs text-[#5A6A85]">
+                                        {formatCurrency(Number(acc.balance))}
                                       </p>
                                     </div>
                                   </button>
@@ -379,8 +416,7 @@ export function AddTransactionModal({
                             </div>
                             <div className="flex-1 text-left">
                               <p className="text-sm leading-tight font-semibold text-white">
-                                {toAccount?.name ?? "Account"}
-                              </p>
+{toAccount?.name ?? "—"}                              </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
                                 Available balance&nbsp;{formatCurrency(toAccount?.balance ?? 0)}
                               </p>
@@ -409,9 +445,10 @@ export function AddTransactionModal({
                                       <Building2 size={14} className="text-[#7C3AED]" />
                                     </div>
                                     <div className="text-left">
-                                      <p className="text-sm text-white">{acc.name}</p>
-                                      <p className="text-xs text-[#5A6A85]">
-                                        {formatCurrency(acc.balance)}
+<p className="text-sm text-white">
+                                        {acc.name}
+                                      </p>                                      <p className="text-xs text-[#5A6A85]">
+                                        {formatCurrency(Number(acc.balance))}
                                       </p>
                                     </div>
                                   </button>
@@ -429,8 +466,7 @@ export function AddTransactionModal({
                           </div>
                           <div>
                             <p className="text-sm leading-tight font-semibold text-white">
-                              {fromAccount?.name ?? "Account"}
-                            </p>
+{fromAccount?.name ?? "—"}                            </p>
                             <p className="text-xs text-[#4A5A75] tabular-nums">
                               {formatCurrency(fromAccount?.balance ?? 0)}
                             </p>
@@ -449,8 +485,7 @@ export function AddTransactionModal({
                           </div>
                           <div>
                             <p className="text-sm leading-tight font-semibold text-white">
-                              {toAccount?.name ?? "Account"}
-                            </p>
+{toAccount?.name ?? "—"}                            </p>
                             <p className="text-xs text-[#4A5A75] tabular-nums">
                               {formatCurrency(toAccount?.balance ?? 0)}
                             </p>
@@ -529,12 +564,10 @@ export function AddTransactionModal({
                             </div>
                             <div className="flex-1 text-left">
                               <p className="text-sm leading-tight font-semibold text-white">
-                                {selectedAccount?.name ?? "Account"}
+{selectedAccount?.name ?? "Select account"}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
-                                Available balance&nbsp;
-                                {formatCurrency(selectedAccount?.balance ?? 0)}
-                              </p>
+                                Available balance&nbsp;{formatCurrency(selectedAccount?.balance ?? 0)}                              </p>
                             </div>
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                           </button>
@@ -558,9 +591,10 @@ export function AddTransactionModal({
                                     <Building2 size={14} className="text-[#7A8BA8]" />
                                   </div>
                                   <div className="text-left">
-                                    <p className="text-sm text-white">{acc.name}</p>
-                                    <p className="text-xs text-[#5A6A85] capitalize">
-                                      {acc.type} · {formatCurrency(acc.balance)}
+<p className="text-sm text-white">
+                                      {acc.name}
+                                    </p>                                    <p className="text-xs text-[#5A6A85] capitalize">
+                                      {acc.type} · {formatCurrency(Number(acc.balance))}
                                     </p>
                                   </div>
                                 </button>
@@ -616,13 +650,11 @@ export function AddTransactionModal({
                                 className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-base"
                                 style={{ background: `${"#6C3AED"}30` }}
                               >
-                                {selectedEnvelope?.name?.[0] ?? "?"}
-                              </div>
+{selectedEnvelope?.title?.[0] ?? "E"}                              </div>
                               <div className="flex-1 text-left">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-sm font-semibold text-white">
-                                    {selectedEnvelope?.name ?? ""}
-                                  </span>
+{selectedEnvelope?.title ?? "Select envelope"}                                  </span>
                                   <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                                 </div>
                                 <p className="mt-0.5 text-xs text-[#4A5A75]">Monthly Budget</p>
@@ -645,16 +677,12 @@ export function AddTransactionModal({
                                         : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                     )}
                                   >
-                                    <div
-                                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-sm"
-                                      style={{ background: `${"#6C3AED"}30` }}
-                                    >
-                                      {env.name[0]}
-                                    </div>
+<div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[#6C3AED]/20 text-sm text-[#8B5CF6]">
+                                      {env.title[0]}                                    </div>
                                     <div className="text-left">
-                                      <p className="text-sm text-white">{env.name}</p>
+                                      <p className="text-sm text-white">{env.title}</p>
                                       <p className="text-xs text-[#5A6A85]">
-                                        Available: {formatCurrency(env.available)}
+                                        Available: {formatCurrency(Number(env.spent_amt))}
                                       </p>
                                     </div>
                                   </button>
@@ -772,8 +800,7 @@ export function AddTransactionModal({
                             <Building2 size={13} className="text-[#3B82F6]" />
                           </div>
                           <span className="truncate text-sm font-semibold text-white">
-                            {fromAccount?.name ?? "Account"}
-                          </span>
+{fromAccount?.name ?? "—"}                          </span>
                         </div>
                         <dl className="space-y-1.5">
                           <SummaryRow
@@ -808,8 +835,7 @@ export function AddTransactionModal({
                             <Building2 size={13} className="text-[#7C3AED]" />
                           </div>
                           <span className="truncate text-sm font-semibold text-white">
-                            {toAccount?.name ?? "Account"}
-                          </span>
+{toAccount?.name ?? "—"}                          </span>
                         </div>
                         <dl className="space-y-1.5">
                           <SummaryRow
@@ -856,8 +882,7 @@ export function AddTransactionModal({
                               <Building2 size={13} className="text-[#7A8BA8]" />
                             </div>
                             <span className="truncate text-sm font-semibold text-white">
-                              {selectedAccount?.name ?? "Account"}
-                            </span>
+{selectedAccount?.name ?? "Select account"}                            </span>
                           </div>
                           <dl className="space-y-1.5">
                             <SummaryRow
@@ -907,12 +932,11 @@ export function AddTransactionModal({
                               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-base"
                               style={{ background: `${"#6C3AED"}30` }}
                             >
-                              {selectedEnvelope?.name?.[0] ?? "?"}
+{selectedEnvelope?.title?.[0] ?? "E"}
                             </div>
                             <div>
                               <p className="text-sm leading-tight font-semibold text-white">
-                                Category: {selectedEnvelope?.name ?? ""}
-                              </p>
+                                Category: {selectedEnvelope?.title ?? "Select envelope"}                              </p>
                               <p className="text-xs text-[#4A5A75]">Monthly Budget</p>
                             </div>
                           </div>
@@ -922,8 +946,7 @@ export function AddTransactionModal({
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Monthly Budget</dt>
                               <dd className="text-xs font-semibold text-white tabular-nums">
-                                {formatCurrency(selectedEnvelope?.allocated ?? 0)}
-                              </dd>
+{formatCurrency(Number(selectedEnvelope?.allocated_amt ?? 0))}                              </dd>
                             </div>
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Available before</dt>
@@ -972,8 +995,7 @@ export function AddTransactionModal({
                               <Building2 size={14} className="text-[#7A8BA8]" />
                             </div>
                             <p className="text-sm leading-tight font-semibold text-white">
-                              Account: {selectedAccount?.name ?? "Account"}
-                            </p>
+Account: {selectedAccount?.name ?? "Select account"}                            </p>
                           </div>
                           <dl className="space-y-2">
                             <div className="flex items-center justify-between">
@@ -1021,6 +1043,9 @@ export function AddTransactionModal({
                 </div>
 
                 {/* Action buttons */}
+                {saveError && (
+                  <p className="mb-2 text-xs text-[#F87171]">{saveError}</p>
+                )}
                 <div className="flex items-center gap-3">
                   <button
                     onClick={onClose}
@@ -1029,41 +1054,7 @@ export function AddTransactionModal({
                     Cancel
                   </button>
                   <button
-                    onClick={async () => {
-                      if (!activeBudgetId || !numericAmount) return;
-                      setSaving(true);
-                      setError(null);
-                      try {
-                        const amountMinor = Math.round(numericAmount * 100);
-                        if (isTransfer && fromAccountId != null && toAccountId != null) {
-                          await createTransaction(activeBudgetId, {
-                            account_id: fromAccountId,
-                            transfer_account_id: toAccountId,
-                            amount: -amountMinor,
-                            date,
-                            memo: memo || undefined,
-                          });
-                        } else if (
-                          (isExpense || isIncome) &&
-                          selectedAccount?.id != null &&
-                          selectedEnvelope?.id != null
-                        ) {
-                          await createTransaction(activeBudgetId, {
-                            account_id: selectedAccount.id,
-                            budget_envelope_id: selectedEnvelope.id,
-                            amount: isExpense ? -amountMinor : amountMinor,
-                            date,
-                            memo: memo || undefined,
-                          });
-                        }
-                        onClose();
-                      } catch (e) {
-                        setError(e instanceof Error ? e.message : "Failed to save");
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    disabled={saving}
+onClick={handleSave}                    disabled={saving}
                     className={cn(
                       "inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all focus:ring-4 focus:outline-none disabled:opacity-60",
                       isTransfer
@@ -1072,14 +1063,7 @@ export function AddTransactionModal({
                     )}
                   >
                     <Save size={15} />
-                    {saving
-                      ? "Saving…"
-                      : isIncome
-                        ? "Save Income"
-                        : isExpense
-                          ? "Save Transaction"
-                          : "Save Transfer"}
-                  </button>
+{saving ? "Saving…" : isIncome ? "Save Income" : isExpense ? "Save Transaction" : "Save Transfer"}                  </button>
                 </div>
               </div>
             </motion.div>

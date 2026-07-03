@@ -17,11 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-"use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useUIStore } from "@/stores/ui.store";
-import type { BudgetEnvelope } from "@/types";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { apiFetch } from "@/lib/api";
+import type { ApiEnvelope, ApiListResponse } from "@/lib/api-types";
 
 export interface CreateEnvelopePayload {
   title: string;
@@ -35,92 +34,99 @@ export interface PatchEnvelopePayload {
   description?: string;
 }
 
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
-  const body = await res.json();
-  if (!res.ok || !body.success) {
-    throw new Error(body.msg || "Request failed");
-  }
-  return body.data as T;
-}
-
-export function useEnvelopes() {
-  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const budgetId = activeBudgetId ?? 0;
-  const validBudgetId = activeBudgetId !== null && activeBudgetId > 0;
-
-  const [envelopes, setEnvelopes] = useState<BudgetEnvelope[]>([]);
+export function useEnvelopes(budgetId: number | null) {
+  const [envelopes, setEnvelopes] = useState<ApiEnvelope[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchEnvelopes = useCallback(async () => {
-    if (!validBudgetId) return;
+    if (budgetId == null) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<BudgetEnvelope[]>(`/api/v1/budgets/${budgetId}/envelopes`);
-      setEnvelopes(data);
+      const res = await apiFetch(`/api/v1/budgets/${budgetId}/envelopes`);
+      const body = (await res.json()) as ApiListResponse<ApiEnvelope>;
+      if (!body.success) throw new Error(body.msg || "Failed to fetch envelopes");
+      setEnvelopes(body.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load envelopes");
     } finally {
       setLoading(false);
     }
-  }, [budgetId, validBudgetId]);
+  }, [budgetId]);
 
   useEffect(() => {
-    if (!validBudgetId) return;
-    let ignore = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (budgetId == null) return;
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    apiFetch<BudgetEnvelope[]>(`/api/v1/budgets/${budgetId}/envelopes`)
-      .then((data) => {
-        if (!ignore) setEnvelopes(data);
+
+    apiFetch(`/api/v1/budgets/${budgetId}/envelopes`)
+      .then((res) => res.json() as Promise<ApiListResponse<ApiEnvelope>>)
+      .then((body) => {
+        if (cancelled) return;
+        if (!body.success) throw new Error(body.msg || "Failed to fetch envelopes");
+        setEnvelopes(body.data ?? []);
       })
-      .catch((err) => {
-        if (!ignore) setError(err instanceof Error ? err.message : "Failed to load envelopes");
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Unexpected error");
       })
       .finally(() => {
-        if (!ignore) setLoading(false);
+        if (!cancelled) setLoading(false);
       });
-    return () => {
-      ignore = true;
-    };
-  }, [budgetId, validBudgetId]);
 
-  const createEnvelope = async (payload: CreateEnvelopePayload): Promise<BudgetEnvelope> => {
-    const data = await apiFetch<BudgetEnvelope>(`/api/v1/budgets/${budgetId}/envelopes`, {
+    return () => {
+      cancelled = true;
+    };
+  }, [budgetId]);
+
+  const envelopeMap = useMemo(() => {
+    const m = new Map<number, ApiEnvelope>();
+    for (const e of envelopes) m.set(e.id, e);
+    return m;
+  }, [envelopes]);
+
+  const createEnvelope = async (payload: CreateEnvelopePayload): Promise<ApiEnvelope> => {
+    const res = await apiFetch(`/api/v1/budgets/${budgetId}/envelopes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const body = await res.json();
+    if (!res.ok || !body.success) throw new Error(body.msg || "Failed to create envelope");
     await fetchEnvelopes();
-    return data;
+    return body.data as ApiEnvelope;
   };
 
   const patchEnvelope = async (
     id: number,
     payload: PatchEnvelopePayload,
-  ): Promise<BudgetEnvelope> => {
-    const data = await apiFetch<BudgetEnvelope>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
+  ): Promise<ApiEnvelope> => {
+    const res = await apiFetch(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const body = await res.json();
+    if (!res.ok || !body.success) throw new Error(body.msg || "Failed to update envelope");
     await fetchEnvelopes();
-    return data;
+    return body.data as ApiEnvelope;
   };
 
   const deleteEnvelope = async (id: number): Promise<void> => {
-    await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
+    const res = await apiFetch(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
       method: "DELETE",
     });
+    const body = await res.json();
+    if (!res.ok || !body.success) throw new Error(body.msg || "Failed to delete envelope");
     await fetchEnvelopes();
   };
 
   return {
-    budgetId: validBudgetId ? budgetId : null,
+    budgetId,
     envelopes,
+    envelopeMap,
     loading,
     error,
     refresh: fetchEnvelopes,

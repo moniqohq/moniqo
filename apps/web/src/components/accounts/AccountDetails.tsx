@@ -40,10 +40,12 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useTransactions } from "@/hooks/use-transactions";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useTransactions } from "@/hooks/useTransactions";
 import { BalanceChart, type ChartPoint } from "./BalanceChart";
 import { ModifyAccountModal } from "./ModifyAccountModal";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
@@ -185,12 +187,12 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const [addTxDefault, setAddTxDefault] = useState<"expense" | "income" | "transfer">("expense");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data: accounts } = useAccounts(budgetId);
-  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const { accountMap, accounts } = useAccounts(budgetId);
+  const { envelopeMap } = useEnvelopes(budgetId);
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
-  const { data: allTxns } = useTransactions(budgetId, { account_id: accountId }, accountMap);
+  const { transactions: allTxns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
 
   const meta: AccountMeta = {
     accountNumber: "—",
