@@ -18,17 +18,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { NextConfig } from "next";
+export interface ApiUser {
+  id: number;
+  name: string | null;
+  username: string;
+  email: string;
+  picture: string;
+  status: "pending_verification" | "active";
+  last_login: string | null;
+  created_at: string;
+}
 
-const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: "/api/v1/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080"}/api/v1/:path*`,
-      },
-    ];
-  },
-};
+export interface ApiAuthTokens {
+  access_token: string;
+  token_type: string;
+  refresh_token: string;
+}
 
-export default nextConfig;
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  msg: string;
+}
+
+export interface ApiValidationError {
+  success: false;
+  data: { fields: Array<{ field: string; message: string }> };
+  msg: string;
+}

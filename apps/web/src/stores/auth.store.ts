@@ -21,34 +21,30 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ApiUser } from "@/lib/api-types";
 
-export type AuthUser = {
-  id: number;
-  name: string | null;
-  username: string;
-  email: string;
-  picture: string;
-  status: string;
-};
-
-type AuthState = {
+interface AuthStore {
+  user: ApiUser | null;
   accessToken: string | null;
   refreshToken: string | null;
-  user: AuthUser | null;
-  setTokens: (accessToken: string, refreshToken: string) => void;
-  setUser: (user: AuthUser) => void;
-  logout: () => void;
-};
+  setAuth: (user: ApiUser, accessToken: string, refreshToken: string) => void;
+  setUser: (user: ApiUser) => void;
+  clearAuth: () => void;
+}
 
-export const useAuthStore = create<AuthState>()(
+export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
+      user: null,
       accessToken: null,
       refreshToken: null,
-      user: null,
-      setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
+
+      setAuth: (user, accessToken, refreshToken) =>
+        set({ user, accessToken, refreshToken }),
+
       setUser: (user) => set({ user }),
-      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
+
+      clearAuth: () => set({ user: null, accessToken: null, refreshToken: null }),
     }),
     { name: "moniqo-auth" },
   ),

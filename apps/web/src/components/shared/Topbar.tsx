@@ -30,12 +30,12 @@ import {
   Wallet,
   Check,
   Plus,
-  User,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/use-envelopes";
-import { formatCurrency, cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
+import { getInitials, formatCurrency, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Budget } from "@/types";
 
@@ -167,6 +167,7 @@ export function Topbar() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { data: budgets, isLoading: budgetsLoading } = useBudgets();
   const { summary } = useEnvelopes(activeBudgetId);
+  const user = useAuthStore((s) => s.user);
 
   return (
     <header className="relative flex h-16 flex-shrink-0 items-center gap-3 border-b border-[#1E2B42] bg-[#080C14] px-4">
@@ -263,8 +264,13 @@ export function Topbar() {
 
         {/* User placeholder — wired when auth is added */}
         <button className="flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-[#131C2E]">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5]">
-            <User size={16} className="text-white" />
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
+            {getInitials(user?.name ?? user?.username ?? "")}
+          </div>
+          <div className="hidden text-left sm:block">
+            <div className="text-[15px] leading-tight font-medium text-white">
+              {user?.name ?? user?.username ?? ""}
+            </div>
           </div>
           <ChevronDown size={12} className="hidden flex-shrink-0 text-[#5A6A85] sm:block" />
         </button>
