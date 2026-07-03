@@ -454,7 +454,10 @@ const signupSchema = z.object({
     .string()
     .min(8, "Username must be at least 8 characters")
     .max(12, "Username must be at most 12 characters")
-    .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/, "Must start with a letter; only letters, numbers, - and _ allowed"),
+    .regex(
+      /^[a-zA-Z][a-zA-Z0-9_-]*$/,
+      "Must start with a letter; only letters, numbers, - and _ allowed",
+    ),
   email: z.string().email("Enter a valid email address").max(254),
   password: z
     .string()
@@ -680,7 +683,10 @@ export default function SignupPage() {
             >
               <div
                 className="flex h-20 w-20 items-center justify-center rounded-full"
-                style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)" }}
+                style={{
+                  background: "rgba(34,197,94,0.12)",
+                  border: "1px solid rgba(34,197,94,0.3)",
+                }}
               >
                 <CheckCircle2 className="h-10 w-10 text-[#22C55E]" />
               </div>
@@ -771,8 +777,16 @@ export default function SignupPage() {
                         background: "#0A0E1A",
                         border: `1px solid ${errors.username ? "#EF4444" : "#1E2B42"}`,
                       }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = errors.username ? "#EF4444" : "#6C3AED")}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = errors.username ? "#EF4444" : "#1E2B42")}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor = errors.username
+                          ? "#EF4444"
+                          : "#6C3AED")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor = errors.username
+                          ? "#EF4444"
+                          : "#1E2B42")
+                      }
                     />
                   </div>
                   {errors.username && (
@@ -795,13 +809,15 @@ export default function SignupPage() {
                         background: "#0A0E1A",
                         border: `1px solid ${errors.email ? "#EF4444" : "#1E2B42"}`,
                       }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#6C3AED")}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#1E2B42")}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#6C3AED")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#1E2B42")
+                      }
                     />
                   </div>
-                  {errors.email && (
-                    <p className="text-xs text-[#FCA5A5]">{errors.email.message}</p>
-                  )}
+                  {errors.email && <p className="text-xs text-[#FCA5A5]">{errors.email.message}</p>}
                 </div>
 
                 {/* Password */}
@@ -819,8 +835,16 @@ export default function SignupPage() {
                         background: "#0A0E1A",
                         border: `1px solid ${errors.password ? "#EF4444" : "#1E2B42"}`,
                       }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#6C3AED")}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#1E2B42")}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor = errors.password
+                          ? "#EF4444"
+                          : "#6C3AED")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor = errors.password
+                          ? "#EF4444"
+                          : "#1E2B42")
+                      }
                     />
                     <button
                       type="button"
@@ -875,7 +899,10 @@ export default function SignupPage() {
                       type="button"
                       role="checkbox"
                       aria-checked={agreed}
-                      onClick={() => { setAgreed(!agreed); setAgreedError(false); }}
+                      onClick={() => {
+                        setAgreed(!agreed);
+                        setAgreedError(false);
+                      }}
                       className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-all duration-200"
                       style={{
                         background: agreed ? "#6C3AED" : "transparent",
@@ -916,7 +943,9 @@ export default function SignupPage() {
                     </p>
                   </div>
                   {agreedError && (
-                    <p className="text-xs text-[#FCA5A5]">You must agree to the terms to continue.</p>
+                    <p className="text-xs text-[#FCA5A5]">
+                      You must agree to the terms to continue.
+                    </p>
                   )}
                 </div>
 

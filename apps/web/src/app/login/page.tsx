@@ -399,6 +399,12 @@ const fadeUp = {
   }),
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function setAuthCookie(token: string) {
+  document.cookie = `moniqo_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+}
+
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
@@ -439,12 +445,15 @@ export default function LoginPage() {
       });
 
       setTokens(result.access_token, result.refresh_token);
-      document.cookie = `moniqo_token=${result.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      setAuthCookie(result.access_token);
       router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 403) {
-          setBannerMsg({ type: "info", text: "Your account isn't verified yet — check your email for the verification link." });
+          setBannerMsg({
+            type: "info",
+            text: "Your account isn't verified yet — check your email for the verification link.",
+          });
         } else if (err.status === 401) {
           setError("password", { message: "Invalid email or password." });
         } else {
@@ -628,7 +637,8 @@ export default function LoginPage() {
                 <div
                   className="rounded-xl px-4 py-3 text-sm"
                   style={{
-                    background: bannerMsg.type === "error" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)",
+                    background:
+                      bannerMsg.type === "error" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)",
                     border: `1px solid ${bannerMsg.type === "error" ? "rgba(239,68,68,0.3)" : "rgba(59,130,246,0.3)"}`,
                     color: bannerMsg.type === "error" ? "#FCA5A5" : "#93C5FD",
                   }}
@@ -652,13 +662,15 @@ export default function LoginPage() {
                       background: "#0A0E1A",
                       border: `1px solid ${errors.email ? "#EF4444" : "#1E2B42"}`,
                     }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#6C3AED")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#1E2B42")}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#6C3AED")
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#1E2B42")
+                    }
                   />
                 </div>
-                {errors.email && (
-                  <p className="text-xs text-[#FCA5A5]">{errors.email.message}</p>
-                )}
+                {errors.email && <p className="text-xs text-[#FCA5A5]">{errors.email.message}</p>}
               </div>
 
               {/* Password field */}
@@ -676,8 +688,12 @@ export default function LoginPage() {
                       background: "#0A0E1A",
                       border: `1px solid ${errors.password ? "#EF4444" : "#1E2B42"}`,
                     }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#6C3AED")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#1E2B42")}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#6C3AED")
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#1E2B42")
+                    }
                   />
                   <button
                     type="button"

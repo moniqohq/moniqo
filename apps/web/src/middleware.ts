@@ -23,7 +23,16 @@ import type { NextRequest } from "next/server";
 
 const AUTH_COOKIE = "moniqo_token";
 
-const PROTECTED_PATHS = ["/dashboard", "/accounts", "/budgets", "/envelopes", "/transactions", "/goals", "/reports", "/settings"];
+const PROTECTED_PATHS = [
+  "/dashboard",
+  "/accounts",
+  "/budgets",
+  "/envelopes",
+  "/transactions",
+  "/goals",
+  "/reports",
+  "/settings",
+];
 const AUTH_PATHS = ["/login", "/signup"];
 
 export function middleware(request: NextRequest) {
@@ -49,5 +58,16 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/accounts/:path*", "/budgets/:path*", "/envelopes/:path*", "/transactions/:path*", "/goals/:path*", "/reports/:path*", "/settings/:path*", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/accounts/:path*",
+    "/budgets/:path*",
+    "/envelopes/:path*",
+    "/transactions/:path*",
+    "/goals/:path*",
+    "/reports/:path*",
+    "/settings/:path*",
+    "/login",
+    "/signup",
+  ],
 };
