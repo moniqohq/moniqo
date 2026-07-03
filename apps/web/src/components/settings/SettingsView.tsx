@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   User,
@@ -276,29 +276,25 @@ export function SettingsView() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const initialForm = {
-    fullName: storeUser?.name ?? "",
-    email: storeUser?.email ?? "",
-    username: storeUser?.username ?? "",
-  };
-  const [profileForm, setProfileForm] = useState(initialForm);
-  const [draftForm, setDraftForm] = useState(initialForm);
+  const profileForm = useMemo(
+    () => ({
+      fullName: storeUser?.name ?? "",
+      email: storeUser?.email ?? "",
+      username: storeUser?.username ?? "",
+    }),
+    [storeUser],
+  );
+
+  const [draftUserId, setDraftUserId] = useState(storeUser?.id);
+  const [draftForm, setDraftForm] = useState(profileForm);
+  if (draftUserId !== storeUser?.id) {
+    setDraftUserId(storeUser?.id);
+    setDraftForm(profileForm);
+  }
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const asideRef = useRef<HTMLElement>(null);
   const [profileSidebarHeight, setProfileSidebarHeight] = useState<number | null>(null);
-
-  // Sync form when storeUser changes (e.g. after initial load)
-  useEffect(() => {
-    if (!storeUser) return;
-    const form = {
-      fullName: storeUser.name ?? "",
-      email: storeUser.email ?? "",
-      username: storeUser.username ?? "",
-    };
-    setProfileForm(form);
-    setDraftForm(form);
-  }, [storeUser?.id]);
 
   useEffect(() => {
     if (activeNav !== "profile") return;
@@ -325,7 +321,6 @@ export function SettingsView() {
         }),
       });
       setUser(updated);
-      setProfileForm(draftForm);
       setIsEditing(false);
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : "Failed to save profile.");
@@ -592,9 +587,7 @@ export function SettingsView() {
 
                 {/* Action buttons */}
                 <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#1E2B42] pt-5">
-                  {saveError && (
-                    <p className="mr-auto text-[12px] text-red-400">{saveError}</p>
-                  )}
+                  {saveError && <p className="mr-auto text-[12px] text-red-400">{saveError}</p>}
                   {isEditing && (
                     <Button
                       size="sm"

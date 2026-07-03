@@ -47,9 +47,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const body: ApiResponse<T> = await res.json();
 
   if (!res.ok) {
-    const fields =
-      (body as unknown as { data?: { fields?: Array<{ field: string; message: string }> } }).data
-        ?.fields;
+    const fields = (
+      body as unknown as { data?: { fields?: Array<{ field: string; message: string }> } }
+    ).data?.fields;
     throw new ApiError(res.status, body.msg, fields);
   }
 
