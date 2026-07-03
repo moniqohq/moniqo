@@ -463,12 +463,20 @@ function FilterDropdown({
 
   function toggleNature(n: Nature) {
     const s = new Set(natures);
-    s.has(n) ? s.delete(n) : s.add(n);
+    if (s.has(n)) {
+      s.delete(n);
+    } else {
+      s.add(n);
+    }
     onNatures(s);
   }
   function toggleStatus(s: Status) {
     const set = new Set(statuses);
-    set.has(s) ? set.delete(s) : set.add(s);
+    if (set.has(s)) {
+      set.delete(s);
+    } else {
+      set.add(s);
+    }
     onStatuses(set);
   }
 

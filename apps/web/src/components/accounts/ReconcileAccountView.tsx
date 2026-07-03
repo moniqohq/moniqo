@@ -35,7 +35,6 @@ import {
   ChevronRight,
   CreditCard,
   Download,
-  FileText,
   Filter,
   Heart,
   Landmark,
@@ -43,7 +42,6 @@ import {
   Package,
   PiggyBank,
   Plus,
-  RotateCcw,
   Search,
   ShoppingCart,
   SlidersHorizontal,
@@ -55,7 +53,7 @@ import {
   Utensils,
   Layers,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { mockAccounts, mockBudgets } from "@/mock/data";
 import type { AccountType } from "@/types";
 

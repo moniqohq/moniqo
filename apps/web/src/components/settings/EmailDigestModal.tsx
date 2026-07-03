@@ -20,16 +20,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Mail,
-  X,
-  Clock,
-  CalendarDays,
-  Wallet,
-  Bell,
-  Target,
-  SlidersHorizontal,
-} from "lucide-react";
+import { X, Clock, CalendarDays, Wallet, Bell, Target, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 

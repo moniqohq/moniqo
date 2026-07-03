@@ -21,16 +21,7 @@
 
 import { useState, useEffect, useId, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  X,
-  Search,
-  Calendar,
-  ChevronDown,
-  Sparkles,
-  TrendingUp,
-  RefreshCw,
-  Check,
-} from "lucide-react";
+import { X, Search, Calendar, Sparkles, TrendingUp, RefreshCw, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

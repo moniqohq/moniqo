@@ -35,3 +35,74 @@ WHERE t.budget_id    = $1
   AND a.is_on_budget = true
   AND a.deleted_at   IS NULL
   AND t.deleted_at   IS NULL;
+
+-- name: CreateFullTransaction :one
+INSERT INTO transactions (budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at;
+
+-- name: GetTransactionByID :one
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+FROM transactions
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: ListTransactions :many
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+FROM transactions
+WHERE budget_id = $1
+  AND deleted_at IS NULL
+  AND (account_id    = sqlc.narg(account_id)  OR sqlc.narg(account_id)  IS NULL)
+  AND (envelope_id   = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
+  AND (date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
+  AND (date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL)
+ORDER BY date DESC, id DESC
+LIMIT $2 OFFSET $3;
+
+-- name: CountTransactions :one
+SELECT COUNT(*)::BIGINT AS total
+FROM transactions
+WHERE budget_id = $1
+  AND deleted_at IS NULL
+  AND (account_id    = sqlc.narg(account_id)  OR sqlc.narg(account_id)  IS NULL)
+  AND (envelope_id   = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
+  AND (date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
+  AND (date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL);
+
+-- name: UpdateTransaction :one
+UPDATE transactions
+SET account_id         = $3,
+    envelope_id        = $4,
+    transfer_account_id = $5,
+    amount             = $6,
+    date               = $7,
+    memo               = $8,
+    updated_at         = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at;
+
+-- name: PatchTransaction :one
+UPDATE transactions
+SET account_id          = COALESCE(sqlc.narg(account_id), account_id),
+    envelope_id         = COALESCE(sqlc.narg(envelope_id), envelope_id),
+    transfer_account_id = COALESCE(sqlc.narg(transfer_account_id), transfer_account_id),
+    amount              = COALESCE(sqlc.narg(amount), amount),
+    date                = COALESCE(sqlc.narg(date), date),
+    memo                = COALESCE(sqlc.narg(memo), memo),
+    updated_at          = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at;
+
+-- name: SoftDeleteTransaction :exec
+UPDATE transactions
+SET deleted_at = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: GetTransactionsByGroupID :many
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+FROM transactions
+WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: SoftDeleteTransactionsByGroupID :exec
+UPDATE transactions
+SET deleted_at = now()
+WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;

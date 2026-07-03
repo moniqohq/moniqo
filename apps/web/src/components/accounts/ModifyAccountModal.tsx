@@ -97,7 +97,7 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: b
   );
 }
 
-function AccountAvatar({ type }: { type: AccountType }) {
+function AccountAvatar({ type: _type }: { type: AccountType }) {
   return (
     <div className="flex-shrink-0">
       <div

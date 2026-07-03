@@ -111,3 +111,23 @@ func TooManyRequests(c echo.Context) error {
 		Msg:     "too many requests",
 	})
 }
+
+// PaginationMeta carries page/size/total for list endpoints that support pagination.
+type PaginationMeta struct {
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
+	Total    int `json:"total"`
+}
+
+// PaginatedResponse is the JSON envelope for paginated list endpoints.
+type PaginatedResponse struct {
+	Success bool           `json:"success"`
+	Data    any            `json:"data"`
+	Meta    PaginationMeta `json:"meta"`
+	Msg     string         `json:"msg"`
+}
+
+// OKPaginated writes a 200 JSON response with a pagination meta block.
+func OKPaginated(c echo.Context, data any, meta PaginationMeta, msg string) error {
+	return c.JSON(http.StatusOK, PaginatedResponse{Success: true, Data: data, Meta: meta, Msg: msg})
+}

@@ -291,7 +291,6 @@ function EnvelopePreviewCard({
 }) {
   const remaining = allocated - spent;
   const pct = allocated > 0 ? (spent / allocated) * 100 : 0;
-  const isHealthy = pct <= 80;
   const isWarning = pct > 80 && pct <= 100;
   const isOver = pct > 100;
 
@@ -514,13 +513,6 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
       document.body.style.overflow = "";
     };
   }, [open, onClose]);
-
-  const handleReset = () => {
-    setTitle("Groceries");
-    setAllocatedRaw("8,000.00");
-    setNature("Need");
-    setDescription("");
-  };
 
   const handleSave = () => {
     onClose();

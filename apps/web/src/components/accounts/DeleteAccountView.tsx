@@ -25,7 +25,6 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle,
   Archive,
-  ArrowRight,
   Building2,
   Calendar,
   CheckCircle2,
@@ -48,7 +47,7 @@ import {
   Landmark,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { mockAccounts, mockTransactions, mockBudgets } from "@/mock/data";
 import type { AccountType } from "@/types";
 

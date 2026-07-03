@@ -20,6 +20,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   User,
   Settings2,
@@ -445,9 +446,11 @@ export function SettingsView() {
                   <div className="flex shrink-0 flex-col items-center gap-3 sm:w-44">
                     <div className="relative">
                       {avatarUrl ? (
-                        <img
+                        <Image
                           src={avatarUrl}
                           alt="Avatar"
+                          width={96}
+                          height={96}
                           className="h-24 w-24 rounded-full object-cover ring-4 ring-[rgba(108,58,237,0.2)]"
                         />
                       ) : (

@@ -240,13 +240,6 @@ export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
     };
   }, [open, onClose]);
 
-  const handleReset = () => {
-    setTitle("");
-    setAmount("");
-    setNature("");
-    setDescription("");
-  };
-
   return (
     <AnimatePresence>
       {open && (

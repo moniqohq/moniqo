@@ -51,6 +51,99 @@ func (q *Queries) AccountHasTransactions(ctx context.Context, arg AccountHasTran
 	return exists, err
 }
 
+const countTransactions = `-- name: CountTransactions :one
+SELECT COUNT(*)::BIGINT AS total
+FROM transactions
+WHERE budget_id = $1
+  AND deleted_at IS NULL
+  AND (account_id    = $2  OR $2  IS NULL)
+  AND (envelope_id   = $3 OR $3 IS NULL)
+  AND (date >= $4 OR $4 IS NULL)
+  AND (date <= $5   OR $5   IS NULL)
+`
+
+type CountTransactionsParams struct {
+	BudgetID   int64
+	AccountID  *int64
+	EnvelopeID *int64
+	DateFrom   pgtype.Timestamptz
+	DateTo     pgtype.Timestamptz
+}
+
+func (q *Queries) CountTransactions(ctx context.Context, arg CountTransactionsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countTransactions,
+		arg.BudgetID,
+		arg.AccountID,
+		arg.EnvelopeID,
+		arg.DateFrom,
+		arg.DateTo,
+	)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
+const createFullTransaction = `-- name: CreateFullTransaction :one
+INSERT INTO transactions (budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+`
+
+type CreateFullTransactionParams struct {
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+}
+
+type CreateFullTransactionRow struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+}
+
+func (q *Queries) CreateFullTransaction(ctx context.Context, arg CreateFullTransactionParams) (CreateFullTransactionRow, error) {
+	row := q.db.QueryRow(ctx, createFullTransaction,
+		arg.BudgetID,
+		arg.AccountID,
+		arg.EnvelopeID,
+		arg.TransferAccountID,
+		arg.TransferGroupID,
+		arg.Amount,
+		arg.Date,
+		arg.Memo,
+	)
+	var i CreateFullTransactionRow
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.AccountID,
+		&i.EnvelopeID,
+		&i.TransferAccountID,
+		&i.TransferGroupID,
+		&i.Amount,
+		&i.Date,
+		&i.Memo,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const createTransaction = `-- name: CreateTransaction :one
 INSERT INTO transactions (budget_id, account_id, amount, memo)
 VALUES ($1, $2, $3, $4)
@@ -114,6 +207,290 @@ func (q *Queries) EnvelopeHasTransactions(ctx context.Context, arg EnvelopeHasTr
 	return exists, err
 }
 
+const getTransactionByID = `-- name: GetTransactionByID :one
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+FROM transactions
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+`
+
+type GetTransactionByIDParams struct {
+	ID       int64
+	BudgetID int64
+}
+
+type GetTransactionByIDRow struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+}
+
+func (q *Queries) GetTransactionByID(ctx context.Context, arg GetTransactionByIDParams) (GetTransactionByIDRow, error) {
+	row := q.db.QueryRow(ctx, getTransactionByID, arg.ID, arg.BudgetID)
+	var i GetTransactionByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.AccountID,
+		&i.EnvelopeID,
+		&i.TransferAccountID,
+		&i.TransferGroupID,
+		&i.Amount,
+		&i.Date,
+		&i.Memo,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getTransactionsByGroupID = `-- name: GetTransactionsByGroupID :many
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+FROM transactions
+WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL
+`
+
+type GetTransactionsByGroupIDParams struct {
+	TransferGroupID pgtype.UUID
+	BudgetID        int64
+}
+
+type GetTransactionsByGroupIDRow struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+}
+
+func (q *Queries) GetTransactionsByGroupID(ctx context.Context, arg GetTransactionsByGroupIDParams) ([]GetTransactionsByGroupIDRow, error) {
+	rows, err := q.db.Query(ctx, getTransactionsByGroupID, arg.TransferGroupID, arg.BudgetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTransactionsByGroupIDRow
+	for rows.Next() {
+		var i GetTransactionsByGroupIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.BudgetID,
+			&i.AccountID,
+			&i.EnvelopeID,
+			&i.TransferAccountID,
+			&i.TransferGroupID,
+			&i.Amount,
+			&i.Date,
+			&i.Memo,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactions = `-- name: ListTransactions :many
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+FROM transactions
+WHERE budget_id = $1
+  AND deleted_at IS NULL
+  AND (account_id    = $4  OR $4  IS NULL)
+  AND (envelope_id   = $5 OR $5 IS NULL)
+  AND (date >= $6 OR $6 IS NULL)
+  AND (date <= $7   OR $7   IS NULL)
+ORDER BY date DESC, id DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListTransactionsParams struct {
+	BudgetID   int64
+	Limit      int32
+	Offset     int32
+	AccountID  *int64
+	EnvelopeID *int64
+	DateFrom   pgtype.Timestamptz
+	DateTo     pgtype.Timestamptz
+}
+
+type ListTransactionsRow struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+}
+
+func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]ListTransactionsRow, error) {
+	rows, err := q.db.Query(ctx, listTransactions,
+		arg.BudgetID,
+		arg.Limit,
+		arg.Offset,
+		arg.AccountID,
+		arg.EnvelopeID,
+		arg.DateFrom,
+		arg.DateTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTransactionsRow
+	for rows.Next() {
+		var i ListTransactionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.BudgetID,
+			&i.AccountID,
+			&i.EnvelopeID,
+			&i.TransferAccountID,
+			&i.TransferGroupID,
+			&i.Amount,
+			&i.Date,
+			&i.Memo,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const patchTransaction = `-- name: PatchTransaction :one
+UPDATE transactions
+SET account_id          = COALESCE($3, account_id),
+    envelope_id         = COALESCE($4, envelope_id),
+    transfer_account_id = COALESCE($5, transfer_account_id),
+    amount              = COALESCE($6, amount),
+    date                = COALESCE($7, date),
+    memo                = COALESCE($8, memo),
+    updated_at          = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+`
+
+type PatchTransactionParams struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         *int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	Amount            *int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+}
+
+type PatchTransactionRow struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+}
+
+func (q *Queries) PatchTransaction(ctx context.Context, arg PatchTransactionParams) (PatchTransactionRow, error) {
+	row := q.db.QueryRow(ctx, patchTransaction,
+		arg.ID,
+		arg.BudgetID,
+		arg.AccountID,
+		arg.EnvelopeID,
+		arg.TransferAccountID,
+		arg.Amount,
+		arg.Date,
+		arg.Memo,
+	)
+	var i PatchTransactionRow
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.AccountID,
+		&i.EnvelopeID,
+		&i.TransferAccountID,
+		&i.TransferGroupID,
+		&i.Amount,
+		&i.Date,
+		&i.Memo,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const softDeleteTransaction = `-- name: SoftDeleteTransaction :exec
+UPDATE transactions
+SET deleted_at = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+`
+
+type SoftDeleteTransactionParams struct {
+	ID       int64
+	BudgetID int64
+}
+
+func (q *Queries) SoftDeleteTransaction(ctx context.Context, arg SoftDeleteTransactionParams) error {
+	_, err := q.db.Exec(ctx, softDeleteTransaction, arg.ID, arg.BudgetID)
+	return err
+}
+
+const softDeleteTransactionsByGroupID = `-- name: SoftDeleteTransactionsByGroupID :exec
+UPDATE transactions
+SET deleted_at = now()
+WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL
+`
+
+type SoftDeleteTransactionsByGroupIDParams struct {
+	TransferGroupID pgtype.UUID
+	BudgetID        int64
+}
+
+func (q *Queries) SoftDeleteTransactionsByGroupID(ctx context.Context, arg SoftDeleteTransactionsByGroupIDParams) error {
+	_, err := q.db.Exec(ctx, softDeleteTransactionsByGroupID, arg.TransferGroupID, arg.BudgetID)
+	return err
+}
+
 const sumAccountBalance = `-- name: SumAccountBalance :one
 SELECT COALESCE(SUM(amount), 0)::BIGINT AS balance
 FROM transactions
@@ -165,4 +542,72 @@ func (q *Queries) SumOnBudgetAccountBalances(ctx context.Context, budgetID int64
 	var total_balance int64
 	err := row.Scan(&total_balance)
 	return total_balance, err
+}
+
+const updateTransaction = `-- name: UpdateTransaction :one
+UPDATE transactions
+SET account_id         = $3,
+    envelope_id        = $4,
+    transfer_account_id = $5,
+    amount             = $6,
+    date               = $7,
+    memo               = $8,
+    updated_at         = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+`
+
+type UpdateTransactionParams struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+}
+
+type UpdateTransactionRow struct {
+	ID                int64
+	BudgetID          int64
+	AccountID         int64
+	EnvelopeID        *int64
+	TransferAccountID *int64
+	TransferGroupID   pgtype.UUID
+	Amount            int64
+	Date              pgtype.Timestamptz
+	Memo              *string
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (UpdateTransactionRow, error) {
+	row := q.db.QueryRow(ctx, updateTransaction,
+		arg.ID,
+		arg.BudgetID,
+		arg.AccountID,
+		arg.EnvelopeID,
+		arg.TransferAccountID,
+		arg.Amount,
+		arg.Date,
+		arg.Memo,
+	)
+	var i UpdateTransactionRow
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.AccountID,
+		&i.EnvelopeID,
+		&i.TransferAccountID,
+		&i.TransferGroupID,
+		&i.Amount,
+		&i.Date,
+		&i.Memo,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }

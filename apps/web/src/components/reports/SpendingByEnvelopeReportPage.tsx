@@ -25,7 +25,7 @@ import { SlidersHorizontal, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-import { MOCK_ENVELOPES, ReportFilters, getBudgetStatus, getRemaining } from "./types";
+import { MOCK_ENVELOPES, ReportFilters, getBudgetStatus } from "./types";
 import { ReportSummaryCard } from "./ReportSummaryCard";
 import { EnvelopeSpendingTable } from "./EnvelopeSpendingTable";
 import { SpendingDistributionChart } from "./SpendingDistributionChart";

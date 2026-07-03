@@ -18,36 +18,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+package models
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  {
-    settings: {
-      react: { version: "19" },
-    },
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          argsIgnorePattern: "^_",
-          varsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-        },
-      ],
-    },
-  },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
+import (
+	"time"
 
-export default eslintConfig;
+	"github.com/moniqohq/moniqo/apps/backend/internal/money"
+)
+
+// Transaction is the API-facing representation of a ledger entry.
+// Amount is stored as minor units (BIGINT) and serialized as a decimal by money.Amount.
+type Transaction struct {
+	ID                int64        `json:"id"`
+	BudgetID          int64        `json:"budget_id"`
+	AccountID         int64        `json:"account_id"`
+	TransferAccountID *int64       `json:"transfer_account_id"`
+	EnvelopeID        *int64       `json:"budget_envelope_id"`
+	TransferGroupID   *string      `json:"transfer_group_id,omitempty"`
+	Amount            money.Amount `json:"amount"`
+	Date              time.Time    `json:"date"`
+	Memo              *string      `json:"memo,omitempty"`
+	CreatedAt         time.Time    `json:"created_at"`
+}

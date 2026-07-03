@@ -20,7 +20,6 @@
 "use client";
 
 import { AlertTriangle, CheckCircle, Eye, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { EnvelopeReport, fmtINR, getRemaining, getPercentUsed, getBudgetStatus } from "./types";
 
 interface Insight {

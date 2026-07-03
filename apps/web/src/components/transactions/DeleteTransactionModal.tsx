@@ -21,7 +21,7 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, AlertTriangle } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 import type { Transaction } from "@/types";
 import { formatCurrency, cn } from "@/lib/utils";
 

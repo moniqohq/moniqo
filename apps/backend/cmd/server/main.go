@@ -53,6 +53,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/envelope"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
+	"github.com/moniqohq/moniqo/apps/backend/internal/transaction"
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
 
@@ -290,6 +291,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	registerBudgetRoutes(e, pool, log)
 	registerAccountRoutes(e, pool, log)
 	registerEnvelopeRoutes(e, pool, log)
+	registerTransactionRoutes(e, pool, log)
 }
 
 func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
@@ -379,6 +381,28 @@ func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 	// Budget summary endpoint.
 	e.GET("/api/v1/budgets/:budget_id/summary", envelopeHandler.GetBudgetSummary,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.BudgetView, log))
+}
+
+func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
+	membershipRepo := budget.NewMembershipRepo(pool, log)
+
+	txnRepo := transaction.NewRepo(pool, log)
+	txnSvc := transaction.NewSvc(txnRepo, log)
+	txnHandler := transaction.NewHandler(txnSvc, log)
+
+	txnGroup := e.Group("/api/v1/budgets/:budget_id/transactions")
+	txnGroup.GET("", txnHandler.ListTransactions,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionView, log))
+	txnGroup.POST("", txnHandler.CreateTransaction,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionEdit, log))
+	txnGroup.GET("/:id", txnHandler.GetTransaction,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionView, log))
+	txnGroup.PUT("/:id", txnHandler.ReplaceTransaction,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionEdit, log))
+	txnGroup.PATCH("/:id", txnHandler.PatchTransaction,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionEdit, log))
+	txnGroup.DELETE("/:id", txnHandler.DeleteTransaction,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionView, log))
 }
 
 func runMigrations(dsn string) error {
