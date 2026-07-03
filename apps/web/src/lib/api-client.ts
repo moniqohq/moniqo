@@ -20,52 +20,52 @@
 
 import { useAuthStore } from "@/stores/auth.store";
 
+export type FieldError = { field: string; error: string };
+
+type ApiSuccess<T> = { success: true; data: T; msg: string };
+type ApiFailure = { success: false; data: { fields?: FieldError[] } | null; msg: string };
+type ApiEnvelope<T> = ApiSuccess<T> | ApiFailure;
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly fields?: FieldError[],
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
-
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  msg: string;
-}
-
-export interface ApiListResponse<T> {
-  success: boolean;
-  data: T[];
-  meta: { page: number; page_size: number; total: number };
-  msg: string;
-}
 
 export async function apiFetch<T>(
   path: string,
   options: RequestInit & { token?: string } = {},
 ): Promise<T> {
-  const { token, ...fetchOptions } = options;
+  const { token, ...init } = options;
 
-  const headers = new Headers(fetchOptions.headers);
-  if (!headers.has("Content-Type") && fetchOptions.body) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${API_BASE}${path}`, { ...fetchOptions, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
 
   if (res.status === 401) {
-    useAuthStore.getState().clearToken();
-    throw new Error("Session expired. Please log in again.");
+    useAuthStore.getState().logout();
+    throw new ApiError(401, "Session expired. Please log in again.");
   }
 
-  const body = await res.json().catch(() => null);
+  const envelope: ApiEnvelope<T> = await res.json();
 
-  if (!res.ok) {
-    throw new Error(body?.msg ?? `Request failed with status ${res.status}`);
+  if (!envelope.success) {
+    throw new ApiError(res.status, envelope.msg, envelope.data?.fields);
   }
 
-  return body as T;
+  return envelope.data;
 }
 
 export function authFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = useAuthStore.getState().token ?? undefined;
+  const token = useAuthStore.getState().accessToken ?? undefined;
   return apiFetch<T>(path, { ...options, token });
 }

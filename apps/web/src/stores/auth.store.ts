@@ -22,18 +22,33 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-interface AuthStore {
-  token: string | null;
-  setToken: (token: string) => void;
-  clearToken: () => void;
-}
+export type AuthUser = {
+  id: number;
+  name: string | null;
+  username: string;
+  email: string;
+  picture: string;
+  status: string;
+};
 
-export const useAuthStore = create<AuthStore>()(
+type AuthState = {
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: AuthUser | null;
+  setTokens: (accessToken: string, refreshToken: string) => void;
+  setUser: (user: AuthUser) => void;
+  logout: () => void;
+};
+
+export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: null,
-      setToken: (token) => set({ token }),
-      clearToken: () => set({ token: null }),
+      accessToken: null,
+      refreshToken: null,
+      user: null,
+      setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
+      setUser: (user) => set({ user }),
+      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
     }),
     { name: "moniqo-auth" },
   ),
