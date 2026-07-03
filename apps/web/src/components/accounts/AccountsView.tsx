@@ -36,8 +36,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
-import { mockAccounts } from "@/mock/data";
 import { formatCurrency, formatCurrencyCompact, cn } from "@/lib/utils";
+import { useAccounts } from "@/hooks/accounts/use-accounts";
 import { AccountNavPanel } from "./AccountNavPanel";
 import { AccountDetails } from "./AccountDetails";
 import { AccountInsightsPanel } from "./AccountInsightsPanel";
@@ -341,8 +341,10 @@ export function AccountsView() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType);
   const [addModalOpen, setAddModalOpen] = useState(false);
 
+  const { data: accounts, isLoading, isError } = useAccounts();
+
   /* Filtered accounts */
-  const filteredAccounts = mockAccounts.filter((account) => {
+  const filteredAccounts = accounts.filter((account) => {
     const statusMatch =
       statusFilter === "all"
         ? true
@@ -355,7 +357,7 @@ export function AccountsView() {
     return statusMatch && typeMatch;
   });
 
-  const [selectedId, setSelectedId] = useState(filteredAccounts[0]?.id ?? mockAccounts[0].id);
+  const [selectedId, setSelectedId] = useState(filteredAccounts[0]?.id ?? "");
 
   /* Auto-select first visible account when filters change */
   useEffect(() => {
@@ -387,7 +389,7 @@ export function AccountsView() {
   }
 
   /* Summary calculations — always from all active accounts */
-  const allActive = mockAccounts.filter((a) => !a.archived);
+  const allActive = accounts.filter((a) => !a.archived);
   const cashAndChecking = allActive.filter((a) => a.type === "checking" || a.type === "cash");
   const totalCash = cashAndChecking.reduce((s, a) => s + a.balance, 0);
   const creditAccounts = allActive.filter((a) => a.type === "credit");
@@ -469,6 +471,38 @@ export function AccountsView() {
   ];
 
   const selectedAccount = filteredAccounts.find((a) => a.id === selectedId) ?? filteredAccounts[0];
+
+  if (isLoading) {
+    return (
+      <div className="layout-page py-6">
+        <div className="mb-4 h-8 w-40 animate-pulse rounded-lg bg-[#111B2D]" />
+        <div className="mb-6 grid grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-[#0F1623]" />
+          ))}
+        </div>
+        <div className="grid grid-cols-[220px_1fr_280px] gap-4">
+          <div className="h-[520px] animate-pulse rounded-2xl bg-[#0F1623]" />
+          <div className="h-[520px] animate-pulse rounded-2xl bg-[#0F1623]" />
+          <div className="h-[520px] animate-pulse rounded-2xl bg-[#0F1623]" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="layout-page flex h-64 flex-col items-center justify-center gap-3 py-6">
+        <p className="text-sm text-[#EF4444]">Failed to load accounts.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-lg border border-[#1A2540] px-4 py-2 text-sm text-[#A8B4CC] hover:border-[#2A3A54] hover:text-white"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="layout-page py-6">

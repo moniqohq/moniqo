@@ -20,6 +20,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useCreateAccount } from "@/hooks/accounts/use-accounts";
+import { UI_TO_API } from "@/lib/adapters/account.adapter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -444,6 +446,8 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
   const [immutability, setImmutability] = useState(false);
   const [notes, setNotes] = useState("");
   const [nameError, setNameError] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const createAccount = useCreateAccount();
 
   useEffect(() => {
     if (!open) return;
@@ -458,12 +462,26 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
     };
   }, [open, onClose]);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!accountName.trim()) {
       setNameError(true);
       return;
     }
-    onClose();
+    setSubmitError(null);
+    try {
+      await createAccount.mutateAsync({
+        name: accountName.trim(),
+        type: UI_TO_API[accountType],
+        requires_recon: reconciliation,
+        is_on_budget: includeInBudget,
+        notes: notes.trim() || undefined,
+        initial_balance: parseFloat(initialBalance) || 0,
+      });
+      handleReset();
+      onClose();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to create account");
+    }
   };
 
   const handleReset = () => {
@@ -749,29 +767,40 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
 
               {/* ── Footer ── */}
               <div
-                className="flex items-center justify-between px-6 py-3.5"
+                className="flex flex-col gap-2 px-6 py-3.5"
                 style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
               >
-                <button
-                  onClick={onClose}
-                  className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none"
-                >
-                  Cancel
-                </button>
-                <div className="flex items-center gap-3">
+                {submitError && (
+                  <p className="text-xs text-[#EF4444]">{submitError}</p>
+                )}
+                <div className="flex items-center justify-between">
                   <button
-                    onClick={handleReset}
+                    onClick={onClose}
                     className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none"
                   >
-                    Reset
+                    Cancel
                   </button>
-                  <button
-                    onClick={handleCreate}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
-                  >
-                    <Plus size={15} />
-                    Create Account
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleReset}
+                      disabled={createAccount.isPending}
+                      className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none disabled:opacity-50"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      onClick={handleCreate}
+                      disabled={createAccount.isPending}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {createAccount.isPending ? (
+                        <RefreshCw size={15} className="animate-spin" />
+                      ) : (
+                        <Plus size={15} />
+                      )}
+                      {createAccount.isPending ? "Creating…" : "Create Account"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

@@ -17,26 +17,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+"use client";
 
-import type { Metadata } from "next";
-import "./globals.css";
-import { QueryProvider } from "@/providers/query-provider";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-export const metadata: Metadata = {
-  title: "Moniqo — Personal Finance",
-  description: "Modern zero-based budgeting for everyone",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className="dark h-full">
-      <body className="h-full bg-[#080C14] text-[#E8EEF8] antialiased">
-        <QueryProvider>{children}</QueryProvider>
-      </body>
-    </html>
-  );
+interface AuthStore {
+  token: string | null;
+  setToken: (token: string) => void;
+  clearToken: () => void;
 }
+
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      token: null,
+      setToken: (token) => set({ token }),
+      clearToken: () => set({ token: null }),
+    }),
+    { name: "moniqo-auth" },
+  ),
+);

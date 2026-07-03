@@ -17,26 +17,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+"use client";
 
-import type { Metadata } from "next";
-import "./globals.css";
-import { QueryProvider } from "@/providers/query-provider";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 
-export const metadata: Metadata = {
-  title: "Moniqo — Personal Finance",
-  description: "Modern zero-based budgeting for everyone",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className="dark h-full">
-      <body className="h-full bg-[#080C14] text-[#E8EEF8] antialiased">
-        <QueryProvider>{children}</QueryProvider>
-      </body>
-    </html>
+export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 30_000,
+            retry: 1,
+          },
+        },
+      }),
   );
+
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

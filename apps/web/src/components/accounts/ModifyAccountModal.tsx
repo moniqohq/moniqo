@@ -37,8 +37,9 @@ import {
   Lock,
   Timer,
 } from "lucide-react";
-import { mockAccounts } from "@/mock/data";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useAccounts, useUpdateAccount } from "@/hooks/accounts/use-accounts";
+import { UI_TO_API } from "@/lib/adapters/account.adapter";
 import type { AccountType } from "@/types";
 
 /* ── types ────────────────────────────────────────────── */
@@ -261,10 +262,13 @@ function ArchiveAccountCard({ onArchive }: { onArchive: () => void }) {
 /* ── main modal ───────────────────────────────────────── */
 
 export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountModalProps) {
-  const account = mockAccounts.find((a) => a.id === accountId) ?? mockAccounts[0];
+  const { data: accounts } = useAccounts();
+  const account = accounts.find((a) => a.id === accountId) ?? accounts[0];
+  const updateAccount = useUpdateAccount();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [accountName, setAccountName] = useState(account.name);
-  const [accountType, setAccountType] = useState<AccountType>(account.type);
+  const [accountName, setAccountName] = useState(account?.name ?? "");
+  const [accountType, setAccountType] = useState<AccountType>(account?.type ?? "checking");
   const [typeOpen, setTypeOpen] = useState(false);
   const [includeInBudget, setIncludeInBudget] = useState(true);
   const [reconciliation, setReconciliation] = useState(true);
@@ -274,15 +278,16 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
   /* reset form whenever the modal opens with a new account */
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (open) {
+    if (open && account) {
       setAccountName(account.name);
       setAccountType(account.type);
       setIncludeInBudget(true);
       setReconciliation(true);
       setLockTransactions(false);
       setNotes("");
+      setSubmitError(null);
     }
-  }, [open, account.name, account.type]);
+  }, [open, account?.name, account?.type]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* keyboard + scroll lock */
@@ -300,21 +305,38 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
   }, [open, onClose]);
 
   const handleReset = () => {
+    if (!account) return;
     setAccountName(account.name);
     setAccountType(account.type);
     setIncludeInBudget(true);
     setReconciliation(true);
     setLockTransactions(false);
     setNotes("");
+    setSubmitError(null);
   };
 
-  const handleSave = () => {
-    // TODO: wire to update action
-    onClose();
+  const handleSave = async () => {
+    if (!account) return;
+    setSubmitError(null);
+    try {
+      await updateAccount.mutateAsync({
+        accountId: account.id,
+        payload: {
+          name: accountName.trim(),
+          type: UI_TO_API[accountType],
+          requires_recon: reconciliation,
+          is_on_budget: includeInBudget,
+          notes: notes.trim() || undefined,
+        },
+      });
+      onClose();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to update account");
+    }
   };
 
   const handleArchive = () => {
-    // TODO: wire to archive action
+    // TODO: wire to archive action (PATCH archived: true)
     onClose();
   };
 
@@ -322,7 +344,9 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
   const typeColor = TYPE_META[accountType]?.color ?? "#3B82F6";
 
   /* derived balance figures */
-  const clearedBalance = Math.round(account.balance * 0.985);
+  const clearedBalance = Math.round((account?.balance ?? 0) * 0.985);
+
+  if (!account && open) return null;
 
   return (
     <AnimatePresence>
@@ -469,7 +493,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
 
                 {/* Balance summary */}
                 <BalanceSummaryCard
-                  currentBalance={account.balance}
+                  currentBalance={account?.balance ?? 0}
                   clearedBalance={clearedBalance}
                   lastReconciled="3 days ago"
                 />
@@ -543,26 +567,36 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
               </div>
 
               {/* ── Footer ── */}
-              <div className="flex items-center justify-between border-t border-[#111B2D] px-6 py-4">
-                <button
-                  onClick={onClose}
-                  className="rounded-xl bg-transparent px-5 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none"
-                >
-                  Cancel
-                </button>
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-2 border-t border-[#111B2D] px-6 py-4">
+                {submitError && (
+                  <p className="text-xs text-[#EF4444]">{submitError}</p>
+                )}
+                <div className="flex items-center justify-between">
                   <button
-                    onClick={handleReset}
-                    className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none"
+                    onClick={onClose}
+                    className="rounded-xl bg-transparent px-5 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none"
                   >
-                    Reset Changes
+                    Cancel
                   </button>
-                  <button
-                    onClick={handleSave}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
-                  >
-                    Save Changes
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleReset}
+                      disabled={updateAccount.isPending}
+                      className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none disabled:opacity-50"
+                    >
+                      Reset Changes
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={updateAccount.isPending}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {updateAccount.isPending ? (
+                        <RefreshCw size={15} className="animate-spin" />
+                      ) : null}
+                      {updateAccount.isPending ? "Saving…" : "Save Changes"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
