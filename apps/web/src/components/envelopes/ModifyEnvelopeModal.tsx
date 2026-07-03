@@ -41,10 +41,14 @@ import { cn } from "@/lib/utils";
 
 type Nature = "Want" | "Should" | "Need" | "Must";
 
+import type { BudgetEnvelope } from "@/types";
+
 export interface ModifyEnvelopeModalProps {
   open: boolean;
   onClose: () => void;
-  envelopeId?: string;
+  envelope: BudgetEnvelope;
+  budgetId: number;
+  onUpdated: () => void;
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
@@ -492,14 +496,26 @@ function EnvelopeInfoCard() {
 
 /* ── ModifyEnvelopeModal ─────────────────────────────────── */
 
-export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps) {
-  const [title, setTitle] = useState("Groceries");
-  const [allocatedRaw, setAllocatedRaw] = useState("8,000.00");
-  const [nature, setNature] = useState<Nature | "">("Need");
-  const [description, setDescription] = useState("");
+export function ModifyEnvelopeModal({
+  open,
+  onClose,
+  envelope,
+  budgetId,
+  onUpdated,
+}: ModifyEnvelopeModalProps) {
+  const [title, setTitle] = useState(envelope.title);
+  const [allocatedRaw, setAllocatedRaw] = useState(
+    new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      envelope.allocated_amt,
+    ),
+  );
+  const [nature, setNature] = useState<Nature | "">("");
+  const [description, setDescription] = useState(envelope.description ?? "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const allocatedNum = parseAmount(allocatedRaw);
-  const MOCK_SPENT = 5200;
+  const MOCK_SPENT = envelope.spent_amt;
 
   useEffect(() => {
     if (!open) return;
@@ -514,8 +530,27 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
     };
   }, [open, onClose]);
 
-  const handleSave = () => {
-    onClose();
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          allocated_amt: allocatedNum,
+          description: description.trim() || undefined,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to save changes.");
+      onUpdated();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected error.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -672,6 +707,7 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
                 style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
               >
                 <div className="ml-auto flex items-center gap-3">
+                  {error && <p className="text-sm text-[#F87171]">{error}</p>}
                   <button
                     type="button"
                     onClick={onClose}
@@ -681,11 +717,12 @@ export function ModifyEnvelopeModal({ open, onClose }: ModifyEnvelopeModalProps)
                   </button>
                   <button
                     type="button"
+                    disabled={loading}
                     onClick={handleSave}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Save size={14} />
-                    Save Changes
+                    {loading ? "Saving…" : "Save Changes"}
                   </button>
                 </div>
               </div>

@@ -40,7 +40,8 @@ import {
   ArrowRight,
   Save,
 } from "lucide-react";
-import { mockAccounts, mockEnvelopes } from "@/mock/data";
+import { mockAccounts } from "@/mock/data";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Transaction, TransactionType, AccountType } from "@/types";
 
@@ -150,6 +151,8 @@ interface Props {
 /* ── component ────────────────────────────────────────────── */
 
 export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
+  const { envelopes } = useEnvelopes();
+
   /* form state */
   const [txType, setTxType] = useState<TransactionType>("expense");
   const [date, setDate] = useState("");
@@ -217,7 +220,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
   const isTransfer = txType === "transfer";
 
   const selectedAccount = mockAccounts.find((a) => a.id === accountId) ?? mockAccounts[0];
-  const selectedEnvelope = mockEnvelopes.find((e) => e.id === envId) ?? null;
+  const selectedEnvelope = envelopes.find((e) => String(e.id) === envId) ?? null;
   const selectedTransferAccount = mockAccounts.find((a) => a.id === transferTo) ?? null;
   const accMeta = ACCOUNT_TYPE_META[selectedAccount.type];
 
@@ -227,10 +230,11 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
   const realAccountBefore = accountBefore;
   const realAccountAfter = accountBefore + signedAmount;
 
-  const envBefore = selectedEnvelope
-    ? selectedEnvelope.available + (isExpense ? numericAmount : 0)
+  const envelopeAvailable = selectedEnvelope
+    ? selectedEnvelope.allocated_amt - selectedEnvelope.spent_amt
     : 0;
-  const envAfter = selectedEnvelope ? selectedEnvelope.available : 0;
+  const envBefore = selectedEnvelope ? envelopeAvailable + (isExpense ? numericAmount : 0) : 0;
+  const envAfter = selectedEnvelope ? envelopeAvailable : 0;
 
   const isOverspent = isExpense && selectedEnvelope && envAfter < 0;
   const typeMeta = TX_TYPES.find((t) => t.value === txType)!;
@@ -551,12 +555,12 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                               <>
                                 <div
                                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs"
-                                  style={{ backgroundColor: `${selectedEnvelope.color}30` }}
+                                  style={{ backgroundColor: "rgba(108,58,237,0.18)" }}
                                 >
-                                  {selectedEnvelope.icon}
+                                  💼
                                 </div>
                                 <span className="flex-1 truncate text-left text-sm text-white">
-                                  {selectedEnvelope.name}
+                                  {selectedEnvelope.title}
                                 </span>
                               </>
                             ) : (
@@ -568,35 +572,43 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           </button>
                           {envOpen && (
                             <div className="absolute top-full left-0 z-30 mt-1 max-h-56 w-64 overflow-y-auto rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
-                              {mockEnvelopes.map((env) => (
-                                <button
-                                  key={env.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEnvId(env.id);
-                                    setEnvOpen(false);
-                                  }}
-                                  className={cn(
-                                    "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                    envId === env.id
-                                      ? "bg-[#6C3AED]/15 text-white"
-                                      : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
-                                  )}
-                                >
-                                  <div
-                                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px]"
-                                    style={{ backgroundColor: `${env.color}30` }}
+                              {envelopes.length === 0 && (
+                                <p className="px-3 py-3 text-sm text-[#5A6A85]">No envelopes.</p>
+                              )}
+                              {envelopes.map((env) => {
+                                const envAvail = env.allocated_amt - env.spent_amt;
+                                return (
+                                  <button
+                                    key={env.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEnvId(String(env.id));
+                                      setEnvOpen(false);
+                                    }}
+                                    className={cn(
+                                      "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
+                                      envId === String(env.id)
+                                        ? "bg-[#6C3AED]/15 text-white"
+                                        : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
+                                    )}
                                   >
-                                    {env.icon}
-                                  </div>
-                                  <div className="flex-1 text-left">
-                                    <p className="text-sm leading-tight text-white">{env.name}</p>
-                                    <p className="text-xs text-[#5A6A85]">
-                                      Available: {formatCurrency(env.available)}
-                                    </p>
-                                  </div>
-                                </button>
-                              ))}
+                                    <div
+                                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px]"
+                                      style={{ backgroundColor: "rgba(108,58,237,0.18)" }}
+                                    >
+                                      💼
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                      <p className="text-sm leading-tight text-white">
+                                        {env.title}
+                                      </p>
+                                      <p className="text-xs text-[#5A6A85]">
+                                        Available: {formatCurrency(envAvail)}
+                                      </p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -757,7 +769,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                         <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                           Envelope Impact{" "}
                           <span className="font-normal text-[#5A6A85]">
-                            ({selectedEnvelope.name})
+                            ({selectedEnvelope.title})
                           </span>
                         </p>
                         <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">

@@ -31,6 +31,8 @@ type Nature = "Want" | "Should" | "Need" | "Must";
 export interface AddEnvelopeModalProps {
   open: boolean;
   onClose: () => void;
+  budgetId: number;
+  onCreated: () => void;
 }
 
 /* ── nature config ────────────────────────────────────── */
@@ -221,11 +223,13 @@ function NatureSelect({
 
 /* ── Main modal ───────────────────────────────────────── */
 
-export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
+export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnvelopeModalProps) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [nature, setNature] = useState<Nature | "">("");
   const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -398,13 +402,39 @@ export function AddEnvelopeModal({ open, onClose }: AddEnvelopeModalProps) {
                 >
                   Cancel
                 </button>
+                {error && <p className="text-sm text-[#F87171]">{error}</p>}
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none"
+                  disabled={loading}
+                  onClick={async () => {
+                    const allocatedAmt = parseFloat(amount);
+                    if (!title.trim() || isNaN(allocatedAmt) || allocatedAmt < 0) return;
+                    setLoading(true);
+                    setError(null);
+                    try {
+                      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          title: title.trim(),
+                          allocated_amt: allocatedAmt,
+                          description: description.trim() || undefined,
+                        }),
+                      });
+                      const body = await res.json();
+                      if (!res.ok || !body.success)
+                        throw new Error(body.msg || "Failed to create envelope.");
+                      onCreated();
+                      onClose();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Unexpected error.");
+                      setLoading(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus size={15} />
-                  Create Envelope
+                  {loading ? "Creating…" : "Create Envelope"}
                 </button>
               </div>
             </motion.div>
