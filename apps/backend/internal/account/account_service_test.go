@@ -229,7 +229,13 @@ func TestSvc_Replace(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		excludeID := testAccountID
-		updated := models.Account{ID: testAccountID, BudgetID: testBudgetID, Name: "Updated", Type: models.AccountTypeChecking, IsOnBudget: true}
+		updated := models.Account{
+			ID:         testAccountID,
+			BudgetID:   testBudgetID,
+			Name:       "Updated",
+			Type:       models.AccountTypeChecking,
+			IsOnBudget: true,
+		}
 
 		repo := &internalmock.AccountRepository{}
 		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Original"), nil)

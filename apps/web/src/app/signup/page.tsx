@@ -487,6 +487,7 @@ export default function SignupPage() {
     formState: { errors, isSubmitting },
   } = useForm<SignupFields>({ resolver: zodResolver(signupSchema) });
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const password = watch("password", "");
 
   async function onSubmit(data: SignupFields) {

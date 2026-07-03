@@ -46,12 +46,20 @@ func TestRenderTemplate(t *testing.T) {
 		assert.Equal(t, "Verify your Moniqo account", out.Subject)
 
 		assert.True(t, strings.Contains(out.HTMLBody, "Alice"), "HTML body should include recipient name")
-		assert.True(t, strings.Contains(out.HTMLBody, "https://app.moniqo.in/verify?token=abc123"), "HTML body should include verification URL")
+		assert.True(
+			t,
+			strings.Contains(out.HTMLBody, "https://app.moniqo.in/verify?token=abc123"),
+			"HTML body should include verification URL",
+		)
 		assert.True(t, strings.Contains(out.HTMLBody, "24 hours"), "HTML body should include expiry")
 		assert.True(t, strings.Contains(out.HTMLBody, "<!doctype html"), "HTML body should be a full HTML document")
 
 		assert.True(t, strings.Contains(out.TextBody, "Alice"), "text body should include recipient name")
-		assert.True(t, strings.Contains(out.TextBody, "https://app.moniqo.in/verify?token=abc123"), "text body should include verification URL")
+		assert.True(
+			t,
+			strings.Contains(out.TextBody, "https://app.moniqo.in/verify?token=abc123"),
+			"text body should include verification URL",
+		)
 	})
 
 	t.Run("PasswordReset", func(t *testing.T) {
