@@ -18,16 +18,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* ── Core domain types (mock/UI layer only) ──────────── */
-
 export type Role = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
 
-export type AccountType = "checking" | "savings" | "credit" | "cash" | "investment" | "loan";
+export type AccountType = "checking" | "savings" | "credit" | "cash" | "loan";
 
 export type TransactionType = "expense" | "income" | "transfer";
 
 export interface User {
-  id: string;
+  id: number;
   name: string;
   username: string;
   email: string;
@@ -36,63 +34,60 @@ export interface User {
 }
 
 export interface Budget {
-  id: string;
+  id: number;
   name: string;
-  currency: string;
-  locale: string;
-  toBeBudgeted: number;
-  overspent: number;
-  totalAllocated: number;
-  totalAccounts: number;
-  memberCount: number;
+  notes?: string;
   createdAt: string;
 }
 
 export interface Account {
-  id: string;
-  budgetId: string;
+  id: number;
+  budgetId: number;
   name: string;
   type: AccountType;
   balance: number;
-  icon?: string;
-  institution?: string;
-  lastSynced?: string;
-  archived?: boolean;
+  requiresRecon: boolean;
+  isOnBudget: boolean;
+  notes?: string;
 }
 
 export interface BudgetEnvelope {
   id: number;
-  budget_id: number;
-  title: string;
-  allocated_amt: number;
-  spent_amt: number;
+  budgetId: number;
+  name: string;
   description?: string;
+  allocated: number;
+  spent: number;
+  available: number;
+  isOverspent: boolean;
 }
 
 export interface Transaction {
-  id: string;
-  budgetId: string;
-  accountId: string;
+  id: number;
+  budgetId: number;
+  accountId: number;
   accountName: string;
-  accountInstitution?: string;
-  accountSubLabel?: string;
-  envelopeId?: string;
+  envelopeId?: number;
   envelopeName?: string;
-  envelopeIcon?: string;
-  envelopeColor?: string;
+  transferAccountId?: number;
   payee: string;
-  payeeColor?: string;
   amount: number;
   type: TransactionType;
   date: string;
   memo?: string;
   cleared: boolean;
-  runningBalance?: number;
+}
+
+export interface BudgetSummary {
+  toBeBudgeted: number;
+  totalAllocated: number;
+  totalSpent: number;
+  overspentEnvelopesCount: number;
 }
 
 export interface SavingsGoal {
-  id: string;
-  budgetId: string;
+  id: number;
+  budgetId: number;
   name: string;
   targetAmount: number;
   currentAmount: number;

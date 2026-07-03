@@ -19,7 +19,11 @@
  */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useEnvelopes } from "@/hooks/use-envelopes";
+import { useTransactions } from "@/hooks/use-transactions";
 import { motion } from "framer-motion";
 import {
   ShoppingCart,
@@ -55,7 +59,6 @@ import { AddTransactionModal } from "@/components/transactions/AddTransactionMod
 import { ModifyEnvelopeModal } from "./ModifyEnvelopeModal";
 import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { ForceDeleteEnvelopeDialog } from "./ForceDeleteEnvelopeDialog";
-import { useEnvelopes } from "@/hooks/useEnvelopes";
 
 /* ── Types ───────────────────────────────────────────────── */
 type Nature = "Must" | "Need" | "Should" | "Want";
@@ -472,8 +475,19 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 
 /* ── Main component ──────────────────────────────────────── */
 export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) {
-  const { envelopes, budgetId, refresh } = useEnvelopes();
-  const currentEnvelope = envelopes.find((e) => e.id === parseInt(envelopeId, 10)) ?? null;
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: accounts } = useAccounts(activeBudgetId);
+  const { data: apiEnvelopes } = useEnvelopes(activeBudgetId);
+  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+
+  const envelopeIdNum = Number(envelopeId);
+  const envelope = apiEnvelopes.find((e) => e.id === envelopeIdNum);
+
+  const { data: apiTransactions } = useTransactions(
+    activeBudgetId,
+    { budget_envelope_id: envelopeIdNum },
+    accountMap
+  );
 
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
@@ -485,14 +499,26 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   const [pageSize, setPageSize] = useState(5);
 
   /* Envelope stats */
-  const allocated = 8000;
-  const spent = 5200;
+  const allocated = envelope?.allocated ?? 0;
+  const spent = envelope?.spent ?? 0;
   const remaining = allocated - spent;
-  const pct = Math.round((spent / allocated) * 100);
+  const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
   const nature: Nature = "Need";
 
+  /* Map API transactions to local type */
+  const txRows: EnvelopeTx[] = apiTransactions.map((t) => ({
+    id: String(t.id),
+    date: new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    title: t.payee || t.accountName,
+    account: t.accountName,
+    accountType: "bank" as const,
+    amount: t.type === "expense" ? -t.amount : t.amount,
+    runningImpact: 0,
+    status: "Cleared" as const,
+  }));
+
   /* Filter + sort transactions */
-  const filtered = MOCK_TRANSACTIONS.filter(
+  const filtered = txRows.filter(
     (tx) =>
       !search ||
       tx.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -1080,30 +1106,28 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         onClose={() => setAddTxOpen(false)}
         defaultType="expense"
       />
-      {modifyOpen && currentEnvelope && budgetId !== null && (
+      {modifyOpen && envelope && activeBudgetId !== null && (
         <ModifyEnvelopeModal
           open={modifyOpen}
           onClose={() => setModifyOpen(false)}
-          envelope={currentEnvelope}
-          budgetId={budgetId}
-          onUpdated={refresh}
+          envelope={envelope}
+          budgetId={activeBudgetId}
         />
       )}
-      {archiveOpen && currentEnvelope && budgetId !== null && (
+      {archiveOpen && envelope && activeBudgetId !== null && (
         <ArchiveEnvelopeModal
           open={archiveOpen}
           onClose={() => setArchiveOpen(false)}
-          envelope={currentEnvelope}
-          budgetId={budgetId}
-          envelopes={envelopes}
-          onDeleted={refresh}
+          envelope={envelope}
+          budgetId={activeBudgetId}
+          envelopes={apiEnvelopes}
         />
       )}
       <ForceDeleteEnvelopeDialog
         open={forceDeleteOpen}
         onOpenChange={setForceDeleteOpen}
-        envelope={{ id: Number(envelopeId), title: "Groceries" }}
-        budgetId={1}
+        envelope={{ id: envelopeIdNum, title: envelope?.name ?? "Envelope" }}
+        budgetId={activeBudgetId ?? 0}
       />
     </div>
   );

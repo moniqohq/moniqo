@@ -40,8 +40,9 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useUIStore } from "@/stores/ui.store";
+import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrency, cn } from "@/lib/utils";
-import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { AddEnvelopeModal } from "./AddEnvelopeModal";
 import { ModifyEnvelopeModal } from "./ModifyEnvelopeModal";
 import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
@@ -51,14 +52,25 @@ import type { BudgetEnvelope } from "@/types";
 /* ── Status type ────────────────────────────────────────── */
 type Status = "Healthy" | "Warning" | "Fully Used" | "Overspent";
 
+interface EnvelopeRow {
+  id: string;
+  name: string;
+  description: string;
+  iconKey: string;
+  nature: Nature;
+  allocated: number;
+  spent: number;
+}
+
+
 /* ── Derived computations ───────────────────────────────── */
-function getRemaining(env: BudgetEnvelope) {
-  return env.allocated_amt - env.spent_amt;
+function getRemaining(env: EnvelopeRow) {
+  return env.allocated - env.spent;
 }
-function getPct(env: BudgetEnvelope) {
-  return env.allocated_amt > 0 ? (env.spent_amt / env.allocated_amt) * 100 : 0;
+function getPct(env: EnvelopeRow) {
+  return env.allocated > 0 ? (env.spent / env.allocated) * 100 : 0;
 }
-function getStatus(env: BudgetEnvelope): Status {
+function getStatus(env: EnvelopeRow): Status {
   const pct = getPct(env);
   if (pct > 100) return "Overspent";
   if (pct === 100) return "Fully Used";
@@ -535,7 +547,18 @@ function SideCard({
 
 /* ── Main view ──────────────────────────────────────────── */
 export function EnvelopesView() {
-  const { envelopes, loading, error, budgetId, refresh } = useEnvelopes();
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: apiEnvelopes, isLoading, refetch } = useEnvelopes(activeBudgetId);
+
+  const envelopes: EnvelopeRow[] = apiEnvelopes.map((e) => ({
+    id: String(e.id),
+    name: e.name,
+    description: e.description ?? "",
+    iconKey: "folder",
+    nature: "Need" as Nature,
+    allocated: e.allocated,
+    spent: e.spent,
+  }));
 
   const [addOpen, setAddOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
@@ -550,33 +573,31 @@ export function EnvelopesView() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   /* Filtering + sorting */
-  const filtered = envelopes
-    .filter((e) => {
-      if (search && !e.title.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filterStatuses.size > 0 && !filterStatuses.has(getStatus(e))) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      switch (sort) {
-        case "Highest Allocated":
-          return b.allocated_amt - a.allocated_amt;
-        case "Highest Spent":
-          return b.spent_amt - a.spent_amt;
-        case "Most Remaining":
-          return getRemaining(b) - getRemaining(a);
-        case "Overspent First":
-          return getRemaining(a) < 0 ? -1 : 1;
-        default:
-          return a.title.localeCompare(b.title);
-      }
-    });
+  const filtered = envelopes.filter((e) => {
+    if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterStatuses.size > 0 && !filterStatuses.has(getStatus(e))) return false;
+    return true;
+  }).sort((a, b) => {
+    switch (sort) {
+      case "Highest Allocated":
+        return b.allocated - a.allocated;
+      case "Highest Spent":
+        return b.spent - a.spent;
+      case "Most Remaining":
+        return getRemaining(b) - getRemaining(a);
+      case "Overspent First":
+        return getRemaining(a) < 0 ? -1 : 1;
+      default:
+        return a.name.localeCompare(b.name);
+    }
+  });
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   /* Summary stats */
-  const totalAllocated = envelopes.reduce((s, e) => s + e.allocated_amt, 0);
-  const totalSpent = envelopes.reduce((s, e) => s + e.spent_amt, 0);
+  const totalAllocated = envelopes.reduce((s, e) => s + e.allocated, 0);
+  const totalSpent = envelopes.reduce((s, e) => s + e.spent, 0);
   const totalRemaining = totalAllocated - totalSpent;
   const overspentRows = envelopes.filter((e) => getRemaining(e) < 0);
   const totalOverspent = overspentRows.reduce((s, e) => s + Math.abs(getRemaining(e)), 0);
@@ -675,11 +696,6 @@ export function EnvelopesView() {
       </div>
 
       {/* ── Error / loading ──────────────────────────────── */}
-      {error && (
-        <div className="mb-4 rounded-lg border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-3 text-sm text-[#F87171]">
-          {error}
-        </div>
-      )}
 
       {/* ── Summary cards ───────────────────────────────── */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -739,7 +755,7 @@ export function EnvelopesView() {
       <div className="flex flex-col gap-4 xl:flex-row">
         {/* ── Main content ─────────────────────────────── */}
         <div className="min-w-0 flex-1">
-          {loading ? (
+          {isLoading ? (
             <div className="overflow-hidden rounded-xl border border-[#1A2640] bg-[#0B1220]">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div
@@ -808,7 +824,7 @@ export function EnvelopesView() {
                                 </div>
                                 <div>
                                   <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
-                                    {env.title}
+                                    {env.name}
                                   </p>
                                   {env.description && (
                                     <p className="mt-0.5 text-xs leading-tight text-[#5A6A85]">
@@ -821,12 +837,12 @@ export function EnvelopesView() {
 
                             {/* Allocated */}
                             <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
-                              {formatCurrency(env.allocated_amt)}
+                              {formatCurrency(env.allocated)}
                             </td>
 
                             {/* Spent */}
                             <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
-                              {formatCurrency(env.spent_amt)}
+                              {formatCurrency(env.spent)}
                             </td>
 
                             {/* Remaining */}
@@ -964,7 +980,7 @@ export function EnvelopesView() {
                           </div>
                           <div>
                             <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
-                              {env.title}
+                              {env.name}
                             </p>
                             {env.description && (
                               <p className="text-[11px] leading-tight text-[#5A6A85]">
@@ -996,7 +1012,7 @@ export function EnvelopesView() {
                             Allocated
                           </p>
                           <p className="text-xs font-medium text-[#A8B4CC] tabular-nums">
-                            {formatCurrency(env.allocated_amt)}
+                            {formatCurrency(env.allocated)}
                           </p>
                         </div>
                         <div className="text-right">
@@ -1004,7 +1020,7 @@ export function EnvelopesView() {
                             Spent
                           </p>
                           <p className="text-xs font-medium text-[#A8B4CC] tabular-nums">
-                            {formatCurrency(env.spent_amt)}
+                            {formatCurrency(env.spent)}
                           </p>
                         </div>
                       </div>
@@ -1040,7 +1056,7 @@ export function EnvelopesView() {
           >
             <div className="flex flex-col gap-2.5">
               {[...envelopes]
-                .sort((a, b) => b.spent_amt - a.spent_amt)
+                .sort((a, b) => b.spent - a.spent_amt)
                 .slice(0, 2)
                 .map((env) => (
                   <div key={env.id} className="flex items-center gap-2.5">
@@ -1051,9 +1067,9 @@ export function EnvelopesView() {
                       💼
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-[#A8B4CC]">{env.title}</p>
+                      <p className="truncate text-xs font-medium text-[#A8B4CC]">{env.name}</p>
                       <p className="text-[11px] font-semibold text-[#A78BFA] tabular-nums">
-                        {formatCurrency(env.spent_amt)} spent
+                        {formatCurrency(env.spent)} spent
                       </p>
                     </div>
                   </div>
@@ -1093,13 +1109,13 @@ export function EnvelopesView() {
         </div>
       </div>
 
-      {budgetId !== null && (
+      {activeBudgetId !== null && (
         <>
           <AddEnvelopeModal
             open={addOpen}
             onClose={() => setAddOpen(false)}
-            budgetId={budgetId}
-            onCreated={refresh}
+            budgetId={activeBudgetId}
+            onCreated={refetch}
           />
           {modifyOpen && actionEnvelope && (
             <ModifyEnvelopeModal
@@ -1109,8 +1125,8 @@ export function EnvelopesView() {
                 setActionEnvelope(null);
               }}
               envelope={actionEnvelope}
-              budgetId={budgetId}
-              onUpdated={refresh}
+              budgetId={activeBudgetId}
+              onUpdated={refetch}
             />
           )}
           {archiveOpen && actionEnvelope && (
@@ -1121,9 +1137,9 @@ export function EnvelopesView() {
                 setActionEnvelope(null);
               }}
               envelope={actionEnvelope}
-              budgetId={budgetId}
+              budgetId={activeBudgetId}
               envelopes={envelopes}
-              onDeleted={refresh}
+              onDeleted={refetch}
             />
           )}
         </>

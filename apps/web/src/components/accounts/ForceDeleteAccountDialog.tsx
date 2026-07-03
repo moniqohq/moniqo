@@ -44,7 +44,6 @@ const TYPE_META: Record<AccountType, { icon: React.ReactNode; label: string; col
   savings: { icon: <PiggyBank size={18} />, label: "Savings", color: "#22C55E" },
   credit: { icon: <CreditCard size={18} />, label: "Credit Card", color: "#F87171" },
   cash: { icon: <Wallet size={18} />, label: "Cash", color: "#F59E0B" },
-  investment: { icon: <TrendingUp size={18} />, label: "Investment", color: "#8B5CF6" },
   loan: { icon: <Landmark size={18} />, label: "Loan", color: "#EC4899" },
 };
 

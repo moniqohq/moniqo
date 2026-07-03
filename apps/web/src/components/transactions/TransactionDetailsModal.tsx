@@ -44,7 +44,6 @@ import {
 } from "lucide-react";
 import type { Transaction, AccountType } from "@/types";
 import { formatCurrency, cn } from "@/lib/utils";
-import { mockUser, mockAccounts } from "@/mock/data";
 
 function formatModalDate(dateStr: string): string {
   const d = new Date(dateStr + "T09:42:00");
@@ -63,7 +62,6 @@ const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: str
   savings: { icon: <PiggyBank size={14} />, color: "#22C55E" },
   credit: { icon: <CreditCard size={14} />, color: "#F87171" },
   cash: { icon: <Wallet size={14} />, color: "#F59E0B" },
-  investment: { icon: <TrendingUp size={14} />, color: "#8B5CF6" },
   loan: { icon: <Landmark size={14} />, color: "#EC4899" },
 };
 
@@ -102,20 +100,12 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
     ? "text-[#4ADE80]"
     : isExpense
       ? "text-[#F87171]"
-      : tx.amount >= 0
-        ? "text-[#4ADE80]"
-        : "text-[#F87171]";
+      : "text-[#93C5FD]";
 
-  const acc = mockAccounts.find((a) => a.id === tx.accountId);
-  const accMeta = acc ? ACCOUNT_TYPE_META[acc.type] : ACCOUNT_TYPE_META.checking;
-
-  const balanceBefore = (tx.runningBalance ?? 0) - tx.amount;
-  const balanceAfter = tx.runningBalance ?? 0;
+  const accMeta = ACCOUNT_TYPE_META.checking;
 
   const formattedDate = formatModalDate(tx.date);
-
-  const txNum = parseInt(tx.id.replace(/\D/g, "") || "1");
-  const txId = `TXN-${new Date(tx.date).getTime() + txNum * 1000}`;
+  const txId = `TXN-${tx.id}`;
 
   return (
     <AnimatePresence>
@@ -326,8 +316,8 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                           }
                           label="Running Balance After Transaction"
                           value={
-                            tx.runningBalance !== undefined
-                              ? formatCurrency(tx.runningBalance)
+                            false
+                              ? formatCurrency(0)
                               : "—"
                           }
                         />
@@ -353,7 +343,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                       <div className="flex items-center gap-3">
                         <ImpactCard label="Envelope Balance Before">
                           <span className="text-xl font-bold text-[#E8EEF8] tabular-nums">
-                            {formatCurrency(balanceBefore)}
+                            {formatCurrency(0)}
                           </span>
                         </ImpactCard>
 
@@ -373,10 +363,10 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                           <span
                             className={cn(
                               "text-xl font-bold tabular-nums",
-                              balanceAfter >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
+                              0 >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
                             )}
                           >
-                            {formatCurrency(balanceAfter)}
+                            {formatCurrency(0)}
                           </span>
                         </ImpactCard>
                       </div>
@@ -398,7 +388,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                           </div>
                         }
                         label="Created by"
-                        value={mockUser.name}
+                        value="—"
                       />
 
                       {/* Created at */}

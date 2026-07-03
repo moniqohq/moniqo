@@ -17,27 +17,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-"use client";
 
-import { create } from "zustand";
+import type { ApiResponse } from "./types";
 
-interface UIStore {
-  sidebarCollapsed: boolean;
-  mobileSidebarOpen: boolean;
-  activeBudgetId: number | null;
-  toggleSidebar: () => void;
-  setMobileSidebar: (open: boolean) => void;
-  setActiveBudget: (id: number) => void;
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("moniqo_token") : null;
+
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  });
+
+  const body: ApiResponse<T> = await res.json();
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg ?? "API error");
+  }
+  return body.data;
 }
-
-export const useUIStore = create<UIStore>((set) => ({
-  sidebarCollapsed: false,
-  mobileSidebarOpen: false,
-  activeBudgetId: null,
-
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-
-  setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
-
-  setActiveBudget: (id) => set({ activeBudgetId: id }),
-}));

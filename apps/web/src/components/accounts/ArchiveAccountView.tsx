@@ -50,7 +50,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { cn, formatCurrency } from "@/lib/utils";
-import { mockAccounts, mockBudgets } from "@/mock/data";
+import { useAccounts } from "@/hooks/use-accounts";
 import type { AccountType } from "@/types";
 
 /* ── Constants ───────────────────────────────────────────── */
@@ -82,12 +82,6 @@ const TYPE_META: Record<
     label: "Cash",
     color: "#F59E0B",
     bg: "rgba(245,158,11,0.15)",
-  },
-  investment: {
-    icon: <TrendingUp size={20} />,
-    label: "Investment",
-    color: "#8B5CF6",
-    bg: "rgba(139,92,246,0.15)",
   },
   loan: {
     icon: <Landmark size={20} />,
@@ -399,12 +393,15 @@ interface ChecklistItem {
 }
 
 interface Props {
-  budgetId: string;
-  accountId: string;
+  budgetId: number;
+  accountId: number;
 }
 
 export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
+  const { data: accounts } = useAccounts(budgetId);
+  const account = accounts.find((a) => a.id === accountId);
+  const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>([
     {
@@ -429,13 +426,8 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const account = mockAccounts.find((a) => a.id === accountId) ?? mockAccounts[1];
-  const budget = mockBudgets.find((b) => b.id === (account.budgetId ?? budgetId)) ?? mockBudgets[0];
-  const meta = TYPE_META[account.type];
-
-  /* Mock stats — replace with API data when available */
-  const balance = 2450;
-  const txCount = 12;
+  const balance = account?.balance ?? 0;
+  const txCount = 0;
   const openingBalance = 0;
   const lastActivity = "May 15, 2024";
   const lastActivityAgo = "5 days ago";
@@ -582,7 +574,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[16px] font-bold text-[#E8EEF8]">{account.name}</span>
+                  <span className="text-[16px] font-bold text-[#E8EEF8]">{account?.name ?? "Account"}</span>
                   <span
                     className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
                     style={{ background: meta.bg, color: meta.color }}
@@ -592,7 +584,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <Archive size={11} className="text-[#5A6A85]" />
-                  <p className="text-[11px] text-[#5A6A85]">{budget.name}</p>
+                  <p className="text-[11px] text-[#5A6A85]">Budget #{budgetId}</p>
                 </div>
               </div>
             </div>
@@ -903,7 +895,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
         {showConfirm && !showSuccess && (
           <ArchiveConfirmationDialog
             key="confirm"
-            accountName={account.name}
+            accountName={account?.name ?? "Account"}
             balance={balance}
             txCount={txCount}
             lastActivity={lastActivity}
@@ -914,7 +906,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
         {showSuccess && (
           <ArchiveSuccessDialog
             key="success"
-            accountName={account.name}
+            accountName={account?.name ?? "Account"}
             onViewArchived={() => router.push(`/budgets/${budgetId}/accounts?filter=archived`)}
             onReturn={() => router.push(`/budgets/${budgetId}/accounts`)}
           />

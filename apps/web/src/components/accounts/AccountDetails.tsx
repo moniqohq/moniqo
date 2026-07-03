@@ -42,7 +42,8 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { mockAccounts, mockTransactions, mockBudgets } from "@/mock/data";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useTransactions } from "@/hooks/use-transactions";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
 import { BalanceChart, type ChartPoint } from "./BalanceChart";
@@ -79,12 +80,6 @@ const TYPE_META: Record<
     label: "Cash",
     color: "#F59E0B",
     bg: "rgba(245,158,11,0.15)",
-  },
-  investment: {
-    icon: <TrendingUp size={22} />,
-    label: "Investment",
-    color: "#8B5CF6",
-    bg: "rgba(139,92,246,0.15)",
   },
   loan: {
     icon: <Landmark size={22} />,
@@ -397,10 +392,11 @@ function MetaCard({
 /* ── main component ──────────────────────────────────── */
 
 interface Props {
-  accountId: string;
+  accountId: number;
+  budgetId: number;
 }
 
-export function AccountDetails({ accountId }: Props) {
+export function AccountDetails({ accountId, budgetId }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [showAccNum, setShowAccNum] = useState(false);
@@ -409,12 +405,31 @@ export function AccountDetails({ accountId }: Props) {
   const [addTxDefault, setAddTxDefault] = useState<"expense" | "income" | "transfer">("expense");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const account = mockAccounts.find((a) => a.id === accountId) ?? mockAccounts[0];
-  const meta = ACCOUNT_META[account.id] ?? ACCOUNT_META.a1;
-  const budget = mockBudgets.find((b) => b.id === account.budgetId);
-  const typeMeta = TYPE_META[account.type];
+  const { data: accounts } = useAccounts(budgetId);
+  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const account = accounts.find((a) => a.id === accountId);
+  const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
-  const allTxns = mockTransactions.filter((t) => t.accountId === accountId);
+  const { data: allTxns } = useTransactions(
+    budgetId,
+    { account_id: accountId },
+    accountMap
+  );
+
+  const meta: AccountMeta = {
+    accountNumber: "—",
+    createdDate: "—",
+    lastActivity: "—",
+    lastReconciled: "—",
+    onBudget: account?.isOnBudget ?? true,
+    requiresReconciliation: account?.requiresRecon ?? false,
+    notes: account?.notes ?? "",
+    clearedBalance: account?.balance ?? 0,
+    unclearedBalance: 0,
+    monthChangePct: 0,
+    balanceHistory: [],
+  };
+
   const filtered = allTxns.filter(
     (t) =>
       !search ||
@@ -422,6 +437,14 @@ export function AccountDetails({ accountId }: Props) {
       (t.memo ?? "").toLowerCase().includes(search.toLowerCase()),
   );
   const pageTxns = filtered.slice(0, 5);
+
+  if (!account) {
+    return (
+      <div className="flex h-64 items-center justify-center text-[#3A4A60] text-sm">
+        Loading account…
+      </div>
+    );
+  }
 
   return (
     <div className="min-w-0 space-y-4">
@@ -449,40 +472,14 @@ export function AccountDetails({ accountId }: Props) {
                 >
                   {typeMeta.label}
                 </span>
-                {account.archived && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#252F45] bg-[#1A2540] px-2.5 py-0.5 text-xs font-semibold text-[#5A6A85]">
-                    <Archive size={11} />
-                    Archived
-                  </span>
-                )}
               </div>
-              {budget && <p className="mt-1 text-xs font-medium text-[#7C4AFF]">{budget.name}</p>}
+              <p className="mt-1 text-xs font-medium text-[#7C4AFF]">Budget #{budgetId}</p>
             </div>
           </div>
 
           {/* Action buttons */}
           <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
-            {account.archived ? (
-              <>
-                <button
-                  title="Restore Account"
-                  onClick={undefined}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(34,197,94,0.25)] bg-[rgba(34,197,94,0.08)] px-3 py-1.5 text-xs font-medium text-[#4ADE80] transition-all hover:border-[rgba(34,197,94,0.4)] hover:bg-[rgba(34,197,94,0.15)]"
-                >
-                  <RotateCcw size={14} />
-                  <span className="hidden sm:inline">Restore Account</span>
-                </button>
-                <button
-                  title="Delete Account"
-                  onClick={() => setDeleteOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-3 py-1.5 text-xs font-medium text-[#F87171] transition-all hover:border-[rgba(239,68,68,0.4)] hover:bg-[rgba(239,68,68,0.15)]"
-                >
-                  <Trash2 size={14} />
-                  <span className="hidden sm:inline">Delete Account</span>
-                </button>
-              </>
-            ) : (
-              (
+            {(
                 [
                   {
                     icon: <Plus size={14} />,
@@ -751,6 +748,7 @@ export function AccountDetails({ accountId }: Props) {
         open={modifyOpen}
         onClose={() => setModifyOpen(false)}
         accountId={accountId}
+        budgetId={budgetId}
       />
       <AddTransactionModal
         open={addTxOpen}

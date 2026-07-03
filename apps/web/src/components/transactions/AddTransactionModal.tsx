@@ -36,10 +36,12 @@ import {
   ArrowRight,
   ArrowDown,
 } from "lucide-react";
-import { mockAccounts } from "@/mock/data";
-import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useEnvelopes } from "@/hooks/use-envelopes";
+import { createTransaction } from "@/lib/api/transactions";
 import { formatCurrency, cn } from "@/lib/utils";
-import type { TransactionType } from "@/types";
+import type { TransactionType, Account, BudgetEnvelope } from "@/types";
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -113,26 +115,28 @@ export function AddTransactionModal({
   onClose,
   defaultType = "expense",
 }: AddTransactionModalProps) {
-  const { envelopes } = useEnvelopes();
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: accounts } = useAccounts(activeBudgetId);
+  const { data: envelopes } = useEnvelopes(activeBudgetId);
 
   /* core state */
   const [txType, setTxType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState("");
   const [payee, setPayee] = useState("");
-  const [selectedAccount, setSelectedAccount] = useState(mockAccounts[0]);
-  const [selectedEnvelopeId, setSelectedEnvelopeId] = useState<number | null>(null);
-  const selectedEnvelope =
-    envelopes.find((e) => e.id === selectedEnvelopeId) ?? envelopes[0] ?? null;
-  const [date] = useState("May 15, 2026");
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [selectedEnvelope, setSelectedEnvelope] = useState<BudgetEnvelope | null>(null);
+  const [date] = useState(new Date().toISOString().split("T")[0]);
   const [memo, setMemo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* expense dropdowns */
   const [accountOpen, setAccountOpen] = useState(false);
   const [envelopeOpen, setEnvelopeOpen] = useState(false);
 
   /* transfer state */
-  const [fromAccountId, setFromAccountId] = useState(mockAccounts[0].id);
-  const [toAccountId, setToAccountId] = useState(mockAccounts[1].id);
+  const [fromAccountId, setFromAccountId] = useState<number | null>(null);
+  const [toAccountId, setToAccountId] = useState<number | null>(null);
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
 
@@ -166,18 +170,15 @@ export function AddTransactionModal({
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
 
-  const envelopeAvailable = selectedEnvelope
-    ? selectedEnvelope.allocated_amt - selectedEnvelope.spent_amt
-    : 0;
-  const availableBefore = envelopeAvailable;
-  const availableAfter = envelopeAvailable - numericAmount;
-  const acctAfterExpense = selectedAccount.balance - numericAmount;
-  const acctAfterIncome = selectedAccount.balance + numericAmount;
+  const availableBefore = selectedEnvelope?.available ?? 0;
+  const availableAfter = availableBefore - numericAmount;
+  const acctAfterExpense = (selectedAccount?.balance ?? 0) - numericAmount;
+  const acctAfterIncome = (selectedAccount?.balance ?? 0) + numericAmount;
 
-  const fromAccount = mockAccounts.find((a) => a.id === fromAccountId) ?? mockAccounts[0];
-  const toAccount = mockAccounts.find((a) => a.id === toAccountId) ?? mockAccounts[1];
-  const fromAfter = fromAccount.balance - numericAmount;
-  const toAfter = toAccount.balance + numericAmount;
+  const fromAccount = accounts.find((a) => a.id === fromAccountId) ?? accounts[0];
+  const toAccount = accounts.find((a) => a.id === toAccountId) ?? accounts[1];
+  const fromAfter = (fromAccount?.balance ?? 0) - numericAmount;
+  const toAfter = (toAccount?.balance ?? 0) + numericAmount;
 
   const wordsLabel = numericAmount ? `${numberToWords(Math.floor(numericAmount))} rupees` : "";
 
@@ -320,17 +321,17 @@ export function AddTransactionModal({
                             </div>
                             <div className="flex-1 text-left">
                               <p className="text-sm leading-tight font-semibold text-white">
-                                {fromAccount.institution ?? fromAccount.name}
+                                {fromAccount?.name ?? "Account"}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
-                                Available balance&nbsp;{formatCurrency(fromAccount.balance)}
+                                Available balance&nbsp;{formatCurrency(fromAccount?.balance ?? 0)}
                               </p>
                             </div>
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                           </button>
                           {fromOpen && (
                             <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
-                              {mockAccounts
+                              {accounts
                                 .filter((a) => a.id !== toAccountId)
                                 .map((acc) => (
                                   <button
@@ -351,7 +352,7 @@ export function AddTransactionModal({
                                     </div>
                                     <div className="text-left">
                                       <p className="text-sm text-white">
-                                        {acc.institution ?? acc.name}
+                                        {acc.name}
                                       </p>
                                       <p className="text-xs text-[#5A6A85]">
                                         {formatCurrency(acc.balance)}
@@ -380,17 +381,17 @@ export function AddTransactionModal({
                             </div>
                             <div className="flex-1 text-left">
                               <p className="text-sm leading-tight font-semibold text-white">
-                                {toAccount.institution ?? toAccount.name}
+                                {toAccount?.name ?? "Account"}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
-                                Available balance&nbsp;{formatCurrency(toAccount.balance)}
+                                Available balance&nbsp;{formatCurrency(toAccount?.balance ?? 0)}
                               </p>
                             </div>
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                           </button>
                           {toOpen && (
                             <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
-                              {mockAccounts
+                              {accounts
                                 .filter((a) => a.id !== fromAccountId)
                                 .map((acc) => (
                                   <button
@@ -411,7 +412,7 @@ export function AddTransactionModal({
                                     </div>
                                     <div className="text-left">
                                       <p className="text-sm text-white">
-                                        {acc.institution ?? acc.name}
+                                        {acc.name}
                                       </p>
                                       <p className="text-xs text-[#5A6A85]">
                                         {formatCurrency(acc.balance)}
@@ -432,10 +433,10 @@ export function AddTransactionModal({
                           </div>
                           <div>
                             <p className="text-sm leading-tight font-semibold text-white">
-                              {fromAccount.institution ?? fromAccount.name}
+                              {fromAccount?.name ?? "Account"}
                             </p>
                             <p className="text-xs text-[#4A5A75] tabular-nums">
-                              {formatCurrency(fromAccount.balance)}
+                              {formatCurrency(fromAccount?.balance ?? 0)}
                             </p>
                           </div>
                         </div>
@@ -452,10 +453,10 @@ export function AddTransactionModal({
                           </div>
                           <div>
                             <p className="text-sm leading-tight font-semibold text-white">
-                              {toAccount.institution ?? toAccount.name}
+                              {toAccount?.name ?? "Account"}
                             </p>
                             <p className="text-xs text-[#4A5A75] tabular-nums">
-                              {formatCurrency(toAccount.balance)}
+                              {formatCurrency(toAccount?.balance ?? 0)}
                             </p>
                           </div>
                         </div>
@@ -532,17 +533,17 @@ export function AddTransactionModal({
                             </div>
                             <div className="flex-1 text-left">
                               <p className="text-sm leading-tight font-semibold text-white">
-                                {selectedAccount.institution ?? selectedAccount.name}
+                                {selectedAccount?.name ?? "Account"}
                               </p>
                               <p className="mt-0.5 text-xs text-[#4A5A75]">
-                                Available balance&nbsp;{formatCurrency(selectedAccount.balance)}
+                                Available balance&nbsp;{formatCurrency(selectedAccount?.balance ?? 0)}
                               </p>
                             </div>
                             <ChevronDown size={15} className="flex-shrink-0 text-[#4A5A75]" />
                           </button>
                           {accountOpen && (
                             <div className="absolute top-full left-0 z-30 mt-1 w-full overflow-hidden rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
-                              {mockAccounts.map((acc) => (
+                              {accounts.map((acc) => (
                                 <button
                                   key={acc.id}
                                   onClick={() => {
@@ -551,7 +552,7 @@ export function AddTransactionModal({
                                   }}
                                   className={cn(
                                     "flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors",
-                                    selectedAccount.id === acc.id
+                                    selectedAccount?.id === acc.id
                                       ? "bg-[#6C3AED]/15 text-white"
                                       : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                   )}
@@ -561,7 +562,7 @@ export function AddTransactionModal({
                                   </div>
                                   <div className="text-left">
                                     <p className="text-sm text-white">
-                                      {acc.institution ?? acc.name}
+                                      {acc.name}
                                     </p>
                                     <p className="text-xs text-[#5A6A85] capitalize">
                                       {acc.type} · {formatCurrency(acc.balance)}
@@ -618,14 +619,14 @@ export function AddTransactionModal({
                             >
                               <div
                                 className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-base"
-                                style={{ background: "rgba(108,58,237,0.18)" }}
+                                style={{ background: `${"#6C3AED"}30` }}
                               >
-                                💼
+                                {(selectedEnvelope?.name?.[0] ?? "?")}
                               </div>
                               <div className="flex-1 text-left">
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-sm font-semibold text-white">
-                                    {selectedEnvelope?.title ?? "Select envelope"}
+                                    {selectedEnvelope?.name ?? ""}
                                   </span>
                                   <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                                 </div>
@@ -635,40 +636,34 @@ export function AddTransactionModal({
                             </button>
                             {envelopeOpen && (
                               <div className="absolute top-full left-0 z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-[#1A2640] bg-[#0D1B2E] py-1.5 shadow-xl">
-                                {envelopes.length === 0 && (
-                                  <p className="px-4 py-3 text-sm text-[#5A6A85]">No envelopes.</p>
-                                )}
-                                {envelopes.map((env) => {
-                                  const envAvailable = env.allocated_amt - env.spent_amt;
-                                  return (
-                                    <button
-                                      key={env.id}
-                                      onClick={() => {
-                                        setSelectedEnvelopeId(env.id);
-                                        setEnvelopeOpen(false);
-                                      }}
-                                      className={cn(
-                                        "flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors",
-                                        selectedEnvelope?.id === env.id
-                                          ? "bg-[#6C3AED]/15 text-white"
-                                          : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
-                                      )}
+                                {envelopes.map((env) => (
+                                  <button
+                                    key={env.id}
+                                    onClick={() => {
+                                      setSelectedEnvelope(env);
+                                      setEnvelopeOpen(false);
+                                    }}
+                                    className={cn(
+                                      "flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors",
+                                      selectedEnvelope?.id === env.id
+                                        ? "bg-[#6C3AED]/15 text-white"
+                                        : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
+                                    )}
+                                  >
+                                    <div
+                                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-sm"
+                                      style={{ background: `${"#6C3AED"}30` }}
                                     >
-                                      <div
-                                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-sm"
-                                        style={{ background: "rgba(108,58,237,0.18)" }}
-                                      >
-                                        💼
-                                      </div>
-                                      <div className="text-left">
-                                        <p className="text-sm text-white">{env.title}</p>
-                                        <p className="text-xs text-[#5A6A85]">
-                                          Available: {formatCurrency(envAvailable)}
-                                        </p>
-                                      </div>
-                                    </button>
-                                  );
-                                })}
+                                      {env.name[0]}
+                                    </div>
+                                    <div className="text-left">
+                                      <p className="text-sm text-white">{env.name}</p>
+                                      <p className="text-xs text-[#5A6A85]">
+                                        Available: {formatCurrency(env.available)}
+                                      </p>
+                                    </div>
+                                  </button>
+                                ))}
                               </div>
                             )}
                           </div>
@@ -782,13 +777,13 @@ export function AddTransactionModal({
                             <Building2 size={13} className="text-[#3B82F6]" />
                           </div>
                           <span className="truncate text-sm font-semibold text-white">
-                            {fromAccount.institution ?? fromAccount.name}
+                            {fromAccount?.name ?? "Account"}
                           </span>
                         </div>
                         <dl className="space-y-1.5">
                           <SummaryRow
                             label="Current Balance"
-                            value={formatCurrency(fromAccount.balance)}
+                            value={formatCurrency(fromAccount?.balance ?? 0)}
                           />
                           <SummaryRow
                             label="After Transfer"
@@ -818,13 +813,13 @@ export function AddTransactionModal({
                             <Building2 size={13} className="text-[#7C3AED]" />
                           </div>
                           <span className="truncate text-sm font-semibold text-white">
-                            {toAccount.institution ?? toAccount.name}
+                            {toAccount?.name ?? "Account"}
                           </span>
                         </div>
                         <dl className="space-y-1.5">
                           <SummaryRow
                             label="Current Balance"
-                            value={formatCurrency(toAccount.balance)}
+                            value={formatCurrency(toAccount?.balance ?? 0)}
                           />
                           <SummaryRow
                             label="After Transfer"
@@ -866,13 +861,13 @@ export function AddTransactionModal({
                               <Building2 size={13} className="text-[#7A8BA8]" />
                             </div>
                             <span className="truncate text-sm font-semibold text-white">
-                              {selectedAccount.institution ?? selectedAccount.name}
+                              {selectedAccount?.name ?? "Account"}
                             </span>
                           </div>
                           <dl className="space-y-1.5">
                             <SummaryRow
                               label="Current Balance"
-                              value={formatCurrency(selectedAccount.balance)}
+                              value={formatCurrency(selectedAccount?.balance ?? 0)}
                             />
                             <SummaryRow
                               label="After Income"
@@ -915,13 +910,13 @@ export function AddTransactionModal({
                           <div className="mb-3 flex items-center gap-2.5">
                             <div
                               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-base"
-                              style={{ background: "rgba(108,58,237,0.18)" }}
+                              style={{ background: `${"#6C3AED"}30` }}
                             >
-                              💼
+                              {(selectedEnvelope?.name?.[0] ?? "?")}
                             </div>
                             <div>
                               <p className="text-sm leading-tight font-semibold text-white">
-                                Category: {selectedEnvelope?.title ?? "—"}
+                                Category: {selectedEnvelope?.name ?? ""}
                               </p>
                               <p className="text-xs text-[#4A5A75]">Monthly Budget</p>
                             </div>
@@ -932,7 +927,7 @@ export function AddTransactionModal({
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Monthly Budget</dt>
                               <dd className="text-xs font-semibold text-white tabular-nums">
-                                {formatCurrency(selectedEnvelope?.allocated_amt ?? 0)}
+                                {formatCurrency(selectedEnvelope?.allocated ?? 0)}
                               </dd>
                             </div>
                             <div className="flex items-center justify-between">
@@ -982,14 +977,14 @@ export function AddTransactionModal({
                               <Building2 size={14} className="text-[#7A8BA8]" />
                             </div>
                             <p className="text-sm leading-tight font-semibold text-white">
-                              Account: {selectedAccount.institution ?? selectedAccount.name}
+                              Account: {selectedAccount?.name ?? "Account"}
                             </p>
                           </div>
                           <dl className="space-y-2">
                             <div className="flex items-center justify-between">
                               <dt className="text-xs text-[#4A5A75]">Current balance</dt>
                               <dd className="text-xs font-semibold text-white tabular-nums">
-                                {formatCurrency(selectedAccount.balance)}
+                                {formatCurrency(selectedAccount?.balance ?? 0)}
                               </dd>
                             </div>
                             <div className="flex items-center justify-between">
@@ -1039,15 +1034,46 @@ export function AddTransactionModal({
                     Cancel
                   </button>
                   <button
+                    onClick={async () => {
+                      if (!activeBudgetId || !numericAmount) return;
+                      setSaving(true);
+                      setError(null);
+                      try {
+                        const amountMinor = Math.round(numericAmount * 100);
+                        if (isTransfer && fromAccountId != null && toAccountId != null) {
+                          await createTransaction(activeBudgetId, {
+                            account_id: fromAccountId,
+                            transfer_account_id: toAccountId,
+                            amount: -amountMinor,
+                            date,
+                            memo: memo || undefined,
+                          });
+                        } else if ((isExpense || isIncome) && selectedAccount?.id != null && selectedEnvelope?.id != null) {
+                          await createTransaction(activeBudgetId, {
+                            account_id: selectedAccount.id,
+                            budget_envelope_id: selectedEnvelope.id,
+                            amount: isExpense ? -amountMinor : amountMinor,
+                            date,
+                            memo: memo || undefined,
+                          });
+                        }
+                        onClose();
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : "Failed to save");
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all focus:ring-4 focus:outline-none",
+                      "inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all focus:ring-4 focus:outline-none disabled:opacity-60",
                       isTransfer
                         ? "bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] shadow-[0_0_20px_rgba(29,78,216,0.4)] hover:from-[#2563EB] hover:to-[#3B82F6] hover:shadow-[0_0_28px_rgba(29,78,216,0.55)] focus:ring-[#1D4ED8]/30"
                         : "bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] shadow-[0_0_20px_rgba(108,58,237,0.4)] hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-[#6C3AED]/30",
                     )}
                   >
                     <Save size={15} />
-                    {isIncome ? "Save Income" : isExpense ? "Save Transaction" : "Save Transfer"}
+                    {saving ? "Saving…" : isIncome ? "Save Income" : isExpense ? "Save Transaction" : "Save Transfer"}
                   </button>
                 </div>
               </div>

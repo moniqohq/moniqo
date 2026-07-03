@@ -34,12 +34,13 @@ import {
   Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { mockTransactions } from "@/mock/data";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useTransactions } from "@/hooks/use-transactions";
 import { formatCurrency, cn } from "@/lib/utils";
 
 interface Props {
-  accountId: string;
-  budgetId: string;
+  accountId: number;
+  budgetId: number;
 }
 
 const QUICK_ACTIONS = [
@@ -89,19 +90,22 @@ const QUICK_ACTIONS = [
 
 export function AccountInsightsPanel({ accountId, budgetId }: Props) {
   const router = useRouter();
-  const txns = mockTransactions.filter((t) => t.accountId === accountId);
-  const inflows = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const outflows = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const { data: accounts } = useAccounts(budgetId);
+  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const { data: txns } = useTransactions(budgetId, { account_id: accountId }, accountMap);
+
+  const inflows = txns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const outflows = txns.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   const net = inflows - outflows;
 
-  const largestExpense = txns.filter((t) => t.amount < 0).sort((a, b) => a.amount - b.amount)[0];
+  const largestExpense = txns.filter((t) => t.type === "expense").sort((a, b) => b.amount - a.amount)[0];
 
   const categoryTotals = txns
-    .filter((t) => t.amount < 0 && t.envelopeName)
+    .filter((t) => t.type === "expense" && t.envelopeName)
     .reduce<Record<string, { name: string; icon: string; total: number }>>((acc, t) => {
       const key = t.envelopeName!;
-      if (!acc[key]) acc[key] = { name: key, icon: t.envelopeIcon ?? "📁", total: 0 };
-      acc[key].total += Math.abs(t.amount);
+      if (!acc[key]) acc[key] = { name: key, icon: "📁", total: 0 };
+      acc[key].total += t.amount;
       return acc;
     }, {});
   const topCategory = Object.values(categoryTotals).sort((a, b) => b.total - a.total)[0];
