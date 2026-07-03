@@ -150,7 +150,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                   <div className="flex min-w-0 flex-1 items-center gap-3.5">
                     <div
                       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
-                      style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
+                      style={{ backgroundColor: "#1E2B42" }}
                     >
                       {tx.payee[0]}
                     </div>
@@ -240,7 +240,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                             </div>
                           }
                           label="Account"
-                          value={tx.accountInstitution ?? tx.accountName}
+                          value={tx.accountName}
                         />
 
                         {/* Envelope */}
@@ -249,13 +249,11 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                             <div
                               className="flex h-8 w-8 items-center justify-center rounded-lg text-sm"
                               style={{
-                                backgroundColor: tx.envelopeColor
-                                  ? `${tx.envelopeColor}2A`
-                                  : "#1A2640",
-                                color: tx.envelopeColor ?? "#5A6A85",
+                                backgroundColor: "#1A2640",
+                                color: "#5A6A85",
                               }}
                             >
-                              {tx.envelopeIcon ?? <Tag size={14} />}
+                              <Tag size={14} />
                             </div>
                           }
                           label="Envelope / Category"

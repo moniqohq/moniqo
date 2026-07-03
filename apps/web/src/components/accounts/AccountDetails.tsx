@@ -362,7 +362,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
         <div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             <MetaCard label="Account Type" value={typeMeta.label} />
-            <MetaCard label="Institution" value={account.institution ?? "N/A"} />
+            <MetaCard label="Institution" value="N/A" />
             <MetaCard
               label="Requires Reconciliation"
               value={meta.requiresReconciliation ? "Yes" : "No"}
@@ -454,7 +454,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                       <div className="flex items-center gap-2">
                         <div
                           className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white"
-                          style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
+                          style={{ backgroundColor: "#1E2B42" }}
                         >
                           {tx.payee[0]}
                         </div>
@@ -468,11 +468,11 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                         <span
                           className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
                           style={{
-                            backgroundColor: `${tx.envelopeColor ?? "#6C3AED"}20`,
-                            color: tx.envelopeColor ?? "#A78BFA",
+                            backgroundColor: "#6C3AED20",
+                            color: "#A78BFA",
                           }}
                         >
-                          {tx.envelopeIcon} {tx.envelopeName}
+                          {tx.envelopeName}
                         </span>
                       ) : (
                         <span className="text-[#3A4A60]">—</span>
@@ -533,7 +533,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
       <ForceDeleteAccountDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        account={{ id: account.id, name: account.name, type: account.type }}
+        account={{ id: String(account.id), name: account.name, type: account.type }}
       />
     </div>
   );

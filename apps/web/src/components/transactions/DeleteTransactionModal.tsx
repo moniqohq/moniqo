@@ -127,7 +127,7 @@ export function DeleteTransactionModal({ tx, open, onClose, onConfirm, loading =
                   {/* Merchant avatar */}
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-                    style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
+                    style={{ backgroundColor: "#1E2B42" }}
                   >
                     {tx.payee[0]}
                   </div>

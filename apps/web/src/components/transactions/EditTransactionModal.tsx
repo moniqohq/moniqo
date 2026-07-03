@@ -255,7 +255,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
       ...tx!,
       type: txType,
       payee,
-      accountId,
+      accountId: accountId ?? tx!.accountId,
       envelopeId: envId || undefined,
       amount: signedAmount,
       memo: notes || undefined,
@@ -320,7 +320,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                     <div className="flex min-w-0 items-center gap-3">
                       <div
                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
-                        style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
+                        style={{ backgroundColor: "#1E2B42" }}
                       >
                         {tx.payee[0]}
                       </div>
@@ -642,9 +642,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           <span className="flex-1 text-left text-sm">
                             {selectedTransferAccount ? (
                               <span className="text-white">
-                                {selectedTransferAccount.institution ??
-                                  selectedTransferAccount?.name ??
-                                  "Account"}
+                                {selectedTransferAccount?.name ?? "Account"}
                               </span>
                             ) : (
                               "Select account (optional)"
