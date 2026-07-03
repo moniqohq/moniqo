@@ -568,9 +568,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
 
               {/* ── Footer ── */}
               <div className="flex flex-col gap-2 border-t border-[#111B2D] px-6 py-4">
-                {submitError && (
-                  <p className="text-xs text-[#EF4444]">{submitError}</p>
-                )}
+                {submitError && <p className="text-xs text-[#EF4444]">{submitError}</p>}
                 <div className="flex items-center justify-between">
                   <button
                     onClick={onClose}
@@ -589,7 +587,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                     <button
                       onClick={handleSave}
                       disabled={updateAccount.isPending}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {updateAccount.isPending ? (
                         <RefreshCw size={15} className="animate-spin" />

@@ -47,9 +47,7 @@ export interface PatchAccountPayload {
 }
 
 export async function fetchAccounts(budgetId: string): Promise<ApiAccount[]> {
-  const res = await authFetch<ApiListResponse<ApiAccount>>(
-    `/api/v1/budgets/${budgetId}/accounts`,
-  );
+  const res = await authFetch<ApiListResponse<ApiAccount>>(`/api/v1/budgets/${budgetId}/accounts`);
   return res.data;
 }
 
@@ -64,10 +62,10 @@ export async function createAccount(
   budgetId: string,
   payload: CreateAccountPayload,
 ): Promise<ApiAccount> {
-  const res = await authFetch<ApiResponse<ApiAccount>>(
-    `/api/v1/budgets/${budgetId}/accounts`,
-    { method: "POST", body: JSON.stringify(payload) },
-  );
+  const res = await authFetch<ApiResponse<ApiAccount>>(`/api/v1/budgets/${budgetId}/accounts`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
   return res.data;
 }
 
@@ -96,8 +94,7 @@ export async function patchAccount(
 }
 
 export async function deleteAccount(budgetId: string, accountId: string): Promise<void> {
-  await authFetch<ApiResponse<null>>(
-    `/api/v1/budgets/${budgetId}/accounts/${accountId}`,
-    { method: "DELETE" },
-  );
+  await authFetch<ApiResponse<null>>(`/api/v1/budgets/${budgetId}/accounts/${accountId}`, {
+    method: "DELETE",
+  });
 }

@@ -770,9 +770,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                 className="flex flex-col gap-2 px-6 py-3.5"
                 style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
               >
-                {submitError && (
-                  <p className="text-xs text-[#EF4444]">{submitError}</p>
-                )}
+                {submitError && <p className="text-xs text-[#EF4444]">{submitError}</p>}
                 <div className="flex items-center justify-between">
                   <button
                     onClick={onClose}
@@ -791,7 +789,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                     <button
                       onClick={handleCreate}
                       disabled={createAccount.isPending}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(108,58,237,0.45)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {createAccount.isPending ? (
                         <RefreshCw size={15} className="animate-spin" />
