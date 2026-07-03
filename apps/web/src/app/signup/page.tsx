@@ -23,6 +23,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   BarChart3,
   ShieldCheck,
@@ -34,9 +37,13 @@ import {
   ArrowRight,
   Shield,
   UserRound,
+  AtSign,
+  CheckCircle2,
+  Loader2,
   Phone,
   ChevronDown,
 } from "lucide-react";
+import { apiFetch, ApiError } from "@/lib/api-client";
 
 // ── Brand icons ─────────────────────────────────────────────────────────────
 
@@ -91,32 +98,26 @@ function WalletIllustration() {
         className="w-full max-w-[300px]"
       >
         <defs>
-          {/* Device body */}
           <radialGradient id="wBody" cx="40%" cy="25%" r="75%">
             <stop offset="0%" stopColor="#221660" />
             <stop offset="100%" stopColor="#080520" />
           </radialGradient>
-          {/* Card behind device */}
           <radialGradient id="wCard" cx="35%" cy="30%" r="70%">
             <stop offset="0%" stopColor="#2d1a80" />
             <stop offset="100%" stopColor="#0f0835" />
           </radialGradient>
-          {/* Device screen / face inner */}
           <radialGradient id="wFace" cx="50%" cy="40%" r="60%">
             <stop offset="0%" stopColor="#1e1260" />
             <stop offset="100%" stopColor="#09061e" />
           </radialGradient>
-          {/* Logo circle */}
           <radialGradient id="wLogo" cx="40%" cy="35%" r="65%">
             <stop offset="0%" stopColor="#4a28c4" />
             <stop offset="100%" stopColor="#2510a0" />
           </radialGradient>
-          {/* Shield */}
           <radialGradient id="wShield" cx="45%" cy="28%" r="72%">
             <stop offset="0%" stopColor="#1e1450" />
             <stop offset="100%" stopColor="#080520" />
           </radialGradient>
-          {/* Coins */}
           <linearGradient id="wCoinTop" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#3b22a8" />
             <stop offset="100%" stopColor="#1c0f68" />
@@ -141,7 +142,6 @@ function WalletIllustration() {
           </filter>
         </defs>
 
-        {/* Ground glow */}
         <ellipse
           cx="140"
           cy="228"
@@ -152,7 +152,6 @@ function WalletIllustration() {
           filter="url(#wSoftGlow)"
         />
 
-        {/* ── Credit card (behind device, slightly tilted) ── */}
         <g transform="rotate(-8, 155, 155)">
           <rect
             x="70"
@@ -165,7 +164,6 @@ function WalletIllustration() {
             strokeOpacity="0.4"
             strokeWidth="1"
           />
-          {/* Card chip */}
           <rect
             x="92"
             y="100"
@@ -177,9 +175,7 @@ function WalletIllustration() {
             strokeOpacity="0.35"
             strokeWidth="0.8"
           />
-          {/* Card strip lines */}
           <rect x="70" y="130" width="145" height="14" fill="#1a0f60" fillOpacity="0.6" />
-          {/* Card number dots */}
           {[0, 1, 2, 3].map((g) => (
             <g key={g}>
               {[0, 1, 2, 3].map((d) => (
@@ -196,7 +192,6 @@ function WalletIllustration() {
           ))}
         </g>
 
-        {/* ── Main device body (tall rectangle, like phone/wallet) ── */}
         <rect
           x="80"
           y="28"
@@ -210,7 +205,6 @@ function WalletIllustration() {
           filter="url(#wGlow)"
         />
 
-        {/* Device inner bezel */}
         <rect
           x="90"
           y="38"
@@ -223,7 +217,6 @@ function WalletIllustration() {
           strokeWidth="0.6"
         />
 
-        {/* Top notch / camera bar */}
         <rect
           x="118"
           y="44"
@@ -236,7 +229,6 @@ function WalletIllustration() {
           strokeWidth="0.5"
         />
 
-        {/* ── M logo circle ── */}
         <circle
           cx="137"
           cy="130"
@@ -269,7 +261,6 @@ function WalletIllustration() {
           M
         </text>
 
-        {/* Side button */}
         <rect
           x="195"
           y="88"
@@ -282,7 +273,6 @@ function WalletIllustration() {
           strokeWidth="0.6"
         />
 
-        {/* ── Shield (right of device) ── */}
         <g transform="translate(222, 100)" filter="url(#wGlow)">
           <path
             d="M28 2 L54 12 L54 34 C54 50 28 62 28 62 C28 62 2 50 2 34 L2 12 Z"
@@ -301,7 +291,6 @@ function WalletIllustration() {
           />
         </g>
 
-        {/* ── Coin stacks (bottom left) ── */}
         {[0, 1, 2, 3].map((i) => (
           <g key={i}>
             <rect x="18" y={193 - i * 9} width="46" height="9" rx="1" fill="url(#wCoinSide)" />
@@ -318,7 +307,6 @@ function WalletIllustration() {
           </g>
         ))}
 
-        {/* ── Floating particles ── */}
         <rect
           x="248"
           y="36"
@@ -355,7 +343,6 @@ function WalletIllustration() {
         <circle cx="58" cy="24" r="1.5" fill="#8B5CF6" fillOpacity="0.35" />
       </svg>
 
-      {/* CSS glow base */}
       <div className="pointer-events-none absolute bottom-1 left-[18%] h-3 w-[58%] rounded-full bg-[#6C3AED] opacity-30 blur-2xl" />
     </div>
   );
@@ -459,21 +446,86 @@ const inputBase = {
   border: "1px solid #1E2B42",
 } as const;
 
-function focusOn(e: React.FocusEvent<HTMLInputElement>) {
-  e.currentTarget.style.borderColor = "#6C3AED";
-  e.currentTarget.style.boxShadow = "0 0 0 1.5px #6C3AED, 0 0 16px rgba(108,58,237,0.18)";
-}
-function focusOff(e: React.FocusEvent<HTMLInputElement>) {
-  e.currentTarget.style.borderColor = "#1E2B42";
-  e.currentTarget.style.boxShadow = "none";
-}
+// ── Schema ────────────────────────────────────────────────────────────────────
+
+const signupSchema = z.object({
+  name: z.string().max(100).optional(),
+  username: z
+    .string()
+    .min(8, "Username must be at least 8 characters")
+    .max(12, "Username must be at most 12 characters")
+    .regex(
+      /^[a-zA-Z][a-zA-Z0-9_-]*$/,
+      "Must start with a letter; only letters, numbers, - and _ allowed",
+    ),
+  email: z.string().email("Enter a valid email address").max(254),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72)
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[a-z]/, "Must contain a lowercase letter")
+    .regex(/[0-9]/, "Must contain a number"),
+});
+
+type SignupFields = z.infer<typeof signupSchema>;
 
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [agreedError, setAgreedError] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<SignupFields>({ resolver: zodResolver(signupSchema) });
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const password = watch("password", "");
+
+  async function onSubmit(data: SignupFields) {
+    setBannerError(null);
+    if (!agreed) {
+      setAgreedError(true);
+      return;
+    }
+    setAgreedError(false);
+
+    try {
+      await apiFetch("/api/v1/users", {
+        method: "POST",
+        body: JSON.stringify({
+          name: data.name || undefined,
+          username: data.username,
+          email: data.email,
+          password: data.password,
+        }),
+      });
+      setSuccess(true);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.fields && err.fields.length > 0) {
+          for (const { field, error } of err.fields) {
+            const key = field as keyof SignupFields;
+            setError(key, { message: error });
+          }
+        } else if (err.status === 409) {
+          setBannerError("Username or email already in use.");
+        } else {
+          setBannerError(err.message);
+        }
+      } else {
+        setBannerError("Something went wrong. Please try again.");
+      }
+    }
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080C14] p-4 md:p-8 lg:p-10">
@@ -622,214 +674,338 @@ export default function SignupPage() {
             </Link>
           </motion.div>
 
-          {/* Form heading */}
-          <motion.div
-            custom={1}
-            initial="hidden"
-            animate="show"
-            variants={fadeUp}
-            className="mx-auto mb-6 w-full max-w-[460px]"
-          >
-            <h2 className="mb-1.5 text-2xl font-bold text-white lg:text-3xl">
-              Create your account
-            </h2>
-            <p className="text-sm text-[#5A6A85]">Let&apos;s get you started with Moniqo.</p>
-          </motion.div>
-
-          {/* Form */}
-          <motion.div
-            custom={2}
-            initial="hidden"
-            animate="show"
-            variants={fadeUp}
-            className="mx-auto w-full max-w-[460px] space-y-4"
-          >
-            {/* Full name */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[#A8B4CC]">Full name</label>
-              <div className="group relative">
-                <UserRound className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
-                <input
-                  type="text"
-                  placeholder="Enter your full name"
-                  autoComplete="name"
-                  className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
-                  style={inputBase}
-                  onFocus={focusOn}
-                  onBlur={focusOff}
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[#A8B4CC]">Email address</label>
-              <div className="group relative">
-                <Mail className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
-                <input
-                  type="email"
-                  placeholder="Enter your email address"
-                  autoComplete="email"
-                  className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
-                  style={inputBase}
-                  onFocus={focusOn}
-                  onBlur={focusOff}
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[#A8B4CC]">Password</label>
-              <div className="group relative">
-                <Lock className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Create a strong password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 w-full rounded-xl pr-12 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
-                  style={inputBase}
-                  onFocus={focusOn}
-                  onBlur={focusOff}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 hover:text-[#A8B4CC]"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              <PasswordStrengthBar password={password} />
-            </div>
-
-            {/* Phone number (optional) */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-[#A8B4CC]">
-                Phone number <span className="font-normal text-[#5A6A85]">(optional)</span>
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="flex h-12 flex-shrink-0 items-center gap-2 rounded-xl px-3 transition-all duration-200 hover:border-[#2A3A54]"
-                  style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
-                >
-                  <span className="text-base leading-none">🇮🇳</span>
-                  <span className="text-sm font-medium text-[#A8B4CC]">+91</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-[#5A6A85]" />
-                </button>
-                <div className="group relative flex-1">
-                  <Phone className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
-                  <input
-                    type="tel"
-                    placeholder="Enter your phone number"
-                    autoComplete="tel"
-                    className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
-                    style={inputBase}
-                    onFocus={focusOn}
-                    onBlur={focusOff}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Terms checkbox */}
-            <div className="flex items-start gap-3 pt-1">
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={agreed}
-                onClick={() => setAgreed(!agreed)}
-                className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-all duration-200"
+          {success ? (
+            /* ── Success state ── */
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mx-auto flex w-full max-w-[460px] flex-1 flex-col items-center justify-center gap-6 text-center"
+            >
+              <div
+                className="flex h-20 w-20 items-center justify-center rounded-full"
                 style={{
-                  background: agreed ? "#6C3AED" : "transparent",
-                  border: `1.5px solid ${agreed ? "#6C3AED" : "#1E2B42"}`,
-                  boxShadow: agreed ? "0 0 10px rgba(108,58,237,0.45)" : "none",
+                  background: "rgba(34,197,94,0.12)",
+                  border: "1px solid rgba(34,197,94,0.3)",
                 }}
               >
-                {agreed && (
-                  <svg
-                    className="h-3 w-3 text-white"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
+                <CheckCircle2 className="h-10 w-10 text-[#22C55E]" />
+              </div>
+              <div>
+                <h2 className="mb-2 text-2xl font-bold text-white">Account created!</h2>
+                <p className="text-sm leading-relaxed text-[#5A6A85]">
+                  We&apos;ve sent a verification link to your email address. Check your inbox and
+                  click the link to activate your account, then{" "}
+                  <Link href="/login" className="text-[#8B5CF6] hover:underline">
+                    log in
+                  </Link>
+                  .
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <>
+              {/* Form heading */}
+              <motion.div
+                custom={1}
+                initial="hidden"
+                animate="show"
+                variants={fadeUp}
+                className="mx-auto mb-6 w-full max-w-[460px]"
+              >
+                <h2 className="mb-1.5 text-2xl font-bold text-white lg:text-3xl">
+                  Create your account
+                </h2>
+                <p className="text-sm text-[#5A6A85]">Let&apos;s get you started with Moniqo.</p>
+              </motion.div>
+
+              {/* Form */}
+              <motion.form
+                custom={2}
+                initial="hidden"
+                animate="show"
+                variants={fadeUp}
+                className="mx-auto w-full max-w-[460px] space-y-4"
+                onSubmit={handleSubmit(onSubmit)}
+              >
+                {/* Banner error */}
+                {bannerError && (
+                  <div
+                    className="rounded-xl px-4 py-3 text-sm"
+                    style={{
+                      background: "rgba(239,68,68,0.1)",
+                      border: "1px solid rgba(239,68,68,0.3)",
+                      color: "#FCA5A5",
+                    }}
                   >
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
+                    {bannerError}
+                  </div>
                 )}
-              </button>
-              <p className="text-sm leading-relaxed text-[#A8B4CC]">
-                I agree to Moniqo&apos;s{" "}
+
+                {/* Full name */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[#A8B4CC]">
+                    Full name <span className="font-normal text-[#5A6A85]">(optional)</span>
+                  </label>
+                  <div className="group relative">
+                    <UserRound className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                    <input
+                      type="text"
+                      placeholder="Enter your full name"
+                      autoComplete="name"
+                      {...register("name")}
+                      className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
+                      style={inputBase}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "#6C3AED")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "#1E2B42")}
+                    />
+                  </div>
+                  {errors.name && <p className="text-xs text-[#FCA5A5]">{errors.name.message}</p>}
+                </div>
+
+                {/* Username */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[#A8B4CC]">Username</label>
+                  <div className="group relative">
+                    <AtSign className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                    <input
+                      type="text"
+                      placeholder="8–12 characters, starts with a letter"
+                      autoComplete="username"
+                      {...register("username")}
+                      className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
+                      style={{
+                        background: "#0A0E1A",
+                        border: `1px solid ${errors.username ? "#EF4444" : "#1E2B42"}`,
+                      }}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor = errors.username
+                          ? "#EF4444"
+                          : "#6C3AED")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor = errors.username
+                          ? "#EF4444"
+                          : "#1E2B42")
+                      }
+                    />
+                  </div>
+                  {errors.username && (
+                    <p className="text-xs text-[#FCA5A5]">{errors.username.message}</p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[#A8B4CC]">Email address</label>
+                  <div className="group relative">
+                    <Mail className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                    <input
+                      type="email"
+                      placeholder="Enter your email address"
+                      autoComplete="email"
+                      {...register("email")}
+                      className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
+                      style={{
+                        background: "#0A0E1A",
+                        border: `1px solid ${errors.email ? "#EF4444" : "#1E2B42"}`,
+                      }}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#6C3AED")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#1E2B42")
+                      }
+                    />
+                  </div>
+                  {errors.email && <p className="text-xs text-[#FCA5A5]">{errors.email.message}</p>}
+                </div>
+
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[#A8B4CC]">Password</label>
+                  <div className="group relative">
+                    <Lock className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Create a strong password"
+                      autoComplete="new-password"
+                      {...register("password")}
+                      className="h-12 w-full rounded-xl pr-12 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
+                      style={{
+                        background: "#0A0E1A",
+                        border: `1px solid ${errors.password ? "#EF4444" : "#1E2B42"}`,
+                      }}
+                      onFocus={(e) =>
+                        (e.currentTarget.style.borderColor = errors.password
+                          ? "#EF4444"
+                          : "#6C3AED")
+                      }
+                      onBlur={(e) =>
+                        (e.currentTarget.style.borderColor = errors.password
+                          ? "#EF4444"
+                          : "#1E2B42")
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute top-1/2 right-3.5 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 hover:text-[#A8B4CC]"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {errors.password ? (
+                    <p className="text-xs text-[#FCA5A5]">{errors.password.message}</p>
+                  ) : (
+                    <PasswordStrengthBar password={password} />
+                  )}
+                </div>
+
+                {/* Phone number (optional) */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[#A8B4CC]">
+                    Phone number <span className="font-normal text-[#5A6A85]">(optional)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="flex h-12 flex-shrink-0 items-center gap-2 rounded-xl px-3 transition-all duration-200 hover:border-[#2A3A54]"
+                      style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
+                    >
+                      <span className="text-base leading-none">🇮🇳</span>
+                      <span className="text-sm font-medium text-[#A8B4CC]">+91</span>
+                      <ChevronDown className="h-3.5 w-3.5 text-[#5A6A85]" />
+                    </button>
+                    <div className="group relative flex-1">
+                      <Phone className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#5A6A85] transition-colors duration-150 group-focus-within:text-[#8B5CF6]" />
+                      <input
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        autoComplete="tel"
+                        className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
+                        style={inputBase}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "#6C3AED")}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = "#1E2B42")}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Terms checkbox */}
+                <div className="space-y-1">
+                  <div className="flex items-start gap-3 pt-1">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={agreed}
+                      onClick={() => {
+                        setAgreed(!agreed);
+                        setAgreedError(false);
+                      }}
+                      className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition-all duration-200"
+                      style={{
+                        background: agreed ? "#6C3AED" : "transparent",
+                        border: `1.5px solid ${agreedError ? "#EF4444" : agreed ? "#6C3AED" : "#1E2B42"}`,
+                        boxShadow: agreed ? "0 0 10px rgba(108,58,237,0.45)" : "none",
+                      }}
+                    >
+                      {agreed && (
+                        <svg
+                          className="h-3 w-3 text-white"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                        >
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      )}
+                    </button>
+                    <p className="text-sm leading-relaxed text-[#A8B4CC]">
+                      I agree to Moniqo&apos;s{" "}
+                      <button
+                        type="button"
+                        className="text-[#8B5CF6] underline-offset-2 transition-colors duration-150 hover:text-[#A78BFA] hover:underline"
+                      >
+                        Terms of Service
+                      </button>{" "}
+                      and{" "}
+                      <button
+                        type="button"
+                        className="text-[#8B5CF6] underline-offset-2 transition-colors duration-150 hover:text-[#A78BFA] hover:underline"
+                      >
+                        Privacy Policy
+                      </button>
+                    </p>
+                  </div>
+                  {agreedError && (
+                    <p className="text-xs text-[#FCA5A5]">
+                      You must agree to the terms to continue.
+                    </p>
+                  )}
+                </div>
+
+                {/* Create account button */}
                 <button
-                  type="button"
-                  className="text-[#8B5CF6] underline-offset-2 transition-colors duration-150 hover:text-[#A78BFA] hover:underline"
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="mt-1 flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:opacity-92 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{
+                    background: "linear-gradient(135deg, #7C4AFF 0%, #6333E8 100%)",
+                    boxShadow: "0 4px 24px rgba(108,58,237,0.4)",
+                  }}
                 >
-                  Terms of Service
-                </button>{" "}
-                and{" "}
-                <button
-                  type="button"
-                  className="text-[#8B5CF6] underline-offset-2 transition-colors duration-150 hover:text-[#A78BFA] hover:underline"
-                >
-                  Privacy Policy
+                  {isSubmitting ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      Create account
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </button>
-              </p>
-            </div>
 
-            {/* Create account button */}
-            <button
-              type="submit"
-              className="mt-1 flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:opacity-92 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99]"
-              style={{
-                background: "linear-gradient(135deg, #7C4AFF 0%, #6333E8 100%)",
-                boxShadow: "0 4px 24px rgba(108,58,237,0.4)",
-              }}
-            >
-              Create account
-              <ArrowRight className="h-4 w-4" />
-            </button>
+                {/* Divider */}
+                <div className="flex items-center gap-4">
+                  <div className="h-px flex-1 bg-[#1E2B42]" />
+                  <span className="text-sm text-[#5A6A85]">or sign up with</span>
+                  <div className="h-px flex-1 bg-[#1E2B42]" />
+                </div>
 
-            {/* Divider */}
-            <div className="flex items-center gap-4">
-              <div className="h-px flex-1 bg-[#1E2B42]" />
-              <span className="text-sm text-[#5A6A85]">or sign up with</span>
-              <div className="h-px flex-1 bg-[#1E2B42]" />
-            </div>
+                {/* Social buttons */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Google", icon: <GoogleIcon /> },
+                    { label: "Apple", icon: <AppleIcon /> },
+                    { label: "Facebook", icon: <FacebookIcon /> },
+                  ].map(({ label, icon }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98]"
+                      style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
+                    >
+                      {icon}
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
 
-            {/* Social buttons */}
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Google", icon: <GoogleIcon /> },
-                { label: "Apple", icon: <AppleIcon /> },
-                { label: "Facebook", icon: <FacebookIcon /> },
-              ].map(({ label, icon }) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98]"
-                  style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
-                >
-                  {icon}
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Security message */}
-            <div className="flex items-center justify-center gap-2 pt-1">
-              <Shield className="h-3.5 w-3.5 flex-shrink-0 text-[#5A6A85]" />
-              <span className="text-xs text-[#5A6A85]">
-                Your security is our priority. We never share your data.
-              </span>
-            </div>
-          </motion.div>
+                {/* Security message */}
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <Shield className="h-3.5 w-3.5 flex-shrink-0 text-[#5A6A85]" />
+                  <span className="text-xs text-[#5A6A85]">
+                    Your security is our priority. We never share your data.
+                  </span>
+                </div>
+              </motion.form>
+            </>
+          )}
         </div>
       </motion.div>
     </div>

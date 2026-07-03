@@ -22,7 +22,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   ShieldCheck,
   BarChart3,
@@ -33,7 +37,10 @@ import {
   EyeOff,
   ArrowRight,
   Shield,
+  Loader2,
 } from "lucide-react";
+import { apiFetch, ApiError } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth.store";
 
 // ── Brand icons ─────────────────────────────────────────────────────────────
 
@@ -392,11 +399,71 @@ const fadeUp = {
   }),
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function setAuthCookie(token: string) {
+  document.cookie = `moniqo_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+}
+
+// ── Schema ────────────────────────────────────────────────────────────────────
+
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(72),
+});
+
+type LoginFields = z.infer<typeof loginSchema>;
+
+type LoginResponseData = {
+  access_token: string;
+  token_type: string;
+  refresh_token: string;
+};
+
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { setTokens } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [bannerMsg, setBannerMsg] = useState<{ type: "error" | "info"; text: string } | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFields>({ resolver: zodResolver(loginSchema) });
+
+  async function onSubmit(data: LoginFields) {
+    setBannerMsg(null);
+    try {
+      const result = await apiFetch<LoginResponseData>("/api/v1/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: data.email, password: data.password }),
+      });
+
+      setTokens(result.access_token, result.refresh_token);
+      setAuthCookie(result.access_token);
+      router.push("/dashboard");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 403) {
+          setBannerMsg({
+            type: "info",
+            text: "Your account isn't verified yet — check your email for the verification link.",
+          });
+        } else if (err.status === 401) {
+          setError("password", { message: "Invalid email or password." });
+        } else {
+          setBannerMsg({ type: "error", text: err.message });
+        }
+      } else {
+        setBannerMsg({ type: "error", text: "Something went wrong. Please try again." });
+      }
+    }
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#080C14] p-4 md:p-8 lg:p-10">
@@ -404,7 +471,6 @@ export default function LoginPage() {
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute top-[-10%] left-[5%] h-[500px] w-[500px] rounded-full bg-[#6C3AED] opacity-[0.07] blur-[140px]" />
         <div className="absolute right-[5%] bottom-[-5%] h-[400px] w-[400px] rounded-full bg-[#6C3AED] opacity-[0.06] blur-[120px]" />
-        {/* Star particles */}
         {Array.from({ length: 30 }).map((_, i) => (
           <div
             key={i}
@@ -438,7 +504,6 @@ export default function LoginPage() {
       >
         {/* ════════════════ LEFT PANEL ════════════════ */}
         <div className="relative flex flex-col overflow-hidden px-8 py-8 lg:w-[42%] lg:px-10 lg:py-10">
-          {/* Subtle left-panel glow */}
           <div className="pointer-events-none absolute right-0 bottom-0 left-0 h-56 bg-gradient-to-t from-[#6C3AED]/10 to-transparent" />
           <div className="pointer-events-none absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6C3AED] opacity-[0.04] blur-[80px]" />
 
@@ -559,13 +624,29 @@ export default function LoginPage() {
               <p className="text-sm text-[#5A6A85]">Enter your credentials to continue</p>
             </motion.div>
 
-            <motion.div
+            <motion.form
               custom={2}
               initial="hidden"
               animate="show"
               variants={fadeUp}
               className="space-y-5"
+              onSubmit={handleSubmit(onSubmit)}
             >
+              {/* Banner */}
+              {bannerMsg && (
+                <div
+                  className="rounded-xl px-4 py-3 text-sm"
+                  style={{
+                    background:
+                      bannerMsg.type === "error" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)",
+                    border: `1px solid ${bannerMsg.type === "error" ? "rgba(239,68,68,0.3)" : "rgba(59,130,246,0.3)"}`,
+                    color: bannerMsg.type === "error" ? "#FCA5A5" : "#93C5FD",
+                  }}
+                >
+                  {bannerMsg.text}
+                </div>
+              )}
+
               {/* Email field */}
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-[#A8B4CC]">Email address</label>
@@ -575,15 +656,21 @@ export default function LoginPage() {
                     type="email"
                     placeholder="Enter your email"
                     autoComplete="email"
-                    className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none focus:shadow-[0_0_0_1.5px_#6C3AED,0_0_16px_rgba(108,58,237,0.18)]"
+                    {...register("email")}
+                    className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
                     style={{
                       background: "#0A0E1A",
-                      border: "1px solid #1E2B42",
+                      border: `1px solid ${errors.email ? "#EF4444" : "#1E2B42"}`,
                     }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#6C3AED")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#1E2B42")}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#6C3AED")
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor = errors.email ? "#EF4444" : "#1E2B42")
+                    }
                   />
                 </div>
+                {errors.email && <p className="text-xs text-[#FCA5A5]">{errors.email.message}</p>}
               </div>
 
               {/* Password field */}
@@ -595,13 +682,18 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     autoComplete="current-password"
-                    className="h-12 w-full rounded-xl pr-12 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none focus:shadow-[0_0_0_1.5px_#6C3AED,0_0_16px_rgba(108,58,237,0.18)]"
+                    {...register("password")}
+                    className="h-12 w-full rounded-xl pr-12 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
                     style={{
                       background: "#0A0E1A",
-                      border: "1px solid #1E2B42",
+                      border: `1px solid ${errors.password ? "#EF4444" : "#1E2B42"}`,
                     }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#6C3AED")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#1E2B42")}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#6C3AED")
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor = errors.password ? "#EF4444" : "#1E2B42")
+                    }
                   />
                   <button
                     type="button"
@@ -612,12 +704,14 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {errors.password && (
+                  <p className="text-xs text-[#FCA5A5]">{errors.password.message}</p>
+                )}
               </div>
 
               {/* Remember me + forgot password */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  {/* Custom checkbox */}
                   <button
                     type="button"
                     role="checkbox"
@@ -661,14 +755,21 @@ export default function LoginPage() {
               {/* Login button */}
               <button
                 type="submit"
-                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:opacity-92 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99]"
+                disabled={isSubmitting}
+                className="flex h-14 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold text-white transition-all duration-200 hover:opacity-92 hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 style={{
                   background: "linear-gradient(135deg, #7C4AFF 0%, #6333E8 100%)",
                   boxShadow: "0 4px 24px rgba(108,58,237,0.4)",
                 }}
               >
-                Login
-                <ArrowRight className="h-4 w-4" />
+                {isSubmitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    Login
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
 
               {/* Divider */}
@@ -707,7 +808,7 @@ export default function LoginPage() {
                   Your security is our priority. We never share your data.
                 </span>
               </div>
-            </motion.div>
+            </motion.form>
           </div>
         </div>
       </motion.div>

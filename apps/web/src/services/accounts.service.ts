@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { authFetch, type ApiResponse, type ApiListResponse } from "@/lib/api-client";
+import { authFetch } from "@/lib/api-client";
 import type { ApiAccount, ApiAccountType } from "@/lib/adapters/account.adapter";
 
 export interface CreateAccountPayload {
@@ -47,26 +47,21 @@ export interface PatchAccountPayload {
 }
 
 export async function fetchAccounts(budgetId: string): Promise<ApiAccount[]> {
-  const res = await authFetch<ApiListResponse<ApiAccount>>(`/api/v1/budgets/${budgetId}/accounts`);
-  return res.data;
+  return authFetch<ApiAccount[]>(`/api/v1/budgets/${budgetId}/accounts`);
 }
 
 export async function fetchAccount(budgetId: string, accountId: string): Promise<ApiAccount> {
-  const res = await authFetch<ApiResponse<ApiAccount>>(
-    `/api/v1/budgets/${budgetId}/accounts/${accountId}`,
-  );
-  return res.data;
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts/${accountId}`);
 }
 
 export async function createAccount(
   budgetId: string,
   payload: CreateAccountPayload,
 ): Promise<ApiAccount> {
-  const res = await authFetch<ApiResponse<ApiAccount>>(`/api/v1/budgets/${budgetId}/accounts`, {
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  return res.data;
 }
 
 export async function updateAccount(
@@ -74,11 +69,10 @@ export async function updateAccount(
   accountId: string,
   payload: UpdateAccountPayload,
 ): Promise<ApiAccount> {
-  const res = await authFetch<ApiResponse<ApiAccount>>(
-    `/api/v1/budgets/${budgetId}/accounts/${accountId}`,
-    { method: "PUT", body: JSON.stringify(payload) },
-  );
-  return res.data;
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts/${accountId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function patchAccount(
@@ -86,15 +80,14 @@ export async function patchAccount(
   accountId: string,
   payload: PatchAccountPayload,
 ): Promise<ApiAccount> {
-  const res = await authFetch<ApiResponse<ApiAccount>>(
-    `/api/v1/budgets/${budgetId}/accounts/${accountId}`,
-    { method: "PATCH", body: JSON.stringify(payload) },
-  );
-  return res.data;
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts/${accountId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function deleteAccount(budgetId: string, accountId: string): Promise<void> {
-  await authFetch<ApiResponse<null>>(`/api/v1/budgets/${budgetId}/accounts/${accountId}`, {
+  await authFetch<null>(`/api/v1/budgets/${budgetId}/accounts/${accountId}`, {
     method: "DELETE",
   });
 }
