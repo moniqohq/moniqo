@@ -275,8 +275,8 @@ export function ModifyAccountModal({
   const [reconciliation, setReconciliation] = useState(account?.requiresRecon ?? true);
   const [lockTransactions, setLockTransactions] = useState(false);
   const [notes, setNotes] = useState(account?.notes ?? "");
-  const [_saving, setSaving] = useState(false);
-  const [_error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* reset form whenever the modal opens with a new account */
   /* eslint-disable react-hooks/set-state-in-effect */

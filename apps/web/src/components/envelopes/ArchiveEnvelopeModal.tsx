@@ -191,10 +191,10 @@ export function ArchiveEnvelopeModal({
     };
   }, [open, onClose]);
 
-  const remaining = envelope.allocated_amt - envelope.spent_amt;
-  const allocated = envelope.allocated_amt;
-  const spent = envelope.spent_amt;
-  const otherEnvelopeTitles = envelopes.filter((e) => e.id !== envelope.id).map((e) => e.title);
+  const remaining = envelope.allocated - envelope.spent;
+  const allocated = envelope.allocated;
+  const spent = envelope.spent;
+  const otherEnvelopeTitles = envelopes.filter((e) => e.id !== envelope.id).map((e) => e.name);
   const toLabel = option === "budgeted" ? "To Be Budgeted" : targetEnv || "—";
 
   const handleDelete = async () => {
@@ -311,7 +311,7 @@ export function ArchiveEnvelopeModal({
                     {/* Name + badge */}
                     <div className="pt-0.5">
                       <div className="mb-0.5 flex flex-wrap items-center gap-3">
-                        <span className="text-[22px] font-bold text-white">{envelope.title}</span>
+                        <span className="text-[22px] font-bold text-white">{envelope.name}</span>
                         <span
                           className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
                           style={{
@@ -568,7 +568,7 @@ export function ArchiveEnvelopeModal({
                       </div>
                       <div>
                         <p className="mb-0.5 text-[11px] text-[#5A6A85]">From</p>
-                        <p className="text-base font-bold text-white">{envelope.title}</p>
+                        <p className="text-base font-bold text-white">{envelope.name}</p>
                       </div>
                     </div>
 

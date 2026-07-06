@@ -51,6 +51,7 @@ import type { BudgetEnvelope } from "@/types";
 
 /* ── Status type ────────────────────────────────────────── */
 type Status = "Healthy" | "Warning" | "Fully Used" | "Overspent";
+type Nature = "Want" | "Should" | "Need" | "Must";
 
 interface EnvelopeRow {
   id: string;
@@ -547,7 +548,7 @@ function SideCard({
 /* ── Main view ──────────────────────────────────────────── */
 export function EnvelopesView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: apiEnvelopes } = useEnvelopes(activeBudgetId);
+  const { data: apiEnvelopes, isLoading, refetch } = useEnvelopes(activeBudgetId);
 
   const envelopes: EnvelopeRow[] = apiEnvelopes.map((e) => ({
     id: String(e.id),
@@ -808,7 +809,7 @@ export function EnvelopesView() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: i * 0.018 }}
-                            onClick={() => setSelectedId(env.id)}
+                            onClick={() => setSelectedId(Number(env.id))}
                             className="group cursor-pointer transition-colors hover:bg-[#0D1828]"
                           >
                             {/* Envelope */}
@@ -874,11 +875,11 @@ export function EnvelopesView() {
                                 <RowActions
                                   onAddTransaction={() => {}}
                                   onModify={() => {
-                                    setActionEnvelope(env);
+                                    setActionEnvelope(apiEnvelopes.find((e) => String(e.id) === env.id) ?? null);
                                     setModifyOpen(true);
                                   }}
                                   onArchive={() => {
-                                    setActionEnvelope(env);
+                                    setActionEnvelope(apiEnvelopes.find((e) => String(e.id) === env.id) ?? null);
                                     setArchiveOpen(true);
                                   }}
                                 />
@@ -968,7 +969,7 @@ export function EnvelopesView() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.04 }}
-                      onClick={() => setSelectedId(env.id)}
+                      onClick={() => setSelectedId(Number(env.id))}
                       className="cursor-pointer rounded-xl border border-[#1A2640] bg-[#0B1220] p-4 transition-colors hover:border-[#2A3A54]"
                     >
                       <div className="mb-3 flex items-start justify-between">
@@ -1057,7 +1058,7 @@ export function EnvelopesView() {
           >
             <div className="flex flex-col gap-2.5">
               {[...envelopes]
-                .sort((a, b) => b.spent - a.spent_amt)
+                .sort((a, b) => b.spent - a.spent)
                 .slice(0, 2)
                 .map((env) => (
                   <div key={env.id} className="flex items-center gap-2.5">
@@ -1139,7 +1140,7 @@ export function EnvelopesView() {
               }}
               envelope={actionEnvelope}
               budgetId={activeBudgetId}
-              envelopes={envelopes}
+              envelopes={apiEnvelopes}
               onDeleted={refetch}
             />
           )}

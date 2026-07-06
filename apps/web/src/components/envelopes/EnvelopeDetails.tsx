@@ -994,6 +994,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           onClose={() => setModifyOpen(false)}
           envelope={envelope}
           budgetId={activeBudgetId}
+          onUpdated={() => setModifyOpen(false)}
         />
       )}
       {archiveOpen && envelope && activeBudgetId !== null && (
@@ -1003,6 +1004,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           envelope={envelope}
           budgetId={activeBudgetId}
           envelopes={apiEnvelopes}
+          onDeleted={() => setArchiveOpen(false)}
         />
       )}
       <ForceDeleteEnvelopeDialog

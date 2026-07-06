@@ -335,7 +335,8 @@ export function AccountsView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: accounts, isLoading, isError } = useAccounts(activeBudgetId);
+  const { data: accounts, isLoading, error: accountsError } = useAccounts(activeBudgetId);
+  const isError = !!accountsError;
 
   const initialStatus = (searchParams.get("status") ?? "active") as StatusFilter;
   const initialType = (searchParams.get("type") ?? "all") as TypeFilter;
