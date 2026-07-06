@@ -24,7 +24,9 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -33,6 +35,8 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 )
+
+const refreshCookieName = "moniqo_refresh"
 
 const (
 	invalidBodyField = "body"
@@ -43,17 +47,44 @@ const (
 type Service interface {
 	Login(ctx context.Context, req LoginRequest) (LoginResult, error)
 	Logout(ctx context.Context, params LogoutParams) error
+	RefreshAccessToken(ctx context.Context, rawToken string) (RefreshResult, error)
 }
 
 // Handler holds HTTP handlers for auth endpoints.
 type Handler struct {
-	svc Service
-	log *zap.Logger
+	svc          Service
+	log          *zap.Logger
+	secureCookie bool
 }
 
 // NewHandler returns an auth Handler wired to the given service.
-func NewHandler(svc Service, log *zap.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+// secureCookie should be true in production (sets the Secure flag on the refresh cookie).
+func NewHandler(svc Service, log *zap.Logger, secureCookie bool) *Handler {
+	return &Handler{svc: svc, log: log, secureCookie: secureCookie}
+}
+
+func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time) {
+	cookie := new(http.Cookie)
+	cookie.Name = refreshCookieName
+	cookie.Value = raw
+	cookie.HttpOnly = true
+	cookie.Secure = h.secureCookie
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.Path = "/"
+	cookie.MaxAge = int(time.Until(expiresAt).Seconds())
+	c.SetCookie(cookie)
+}
+
+func (h *Handler) clearRefreshCookie(c echo.Context) {
+	cookie := new(http.Cookie)
+	cookie.Name = refreshCookieName
+	cookie.Value = ""
+	cookie.HttpOnly = true
+	cookie.Secure = h.secureCookie
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.Path = "/"
+	cookie.MaxAge = -1
+	c.SetCookie(cookie)
 }
 
 // Login handles POST /api/v1/auth/login.
@@ -90,12 +121,45 @@ func (h *Handler) Login(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
+	h.setRefreshCookie(c, result.RefreshToken, result.RefreshTokenExpiresAt)
+
 	h.log.Info("login request completed", zap.String("email", req.Email))
 	return httpx.OK(c, LoginResponseData{
-		AccessToken:  result.AccessToken,
-		TokenType:    result.TokenType,
-		RefreshToken: result.RefreshToken,
+		AccessToken: result.AccessToken,
+		TokenType:   result.TokenType,
 	}, "login successful")
+}
+
+// Refresh handles POST /api/v1/auth/refresh.
+// It reads the refresh token from the HttpOnly cookie, rotates it, sets a new
+// cookie, and returns a fresh access token in the response body.
+func (h *Handler) Refresh(c echo.Context) error {
+	h.log.Debug("received token refresh request")
+
+	cookie, err := c.Cookie(refreshCookieName)
+	if err != nil {
+		h.log.Debug("refresh: missing cookie", zap.Error(err))
+		return httpx.Unauthorized(c, "missing refresh token")
+	}
+
+	result, err := h.svc.RefreshAccessToken(c.Request().Context(), cookie.Value)
+	if errors.Is(err, ErrRefreshTokenInvalid) {
+		h.log.Debug("refresh: token invalid or expired")
+		h.clearRefreshCookie(c)
+		return httpx.Unauthorized(c, "session expired, please log in again")
+	}
+	if err != nil {
+		h.log.Error("refresh: service error", zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	h.setRefreshCookie(c, result.Refresh.RawToken, result.Refresh.ExpiresAt)
+
+	h.log.Debug("token refresh completed")
+	return httpx.OK(c, RefreshResponseData{
+		AccessToken: result.AccessToken,
+		TokenType:   result.TokenType,
+	}, "token refreshed")
 }
 
 // PasswordResetService is the service contract required by PasswordResetHandler.
@@ -165,13 +229,6 @@ func (h *PasswordResetHandler) ConfirmReset(c echo.Context) error {
 	return httpx.OK(c, nil, "password reset successfully, please log in")
 }
 
-// logoutRequest is the optional body for POST /api/v1/auth/logout.
-// Providing refresh_token allows atomic revocation of the current session's
-// refresh token alongside the access token.
-type logoutRequest struct {
-	RefreshToken string `json:"refresh_token"`
-}
-
 // Logout handles POST /api/v1/auth/logout.
 func (h *Handler) Logout(c echo.Context) error {
 	h.log.Debug("received logout request")
@@ -193,22 +250,21 @@ func (h *Handler) Logout(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
-	var body logoutRequest
-	_ = c.Bind(&body) // best-effort; missing body is fine
-
 	params := LogoutParams{
 		JTI:       jti,
 		UserID:    userID,
 		ExpiresAt: claims.ExpiresAt.Time,
 	}
-	if body.RefreshToken != "" {
-		params.RefreshTokenHash = HashRefreshToken(body.RefreshToken)
+	if cookie, err := c.Cookie(refreshCookieName); err == nil && cookie.Value != "" {
+		params.RefreshTokenHash = HashRefreshToken(cookie.Value)
 	}
 
 	if err := h.svc.Logout(c.Request().Context(), params); err != nil {
 		h.log.Error("logout failed", zap.Int64("user_id", userID), zap.Error(err))
 		return httpx.InternalError(c)
 	}
+
+	h.clearRefreshCookie(c)
 
 	h.log.Info("logout request completed", zap.Int64("user_id", userID))
 	return httpx.OK(c, nil, "logged out successfully")

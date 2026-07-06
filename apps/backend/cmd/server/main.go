@@ -261,7 +261,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 
 	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
-	authHandler := auth.NewHandler(authSvc, log)
+	authHandler := auth.NewHandler(authSvc, log, cfg.Env != "development")
 
 	passwordResetSvc := auth.NewPasswordResetSvc(
 		authRepo,
@@ -283,6 +283,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	loginGroup := e.Group("/api/v1/auth")
 	loginGroup.Use(appmw.LoginRateLimiter())
 	loginGroup.POST("/login", authHandler.Login)
+	loginGroup.POST("/refresh", authHandler.Refresh)
 
 	authGroup := e.Group("/api/v1/auth")
 	authGroup.POST("/logout", authHandler.Logout)
