@@ -416,7 +416,6 @@ const loginSchema = z.object({
 
 type LoginFields = z.infer<typeof loginSchema>;
 
-
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
