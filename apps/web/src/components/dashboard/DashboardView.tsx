@@ -20,6 +20,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuthStore } from "@/stores/auth.store";
 import {
   Wallet,
   TrendingUp,
@@ -101,15 +102,24 @@ const DATE_OPTIONS = [
   { label: "All Time", value: "all-time" },
 ];
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good Morning";
+  if (h < 17) return "Good Afternoon";
+  return "Good Evening";
+}
+
 export function DashboardView() {
   const [period, setPeriod] = useState("this-month");
   const [open, setOpen] = useState(false);
   const selected = DATE_OPTIONS.find((o) => o.value === period)!;
+  const user = useAuthStore((s) => s.user);
+  const displayName = user?.name || user?.username || "there";
 
   return (
     <div className="layout-page space-y-6 py-6">
       <PageHeader
-        title="Good Morning, Saqib 👋"
+        title={`${getGreeting()}, ${displayName} 👋`}
         description="Here's what's happening with your finance today."
         actions={
           <div className="relative">
