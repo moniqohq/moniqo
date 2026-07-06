@@ -171,7 +171,6 @@ function UserMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const user = useAuthStore((s) => s.user);
-  const refreshToken = useAuthStore((s) => s.refreshToken);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const router = useRouter();
 
@@ -185,7 +184,7 @@ function UserMenu() {
 
   async function handleLogout() {
     try {
-      await apiLogout(refreshToken);
+      await apiLogout();
     } catch {
       // proceed with local logout even if the server call fails
     }

@@ -20,11 +20,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { useAuthStore } from "@/stores/auth.store";
-import { authFetch } from "@/lib/api-client";
-import type { ApiUser } from "@/lib/api-types";
+import { apiFetch, authFetch } from "@/lib/api-client";
+import type { ApiAuthTokens, ApiUser } from "@/lib/api-types";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -36,19 +37,45 @@ function parseUserIdFromToken(token: string): number {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const router = useRouter();
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
+  const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const setUser = useAuthStore((s) => s.setUser);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
 
   useEffect(() => {
-    if (!accessToken || user) return;
-    try {
-      const id = parseUserIdFromToken(accessToken);
-      authFetch<ApiUser>(`/api/v1/users/${id}`).then(setUser).catch(() => {});
-    } catch {
-      // malformed token — clearAuth handled by authFetch on 401
+    if (accessToken) {
+      // Token already in memory — fetch profile if missing (e.g. first load after login).
+      if (!user) {
+        try {
+          const id = parseUserIdFromToken(accessToken);
+          authFetch<ApiUser>(`/api/v1/users/${id}`).then(setUser).catch(() => {});
+        } catch {
+          // malformed token; authFetch will handle 401
+        }
+      }
+      return;
     }
-  }, [accessToken, user, setUser]);
+
+    // No access token in memory — page was reloaded or tab was reopened.
+    // Attempt silent refresh via the HttpOnly cookie.
+    apiFetch<ApiAuthTokens>("/api/v1/auth/refresh", {
+      method: "POST",
+      _retry: true, // skip the interceptor's own refresh attempt for this call
+    })
+      .then(({ access_token }) => {
+        setAccessToken(access_token);
+        if (!user) {
+          const id = parseUserIdFromToken(access_token);
+          authFetch<ApiUser>(`/api/v1/users/${id}`).then(setUser).catch(() => {});
+        }
+      })
+      .catch(() => {
+        clearAuth();
+        router.push("/login");
+      });
+  }, []); // intentionally runs once on mount
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#080C14]">

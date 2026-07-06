@@ -26,9 +26,9 @@ import type { ApiUser } from "@/lib/api-types";
 interface AuthStore {
   user: ApiUser | null;
   accessToken: string | null;
-  refreshToken: string | null;
-  setAuth: (user: ApiUser, accessToken: string, refreshToken: string) => void;
+  setAuth: (user: ApiUser, accessToken: string) => void;
   setUser: (user: ApiUser) => void;
+  setAccessToken: (token: string) => void;
   clearAuth: () => void;
 }
 
@@ -37,14 +37,20 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
 
-      setAuth: (user, accessToken, refreshToken) => set({ user, accessToken, refreshToken }),
+      setAuth: (user, accessToken) => set({ user, accessToken }),
 
       setUser: (user) => set({ user }),
 
-      clearAuth: () => set({ user: null, accessToken: null, refreshToken: null }),
+      setAccessToken: (token) => set({ accessToken: token }),
+
+      clearAuth: () => set({ user: null, accessToken: null }),
     }),
-    { name: "moniqo-auth" },
+    {
+      name: "moniqo-auth",
+      // Only persist the user object for UI continuity.
+      // The access token is memory-only; it is rehydrated via /auth/refresh on load.
+      partialize: (state) => ({ user: state.user }),
+    },
   ),
 );

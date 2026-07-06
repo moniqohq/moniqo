@@ -401,12 +401,6 @@ const fadeUp = {
   }),
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function setAuthCookie(token: string) {
-  document.cookie = `moniqo_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-}
-
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
@@ -449,8 +443,7 @@ function LoginPageInner() {
         `/api/v1/users/${parseUserIdFromToken(tokens.access_token)}`,
         { headers: { Authorization: `Bearer ${tokens.access_token}` } },
       );
-      setAuth(user, tokens.access_token, tokens.refresh_token);
-      setAuthCookie(tokens.access_token);
+      setAuth(user, tokens.access_token);
 
       try {
         const budgetsBody = await apiFetch<ApiListResponse<ApiBudget>>("/api/v1/budgets", {

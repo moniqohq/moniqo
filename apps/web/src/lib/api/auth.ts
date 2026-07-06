@@ -18,11 +18,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { apiFetch } from "./client";
+import { authFetch } from "@/lib/api-client";
 
-export async function logout(refreshToken?: string | null): Promise<void> {
-  await apiFetch<null>("/api/v1/auth/logout", {
-    method: "POST",
-    body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
-  });
+export async function logout(): Promise<void> {
+  // Sends the Bearer access token; the server clears the HttpOnly refresh cookie.
+  await authFetch<null>("/api/v1/auth/logout", { method: "POST" });
 }
