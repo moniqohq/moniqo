@@ -47,9 +47,10 @@ import {
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useTransactions } from "@/hooks/use-transactions";
-import type { AccountType } from "@/types";
+import type { AccountType, Transaction } from "@/types";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useTransactions } from "@/hooks/useTransactions";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -215,7 +216,7 @@ function EmptyTabState({
 
 const TX_COLS = ["Date", "Type", "Payee", "Category", "Amount", "Status"];
 
-function TransactionTable({ transactions }: { transactions: import("@/types").Transaction[] }) {
+function TransactionTable({ transactions }: { transactions: Transaction[] }) {
   if (transactions.length === 0) {
     return (
       <>
@@ -405,16 +406,14 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
   const [activeTab, setActiveTab] = useState("transactions");
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { data: accounts } = useAccounts(budgetId);
-  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
-  const account = accounts.find((a) => a.id === accountId);
-  const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
+  const { accountMap, accounts } = useAccounts(budgetId);
+  const { envelopeMap } = useEnvelopes(budgetId);
+  const { transactions: accountTransactions } = useTransactions(budgetId, accountMap, envelopeMap, {
+    accountId,
+  });
 
-  const { data: accountTransactions } = useTransactions(
-    budgetId,
-    { account_id: accountId },
-    accountMap,
-  );
+  const account = accounts.find((a) => a.id === accountId);
+  const meta = account ? TYPE_META[account.type as AccountType] : TYPE_META.checking;
   const txCount = accountTransactions.length;
   const balance = account?.balance ?? 0;
   const transfers = 0;

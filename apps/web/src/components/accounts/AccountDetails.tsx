@@ -40,10 +40,11 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useTransactions } from "@/hooks/use-transactions";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useTransactions } from "@/hooks/useTransactions";
 import { BalanceChart, type ChartPoint } from "./BalanceChart";
 import { ModifyAccountModal } from "./ModifyAccountModal";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
@@ -185,20 +186,22 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const [addTxDefault, setAddTxDefault] = useState<"expense" | "income" | "transfer">("expense");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data: accounts } = useAccounts(budgetId);
-  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const { accountMap, accounts } = useAccounts(budgetId);
+  const { envelopeMap } = useEnvelopes(budgetId);
   const account = accounts.find((a) => a.id === accountId);
-  const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
+  const typeMeta = account ? TYPE_META[account.type as AccountType] : TYPE_META.checking;
 
-  const { data: allTxns } = useTransactions(budgetId, { account_id: accountId }, accountMap);
+  const { transactions: allTxns } = useTransactions(budgetId, accountMap, envelopeMap, {
+    accountId,
+  });
 
   const meta: AccountMeta = {
     accountNumber: "—",
     createdDate: "—",
     lastActivity: "—",
     lastReconciled: "—",
-    onBudget: account?.isOnBudget ?? true,
-    requiresReconciliation: account?.requiresRecon ?? false,
+    onBudget: account?.is_on_budget ?? true,
+    requiresReconciliation: account?.requires_recon ?? false,
     notes: account?.notes ?? "",
     clearedBalance: account?.balance ?? 0,
     unclearedBalance: 0,
@@ -277,14 +280,14 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                   icon: <CheckCircle size={14} />,
                   label: "Reconcile",
                   onClick: () =>
-                    router.push(`/budgets/${account.budgetId}/accounts/${accountId}/reconcile`),
+                    router.push(`/budgets/${account.budget_id}/accounts/${accountId}/reconcile`),
                 },
                 { icon: <Edit2 size={14} />, label: "Edit", onClick: () => setModifyOpen(true) },
                 {
                   icon: <Archive size={14} />,
                   label: "Archive",
                   onClick: () =>
-                    router.push(`/budgets/${account.budgetId}/accounts/${accountId}/archive`),
+                    router.push(`/budgets/${account.budget_id}/accounts/${accountId}/archive`),
                 },
               ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
             ).map(({ icon, label, onClick }) => (
@@ -533,7 +536,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
       <ForceDeleteAccountDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        account={{ id: String(account.id), name: account.name, type: account.type }}
+        account={{ id: String(account.id), name: account.name, type: account.type as AccountType }}
       />
     </div>
   );

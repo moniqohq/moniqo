@@ -35,9 +35,59 @@ export interface ApiAuthTokens {
   refresh_token: string;
 }
 
+export interface ApiTransaction {
+  id: number;
+  budget_id: number;
+  account_id: number;
+  transfer_account_id: number | null;
+  budget_envelope_id: number | null;
+  transfer_group_id?: string;
+  amount: number;
+  date: string;
+  memo?: string | null;
+  created_at: string;
+}
+
+export interface ApiAccount {
+  id: number;
+  budget_id: number;
+  name: string;
+  type: string;
+  balance: number;
+  requires_recon: boolean;
+  is_on_budget: boolean;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface ApiEnvelope {
+  id: number;
+  budget_id: number;
+  title: string;
+  allocated_amt: number;
+  spent_amt: number;
+  is_overspent: boolean;
+  description?: string | null;
+  created_at: string;
+}
+
+export interface ApiBudget {
+  id: number;
+  title: string;
+  notes?: string | null;
+  created_at: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
+  msg: string;
+}
+
+export interface ApiListResponse<T> {
+  success: boolean;
+  data: T[];
+  meta?: { page: number; page_size: number; total: number };
   msg: string;
 }
 

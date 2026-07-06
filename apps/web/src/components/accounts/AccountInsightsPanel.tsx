@@ -34,9 +34,10 @@ import {
   Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useTransactions } from "@/hooks/use-transactions";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useTransactions } from "@/hooks/useTransactions";
 
 interface Props {
   accountId: number;
@@ -90,12 +91,11 @@ const QUICK_ACTIONS = [
 
 export function AccountInsightsPanel({ accountId, budgetId }: Props) {
   const router = useRouter();
-  const { data: accounts } = useAccounts(budgetId);
-  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
-  const { data: txns } = useTransactions(budgetId, { account_id: accountId }, accountMap);
-
-  const inflows = txns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const outflows = txns.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const { accountMap } = useAccounts(budgetId);
+  const { envelopeMap } = useEnvelopes(budgetId);
+  const { transactions: txns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
+  const inflows = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const outflows = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const net = inflows - outflows;
 
   const largestExpense = txns
@@ -106,8 +106,8 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
     .filter((t) => t.type === "expense" && t.envelopeName)
     .reduce<Record<string, { name: string; icon: string; total: number }>>((acc, t) => {
       const key = t.envelopeName!;
-      if (!acc[key]) acc[key] = { name: key, icon: "📁", total: 0 };
-      acc[key].total += t.amount;
+      if (!acc[key]) acc[key] = { name: key, icon: key[0] ?? "E", total: 0 };
+      acc[key].total += Math.abs(t.amount);
       return acc;
     }, {});
   const topCategory = Object.values(categoryTotals).sort((a, b) => b.total - a.total)[0];

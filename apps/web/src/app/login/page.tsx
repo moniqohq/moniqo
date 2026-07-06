@@ -21,8 +21,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,7 +41,8 @@ import {
 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth.store";
-import type { ApiAuthTokens, ApiUser } from "@/lib/api-types";
+import { useUIStore } from "@/stores/ui.store";
+import type { ApiAuthTokens, ApiUser, ApiListResponse, ApiBudget } from "@/lib/api-types";
 
 // ── Brand icons ─────────────────────────────────────────────────────────────
 
@@ -415,17 +416,12 @@ const loginSchema = z.object({
 
 type LoginFields = z.infer<typeof loginSchema>;
 
-type LoginResponseData = {
-  access_token: string;
-  token_type: string;
-  refresh_token: string;
-};
-
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [bannerMsg, setBannerMsg] = useState<{ type: "error" | "info"; text: string } | null>(null);
@@ -450,6 +446,16 @@ export default function LoginPage() {
       );
       setAuth(user, tokens.access_token, tokens.refresh_token);
       setAuthCookie(tokens.access_token);
+
+      try {
+        const budgetsBody = await apiFetch<ApiListResponse<ApiBudget>>("/api/v1/budgets");
+        if (budgetsBody.data.length > 0) {
+          setActiveBudget(budgetsBody.data[0].id);
+        }
+      } catch {
+        // non-fatal: proceed to dashboard even if budget fetch fails
+      }
+
       router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiError) {

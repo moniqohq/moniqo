@@ -22,10 +22,11 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
-import { useUIStore } from "@/stores/ui.store";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useTransactions } from "@/hooks/use-transactions";
 import { formatCurrency, formatTableDate, cn } from "@/lib/utils";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useTransactions } from "@/hooks/useTransactions";
 
 type Status = "Done" | "Reconciled" | "Pending";
 
@@ -64,14 +65,12 @@ function StatusBadge({ status }: { status: Status }) {
 
 export function RecentTransactions() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: accounts } = useAccounts(activeBudgetId);
-  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
-  const { data: transactions, isLoading } = useTransactions(
-    activeBudgetId,
-    { page_size: 7 },
-    accountMap,
-  );
-  const recent = transactions.slice(0, 7);
+  const { accountMap } = useAccounts(activeBudgetId);
+  const { envelopeMap } = useEnvelopes(activeBudgetId);
+  const { transactions, loading } = useTransactions(activeBudgetId, accountMap, envelopeMap, {
+    pageSize: 7,
+  });
+  const recent = transactions;
 
   return (
     <div>
@@ -97,25 +96,29 @@ export function RecentTransactions() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1E2B42]">
-            {isLoading && recent.length === 0 ? (
+            {loading && (
               <tr>
-                <td colSpan={5} className="px-5 py-6 text-center text-sm text-[#3A4A60]">
+                <td colSpan={5} className="px-5 py-6 text-center text-sm text-[#5A6A85]">
                   Loading…
                 </td>
               </tr>
-            ) : recent.length === 0 ? (
+            )}
+            {!loading && recent.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-5 py-6 text-center text-sm text-[#3A4A60]">
                   No transactions yet
                 </td>
               </tr>
-            ) : (
+            )}
+            {!loading &&
               recent.map((tx, i) => {
                 const amountColor =
                   tx.type === "income"
                     ? "text-[#4ADE80]"
                     : tx.type === "transfer"
-                      ? "text-[#93C5FD]"
+                      ? tx.amount >= 0
+                        ? "text-[#4ADE80]"
+                        : "text-[#F87171]"
                       : "text-[#F87171]";
 
                 return (
@@ -133,7 +136,7 @@ export function RecentTransactions() {
                           className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white select-none"
                           style={{ backgroundColor: "#1E2B42" }}
                         >
-                          {tx.payee[0] ?? "?"}
+                          {(tx.payee || tx.accountName || "T")[0]}
                         </div>
                         <div>
                           <p className="max-w-[140px] truncate text-[13px] leading-tight font-medium text-[#E8EEF8]">
@@ -152,8 +155,11 @@ export function RecentTransactions() {
                     <td className="px-4 py-3">
                       {tx.envelopeName ? (
                         <div className="flex items-center gap-2">
-                          <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#1E2B42] text-[11px]">
-                            {tx.envelopeName[0]}
+                          <div
+                            className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
+                            style={{ backgroundColor: "#1E2B42" }}
+                          >
+                            {tx.envelopeName?.[0] ?? "E"}
                           </div>
                           <span className="text-[13px] whitespace-nowrap text-[#A8B4CC]">
                             {tx.envelopeName}
@@ -185,8 +191,7 @@ export function RecentTransactions() {
                     </td>
                   </motion.tr>
                 );
-              })
-            )}
+              })}
           </tbody>
         </table>
       </div>

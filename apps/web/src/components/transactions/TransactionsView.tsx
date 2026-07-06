@@ -43,11 +43,6 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
-import { useUIStore } from "@/stores/ui.store";
-import { useAccounts } from "@/hooks/use-accounts";
-import { useEnvelopes } from "@/hooks/use-envelopes";
-import { useTransactions } from "@/hooks/use-transactions";
-import { deleteTransaction } from "@/lib/api/transactions";
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from "@/lib/utils";
 import { AddTransactionModal } from "./AddTransactionModal";
 import { TransactionDetailsModal } from "./TransactionDetailsModal";
@@ -56,6 +51,12 @@ import { EditTransactionModal } from "./EditTransactionModal";
 import { DateRangePicker } from "./DateRangePicker";
 import type { DateRange } from "./DateRangePicker";
 import type { Transaction, AccountType } from "@/types";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useTransactions } from "@/hooks/useTransactions";
+import { apiFetch } from "@/lib/api";
+import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 
 /* ── Sparkline data — populated from API when analytics endpoint is available ── */
 const sparkInflow: { v: number }[] = [];
@@ -140,12 +141,14 @@ function TxRow({
   selected,
   onSelect,
   onRowClick,
+  accounts,
 }: {
   tx: Transaction;
   index: number;
   selected: boolean;
   onSelect: () => void;
   onRowClick: () => void;
+  accounts: ApiAccount[];
 }) {
   const amountColor =
     tx.type === "income"
@@ -211,16 +214,25 @@ function TxRow({
       {/* Account */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <div
-            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
-            style={{
-              backgroundColor: `${ACCOUNT_TYPE_META.checking.color}22`,
-              color: ACCOUNT_TYPE_META.checking.color,
-            }}
-          >
-            {ACCOUNT_TYPE_META.checking.icon}
+          {(() => {
+            const acc = accounts.find((a) => a.id === tx.accountId);
+            const meta =
+              (acc ? ACCOUNT_TYPE_META[acc.type as AccountType] : undefined) ??
+              ACCOUNT_TYPE_META.checking;
+            return (
+              <div
+                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
+                style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
+              >
+                {meta.icon}
+              </div>
+            );
+          })()}
+          <div>
+            <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">
+              {tx.accountName}
+            </p>
           </div>
-          <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">{tx.accountName}</p>
         </div>
       </td>
 
@@ -279,7 +291,7 @@ function AccountFilter({
   value: Set<number>;
   onChange: (ids: Set<number>) => void;
   triggerClassName?: string;
-  accounts: import("@/types").Account[];
+  accounts: ApiAccount[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -312,7 +324,6 @@ function AccountFilter({
   }
 
   const firstSelected = value.size === 1 ? accounts.find((a) => a.id === [...value][0]) : null;
-
   return (
     <div ref={ref} className="relative">
       <button
@@ -322,10 +333,21 @@ function AccountFilter({
         {firstSelected && (
           <span
             className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
-            style={{ backgroundColor: `${ACCOUNT_TYPE_META[firstSelected.type].color}22` }}
+            style={{
+              backgroundColor: `${(ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking).color}22`,
+            }}
           >
-            <span style={{ color: ACCOUNT_TYPE_META[firstSelected.type].color }}>
-              {ACCOUNT_TYPE_META[firstSelected.type].icon}
+            <span
+              style={{
+                color: (
+                  ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking
+                ).color,
+              }}
+            >
+              {
+                (ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking)
+                  .icon
+              }
             </span>
           </span>
         )}
@@ -359,7 +381,7 @@ function AccountFilter({
           <div className="max-h-64 overflow-y-auto py-1">
             {accounts.map((acc) => {
               const checked = value.has(acc.id);
-              const meta = ACCOUNT_TYPE_META[acc.type] ?? ACCOUNT_TYPE_META.checking;
+              const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;
               return (
                 <button
                   key={acc.id}
@@ -397,6 +419,7 @@ function AccountFilter({
                   >
                     {meta.icon}
                   </span>
+                  {/* name */}
                   <div className="min-w-0">
                     <p className="truncate text-[13px] leading-tight text-[#A8B4CC]">{acc.name}</p>
                   </div>
@@ -411,18 +434,6 @@ function AccountFilter({
 }
 
 /* ── Envelope filter dropdown (multi-select) ────────────── */
-const ENVELOPE_COLORS_LIST = [
-  "#6C3AED",
-  "#00E6B4",
-  "#F59E0B",
-  "#EF4444",
-  "#22C55E",
-  "#3B82F6",
-  "#A855F7",
-  "#F97316",
-  "#06B6D4",
-];
-
 function EnvelopeFilter({
   value,
   onChange,
@@ -432,7 +443,7 @@ function EnvelopeFilter({
   value: Set<number>;
   onChange: (ids: Set<number>) => void;
   triggerClassName?: string;
-  envelopes: import("@/types").BudgetEnvelope[];
+  envelopes: ApiEnvelope[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -459,14 +470,12 @@ function EnvelopeFilter({
     if (value.size === 0) return "All Envelopes";
     if (value.size === 1) {
       const env = envelopes.find((e) => e.id === [...value][0]);
-      return env ? env.name : "All Envelopes";
+      return env ? env.title : "All Envelopes";
     }
     return `${value.size} Envelopes`;
   }
 
   const firstSelected = value.size === 1 ? envelopes.find((e) => e.id === [...value][0]) : null;
-  const firstSelectedIdx = firstSelected ? envelopes.indexOf(firstSelected) : -1;
-
   return (
     <div ref={ref} className="relative">
       <button
@@ -474,13 +483,8 @@ function EnvelopeFilter({
         className={cn(triggerClassName, open && "border-[#6C3AED]/60 text-[#A8B4CC]")}
       >
         {firstSelected && (
-          <span
-            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-white"
-            style={{
-              backgroundColor: ENVELOPE_COLORS_LIST[firstSelectedIdx % ENVELOPE_COLORS_LIST.length],
-            }}
-          >
-            {firstSelected.name[0]}
+          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded bg-[#6C3AED]/20 text-[10px] text-[#8B5CF6]">
+            {firstSelected.title[0]}{" "}
           </span>
         )}
         {value.size > 1 && (
@@ -511,9 +515,8 @@ function EnvelopeFilter({
 
           {/* list */}
           <div className="max-h-64 overflow-y-auto py-1">
-            {envelopes.map((env, envIdx) => {
+            {envelopes.map((env) => {
               const checked = value.has(env.id);
-              const envColor = ENVELOPE_COLORS_LIST[envIdx % ENVELOPE_COLORS_LIST.length];
               return (
                 <button
                   key={env.id}
@@ -544,13 +547,10 @@ function EnvelopeFilter({
                       </svg>
                     )}
                   </span>
-                  <span
-                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-white"
-                    style={{ backgroundColor: envColor }}
-                  >
-                    {env.name[0]}
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#6C3AED]/20 text-[11px] text-[#8B5CF6]">
+                    {env.title[0]}{" "}
                   </span>
-                  <span className="truncate text-[#A8B4CC]">{env.name}</span>
+                  <span className="truncate text-[#A8B4CC]">{env.title}</span>
                 </button>
               );
             })}
@@ -762,11 +762,6 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: accounts } = useAccounts(activeBudgetId);
-  const { data: envelopes } = useEnvelopes(activeBudgetId);
-  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
-  const envelopeMap = new Map(envelopes.map((e) => [e.id, e.name]));
-
   const [modalOpen, setModalOpen] = useState(false);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -775,6 +770,7 @@ export function TransactionsView() {
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [, setDeleteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pageSize, setPageSize] = useState(25);
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
@@ -788,32 +784,27 @@ export function TransactionsView() {
     };
   });
 
-  const apiFilters = {
-    account_id: accountFilter.size === 1 ? [...accountFilter][0] : undefined,
-    budget_envelope_id: envelopeFilter.size === 1 ? [...envelopeFilter][0] : undefined,
-    date_from: dateRange.from?.toISOString().split("T")[0],
-    date_to: dateRange.to?.toISOString().split("T")[0],
-    page_size: pageSize,
-  };
-
+  const { accounts, accountMap } = useAccounts(activeBudgetId);
+  const { envelopes, envelopeMap } = useEnvelopes(activeBudgetId);
   const {
-    data: transactions,
-    isLoading: txLoading,
-    refetch: refetchTx,
-  } = useTransactions(activeBudgetId, apiFilters, accountMap, envelopeMap);
-
+    transactions,
+    total: totalCount,
+    loading: txLoading,
+    error: txError,
+    refetch,
+  } = useTransactions(activeBudgetId, accountMap, envelopeMap, {
+    accountId: accountFilter.size === 1 ? Number([...accountFilter][0]) : undefined,
+    envelopeId: envelopeFilter.size === 1 ? Number([...envelopeFilter][0]) : undefined,
+    dateFrom: dateRange.from?.toISOString(),
+    dateTo: dateRange.to?.toISOString(),
+    pageSize,
+  });
   const allSelected = selected.size === transactions.length && transactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
 
-  const totalInflow = transactions
-    .filter((t) => t.type === "income")
-    .reduce((s, t) => s + t.amount, 0);
-  const totalOutflow = transactions
-    .filter((t) => t.type === "expense")
-    .reduce((s, t) => s + t.amount, 0);
-  const netFlow = totalInflow - totalOutflow;
-  const totalCount = transactions.length;
-
+  const totalInflow = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const totalOutflow = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0);
+  const netFlow = totalInflow + totalOutflow;
   function toggleAll() {
     if (allSelected || someSelected) {
       setSelected(new Set());
@@ -846,19 +837,24 @@ export function TransactionsView() {
   }
 
   async function confirmDelete() {
-    if (!deleteTx || activeBudgetId == null) return;
+    if (!deleteTx || !activeBudgetId) return;
     setDeleteLoading(true);
+    setDeleteError(null);
     try {
-      await deleteTransaction(activeBudgetId, deleteTx.id);
-      await refetchTx();
-    } finally {
-      setDeleteLoading(false);
+      await apiFetch<unknown>(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, {
+        method: "DELETE",
+      });
+      refetch();
       setDeleteOpen(false);
       setDetailOpen(false);
       setTimeout(() => {
         setDeleteTx(null);
         setDetailTx(null);
       }, 200);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Unexpected error");
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -1120,24 +1116,34 @@ export function TransactionsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#0F1A2C]">
-              {txLoading && transactions.length === 0 ? (
+              {txLoading && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-sm text-[#3A4A60]">
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
                     Loading transactions…
                   </td>
                 </tr>
-              ) : transactions.length === 0 ? (
+              )}
+              {txError && !txLoading && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-sm text-[#3A4A60]">
-                    No transactions found
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#F87171]">
+                    {txError}
                   </td>
                 </tr>
-              ) : (
+              )}
+              {!txLoading && !txError && transactions.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
+                    No transactions found.
+                  </td>
+                </tr>
+              )}
+              {!txLoading &&
                 transactions.map((tx, i) => (
                   <TxRow
                     key={tx.id}
                     tx={tx}
                     index={i}
+                    accounts={accounts}
                     selected={selected.has(tx.id)}
                     onSelect={() => toggleRow(tx.id)}
                     onRowClick={() => {
@@ -1145,8 +1151,7 @@ export function TransactionsView() {
                       setDetailOpen(true);
                     }}
                   />
-                ))
-              )}
+                ))}
             </tbody>
           </table>
         </div>
@@ -1186,7 +1191,14 @@ export function TransactionsView() {
         </div>
       </div>
 
-      <AddTransactionModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <AddTransactionModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSuccess={refetch}
+        budgetId={activeBudgetId}
+        accounts={accounts}
+        envelopes={envelopes}
+      />
       <TransactionDetailsModal
         tx={detailTx}
         open={detailOpen}
@@ -1207,6 +1219,10 @@ export function TransactionsView() {
           setEditOpen(false);
           setTimeout(() => setEditTx(null), 200);
         }}
+        onSave={() => refetch()}
+        budgetId={activeBudgetId}
+        accounts={accounts}
+        envelopes={envelopes}
       />
       <DeleteTransactionModal
         tx={deleteTx}
