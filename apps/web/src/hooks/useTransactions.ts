@@ -21,7 +21,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { adaptTransaction } from "@/lib/transaction-adapter";
-import type { ApiTransaction, ApiAccount, ApiEnvelope, ApiListResponse } from "@/lib/api-types";
+import type { ApiTransaction, ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import type { Transaction } from "@/types";
 
 interface Filters {
@@ -75,12 +75,10 @@ export function useTransactions(
       setLoading(true);
       setError(null);
       try {
-        const res = await apiFetch(url);
-        const body = (await res.json()) as ApiListResponse<ApiTransaction>;
+        const data = await apiFetch<ApiTransaction[]>(url);
         if (cancelled) return;
-        if (!body.success) throw new Error(body.msg || "Failed to fetch transactions");
-        setTransactions((body.data ?? []).map((raw) => adaptTransaction(raw, accounts, envelopes)));
-        setTotal(body.meta?.total ?? body.data?.length ?? 0);
+        setTransactions((data ?? []).map((raw) => adaptTransaction(raw, accounts, envelopes)));
+        setTotal(data?.length ?? 0);
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unexpected error");

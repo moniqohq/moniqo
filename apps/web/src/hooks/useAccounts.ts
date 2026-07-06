@@ -20,7 +20,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
-import type { ApiAccount, ApiListResponse } from "@/lib/api-types";
+import type { ApiAccount } from "@/lib/api-types";
 
 interface UseAccountsResult {
   accounts: ApiAccount[];
@@ -42,11 +42,9 @@ export function useAccounts(budgetId: number | null): UseAccountsResult {
       setLoading(true);
       setError(null);
       try {
-        const res = await apiFetch(`/api/v1/budgets/${budgetId}/accounts`);
-        const body = (await res.json()) as ApiListResponse<ApiAccount>;
+        const data = await apiFetch<ApiAccount[]>(`/api/v1/budgets/${budgetId}/accounts`);
         if (cancelled) return;
-        if (!body.success) throw new Error(body.msg || "Failed to fetch accounts");
-        setAccounts(body.data ?? []);
+        setAccounts(data ?? []);
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unexpected error");

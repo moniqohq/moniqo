@@ -40,11 +40,11 @@ export function adaptTransaction(
   }
 
   return {
-    id: String(raw.id),
-    budgetId: String(raw.budget_id),
-    accountId: String(raw.account_id),
+    id: raw.id,
+    budgetId: raw.budget_id,
+    accountId: raw.account_id,
     accountName: account?.name ?? `Account #${raw.account_id}`,
-    envelopeId: raw.budget_envelope_id != null ? String(raw.budget_envelope_id) : undefined,
+    envelopeId: raw.budget_envelope_id ?? undefined,
     envelopeName: envelope?.title,
     payee: raw.memo ?? "",
     amount: raw.amount,
