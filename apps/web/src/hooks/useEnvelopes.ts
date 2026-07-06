@@ -46,8 +46,8 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 export function useEnvelopes() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const budgetId = parseInt(activeBudgetId, 10);
-  const validBudgetId = !isNaN(budgetId) && budgetId > 0;
+  const budgetId = activeBudgetId ?? 0;
+  const validBudgetId = activeBudgetId !== null && activeBudgetId > 0;
 
   const [envelopes, setEnvelopes] = useState<BudgetEnvelope[]>([]);
   const [loading, setLoading] = useState(false);

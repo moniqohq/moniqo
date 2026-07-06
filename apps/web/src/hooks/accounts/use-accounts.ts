@@ -43,11 +43,12 @@ export function useAccounts(): {
   isError: boolean;
   error: Error | null;
 } {
-  const budgetId = useUIStore((s) => s.activeBudgetId);
+  const budgetIdNum = useUIStore((s) => s.activeBudgetId);
+  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
   const result = useQuery({
     queryKey: accountKeys.all(budgetId),
     queryFn: () => fetchAccounts(budgetId).then((raw) => raw.map(adaptAccount)),
-    enabled: !!budgetId,
+    enabled: budgetIdNum != null,
   });
 
   return {
@@ -60,7 +61,8 @@ export function useAccounts(): {
 
 export function useCreateAccount() {
   const queryClient = useQueryClient();
-  const budgetId = useUIStore((s) => s.activeBudgetId);
+  const budgetIdNum = useUIStore((s) => s.activeBudgetId);
+  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
     mutationFn: (payload: CreateAccountPayload) => createAccount(budgetId, payload),
@@ -72,7 +74,8 @@ export function useCreateAccount() {
 
 export function useUpdateAccount() {
   const queryClient = useQueryClient();
-  const budgetId = useUIStore((s) => s.activeBudgetId);
+  const budgetIdNum = useUIStore((s) => s.activeBudgetId);
+  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
     mutationFn: ({ accountId, payload }: { accountId: string; payload: UpdateAccountPayload }) =>
@@ -85,7 +88,8 @@ export function useUpdateAccount() {
 
 export function useDeleteAccount() {
   const queryClient = useQueryClient();
-  const budgetId = useUIStore((s) => s.activeBudgetId);
+  const budgetIdNum = useUIStore((s) => s.activeBudgetId);
+  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
     mutationFn: (accountId: string) => deleteAccount(budgetId, accountId),

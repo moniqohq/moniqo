@@ -48,16 +48,17 @@ export const UI_TO_API: Record<AccountType, ApiAccountType> = {
   credit: "CREDIT_CARD",
   cash: "CASH",
   loan: "LOAN",
-  investment: "CHECKING",
 };
 
 export function adaptAccount(raw: ApiAccount): Account {
   return {
-    id: String(raw.id),
-    budgetId: String(raw.budget_id),
+    id: raw.id,
+    budgetId: raw.budget_id,
     name: raw.name,
     type: API_TO_UI[raw.type],
     balance: parseFloat(raw.balance),
-    archived: raw.archived,
+    requiresRecon: raw.requires_recon,
+    isOnBudget: raw.is_on_budget,
+    notes: raw.notes ?? undefined,
   };
 }
