@@ -52,7 +52,7 @@ export async function apiFetch<T>(
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
 
   if (res.status === 401) {
-    useAuthStore.getState().logout();
+    useAuthStore.getState().clearAuth();
     throw new ApiError(401, "Session expired. Please log in again.");
   }
 
