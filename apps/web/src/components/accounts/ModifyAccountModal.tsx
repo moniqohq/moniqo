@@ -588,9 +588,7 @@ export function ModifyAccountModal({
                       disabled={saving}
                       className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {saving ? (
-                        <RefreshCw size={15} className="animate-spin" />
-                      ) : null}
+                      {saving ? <RefreshCw size={15} className="animate-spin" /> : null}
                       {saving ? "Saving…" : "Save Changes"}
                     </button>
                   </div>

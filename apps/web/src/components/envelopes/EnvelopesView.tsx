@@ -62,7 +62,6 @@ interface EnvelopeRow {
   spent: number;
 }
 
-
 /* ── Derived computations ───────────────────────────────── */
 function getRemaining(env: EnvelopeRow) {
   return env.allocated - env.spent;
