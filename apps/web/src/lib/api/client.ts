@@ -18,12 +18,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { useAuthStore } from "@/stores/auth.store";
 import type { ApiResponse } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("moniqo_token") : null;
+  const token = useAuthStore.getState().accessToken;
 
   const res = await fetch(`${BASE}${path}`, {
     ...init,
