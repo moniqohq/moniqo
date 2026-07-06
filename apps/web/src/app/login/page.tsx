@@ -20,8 +20,8 @@
 
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
@@ -418,13 +418,18 @@ type LoginFields = z.infer<typeof loginSchema>;
 
 // ── Page component ────────────────────────────────────────────────────────────
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [bannerMsg, setBannerMsg] = useState<{ type: "error" | "info"; text: string } | null>(null);
+  const [bannerMsg, setBannerMsg] = useState<{ type: "error" | "info" | "success"; text: string } | null>(
+    searchParams.get("verified") === "true"
+      ? { type: "success", text: "Your account has been verified — you can now log in." }
+      : null
+  );
 
   const {
     register,
@@ -657,9 +662,24 @@ export default function LoginPage() {
                   className="rounded-xl px-4 py-3 text-sm"
                   style={{
                     background:
-                      bannerMsg.type === "error" ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)",
-                    border: `1px solid ${bannerMsg.type === "error" ? "rgba(239,68,68,0.3)" : "rgba(59,130,246,0.3)"}`,
-                    color: bannerMsg.type === "error" ? "#FCA5A5" : "#93C5FD",
+                      bannerMsg.type === "error"
+                        ? "rgba(239,68,68,0.1)"
+                        : bannerMsg.type === "success"
+                          ? "rgba(34,197,94,0.1)"
+                          : "rgba(59,130,246,0.1)",
+                    border: `1px solid ${
+                      bannerMsg.type === "error"
+                        ? "rgba(239,68,68,0.3)"
+                        : bannerMsg.type === "success"
+                          ? "rgba(34,197,94,0.3)"
+                          : "rgba(59,130,246,0.3)"
+                    }`,
+                    color:
+                      bannerMsg.type === "error"
+                        ? "#FCA5A5"
+                        : bannerMsg.type === "success"
+                          ? "#86EFAC"
+                          : "#93C5FD",
                   }}
                 >
                   {bannerMsg.text}
@@ -832,5 +852,13 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageInner />
+    </Suspense>
   );
 }
