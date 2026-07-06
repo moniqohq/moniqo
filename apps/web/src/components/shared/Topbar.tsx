@@ -289,7 +289,10 @@ export function Topbar() {
   const { setMobileSidebar } = useUIStore();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { data: budgets, isLoading: budgetsLoading } = useBudgets();
-  const { summary } = useEnvelopes(activeBudgetId);
+  const { data: envelopes, summary } = useEnvelopes(activeBudgetId);
+  const overspentAmount = envelopes
+    .filter((e) => e.isOverspent)
+    .reduce((sum, e) => sum + Math.abs(e.available), 0);
 
   return (
     <header className="relative flex h-16 flex-shrink-0 items-center gap-3 border-b border-[#1E2B42] bg-[#080C14] px-4">
@@ -339,20 +342,20 @@ export function Topbar() {
             </span>
           </div>
 
-          {summary.overspentEnvelopesCount > 0 && (
-            <>
-              <div className="h-5 w-px bg-[#1E2B42]" />
-              <div className="flex flex-col items-start">
-                <span className="text-sm leading-tight font-semibold text-[#F87171] tabular-nums">
-                  {summary.overspentEnvelopesCount} envelope
-                  {summary.overspentEnvelopesCount > 1 ? "s" : ""}
-                </span>
-                <span className="mt-0.5 text-[10px] leading-tight tracking-wider text-[#3A4A60] uppercase">
-                  Overspent
-                </span>
-              </div>
-            </>
-          )}
+          <div className="h-5 w-px bg-[#1E2B42]" />
+          <div className="flex flex-col items-start">
+            <span
+              className={cn(
+                "text-sm leading-tight font-semibold tabular-nums",
+                overspentAmount > 0 ? "text-[#F87171]" : "text-[#3A4A60]",
+              )}
+            >
+              {formatCurrency(overspentAmount)}
+            </span>
+            <span className="mt-0.5 text-[10px] leading-tight tracking-wider text-[#3A4A60] uppercase">
+              Overspent
+            </span>
+          </div>
         </div>
       )}
 
