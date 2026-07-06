@@ -19,14 +19,37 @@
  */
 "use client";
 
+import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { useAuthStore } from "@/stores/auth.store";
+import { authFetch } from "@/lib/api-client";
+import type { ApiUser } from "@/lib/api-types";
 
 interface AppShellProps {
   children: React.ReactNode;
 }
 
+function parseUserIdFromToken(token: string): number {
+  const payload = JSON.parse(atob(token.split(".")[1]));
+  return Number(payload.sub);
+}
+
 export function AppShell({ children }: AppShellProps) {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
+
+  useEffect(() => {
+    if (!accessToken || user) return;
+    try {
+      const id = parseUserIdFromToken(accessToken);
+      authFetch<ApiUser>(`/api/v1/users/${id}`).then(setUser).catch(() => {});
+    } catch {
+      // malformed token — clearAuth handled by authFetch on 401
+    }
+  }, [accessToken, user, setUser]);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#080C14]">
       <Sidebar />

@@ -30,13 +30,18 @@ import {
   Wallet,
   Check,
   Plus,
+  Settings,
+  LogOut,
+  User,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/use-envelopes";
 import { useAuthStore } from "@/stores/auth.store";
+import { logout as apiLogout } from "@/lib/api/auth";
 import { getInitials, formatCurrency, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import type { Budget } from "@/types";
 
 function BudgetSwitcher({ budgets, isLoading }: { budgets: Budget[]; isLoading: boolean }) {
@@ -162,12 +167,130 @@ function BudgetSwitcher({ budgets, isLoading }: { budgets: Budget[]; isLoading: 
   );
 }
 
+function UserMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const user = useAuthStore((s) => s.user);
+  const refreshToken = useAuthStore((s) => s.refreshToken);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const router = useRouter();
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  async function handleLogout() {
+    try {
+      await apiLogout(refreshToken);
+    } catch {
+      // proceed with local logout even if the server call fails
+    }
+    clearAuth();
+    router.push("/login");
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-[#131C2E] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
+      >
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
+          {getInitials(user?.name ?? user?.username ?? "")}
+        </div>
+        <div className="hidden text-left sm:block">
+          <div className="text-[15px] leading-tight font-medium text-white">
+            {user?.name ?? user?.username ?? ""}
+          </div>
+          <div className="text-[13px] leading-tight text-[#5A6A85]">Owner</div>
+        </div>
+        <ChevronDown
+          size={12}
+          className={cn(
+            "hidden flex-shrink-0 text-[#5A6A85] transition-transform duration-200 sm:block",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className="absolute top-full right-0 z-50 mt-1.5 w-56 overflow-hidden rounded-xl border border-[#1A2640] bg-[#0A1120] shadow-2xl shadow-black/40"
+          >
+            {/* User info header */}
+            <div className="flex items-center gap-3 px-3 py-3">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
+                {getInitials(user?.name ?? user?.username ?? "")}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">
+                  {user?.name ?? user?.username ?? ""}
+                </p>
+                <p className="truncate text-xs text-[#5A6A85]">{user?.email ?? ""}</p>
+              </div>
+              <span className="flex-shrink-0 rounded-md bg-[#6C3AED]/20 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-[#7C5AFF] uppercase">
+                Owner
+              </span>
+            </div>
+
+            <div className="mx-1.5 border-t border-[#131E30]" />
+
+            <div className="space-y-0.5 px-1.5 py-1.5">
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  router.push("/settings");
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white"
+              >
+                <Settings size={15} className="flex-shrink-0" />
+                <span className="text-sm">Settings</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  router.push("/profile");
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white"
+              >
+                <User size={15} className="flex-shrink-0" />
+                <span className="text-sm">Profile</span>
+              </button>
+            </div>
+
+            <div className="mx-1.5 border-t border-[#131E30]" />
+
+            <div className="px-1.5 py-1.5">
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[#F87171] transition-colors hover:bg-[#F87171]/10"
+              >
+                <LogOut size={15} className="flex-shrink-0" />
+                <span className="text-sm">Log out</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function Topbar() {
   const { setMobileSidebar } = useUIStore();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { data: budgets, isLoading: budgetsLoading } = useBudgets();
   const { summary } = useEnvelopes(activeBudgetId);
-  const user = useAuthStore((s) => s.user);
 
   return (
     <header className="relative flex h-16 flex-shrink-0 items-center gap-3 border-b border-[#1E2B42] bg-[#080C14] px-4">
@@ -262,18 +385,7 @@ export function Topbar() {
 
         <div className="mx-1 h-5 w-px bg-[#1E2B42]" />
 
-        {/* User placeholder — wired when auth is added */}
-        <button className="flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-[#131C2E]">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
-            {getInitials(user?.name ?? user?.username ?? "")}
-          </div>
-          <div className="hidden text-left sm:block">
-            <div className="text-[15px] leading-tight font-medium text-white">
-              {user?.name ?? user?.username ?? ""}
-            </div>
-          </div>
-          <ChevronDown size={12} className="hidden flex-shrink-0 text-[#5A6A85] sm:block" />
-        </button>
+        <UserMenu />
       </div>
     </header>
   );
