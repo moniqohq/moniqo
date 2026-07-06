@@ -875,11 +875,15 @@ export function EnvelopesView() {
                                 <RowActions
                                   onAddTransaction={() => {}}
                                   onModify={() => {
-                                    setActionEnvelope(apiEnvelopes.find((e) => String(e.id) === env.id) ?? null);
+                                    setActionEnvelope(
+                                      apiEnvelopes.find((e) => String(e.id) === env.id) ?? null,
+                                    );
                                     setModifyOpen(true);
                                   }}
                                   onArchive={() => {
-                                    setActionEnvelope(apiEnvelopes.find((e) => String(e.id) === env.id) ?? null);
+                                    setActionEnvelope(
+                                      apiEnvelopes.find((e) => String(e.id) === env.id) ?? null,
+                                    );
                                     setArchiveOpen(true);
                                   }}
                                 />
