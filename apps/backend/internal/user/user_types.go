@@ -69,6 +69,9 @@ var ErrNotFound = errors.New("user not found")
 // ErrWrongPassword is returned when the current password doesn't match.
 var ErrWrongPassword = errors.New("wrong password")
 
+// ErrInvalidVerificationToken is returned when the token is malformed, expired, or has a bad signature.
+var ErrInvalidVerificationToken = errors.New("invalid verification token")
+
 // CreateParams holds the values needed to insert a new user row.
 type CreateParams struct {
 	Username string

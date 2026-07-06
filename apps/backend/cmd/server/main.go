@@ -236,6 +236,7 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                       // cookie-based refresh
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                // request reset
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // confirm reset + subpaths
+		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -255,8 +256,8 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	jwtSecret := []byte(cfg.JWTSecret)
 
 	userRepo := user.NewRepo(pool, log)
-	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, jwtSecret, log)
-	userHandler := user.NewHandler(userSvc, log)
+	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.APIBaseURL, jwtSecret, log)
+	userHandler := user.NewHandler(userSvc, cfg.AppBaseURL, log)
 
 	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
@@ -290,6 +291,9 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	passwordResetGroup.Use(appmw.PasswordResetRateLimiter())
 	passwordResetGroup.POST("", passwordResetHandler.RequestReset)
 	passwordResetGroup.POST("/confirm", passwordResetHandler.ConfirmReset)
+
+	verifyGroup := e.Group("/api/v1/users")
+	verifyGroup.GET("/verify", userHandler.VerifyEmail)
 
 	usersGroup := e.Group("/api/v1/users")
 	usersGroup.GET("/:id", userHandler.GetProfile)

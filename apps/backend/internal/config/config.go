@@ -55,7 +55,8 @@ type Config struct {
 	RefreshTokenTTL       time.Duration
 	RefreshTokenMaxAge    time.Duration
 	PasswordResetTokenTTL time.Duration
-	AppBaseURL            string
+	AppBaseURL            string // frontend base URL (APP_BASE_URL)
+	APIBaseURL            string // backend self URL for building API links (API_BASE_URL)
 	CORSOrigins           []string // CORS_ORIGINS comma-separated; defaults to AppBaseURL
 	Email                 EmailConfig
 }
@@ -101,6 +102,7 @@ func Load() Config {
 		RefreshTokenMaxAge:    envDuration("REFRESH_TOKEN_MAX_AGE", defaultRefreshTokenMaxAge),
 		PasswordResetTokenTTL: envDuration("PASSWORD_RESET_TOKEN_TTL", defaultPasswordResetTokenTTL),
 		AppBaseURL:            envOrDefault("APP_BASE_URL", "http://localhost:3000"),
+		APIBaseURL:            envOrDefault("API_BASE_URL", "http://localhost:8080"),
 		CORSOrigins:           corsOrigins(envOrDefault("APP_BASE_URL", "http://localhost:3000")),
 		Email:                 loadEmailConfig(env),
 	}

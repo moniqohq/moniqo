@@ -27,6 +27,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -44,9 +46,14 @@ type Repository interface {
 	UpdatePassword(ctx context.Context, id int64, hash string) error
 	SoftDelete(ctx context.Context, id int64) error
 	GetHashByID(ctx context.Context, id int64) (string, error)
+	Activate(ctx context.Context, id int64) error
 }
 
-const verificationTokenTTL = 24 * time.Hour
+const (
+	verificationTokenTTL = 24 * time.Hour
+	tokenPartsCount      = 2
+	payloadFieldsCount   = 3
+)
 
 // Svc implements the business logic for user operations.
 type Svc struct {
@@ -196,6 +203,67 @@ func (s *Svc) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+// VerifyEmail validates the token from the verification email and, if valid,
+// activates the user account.
+func (s *Svc) VerifyEmail(ctx context.Context, token string) error {
+	userID, err := s.parseVerificationToken(token)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.Activate(ctx, userID); err != nil {
+		return fmt.Errorf("activate user: %w", err)
+	}
+	return nil
+}
+
+// parseVerificationToken decodes and validates a verification token, returning
+// the embedded user ID on success.
+func (s *Svc) parseVerificationToken(token string) (int64, error) {
+	parts := strings.SplitN(token, ".", tokenPartsCount)
+	if len(parts) != tokenPartsCount {
+		return 0, ErrInvalidVerificationToken
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return 0, ErrInvalidVerificationToken
+	}
+	sigBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return 0, ErrInvalidVerificationToken
+	}
+
+	mac := hmac.New(sha256.New, s.tokenSecret)
+	_, _ = mac.Write(payloadBytes)
+	if !hmac.Equal(mac.Sum(nil), sigBytes) {
+		return 0, ErrInvalidVerificationToken
+	}
+
+	return parseVerificationPayload(string(payloadBytes))
+}
+
+// parseVerificationPayload decodes "verify:<userID>:<expiryUnix>" and checks
+// the expiry, returning the user ID on success.
+func parseVerificationPayload(payload string) (int64, error) {
+	fields := strings.SplitN(payload, ":", payloadFieldsCount)
+	if len(fields) != payloadFieldsCount || fields[0] != "verify" {
+		return 0, ErrInvalidVerificationToken
+	}
+
+	userID, err := strconv.ParseInt(fields[1], 10, 64)
+	if err != nil {
+		return 0, ErrInvalidVerificationToken
+	}
+	expiry, err := strconv.ParseInt(fields[2], 10, 64)
+	if err != nil {
+		return 0, ErrInvalidVerificationToken
+	}
+	if time.Now().Unix() > expiry {
+		return 0, ErrInvalidVerificationToken
+	}
+	return userID, nil
+}
+
 // verificationToken returns a time-limited HMAC-SHA256 token that encodes the
 // user ID and a 24-hour expiry.  The token is self-verifying: the verification
 // endpoint can decode and validate it without a DB lookup.
@@ -240,7 +308,7 @@ func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {
 		name = *u.Name
 	}
 	token := s.verificationToken(u.ID)
-	verURL := fmt.Sprintf("%s/verify?token=%s", s.appBaseURL, token)
+	verURL := fmt.Sprintf("%s/api/v1/users/verify?token=%s", s.appBaseURL, token)
 
 	err := s.mailer.Enqueue(ctx, email.EnqueueParams{
 		IdempotencyKey: fmt.Sprintf("verification:%d", u.ID),

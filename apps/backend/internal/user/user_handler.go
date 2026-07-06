@@ -24,6 +24,7 @@ package user
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
@@ -47,17 +48,19 @@ type Service interface {
 	ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error)
 	PatchProfile(ctx context.Context, id int64, req PatchProfileRequest) (models.User, error)
 	Delete(ctx context.Context, id int64) error
+	VerifyEmail(ctx context.Context, token string) error
 }
 
 // Handler holds HTTP handlers for user endpoints.
 type Handler struct {
-	svc Service
-	log *zap.Logger
+	svc        Service
+	appBaseURL string
+	log        *zap.Logger
 }
 
 // NewHandler returns a user Handler wired to the given service.
-func NewHandler(svc Service, log *zap.Logger) *Handler {
-	return &Handler{svc: svc, log: log}
+func NewHandler(svc Service, appBaseURL string, log *zap.Logger) *Handler {
+	return &Handler{svc: svc, appBaseURL: appBaseURL, log: log}
 }
 
 // Register handles POST /api/v1/users.
@@ -219,6 +222,28 @@ func (h *Handler) DeleteProfile(c echo.Context) error {
 	}
 
 	return httpx.OK(c, nil, "user deleted successfully")
+}
+
+// VerifyEmail handles GET /api/v1/users/verify?token=...
+// On success it redirects to /login; on failure it returns 400.
+func (h *Handler) VerifyEmail(c echo.Context) error {
+	token := c.QueryParam("token")
+	if token == "" {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: "token", Error: "token is required"}})
+	}
+
+	err := h.svc.VerifyEmail(c.Request().Context(), token)
+	if errors.Is(err, ErrInvalidVerificationToken) {
+		h.log.Debug("email verification rejected: invalid token")
+		return httpx.BadRequest(c, "invalid or expired verification token")
+	}
+	if err != nil {
+		h.log.Error("email verification failed", zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	h.log.Info("email verified successfully, redirecting to login")
+	return c.Redirect(http.StatusFound, h.appBaseURL+"/login?verified=true")
 }
 
 // resolveOwnership extracts the authenticated user id from the JWT claims and
