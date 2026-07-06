@@ -453,7 +453,9 @@ function LoginPageInner() {
       setAuthCookie(tokens.access_token);
 
       try {
-        const budgetsBody = await apiFetch<ApiListResponse<ApiBudget>>("/api/v1/budgets");
+        const budgetsBody = await apiFetch<ApiListResponse<ApiBudget>>("/api/v1/budgets", {
+          token: tokens.access_token,
+        });
         if (budgetsBody.data.length > 0) {
           setActiveBudget(budgetsBody.data[0].id);
         }
