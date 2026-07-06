@@ -17,34 +17,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-"use client";
 
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import type { ApiUser } from "@/lib/api-types";
-
-interface AuthStore {
-  user: ApiUser | null;
-  accessToken: string | null;
-  refreshToken: string | null;
-  setAuth: (user: ApiUser, accessToken: string, refreshToken: string) => void;
-  setUser: (user: ApiUser) => void;
-  clearAuth: () => void;
+export interface ApiUser {
+  id: number;
+  name: string | null;
+  username: string;
+  email: string;
+  picture: string;
+  status: "pending_verification" | "active";
+  last_login: string | null;
+  created_at: string;
 }
 
-export const useAuthStore = create<AuthStore>()(
-  persist(
-    (set) => ({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
+export interface ApiAuthTokens {
+  access_token: string;
+  token_type: string;
+  refresh_token: string;
+}
 
-      setAuth: (user, accessToken, refreshToken) => set({ user, accessToken, refreshToken }),
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  msg: string;
+}
 
-      setUser: (user) => set({ user }),
-
-      clearAuth: () => set({ user: null, accessToken: null, refreshToken: null }),
-    }),
-    { name: "moniqo-auth" },
-  ),
-);
+export interface ApiValidationError {
+  success: false;
+  data: { fields: Array<{ field: string; message: string }> };
+  msg: string;
+}

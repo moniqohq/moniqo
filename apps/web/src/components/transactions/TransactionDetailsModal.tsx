@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import type { Transaction, AccountType } from "@/types";
 import { formatCurrency, cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
 
 function formatModalDate(dateStr: string): string {
   const d = new Date(dateStr + "T09:42:00");
@@ -74,6 +75,8 @@ interface Props {
 }
 
 export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }: Props) {
+  const currentUser = useAuthStore((s) => s.user);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -378,7 +381,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                           </div>
                         }
                         label="Created by"
-                        value="—"
+                        value={currentUser?.name ?? currentUser?.username ?? "Unknown"}
                       />
 
                       {/* Created at */}

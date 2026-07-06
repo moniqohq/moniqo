@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth.store";
+import type { ApiAuthTokens, ApiUser } from "@/lib/api-types";
 
 // ── Brand icons ─────────────────────────────────────────────────────────────
 
@@ -424,7 +425,7 @@ type LoginResponseData = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setTokens } = useAuthStore();
+  const setAuth = useAuthStore((s) => s.setAuth);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [bannerMsg, setBannerMsg] = useState<{ type: "error" | "info"; text: string } | null>(null);
@@ -439,13 +440,16 @@ export default function LoginPage() {
   async function onSubmit(data: LoginFields) {
     setBannerMsg(null);
     try {
-      const result = await apiFetch<LoginResponseData>("/api/v1/auth/login", {
+      const tokens = await apiFetch<ApiAuthTokens>("/api/v1/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: data.email, password: data.password }),
       });
-
-      setTokens(result.access_token, result.refresh_token);
-      setAuthCookie(result.access_token);
+      const user = await apiFetch<ApiUser>(
+        `/api/v1/users/${parseUserIdFromToken(tokens.access_token)}`,
+        { headers: { Authorization: `Bearer ${tokens.access_token}` } },
+      );
+      setAuth(user, tokens.access_token, tokens.refresh_token);
+      setAuthCookie(tokens.access_token);
       router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiError) {
@@ -462,6 +466,15 @@ export default function LoginPage() {
       } else {
         setBannerMsg({ type: "error", text: "Something went wrong. Please try again." });
       }
+    }
+  }
+
+  function parseUserIdFromToken(token: string): number {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return Number(payload.sub);
+    } catch {
+      throw new Error("invalid token");
     }
   }
 

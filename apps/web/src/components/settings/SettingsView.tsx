@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   User,
@@ -37,9 +37,6 @@ import {
   Eye,
   SquarePen,
   CalendarDays,
-  MapPin,
-  Monitor,
-  Wifi,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PreferencesView } from "./PreferencesView";
@@ -52,6 +49,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
+import { apiFetch, ApiError } from "@/lib/api";
+import type { ApiUser } from "@/lib/api-types";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -244,24 +244,14 @@ function FormField({
   );
 }
 
-// ── Last login data ───────────────────────────────────────────────
-
-const LAST_LOGINS = [
-  {
-    date: "May 15, 2024, 9:42 AM",
-    location: "Bengaluru, India",
-    device: "Chrome on macOS",
-    ip: "192.168.1.42",
-    isCurrentDevice: true,
-  },
-  {
-    date: "May 14, 2024, 6:18 PM",
-    location: "Bengaluru, India",
-    device: "Safari on iPhone",
-    ip: "192.168.1.55",
-    isCurrentDevice: false,
-  },
-];
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "Never";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 // ── Read-only display field ───────────────────────────────────────
 
@@ -277,15 +267,30 @@ function ReadField({ value, icon: Icon }: { value: string; icon?: React.ElementT
 // ── Main view ─────────────────────────────────────────────────────
 
 export function SettingsView() {
+  const storeUser = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
+
   const [activeNav, setActiveNav] = useState("profile");
   const [searchQuery, setSearchQuery] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [profileForm, setProfileForm] = useState({
-    fullName: "Saqib Abdul",
-    email: "saqib.abdul@gmail.com",
-    username: "saqib_abdul",
-  });
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const profileForm = useMemo(
+    () => ({
+      fullName: storeUser?.name ?? "",
+      email: storeUser?.email ?? "",
+      username: storeUser?.username ?? "",
+    }),
+    [storeUser],
+  );
+
+  const [draftUserId, setDraftUserId] = useState(storeUser?.id);
   const [draftForm, setDraftForm] = useState(profileForm);
+  if (draftUserId !== storeUser?.id) {
+    setDraftUserId(storeUser?.id);
+    setDraftForm(profileForm);
+  }
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const asideRef = useRef<HTMLElement>(null);
@@ -301,6 +306,28 @@ export function SettingsView() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [activeNav]);
+
+  async function handleSave() {
+    if (!storeUser) return;
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const updated = await apiFetch<ApiUser>(`/api/v1/users/${storeUser.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: draftForm.fullName || null,
+          username: draftForm.username,
+          email: draftForm.email,
+        }),
+      });
+      setUser(updated);
+      setIsEditing(false);
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : "Failed to save profile.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -455,7 +482,12 @@ export function SettingsView() {
                         />
                       ) : (
                         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#9B59F5] text-[28px] font-bold text-white ring-4 ring-[rgba(108,58,237,0.2)]">
-                          SA
+                          {(storeUser?.name ?? storeUser?.username ?? "?")
+                            .split(" ")
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase()}
                         </div>
                       )}
                       <button
@@ -544,80 +576,38 @@ export function SettingsView() {
                     </FormField>
 
                     <FormField label="Member since">
-                      <ReadField value="Mar 14, 2024" icon={CalendarDays} />
+                      <ReadField value={formatDate(storeUser?.created_at)} icon={CalendarDays} />
                     </FormField>
 
-                    <div>
-                      <FormField label="Last login">
-                        <div className="flex flex-col">
-                          {LAST_LOGINS.map((login, i) => (
-                            <div key={i} className="flex gap-3">
-                              {/* Timeline spine */}
-                              <div className="flex flex-col items-center">
-                                <div
-                                  className={cn(
-                                    "mt-1 h-2.5 w-2.5 shrink-0 rounded-full ring-2",
-                                    login.isCurrentDevice
-                                      ? "bg-[#22C55E] ring-[rgba(34,197,94,0.25)]"
-                                      : "bg-[#3A4A60] ring-[rgba(58,74,96,0.25)]",
-                                  )}
-                                />
-                                {i < LAST_LOGINS.length - 1 && (
-                                  <div className="my-1 w-px flex-1 bg-[#1E2B42]" />
-                                )}
-                              </div>
-
-                              {/* Content */}
-                              <div
-                                className={cn(
-                                  "flex flex-col gap-1",
-                                  i < LAST_LOGINS.length - 1 ? "pb-4" : "pb-0",
-                                )}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[13px] text-[#A8B4CC]">{login.date}</span>
-                                  {login.isCurrentDevice && (
-                                    <span className="rounded-md border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.12)] px-1.5 py-0.5 text-[10px] font-semibold text-[#22C55E]">
-                                      This device
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <MapPin size={11} className="shrink-0 text-[#5A6A85]" />
-                                  <span className="text-[12px] text-[#6C3AED]">
-                                    {login.location}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex items-center gap-1.5">
-                                    <Monitor size={11} className="shrink-0 text-[#5A6A85]" />
-                                    <span className="text-[12px] text-[#5A6A85]">
-                                      {login.device}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <Wifi size={11} className="shrink-0 text-[#5A6A85]" />
-                                    <span className="text-[12px] text-[#5A6A85]">{login.ip}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </FormField>
-                    </div>
+                    <FormField label="Last login">
+                      <ReadField value={formatDate(storeUser?.last_login)} icon={CalendarDays} />
+                    </FormField>
                   </div>
                 </div>
 
                 {/* Action buttons */}
                 <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#1E2B42] pt-5">
+                  {saveError && <p className="mr-auto text-[12px] text-red-400">{saveError}</p>}
+                  {isEditing && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setDraftForm(profileForm);
+                        setIsEditing(false);
+                        setSaveError(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  )}
                   <Button
                     size="sm"
+                    disabled={saving}
                     className="gap-1.5 bg-[#6C3AED] text-white hover:bg-[#5B2FD0]"
                     onClick={() => {
                       if (isEditing) {
-                        setProfileForm(draftForm);
-                        setIsEditing(false);
+                        handleSave();
                       } else {
                         setDraftForm(profileForm);
                         setIsEditing(true);
@@ -627,7 +617,7 @@ export function SettingsView() {
                     {isEditing ? (
                       <>
                         <CheckCircle2 size={13} />
-                        Save profile
+                        {saving ? "Saving…" : "Save profile"}
                       </>
                     ) : (
                       <>
