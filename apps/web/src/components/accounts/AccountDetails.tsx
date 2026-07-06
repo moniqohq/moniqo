@@ -42,7 +42,6 @@ import {
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
-import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";

@@ -95,13 +95,10 @@ export function useEnvelopes(budgetId: number | null) {
   };
 
   const patchEnvelope = async (id: number, payload: PatchEnvelopePayload): Promise<ApiEnvelope> => {
-    const envelope = await apiFetch<ApiEnvelope>(
-      `/api/v1/budgets/${budgetId}/envelopes/${id}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      },
-    );
+    const envelope = await apiFetch<ApiEnvelope>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
     await fetchEnvelopes();
     return envelope;
   };

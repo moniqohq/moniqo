@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatCurrency, cn } from "@/lib/utils";
-import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";

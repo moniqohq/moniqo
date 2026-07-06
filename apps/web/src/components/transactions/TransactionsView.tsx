@@ -323,8 +323,7 @@ function AccountFilter({
     return `${value.size} Accounts`;
   }
 
-  const firstSelected =
-    value.size === 1 ? accounts.find((a) => a.id === [...value][0]) : null;
+  const firstSelected = value.size === 1 ? accounts.find((a) => a.id === [...value][0]) : null;
   return (
     <div ref={ref} className="relative">
       <button
@@ -476,8 +475,7 @@ function EnvelopeFilter({
     return `${value.size} Envelopes`;
   }
 
-  const firstSelected =
-    value.size === 1 ? envelopes.find((e) => e.id === [...value][0]) : null;
+  const firstSelected = value.size === 1 ? envelopes.find((e) => e.id === [...value][0]) : null;
   return (
     <div ref={ref} className="relative">
       <button
@@ -772,7 +770,7 @@ export function TransactionsView() {
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [, setDeleteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pageSize, setPageSize] = useState(25);
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());

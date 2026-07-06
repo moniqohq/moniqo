@@ -416,11 +416,6 @@ const loginSchema = z.object({
 
 type LoginFields = z.infer<typeof loginSchema>;
 
-type LoginResponseData = {
-  access_token: string;
-  token_type: string;
-  refresh_token: string;
-};
 
 // ── Page component ────────────────────────────────────────────────────────────
 

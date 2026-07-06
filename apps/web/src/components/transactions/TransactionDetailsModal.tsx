@@ -103,9 +103,6 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
 
   const accMeta = ACCOUNT_TYPE_META.checking;
 
-  const balanceBefore = 0;
-  const balanceAfter = 0;
-
   const formattedDate = formatModalDate(tx.date);
   const txId = `TXN-${tx.id}`;
 
