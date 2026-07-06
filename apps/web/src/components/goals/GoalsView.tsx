@@ -1067,6 +1067,22 @@ export function GoalsView() {
   }, [search, statusFilter, sort]);
 
   return (
+    <div className="layout-page flex flex-col items-center justify-center py-24 text-center">
+      <div
+        className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
+        style={{ background: "rgba(108,58,237,0.12)" }}
+      >
+        <span className="text-3xl">🎯</span>
+      </div>
+      <h2 className="text-xl font-bold text-white">Goals coming soon</h2>
+      <p className="mt-2 text-[#5A6A85]">
+        Track your savings targets and financial milestones here
+      </p>
+    </div>
+  );
+
+  /* Below kept for future use — currently disabled while API is pending */
+  return (
     <div className="layout-page space-y-5 py-6">
       {/* Header */}
       <PageHeader

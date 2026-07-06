@@ -54,7 +54,7 @@ import {
   Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mockAccounts, mockBudgets } from "@/mock/data";
+import { useAccounts } from "@/hooks/use-accounts";
 import type { AccountType } from "@/types";
 
 /* ── Constants ─────────────────────────────────────────────── */
@@ -86,12 +86,6 @@ const TYPE_META: Record<
     label: "Cash",
     color: "#F59E0B",
     bg: "rgba(245,158,11,0.15)",
-  },
-  investment: {
-    icon: <TrendingUp size={22} />,
-    label: "Investment",
-    color: "#8B5CF6",
-    bg: "rgba(139,92,246,0.15)",
   },
   loan: {
     icon: <Landmark size={22} />,
@@ -558,16 +552,15 @@ function ReconciliationTimeline({ progress }: { progress: number }) {
 /* ── Main Component ────────────────────────────────────────── */
 
 interface Props {
-  budgetId: string;
-  accountId: string;
+  budgetId: number;
+  accountId: number;
 }
 
 export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
-
-  const account = mockAccounts.find((a) => a.id === accountId) ?? mockAccounts[0];
-  const budget = mockBudgets.find((b) => b.id === budgetId) ?? mockBudgets[0];
-  const typeMeta = TYPE_META[account.type];
+  const { data: accounts } = useAccounts(budgetId);
+  const account = accounts.find((a) => a.id === accountId);
+  const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
   const [transactions, setTransactions] = useState<ReconTx[]>(INITIAL_TRANSACTIONS);
   const [statementBalanceStr, setStatementBalanceStr] = useState("458250");
@@ -730,9 +723,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-base font-bold whitespace-nowrap text-white">
-                    {account.institution
-                      ? `${account.institution} ${account.name.replace(account.institution, "").trim()}`
-                      : account.name}
+                    {account?.name ?? "Account"}
                   </span>
                   <span
                     className="rounded-md px-2 py-0.5 text-xs font-medium"
@@ -743,7 +734,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                 </div>
                 <div className="mt-0.5 flex items-center gap-1 text-xs text-[#5A6A85]">
                   <Layers size={11} />
-                  <span>{budget.name}</span>
+                  <span>Budget #{budgetId}</span>
                 </div>
               </div>
             </div>
@@ -754,7 +745,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
             <div className="flex flex-1 flex-wrap items-center gap-6">
               <div className="min-w-[110px]">
                 <p className="mb-0.5 text-[11px] text-[#5A6A85]">Current Ledger Balance</p>
-                <p className="text-lg font-bold text-white">{fmtFull(account.balance)}</p>
+                <p className="text-lg font-bold text-white">{fmtFull(account?.balance ?? 0)}</p>
               </div>
 
               <div className="min-w-[110px]">

@@ -18,47 +18,58 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import type { Account, AccountType } from "@/types";
+export type ApiResponse<T> = {
+  success: boolean;
+  data: T;
+  msg: string;
+};
 
-export type ApiAccountType = "CHECKING" | "SAVINGS" | "CREDIT_CARD" | "CASH" | "LOAN";
+export type ApiBudget = {
+  id: number;
+  title: string;
+  notes: string | null;
+  created_at: string;
+};
 
-export interface ApiAccount {
+export type ApiAccount = {
   id: number;
   budget_id: number;
   name: string;
-  type: ApiAccountType;
-  balance: string;
+  type: string;
+  balance: number;
   requires_recon: boolean;
   is_on_budget: boolean;
   notes: string | null;
-  archived: boolean;
-}
-
-const API_TO_UI: Record<ApiAccountType, AccountType> = {
-  CHECKING: "checking",
-  SAVINGS: "savings",
-  CREDIT_CARD: "credit",
-  CASH: "cash",
-  LOAN: "loan",
+  created_at: string;
 };
 
-export const UI_TO_API: Record<AccountType, ApiAccountType> = {
-  checking: "CHECKING",
-  savings: "SAVINGS",
-  credit: "CREDIT_CARD",
-  cash: "CASH",
-  loan: "LOAN",
+export type ApiEnvelope = {
+  id: number;
+  budget_id: number;
+  title: string;
+  allocated_amt: number;
+  spent_amt: number;
+  is_overspent: boolean;
+  description: string | null;
+  created_at: string;
 };
 
-export function adaptAccount(raw: ApiAccount): Account {
-  return {
-    id: raw.id,
-    budgetId: raw.budget_id,
-    name: raw.name,
-    type: API_TO_UI[raw.type],
-    balance: parseFloat(raw.balance),
-    requiresRecon: raw.requires_recon,
-    isOnBudget: raw.is_on_budget,
-    notes: raw.notes ?? undefined,
-  };
-}
+export type ApiTransaction = {
+  id: number;
+  budget_id: number;
+  account_id: number;
+  transfer_account_id: number | null;
+  budget_envelope_id: number | null;
+  transfer_group_id: string | null;
+  amount: number;
+  date: string;
+  memo: string | null;
+  created_at: string;
+};
+
+export type ApiBudgetSummary = {
+  to_be_budgeted: number;
+  total_allocated: number;
+  total_spent: number;
+  overspent_envelopes_count: number;
+};

@@ -27,7 +27,6 @@ import {
   PiggyBank,
   CreditCard,
   Wallet,
-  TrendingUp,
   Landmark,
   ChevronDown,
   Info,
@@ -37,9 +36,9 @@ import {
   Lock,
   Timer,
 } from "lucide-react";
+import { useAccounts } from "@/hooks/use-accounts";
+import { patchAccount } from "@/lib/api/accounts";
 import { formatCurrency, cn } from "@/lib/utils";
-import { useAccounts, useUpdateAccount } from "@/hooks/accounts/use-accounts";
-import { UI_TO_API } from "@/lib/adapters/account.adapter";
 import type { AccountType } from "@/types";
 
 /* ── types ────────────────────────────────────────────── */
@@ -47,7 +46,8 @@ import type { AccountType } from "@/types";
 export interface ModifyAccountModalProps {
   open: boolean;
   onClose: () => void;
-  accountId: string;
+  accountId: number;
+  budgetId: number;
 }
 
 /* ── constants ────────────────────────────────────────── */
@@ -57,7 +57,6 @@ const ACCOUNT_TYPES: { type: AccountType; label: string; icon: React.ElementType
   { type: "savings", label: "Savings", icon: PiggyBank },
   { type: "credit", label: "Credit Card", icon: CreditCard },
   { type: "cash", label: "Cash", icon: Wallet },
-  { type: "investment", label: "Investment", icon: TrendingUp },
   { type: "loan", label: "Loan", icon: Landmark },
 ];
 
@@ -66,7 +65,6 @@ const TYPE_META: Record<AccountType, { icon: React.ElementType; color: string; b
   savings: { icon: PiggyBank, color: "#22C55E", bg: "rgba(34,197,94,0.12)" },
   credit: { icon: CreditCard, color: "#F87171", bg: "rgba(248,113,113,0.12)" },
   cash: { icon: Wallet, color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
-  investment: { icon: TrendingUp, color: "#8B5CF6", bg: "rgba(139,92,246,0.12)" },
   loan: { icon: Landmark, color: "#EC4899", bg: "rgba(236,72,153,0.12)" },
 };
 
@@ -261,19 +259,24 @@ function ArchiveAccountCard({ onArchive }: { onArchive: () => void }) {
 
 /* ── main modal ───────────────────────────────────────── */
 
-export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountModalProps) {
-  const { data: accounts } = useAccounts();
-  const account = accounts.find((a) => a.id === accountId) ?? accounts[0];
-  const updateAccount = useUpdateAccount();
-  const [submitError, setSubmitError] = useState<string | null>(null);
+export function ModifyAccountModal({
+  open,
+  onClose,
+  accountId,
+  budgetId,
+}: ModifyAccountModalProps) {
+  const { data: accounts, refetch } = useAccounts(budgetId);
+  const account = accounts.find((a) => a.id === accountId);
 
   const [accountName, setAccountName] = useState(account?.name ?? "");
   const [accountType, setAccountType] = useState<AccountType>(account?.type ?? "checking");
   const [typeOpen, setTypeOpen] = useState(false);
-  const [includeInBudget, setIncludeInBudget] = useState(true);
-  const [reconciliation, setReconciliation] = useState(true);
+  const [includeInBudget, setIncludeInBudget] = useState(account?.isOnBudget ?? true);
+  const [reconciliation, setReconciliation] = useState(account?.requiresRecon ?? true);
   const [lockTransactions, setLockTransactions] = useState(false);
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(account?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* reset form whenever the modal opens with a new account */
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -281,13 +284,13 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
     if (open && account) {
       setAccountName(account.name);
       setAccountType(account.type);
-      setIncludeInBudget(true);
-      setReconciliation(true);
+      setIncludeInBudget(account.isOnBudget);
+      setReconciliation(account.requiresRecon);
       setLockTransactions(false);
-      setNotes("");
-      setSubmitError(null);
+      setNotes(account.notes ?? "");
+      setError(null);
     }
-  }, [open, account?.name, account?.type]);
+  }, [open, account]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* keyboard + scroll lock */
@@ -308,30 +311,28 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
     if (!account) return;
     setAccountName(account.name);
     setAccountType(account.type);
-    setIncludeInBudget(true);
-    setReconciliation(true);
+    setIncludeInBudget(account.isOnBudget);
+    setReconciliation(account.requiresRecon);
     setLockTransactions(false);
-    setNotes("");
-    setSubmitError(null);
+    setNotes(account.notes ?? "");
   };
 
   const handleSave = async () => {
     if (!account) return;
-    setSubmitError(null);
+    setSaving(true);
+    setError(null);
     try {
-      await updateAccount.mutateAsync({
-        accountId: account.id,
-        payload: {
-          name: accountName.trim(),
-          type: UI_TO_API[accountType],
-          requires_recon: reconciliation,
-          is_on_budget: includeInBudget,
-          notes: notes.trim() || undefined,
-        },
+      await patchAccount(budgetId, accountId, {
+        name: accountName,
+        requires_recon: reconciliation,
+        is_on_budget: includeInBudget,
+        notes: notes || null,
       });
+      await refetch();
       onClose();
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to update account");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+      setSaving(false);
     }
   };
 
@@ -345,8 +346,6 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
 
   /* derived balance figures */
   const clearedBalance = Math.round((account?.balance ?? 0) * 0.985);
-
-  if (!account && open) return null;
 
   return (
     <AnimatePresence>
@@ -568,7 +567,7 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
 
               {/* ── Footer ── */}
               <div className="flex flex-col gap-2 border-t border-[#111B2D] px-6 py-4">
-                {submitError && <p className="text-xs text-[#EF4444]">{submitError}</p>}
+                {error && <p className="text-xs text-[#EF4444]">{error}</p>}
                 <div className="flex items-center justify-between">
                   <button
                     onClick={onClose}
@@ -579,20 +578,18 @@ export function ModifyAccountModal({ open, onClose, accountId }: ModifyAccountMo
                   <div className="flex items-center gap-3">
                     <button
                       onClick={handleReset}
-                      disabled={updateAccount.isPending}
+                      disabled={saving}
                       className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none disabled:opacity-50"
                     >
                       Reset Changes
                     </button>
                     <button
                       onClick={handleSave}
-                      disabled={updateAccount.isPending}
+                      disabled={saving}
                       className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.55)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {updateAccount.isPending ? (
-                        <RefreshCw size={15} className="animate-spin" />
-                      ) : null}
-                      {updateAccount.isPending ? "Saving…" : "Save Changes"}
+                      {saving ? <RefreshCw size={15} className="animate-spin" /> : null}
+                      {saving ? "Saving…" : "Save Changes"}
                     </button>
                   </div>
                 </div>

@@ -19,7 +19,11 @@
  */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useEnvelopes } from "@/hooks/use-envelopes";
+import { useTransactions } from "@/hooks/use-transactions";
 import { motion } from "framer-motion";
 import {
   ShoppingCart,
@@ -55,7 +59,6 @@ import { AddTransactionModal } from "@/components/transactions/AddTransactionMod
 import { ModifyEnvelopeModal } from "./ModifyEnvelopeModal";
 import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { ForceDeleteEnvelopeDialog } from "./ForceDeleteEnvelopeDialog";
-import { useEnvelopes } from "@/hooks/useEnvelopes";
 
 /* ── Types ───────────────────────────────────────────────── */
 type Nature = "Must" | "Need" | "Should" | "Want";
@@ -71,130 +74,6 @@ interface EnvelopeTx {
   runningImpact: number;
   status: TxStatus;
 }
-
-/* ── Mock data ───────────────────────────────────────────── */
-const MOCK_TRANSACTIONS: EnvelopeTx[] = [
-  {
-    id: "t1",
-    date: "May 12, 2026",
-    title: "Big Basket",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -1450,
-    runningImpact: -5200,
-    status: "Cleared",
-  },
-  {
-    id: "t2",
-    date: "May 08, 2026",
-    title: "DMart",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -980,
-    runningImpact: -3750,
-    status: "Cleared",
-  },
-  {
-    id: "t3",
-    date: "May 05, 2026",
-    title: "Reliance Fresh",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -1120,
-    runningImpact: -2770,
-    status: "Cleared",
-  },
-  {
-    id: "t4",
-    date: "May 02, 2026",
-    title: "Milk & Vegetables",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -430,
-    runningImpact: -1650,
-    status: "Pending",
-  },
-  {
-    id: "t5",
-    date: "Apr 29, 2026",
-    title: "Local Market",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -650,
-    runningImpact: -1220,
-    status: "Reconciled",
-  },
-  {
-    id: "t6",
-    date: "Apr 25, 2026",
-    title: "More Supermarket",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -870,
-    runningImpact: -570,
-    status: "Cleared",
-  },
-  {
-    id: "t7",
-    date: "Apr 20, 2026",
-    title: "Nilgiris",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -320,
-    runningImpact: 300,
-    status: "Cleared",
-  },
-  {
-    id: "t8",
-    date: "Apr 18, 2026",
-    title: "Zepto Delivery",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -580,
-    runningImpact: 620,
-    status: "Cleared",
-  },
-  {
-    id: "t9",
-    date: "Apr 14, 2026",
-    title: "Big Basket",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -1100,
-    runningImpact: 1200,
-    status: "Reconciled",
-  },
-  {
-    id: "t10",
-    date: "Apr 10, 2026",
-    title: "Blinkit Order",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -290,
-    runningImpact: 2300,
-    status: "Cleared",
-  },
-  {
-    id: "t11",
-    date: "Apr 07, 2026",
-    title: "Spencer's",
-    account: "HDFC Checking",
-    accountType: "bank",
-    amount: -940,
-    runningImpact: 2590,
-    status: "Cleared",
-  },
-  {
-    id: "t12",
-    date: "Apr 04, 2026",
-    title: "Local Market",
-    account: "Cash Wallet",
-    accountType: "wallet",
-    amount: -490,
-    runningImpact: 3530,
-    status: "Cleared",
-  },
-];
 
 /* ── Nature badge ────────────────────────────────────────── */
 function NatureBadge({ nature }: { nature: Nature }) {
@@ -472,8 +351,19 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 
 /* ── Main component ──────────────────────────────────────── */
 export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) {
-  const { envelopes, budgetId, refresh } = useEnvelopes();
-  const currentEnvelope = envelopes.find((e) => e.id === parseInt(envelopeId, 10)) ?? null;
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: accounts } = useAccounts(activeBudgetId);
+  const { data: apiEnvelopes } = useEnvelopes(activeBudgetId);
+  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+
+  const envelopeIdNum = Number(envelopeId);
+  const envelope = apiEnvelopes.find((e) => e.id === envelopeIdNum);
+
+  const { data: apiTransactions } = useTransactions(
+    activeBudgetId,
+    { budget_envelope_id: envelopeIdNum },
+    accountMap,
+  );
 
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
@@ -485,24 +375,42 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   const [pageSize, setPageSize] = useState(5);
 
   /* Envelope stats */
-  const allocated = 8000;
-  const spent = 5200;
+  const allocated = envelope?.allocated ?? 0;
+  const spent = envelope?.spent ?? 0;
   const remaining = allocated - spent;
-  const pct = Math.round((spent / allocated) * 100);
+  const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
   const nature: Nature = "Need";
 
+  /* Map API transactions to local type */
+  const txRows: EnvelopeTx[] = apiTransactions.map((t) => ({
+    id: String(t.id),
+    date: new Date(t.date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    title: t.payee || t.accountName,
+    account: t.accountName,
+    accountType: "bank" as const,
+    amount: t.type === "expense" ? -t.amount : t.amount,
+    runningImpact: 0,
+    status: "Cleared" as const,
+  }));
+
   /* Filter + sort transactions */
-  const filtered = MOCK_TRANSACTIONS.filter(
-    (tx) =>
-      !search ||
-      tx.title.toLowerCase().includes(search.toLowerCase()) ||
-      tx.account.toLowerCase().includes(search.toLowerCase()),
-  ).sort((a, b) => {
-    if (sort === "Largest Amount") return a.amount - b.amount;
-    if (sort === "Smallest Amount") return b.amount - a.amount;
-    if (sort === "Oldest") return a.id.localeCompare(b.id);
-    return b.id.localeCompare(a.id);
-  });
+  const filtered = txRows
+    .filter(
+      (tx) =>
+        !search ||
+        tx.title.toLowerCase().includes(search.toLowerCase()) ||
+        tx.account.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort((a, b) => {
+      if (sort === "Largest Amount") return a.amount - b.amount;
+      if (sort === "Smallest Amount") return b.amount - a.amount;
+      if (sort === "Oldest") return a.id.localeCompare(b.id);
+      return b.id.localeCompare(a.id);
+    });
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -1080,30 +988,30 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         onClose={() => setAddTxOpen(false)}
         defaultType="expense"
       />
-      {modifyOpen && currentEnvelope && budgetId !== null && (
+      {modifyOpen && envelope && activeBudgetId !== null && (
         <ModifyEnvelopeModal
           open={modifyOpen}
           onClose={() => setModifyOpen(false)}
-          envelope={currentEnvelope}
-          budgetId={budgetId}
-          onUpdated={refresh}
+          envelope={envelope}
+          budgetId={activeBudgetId}
+          onUpdated={() => setModifyOpen(false)}
         />
       )}
-      {archiveOpen && currentEnvelope && budgetId !== null && (
+      {archiveOpen && envelope && activeBudgetId !== null && (
         <ArchiveEnvelopeModal
           open={archiveOpen}
           onClose={() => setArchiveOpen(false)}
-          envelope={currentEnvelope}
-          budgetId={budgetId}
-          envelopes={envelopes}
-          onDeleted={refresh}
+          envelope={envelope}
+          budgetId={activeBudgetId}
+          envelopes={apiEnvelopes}
+          onDeleted={() => setArchiveOpen(false)}
         />
       )}
       <ForceDeleteEnvelopeDialog
         open={forceDeleteOpen}
         onOpenChange={setForceDeleteOpen}
-        envelope={{ id: Number(envelopeId), title: "Groceries" }}
-        budgetId={1}
+        envelope={{ id: envelopeIdNum, title: envelope?.name ?? "Envelope" }}
+        budgetId={activeBudgetId ?? 0}
       />
     </div>
   );

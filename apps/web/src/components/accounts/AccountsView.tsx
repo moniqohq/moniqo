@@ -36,8 +36,9 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/use-accounts";
 import { formatCurrency, formatCurrencyCompact, cn } from "@/lib/utils";
-import { useAccounts } from "@/hooks/accounts/use-accounts";
 import { AccountNavPanel } from "./AccountNavPanel";
 import { AccountDetails } from "./AccountDetails";
 import { AccountInsightsPanel } from "./AccountInsightsPanel";
@@ -333,6 +334,9 @@ export function AccountsView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: accounts, isLoading, error: accountsError } = useAccounts(activeBudgetId);
+  const isError = !!accountsError;
 
   const initialStatus = (searchParams.get("status") ?? "active") as StatusFilter;
   const initialType = (searchParams.get("type") ?? "all") as TypeFilter;
@@ -341,25 +345,16 @@ export function AccountsView() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType);
   const [addModalOpen, setAddModalOpen] = useState(false);
 
-  const { data: accounts, isLoading, isError } = useAccounts();
-
-  /* Filtered accounts */
+  /* Filtered accounts — API returns only active accounts; archived filter always empty */
   const filteredAccounts = accounts.filter((account) => {
-    const statusMatch =
-      statusFilter === "all"
-        ? true
-        : statusFilter === "archived"
-          ? !!account.archived
-          : !account.archived;
-
+    const statusMatch = statusFilter === "archived" ? false : true;
     const typeMatch = typeFilter === "all" || account.type === typeFilter;
-
     return statusMatch && typeMatch;
   });
 
-  const [selectedId, setSelectedId] = useState(filteredAccounts[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  /* Auto-select first visible account when filters change */
+  /* Auto-select first visible account when filters change or accounts load */
   useEffect(() => {
     if (!filteredAccounts.find((a) => a.id === selectedId) && filteredAccounts.length > 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -388,8 +383,8 @@ export function AccountsView() {
     updateFilter("type", v);
   }
 
-  /* Summary calculations — always from all active accounts */
-  const allActive = accounts.filter((a) => !a.archived);
+  /* Summary calculations — all fetched accounts are active */
+  const allActive = accounts;
   const cashAndChecking = allActive.filter((a) => a.type === "checking" || a.type === "cash");
   const totalCash = cashAndChecking.reduce((s, a) => s + a.balance, 0);
   const creditAccounts = allActive.filter((a) => a.type === "credit");
@@ -606,14 +601,18 @@ export function AccountsView() {
         <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[260px_1fr_256px]">
           <AccountNavPanel
             accounts={filteredAccounts}
-            selectedId={selectedAccount?.id ?? ""}
+            selectedId={selectedAccount?.id ?? 0}
             onSelect={setSelectedId}
           />
-          <AccountDetails accountId={selectedAccount?.id ?? ""} />
-          <AccountInsightsPanel
-            accountId={selectedAccount?.id ?? ""}
-            budgetId={selectedAccount?.budgetId ?? ""}
-          />
+          {selectedAccount != null && (
+            <AccountDetails accountId={selectedAccount.id} budgetId={selectedAccount.budgetId} />
+          )}
+          {selectedAccount != null && (
+            <AccountInsightsPanel
+              accountId={selectedAccount.id}
+              budgetId={selectedAccount.budgetId}
+            />
+          )}
         </div>
       )}
 

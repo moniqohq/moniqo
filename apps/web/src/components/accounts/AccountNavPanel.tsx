@@ -26,19 +26,17 @@ import {
   PiggyBank,
   CreditCard,
   Wallet,
-  TrendingUp,
   Landmark,
   ChevronDown,
   Plus,
-  Archive,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Account, AccountType } from "@/types";
 
 interface Props {
   accounts: Account[];
-  selectedId: string;
-  onSelect: (id: string) => void;
+  selectedId: number;
+  onSelect: (id: number) => void;
 }
 
 const TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string; bg: string }> = {
@@ -46,7 +44,6 @@ const TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string; bg:
   savings: { icon: <PiggyBank size={14} />, color: "#22C55E", bg: "rgba(34,197,94,0.15)" },
   credit: { icon: <CreditCard size={14} />, color: "#F87171", bg: "rgba(239,68,68,0.15)" },
   cash: { icon: <Wallet size={14} />, color: "#F59E0B", bg: "rgba(245,158,11,0.15)" },
-  investment: { icon: <TrendingUp size={14} />, color: "#8B5CF6", bg: "rgba(139,92,246,0.15)" },
   loan: { icon: <Landmark size={14} />, color: "#EC4899", bg: "rgba(236,72,153,0.15)" },
 };
 
@@ -55,7 +52,6 @@ const GROUPS: { label: string; types: AccountType[] }[] = [
   { label: "Savings", types: ["savings"] },
   { label: "Credit Cards", types: ["credit"] },
   { label: "Loans", types: ["loan"] },
-  { label: "Investments", types: ["investment"] },
 ];
 
 function AccountRow({
@@ -95,16 +91,8 @@ function AccountRow({
           >
             {account.name}
           </p>
-          {account.archived && (
-            <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-md border border-[#252F45] bg-[#1A2540] px-1.5 py-0.5 text-[9px] font-semibold text-[#5A6A85]">
-              <Archive size={8} />
-              Archived
-            </span>
-          )}
         </div>
-        {account.institution && (
-          <p className="truncate text-[10px] text-[#5A6A85]">{account.institution}</p>
-        )}
+        {account.notes && <p className="truncate text-[10px] text-[#5A6A85]">{account.notes}</p>}
       </div>
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <span
@@ -135,8 +123,8 @@ function AccountGroup({
 }: {
   label: string;
   accounts: Account[];
-  selectedId: string;
-  onSelect: (id: string) => void;
+  selectedId: number;
+  onSelect: (id: number) => void;
   archived?: boolean;
 }) {
   const [open, setOpen] = useState(true);
@@ -191,8 +179,8 @@ function AccountGroup({
 }
 
 export function AccountNavPanel({ accounts, selectedId, onSelect }: Props) {
-  const activeAccounts = accounts.filter((a) => !a.archived);
-  const archivedAccounts = accounts.filter((a) => a.archived);
+  const activeAccounts = accounts;
+  const archivedAccounts: typeof accounts = [];
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120]">

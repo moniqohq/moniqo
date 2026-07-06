@@ -37,15 +37,17 @@ import {
   CreditCard,
   PiggyBank,
   Wallet,
-  TrendingUp,
   Landmark,
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
-import { mockTransactions, mockAccounts } from "@/mock/data";
-import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useEnvelopes } from "@/hooks/use-envelopes";
+import { useTransactions } from "@/hooks/use-transactions";
+import { deleteTransaction } from "@/lib/api/transactions";
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from "@/lib/utils";
 import { AddTransactionModal } from "./AddTransactionModal";
 import { TransactionDetailsModal } from "./TransactionDetailsModal";
@@ -55,75 +57,11 @@ import { DateRangePicker } from "./DateRangePicker";
 import type { DateRange } from "./DateRangePicker";
 import type { Transaction, AccountType } from "@/types";
 
-/* ── Sparkline mock data (daily buckets for current month) ── */
-const sparkInflow = [
-  { v: 42000 },
-  { v: 58000 },
-  { v: 35000 },
-  { v: 91000 },
-  { v: 67000 },
-  { v: 48000 },
-  { v: 72000 },
-  { v: 55000 },
-  { v: 83000 },
-  { v: 61000 },
-  { v: 44000 },
-  { v: 96000 },
-  { v: 70000 },
-  { v: 52000 },
-  { v: 88000 },
-];
-const sparkOutflow = [
-  { v: 18000 },
-  { v: 24000 },
-  { v: 31000 },
-  { v: 15000 },
-  { v: 27000 },
-  { v: 22000 },
-  { v: 38000 },
-  { v: 19000 },
-  { v: 29000 },
-  { v: 33000 },
-  { v: 16000 },
-  { v: 41000 },
-  { v: 25000 },
-  { v: 20000 },
-  { v: 36000 },
-];
-const sparkNet = [
-  { v: 24000 },
-  { v: 34000 },
-  { v: 4000 },
-  { v: 76000 },
-  { v: 40000 },
-  { v: 26000 },
-  { v: 34000 },
-  { v: 36000 },
-  { v: 54000 },
-  { v: 28000 },
-  { v: 28000 },
-  { v: 55000 },
-  { v: 45000 },
-  { v: 32000 },
-  { v: 52000 },
-];
-const sparkCount = [
-  { v: 3 },
-  { v: 5 },
-  { v: 2 },
-  { v: 8 },
-  { v: 4 },
-  { v: 6 },
-  { v: 7 },
-  { v: 3 },
-  { v: 9 },
-  { v: 5 },
-  { v: 4 },
-  { v: 11 },
-  { v: 6 },
-  { v: 3 },
-  { v: 6 },
-];
+/* ── Sparkline data — populated from API when analytics endpoint is available ── */
+const sparkInflow: { v: number }[] = [];
+const sparkOutflow: { v: number }[] = [];
+const sparkNet: { v: number }[] = [];
+const sparkCount: { v: number }[] = [];
 
 /* ── Tooltip shared across sparklines ── */
 function SparkTooltip({
@@ -213,9 +151,7 @@ function TxRow({
     tx.type === "income"
       ? "text-[#4ADE80]"
       : tx.type === "transfer"
-        ? tx.amount >= 0
-          ? "text-[#4ADE80]"
-          : "text-[#F87171]"
+        ? "text-[#93C5FD]"
         : "text-[#F87171]";
 
   return (
@@ -250,7 +186,7 @@ function TxRow({
       {/* Payee / Note */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <PayeeAvatar payee={tx.payee} color={tx.payeeColor} />
+          <PayeeAvatar payee={tx.payee || "?"} />
           <div>
             <p className="text-sm leading-tight font-medium text-[#E8EEF8]">{tx.payee}</p>
             {tx.memo && (
@@ -269,30 +205,22 @@ function TxRow({
 
       {/* Envelope / Category */}
       <td className="px-4 py-3">
-        <EnvelopeChip name={tx.envelopeName} icon={tx.envelopeIcon} color={tx.envelopeColor} />
+        <EnvelopeChip name={tx.envelopeName} />
       </td>
 
       {/* Account */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          {(() => {
-            const acc = mockAccounts.find((a) => a.id === tx.accountId);
-            const meta = acc ? ACCOUNT_TYPE_META[acc.type] : ACCOUNT_TYPE_META.checking;
-            return (
-              <div
-                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
-                style={{ backgroundColor: `${meta.color}22`, color: meta.color }}
-              >
-                {meta.icon}
-              </div>
-            );
-          })()}
-          <div>
-            <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">
-              {tx.accountInstitution ?? tx.accountName}
-            </p>
-            <p className="text-xs leading-tight text-[#5A6A85]">{tx.accountSubLabel}</p>
+          <div
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
+            style={{
+              backgroundColor: `${ACCOUNT_TYPE_META.checking.color}22`,
+              color: ACCOUNT_TYPE_META.checking.color,
+            }}
+          >
+            {ACCOUNT_TYPE_META.checking.icon}
           </div>
+          <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">{tx.accountName}</p>
         </div>
       </td>
 
@@ -304,25 +232,22 @@ function TxRow({
         )}
       >
         <span className="inline-flex items-center justify-end gap-1.5">
-          {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
-          {tx.amount >= 0 ? (
+          {tx.type === "income"
+            ? `+${formatCurrency(tx.amount)}`
+            : tx.type === "expense"
+              ? `-${formatCurrency(tx.amount)}`
+              : formatCurrency(tx.amount)}
+          {tx.type === "income" ? (
             <ArrowUp size={13} strokeWidth={2.5} />
-          ) : (
+          ) : tx.type === "expense" ? (
             <ArrowDown size={13} strokeWidth={2.5} />
-          )}
+          ) : null}
         </span>
       </td>
 
       {/* Running Balance */}
-      <td
-        className={cn(
-          "px-4 py-3 text-right text-sm whitespace-nowrap tabular-nums",
-          tx.runningBalance !== undefined && tx.runningBalance < 0
-            ? "text-[#F87171]"
-            : "text-[#A8B4CC]",
-        )}
-      >
-        {tx.runningBalance !== undefined ? formatCurrency(tx.runningBalance) : "—"}
+      <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
+        —
       </td>
 
       {/* Actions */}
@@ -341,7 +266,6 @@ const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: str
   savings: { icon: <PiggyBank size={11} />, color: "#22C55E" },
   credit: { icon: <CreditCard size={11} />, color: "#F87171" },
   cash: { icon: <Wallet size={11} />, color: "#F59E0B" },
-  investment: { icon: <TrendingUp size={11} />, color: "#8B5CF6" },
   loan: { icon: <Landmark size={11} />, color: "#EC4899" },
 };
 
@@ -350,10 +274,12 @@ function AccountFilter({
   value,
   onChange,
   triggerClassName,
+  accounts,
 }: {
-  value: Set<string>;
-  onChange: (ids: Set<string>) => void;
+  value: Set<number>;
+  onChange: (ids: Set<number>) => void;
   triggerClassName?: string;
+  accounts: import("@/types").Account[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -366,7 +292,7 @@ function AccountFilter({
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  function toggle(id: string) {
+  function toggle(id: number) {
     const next = new Set(value);
     if (next.has(id)) {
       next.delete(id);
@@ -379,13 +305,13 @@ function AccountFilter({
   function triggerLabel() {
     if (value.size === 0) return "All Accounts";
     if (value.size === 1) {
-      const acc = mockAccounts.find((a) => a.id === [...value][0]);
+      const acc = accounts.find((a) => a.id === [...value][0]);
       return acc ? acc.name : "All Accounts";
     }
     return `${value.size} Accounts`;
   }
 
-  const firstSelected = value.size === 1 ? mockAccounts.find((a) => a.id === [...value][0]) : null;
+  const firstSelected = value.size === 1 ? accounts.find((a) => a.id === [...value][0]) : null;
 
   return (
     <div ref={ref} className="relative">
@@ -431,9 +357,9 @@ function AccountFilter({
 
           {/* list */}
           <div className="max-h-64 overflow-y-auto py-1">
-            {mockAccounts.map((acc) => {
+            {accounts.map((acc) => {
               const checked = value.has(acc.id);
-              const meta = ACCOUNT_TYPE_META[acc.type];
+              const meta = ACCOUNT_TYPE_META[acc.type] ?? ACCOUNT_TYPE_META.checking;
               return (
                 <button
                   key={acc.id}
@@ -471,12 +397,8 @@ function AccountFilter({
                   >
                     {meta.icon}
                   </span>
-                  {/* name + institution */}
                   <div className="min-w-0">
                     <p className="truncate text-[13px] leading-tight text-[#A8B4CC]">{acc.name}</p>
-                    {acc.institution && (
-                      <p className="text-[11px] leading-tight text-[#5A6A85]">{acc.institution}</p>
-                    )}
                   </div>
                 </button>
               );
@@ -489,14 +411,26 @@ function AccountFilter({
 }
 
 /* ── Envelope filter dropdown (multi-select) ────────────── */
+const ENVELOPE_COLORS_LIST = [
+  "#6C3AED",
+  "#00E6B4",
+  "#F59E0B",
+  "#EF4444",
+  "#22C55E",
+  "#3B82F6",
+  "#A855F7",
+  "#F97316",
+  "#06B6D4",
+];
+
 function EnvelopeFilter({
   value,
   onChange,
   triggerClassName,
   envelopes,
 }: {
-  value: Set<string>;
-  onChange: (ids: Set<string>) => void;
+  value: Set<number>;
+  onChange: (ids: Set<number>) => void;
   triggerClassName?: string;
   envelopes: import("@/types").BudgetEnvelope[];
 }) {
@@ -511,7 +445,7 @@ function EnvelopeFilter({
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  function toggle(id: string) {
+  function toggle(id: number) {
     const next = new Set(value);
     if (next.has(id)) {
       next.delete(id);
@@ -524,14 +458,14 @@ function EnvelopeFilter({
   function triggerLabel() {
     if (value.size === 0) return "All Envelopes";
     if (value.size === 1) {
-      const env = envelopes.find((e) => String(e.id) === [...value][0]);
-      return env ? env.title : "All Envelopes";
+      const env = envelopes.find((e) => e.id === [...value][0]);
+      return env ? env.name : "All Envelopes";
     }
     return `${value.size} Envelopes`;
   }
 
-  const firstSelected =
-    value.size === 1 ? envelopes.find((e) => String(e.id) === [...value][0]) : null;
+  const firstSelected = value.size === 1 ? envelopes.find((e) => e.id === [...value][0]) : null;
+  const firstSelectedIdx = firstSelected ? envelopes.indexOf(firstSelected) : -1;
 
   return (
     <div ref={ref} className="relative">
@@ -541,10 +475,12 @@ function EnvelopeFilter({
       >
         {firstSelected && (
           <span
-            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[10px]"
-            style={{ backgroundColor: "rgba(108,58,237,0.4)" }}
+            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-white"
+            style={{
+              backgroundColor: ENVELOPE_COLORS_LIST[firstSelectedIdx % ENVELOPE_COLORS_LIST.length],
+            }}
           >
-            💼
+            {firstSelected.name[0]}
           </span>
         )}
         {value.size > 1 && (
@@ -575,16 +511,13 @@ function EnvelopeFilter({
 
           {/* list */}
           <div className="max-h-64 overflow-y-auto py-1">
-            {envelopes.length === 0 && (
-              <p className="px-3 py-3 text-xs text-[#5A6A85]">No envelopes.</p>
-            )}
-            {envelopes.map((env) => {
-              const envId = String(env.id);
-              const checked = value.has(envId);
+            {envelopes.map((env, envIdx) => {
+              const checked = value.has(env.id);
+              const envColor = ENVELOPE_COLORS_LIST[envIdx % ENVELOPE_COLORS_LIST.length];
               return (
                 <button
                   key={env.id}
-                  onClick={() => toggle(envId)}
+                  onClick={() => toggle(env.id)}
                   className={cn(
                     "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
                     checked
@@ -612,12 +545,12 @@ function EnvelopeFilter({
                     )}
                   </span>
                   <span
-                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
-                    style={{ backgroundColor: "rgba(108,58,237,0.4)" }}
+                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-white"
+                    style={{ backgroundColor: envColor }}
                   >
-                    💼
+                    {env.name[0]}
                   </span>
-                  <span className="truncate text-[#A8B4CC]">{env.title}</span>
+                  <span className="truncate text-[#A8B4CC]">{env.name}</span>
                 </button>
               );
             })}
@@ -828,7 +761,11 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
-  const { envelopes } = useEnvelopes();
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: accounts } = useAccounts(activeBudgetId);
+  const { data: envelopes } = useEnvelopes(activeBudgetId);
+  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const envelopeMap = new Map(envelopes.map((e) => [e.id, e.name]));
 
   const [modalOpen, setModalOpen] = useState(false);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
@@ -838,10 +775,10 @@ export function TransactionsView() {
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pageSize, setPageSize] = useState(25);
-  const [envelopeFilter, setEnvelopeFilter] = useState<Set<string>>(new Set());
-  const [accountFilter, setAccountFilter] = useState<Set<string>>(new Set());
+  const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
+  const [accountFilter, setAccountFilter] = useState<Set<number>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<TxTypeId>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const now = new Date();
@@ -851,23 +788,41 @@ export function TransactionsView() {
     };
   });
 
-  const allSelected = selected.size === mockTransactions.length && mockTransactions.length > 0;
+  const apiFilters = {
+    account_id: accountFilter.size === 1 ? [...accountFilter][0] : undefined,
+    budget_envelope_id: envelopeFilter.size === 1 ? [...envelopeFilter][0] : undefined,
+    date_from: dateRange.from?.toISOString().split("T")[0],
+    date_to: dateRange.to?.toISOString().split("T")[0],
+    page_size: pageSize,
+  };
+
+  const {
+    data: transactions,
+    isLoading: txLoading,
+    refetch: refetchTx,
+  } = useTransactions(activeBudgetId, apiFilters, accountMap, envelopeMap);
+
+  const allSelected = selected.size === transactions.length && transactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
 
-  const totalInflow = 885650;
-  const totalOutflow = -347820;
-  const netFlow = totalInflow + totalOutflow;
-  const totalCount = 72;
+  const totalInflow = transactions
+    .filter((t) => t.type === "income")
+    .reduce((s, t) => s + t.amount, 0);
+  const totalOutflow = transactions
+    .filter((t) => t.type === "expense")
+    .reduce((s, t) => s + t.amount, 0);
+  const netFlow = totalInflow - totalOutflow;
+  const totalCount = transactions.length;
 
   function toggleAll() {
     if (allSelected || someSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(mockTransactions.map((t) => t.id)));
+      setSelected(new Set(transactions.map((t) => t.id)));
     }
   }
 
-  function toggleRow(id: string) {
+  function toggleRow(id: number) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -891,16 +846,20 @@ export function TransactionsView() {
   }
 
   async function confirmDelete() {
+    if (!deleteTx || activeBudgetId == null) return;
     setDeleteLoading(true);
-    // Simulate async delete — replace with real API call
-    await new Promise((r) => setTimeout(r, 800));
-    setDeleteLoading(false);
-    setDeleteOpen(false);
-    setDetailOpen(false);
-    setTimeout(() => {
-      setDeleteTx(null);
-      setDetailTx(null);
-    }, 200);
+    try {
+      await deleteTransaction(activeBudgetId, deleteTx.id);
+      await refetchTx();
+    } finally {
+      setDeleteLoading(false);
+      setDeleteOpen(false);
+      setDetailOpen(false);
+      setTimeout(() => {
+        setDeleteTx(null);
+        setDetailTx(null);
+      }, 200);
+    }
   }
 
   /* Flowbite dropdown trigger style */
@@ -964,6 +923,7 @@ export function TransactionsView() {
             value={accountFilter}
             onChange={setAccountFilter}
             triggerClassName={filterBtn}
+            accounts={accounts}
           />
           <EnvelopeFilter
             value={envelopeFilter}
@@ -1160,19 +1120,33 @@ export function TransactionsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#0F1A2C]">
-              {mockTransactions.map((tx, i) => (
-                <TxRow
-                  key={tx.id}
-                  tx={tx}
-                  index={i}
-                  selected={selected.has(tx.id)}
-                  onSelect={() => toggleRow(tx.id)}
-                  onRowClick={() => {
-                    setDetailTx(tx);
-                    setDetailOpen(true);
-                  }}
-                />
-              ))}
+              {txLoading && transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-8 text-center text-sm text-[#3A4A60]">
+                    Loading transactions…
+                  </td>
+                </tr>
+              ) : transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-8 text-center text-sm text-[#3A4A60]">
+                    No transactions found
+                  </td>
+                </tr>
+              ) : (
+                transactions.map((tx, i) => (
+                  <TxRow
+                    key={tx.id}
+                    tx={tx}
+                    index={i}
+                    selected={selected.has(tx.id)}
+                    onSelect={() => toggleRow(tx.id)}
+                    onRowClick={() => {
+                      setDetailTx(tx);
+                      setDetailOpen(true);
+                    }}
+                  />
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1181,7 +1155,7 @@ export function TransactionsView() {
         <div className="flex items-center justify-between border-t border-[#131E30] px-4 py-3">
           <span className="text-sm text-[#5A6A85]">
             Showing <span className="font-medium text-[#A8B4CC]">1</span> to{" "}
-            <span className="font-medium text-[#A8B4CC]">{mockTransactions.length}</span> of{" "}
+            <span className="font-medium text-[#A8B4CC]">{transactions.length}</span> of{" "}
             <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
           </span>
 

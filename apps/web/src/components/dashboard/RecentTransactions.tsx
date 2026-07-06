@@ -22,7 +22,9 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
-import { mockTransactions } from "@/mock/data";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useTransactions } from "@/hooks/use-transactions";
 import { formatCurrency, formatTableDate, cn } from "@/lib/utils";
 
 type Status = "Done" | "Reconciled" | "Pending";
@@ -61,7 +63,15 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 export function RecentTransactions() {
-  const recent = mockTransactions.slice(0, 7);
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: accounts } = useAccounts(activeBudgetId);
+  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const { data: transactions, isLoading } = useTransactions(
+    activeBudgetId,
+    { page_size: 7 },
+    accountMap,
+  );
+  const recent = transactions.slice(0, 7);
 
   return (
     <div>
@@ -87,87 +97,96 @@ export function RecentTransactions() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1E2B42]">
-            {recent.map((tx, i) => {
-              const amountColor =
-                tx.type === "income"
-                  ? "text-[#4ADE80]"
-                  : tx.type === "transfer"
-                    ? tx.amount >= 0
-                      ? "text-[#4ADE80]"
-                      : "text-[#F87171]"
-                    : "text-[#F87171]";
+            {isLoading && recent.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-6 text-center text-sm text-[#3A4A60]">
+                  Loading…
+                </td>
+              </tr>
+            ) : recent.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-6 text-center text-sm text-[#3A4A60]">
+                  No transactions yet
+                </td>
+              </tr>
+            ) : (
+              recent.map((tx, i) => {
+                const amountColor =
+                  tx.type === "income"
+                    ? "text-[#4ADE80]"
+                    : tx.type === "transfer"
+                      ? "text-[#93C5FD]"
+                      : "text-[#F87171]";
 
-              return (
-                <motion.tr
-                  key={tx.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="cursor-pointer transition-colors hover:bg-[#0D1828]"
-                >
-                  {/* Merchant */}
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white select-none"
-                        style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
-                      >
-                        {tx.payee[0]}
-                      </div>
-                      <div>
-                        <p className="max-w-[140px] truncate text-[13px] leading-tight font-medium text-[#E8EEF8]">
-                          {tx.payee}
-                        </p>
-                        {tx.memo && (
-                          <p className="max-w-[140px] truncate text-[11px] leading-tight text-[#5A6A85]">
-                            {tx.memo}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Envelope */}
-                  <td className="px-4 py-3">
-                    {tx.envelopeName ? (
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[11px]"
-                          style={{ backgroundColor: tx.envelopeColor ?? "#1E2B42" }}
-                        >
-                          {tx.envelopeIcon ?? tx.envelopeName[0]}
-                        </div>
-                        <span className="text-[13px] whitespace-nowrap text-[#A8B4CC]">
-                          {tx.envelopeName}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-[#2A3A54] select-none">—</span>
-                    )}
-                  </td>
-
-                  {/* Date */}
-                  <td className="px-4 py-3 text-[13px] whitespace-nowrap text-[#A8B4CC]">
-                    {formatTableDate(tx.date)}
-                  </td>
-
-                  {/* Amount */}
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right text-[13px] font-semibold whitespace-nowrap tabular-nums",
-                      amountColor,
-                    )}
+                return (
+                  <motion.tr
+                    key={tx.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="cursor-pointer transition-colors hover:bg-[#0D1828]"
                   >
-                    {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
-                  </td>
+                    {/* Merchant */}
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white select-none"
+                          style={{ backgroundColor: "#1E2B42" }}
+                        >
+                          {tx.payee[0] ?? "?"}
+                        </div>
+                        <div>
+                          <p className="max-w-[140px] truncate text-[13px] leading-tight font-medium text-[#E8EEF8]">
+                            {tx.payee}
+                          </p>
+                          {tx.memo && (
+                            <p className="max-w-[140px] truncate text-[11px] leading-tight text-[#5A6A85]">
+                              {tx.memo}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
 
-                  {/* Status */}
-                  <td className="px-5 py-3 text-right">
-                    <StatusBadge status={STATUSES[i % STATUSES.length]} />
-                  </td>
-                </motion.tr>
-              );
-            })}
+                    {/* Envelope */}
+                    <td className="px-4 py-3">
+                      {tx.envelopeName ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#1E2B42] text-[11px]">
+                            {tx.envelopeName[0]}
+                          </div>
+                          <span className="text-[13px] whitespace-nowrap text-[#A8B4CC]">
+                            {tx.envelopeName}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-[#2A3A54] select-none">—</span>
+                      )}
+                    </td>
+
+                    {/* Date */}
+                    <td className="px-4 py-3 text-[13px] whitespace-nowrap text-[#A8B4CC]">
+                      {formatTableDate(tx.date)}
+                    </td>
+
+                    {/* Amount */}
+                    <td
+                      className={cn(
+                        "px-4 py-3 text-right text-[13px] font-semibold whitespace-nowrap tabular-nums",
+                        amountColor,
+                      )}
+                    >
+                      {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-5 py-3 text-right">
+                      <StatusBadge status={STATUSES[i % STATUSES.length]} />
+                    </td>
+                  </motion.tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

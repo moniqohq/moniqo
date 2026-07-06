@@ -503,10 +503,10 @@ export function ModifyEnvelopeModal({
   budgetId,
   onUpdated,
 }: ModifyEnvelopeModalProps) {
-  const [title, setTitle] = useState(envelope.title);
+  const [title, setTitle] = useState(envelope.name);
   const [allocatedRaw, setAllocatedRaw] = useState(
     new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-      envelope.allocated_amt,
+      envelope.allocated,
     ),
   );
   const [nature, setNature] = useState<Nature | "">("");
@@ -515,7 +515,7 @@ export function ModifyEnvelopeModal({
   const [error, setError] = useState<string | null>(null);
 
   const allocatedNum = parseAmount(allocatedRaw);
-  const MOCK_SPENT = envelope.spent_amt;
+  const MOCK_SPENT = envelope.spent;
 
   useEffect(() => {
     if (!open) return;

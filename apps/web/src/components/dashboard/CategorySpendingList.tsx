@@ -20,38 +20,69 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { mockCategorySpending } from "@/mock/data";
+import { useUIStore } from "@/stores/ui.store";
+import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrencyCompact } from "@/lib/utils";
 
+const COLORS = [
+  "#6C3AED",
+  "#00E6B4",
+  "#F59E0B",
+  "#EF4444",
+  "#22C55E",
+  "#3B82F6",
+  "#A855F7",
+  "#F97316",
+  "#06B6D4",
+];
+
 export function CategorySpendingList() {
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: envelopes, isLoading } = useEnvelopes(activeBudgetId);
+
+  if (isLoading && envelopes.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-6 text-sm text-[#3A4A60]">Loading…</div>
+    );
+  }
+
+  if (envelopes.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-6 text-sm text-[#3A4A60]">
+        No envelopes yet
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      {mockCategorySpending.map((cat, i) => {
-        const pct = Math.min((cat.amount / cat.budget) * 100, 100);
-        const overBudget = cat.amount > cat.budget;
+      {envelopes.map((env, i) => {
+        const pct = env.allocated > 0 ? Math.min((env.spent / env.allocated) * 100, 100) : 0;
+        const overBudget = env.isOverspent;
+        const color = COLORS[i % COLORS.length];
         return (
           <motion.div
-            key={cat.category}
+            key={env.id}
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
             className="flex items-center gap-3"
           >
             <div
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[13px]"
-              style={{ background: `${cat.color}20` }}
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white"
+              style={{ background: `${color}30` }}
             >
-              {cat.icon}
+              {env.name[0]}
             </div>
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[13px] font-medium text-[#A8B4CC]">{cat.category}</span>
+                <span className="text-[13px] font-medium text-[#A8B4CC]">{env.name}</span>
                 <div className="flex items-center gap-1.5 text-[12px]">
                   <span className={overBudget ? "text-[#EF4444]" : "text-[#A8B4CC]"}>
-                    {formatCurrencyCompact(cat.amount)}
+                    {formatCurrencyCompact(env.spent)}
                   </span>
                   <span className="text-[#2A3A54]">/</span>
-                  <span className="text-[#5A6A85]">{formatCurrencyCompact(cat.budget)}</span>
+                  <span className="text-[#5A6A85]">{formatCurrencyCompact(env.allocated)}</span>
                 </div>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-[#1E2B42]">
@@ -60,7 +91,7 @@ export function CategorySpendingList() {
                   animate={{ width: `${pct}%` }}
                   transition={{ duration: 0.6, delay: i * 0.05 + 0.2 }}
                   className="h-full rounded-full"
-                  style={{ background: overBudget ? "#EF4444" : cat.color }}
+                  style={{ background: overBudget ? "#EF4444" : color }}
                 />
               </div>
             </div>

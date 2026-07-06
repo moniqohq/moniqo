@@ -33,7 +33,6 @@ import {
   FileText,
   PiggyBank,
   Trash2,
-  TrendingUp,
   Wallet,
   XCircle,
   Clock,
@@ -48,7 +47,8 @@ import {
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
-import { mockAccounts, mockTransactions, mockBudgets } from "@/mock/data";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useTransactions } from "@/hooks/use-transactions";
 import type { AccountType } from "@/types";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -98,12 +98,6 @@ const TYPE_META: Record<
     label: "Cash",
     color: "#F59E0B",
     bg: "rgba(245,158,11,0.15)",
-  },
-  investment: {
-    icon: <TrendingUp size={20} />,
-    label: "Investment",
-    color: "#8B5CF6",
-    bg: "rgba(139,92,246,0.15)",
   },
   loan: {
     icon: <Landmark size={20} />,
@@ -221,7 +215,7 @@ function EmptyTabState({
 
 const TX_COLS = ["Date", "Type", "Payee", "Category", "Amount", "Status"];
 
-function TransactionTable({ transactions }: { transactions: typeof mockTransactions }) {
+function TransactionTable({ transactions }: { transactions: import("@/types").Transaction[] }) {
   if (transactions.length === 0) {
     return (
       <>
@@ -402,8 +396,8 @@ function TimelineNode({ step, isLast }: { step: TimelineStep; isLast: boolean })
 /* ── Main View ──────────────────────────────────────────── */
 
 interface Props {
-  budgetId: string;
-  accountId: string;
+  budgetId: number;
+  accountId: number;
 }
 
 export function DeleteAccountView({ budgetId, accountId }: Props) {
@@ -411,13 +405,18 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
   const [activeTab, setActiveTab] = useState("transactions");
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const account = mockAccounts.find((a) => a.id === accountId) ?? mockAccounts[3];
-  const budget = mockBudgets.find((b) => b.id === (account.budgetId ?? budgetId)) ?? mockBudgets[0];
-  const meta = TYPE_META[account.type];
+  const { data: accounts } = useAccounts(budgetId);
+  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const account = accounts.find((a) => a.id === accountId);
+  const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
-  const accountTransactions = mockTransactions.filter((t) => t.accountId === account.id);
+  const { data: accountTransactions } = useTransactions(
+    budgetId,
+    { account_id: accountId },
+    accountMap,
+  );
   const txCount = accountTransactions.length;
-  const balance = account.balance;
+  const balance = account?.balance ?? 0;
   const transfers = 0;
   const scheduled = 0;
   const reconciliations = 0;
@@ -550,7 +549,9 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[16px] font-bold text-[#E8EEF8]">{account.name}</span>
+                <span className="text-[16px] font-bold text-[#E8EEF8]">
+                  {account?.name ?? "Account"}
+                </span>
                 <span
                   className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
                   style={{ background: meta.bg, color: meta.color }}
@@ -558,7 +559,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
                   {meta.label}
                 </span>
               </div>
-              <p className="mt-0.5 text-[11px] text-[#5A6A85]">{budget.name}</p>
+              <p className="mt-0.5 text-[11px] text-[#5A6A85]">Budget #{budgetId}</p>
             </div>
           </div>
 

@@ -30,16 +30,22 @@ import {
   Wallet,
   Check,
   Plus,
+  User,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
-import { mockUser, mockBudgets } from "@/mock/data";
-import { getInitials, formatCurrency, cn } from "@/lib/utils";
+import { useBudgets } from "@/hooks/use-budgets";
+import { useEnvelopes } from "@/hooks/use-envelopes";
+import { formatCurrency, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Budget } from "@/types";
 
-function BudgetSwitcher() {
+function BudgetSwitcher({ budgets, isLoading }: { budgets: Budget[]; isLoading: boolean }) {
   const [open, setOpen] = useState(false);
-  const [activeBudget, setActiveBudget] = useState(mockBudgets[0]);
   const ref = useRef<HTMLDivElement>(null);
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const setActiveBudget = useUIStore((s) => s.setActiveBudget);
+
+  const activeBudget = budgets.find((b) => b.id === activeBudgetId) ?? budgets[0];
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -61,12 +67,11 @@ function BudgetSwitcher() {
             : "border-[#1E2B42] bg-[#0F1623] text-[#A8B4CC] hover:border-[#2A3A54] hover:bg-[#131C2E] hover:text-white",
         )}
       >
-        {/* Wallet icon in purple pill */}
         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-[#6C3AED] shadow-sm shadow-[#6C3AED]/40">
           <Wallet size={13} className="text-white" strokeWidth={2} />
         </span>
         <span className="hidden max-w-[120px] truncate text-sm font-medium sm:block">
-          {activeBudget.name}
+          {isLoading ? "Loading…" : (activeBudget?.name ?? "Select budget")}
         </span>
         <ChevronDown
           size={12}
@@ -86,22 +91,20 @@ function BudgetSwitcher() {
             transition={{ duration: 0.14, ease: "easeOut" }}
             className="absolute top-full left-0 z-50 mt-1.5 w-64 overflow-hidden rounded-xl border border-[#1A2640] bg-[#0A1120] shadow-2xl shadow-black/40"
           >
-            {/* Header */}
             <div className="px-3 pt-3 pb-2">
               <p className="text-[10px] font-semibold tracking-widest text-[#3A4A60] uppercase">
                 Your Budgets
               </p>
             </div>
 
-            {/* Budget list */}
             <div className="space-y-0.5 px-1.5 pb-1.5">
-              {mockBudgets.map((budget) => {
-                const isActive = budget.id === activeBudget.id;
+              {budgets.map((budget) => {
+                const isActive = budget.id === activeBudgetId;
                 return (
                   <button
                     key={budget.id}
                     onClick={() => {
-                      setActiveBudget(budget);
+                      setActiveBudget(budget.id);
                       setOpen(false);
                     }}
                     className={cn(
@@ -111,7 +114,6 @@ function BudgetSwitcher() {
                         : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                     )}
                   >
-                    {/* Budget icon */}
                     <span
                       className={cn(
                         "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
@@ -125,7 +127,6 @@ function BudgetSwitcher() {
                       />
                     </span>
 
-                    {/* Name + meta */}
                     <div className="min-w-0 flex-1">
                       <p
                         className={cn(
@@ -135,12 +136,8 @@ function BudgetSwitcher() {
                       >
                         {budget.name}
                       </p>
-                      <p className="mt-0.5 text-[11px] leading-tight text-[#3A4A60]">
-                        {budget.totalAccounts} accounts · {budget.currency}
-                      </p>
                     </div>
 
-                    {/* Active checkmark */}
                     {isActive && (
                       <Check size={14} className="flex-shrink-0 text-[#7C5AFF]" strokeWidth={2.5} />
                     )}
@@ -149,7 +146,6 @@ function BudgetSwitcher() {
               })}
             </div>
 
-            {/* Divider + create */}
             <div className="mx-1.5 border-t border-[#131E30]" />
             <div className="px-1.5 py-1.5">
               <button className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white">
@@ -168,6 +164,9 @@ function BudgetSwitcher() {
 
 export function Topbar() {
   const { setMobileSidebar } = useUIStore();
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: budgets, isLoading: budgetsLoading } = useBudgets();
+  const { summary } = useEnvelopes(activeBudgetId);
 
   return (
     <header className="relative flex h-16 flex-shrink-0 items-center gap-3 border-b border-[#1E2B42] bg-[#080C14] px-4">
@@ -179,10 +178,9 @@ export function Topbar() {
         <Menu size={18} />
       </button>
 
-      {/* Budget switcher — left of search */}
-      <BudgetSwitcher />
+      <BudgetSwitcher budgets={budgets} isLoading={budgetsLoading} />
 
-      {/* Search bar — left aligned */}
+      {/* Search bar */}
       <div className="max-w-md min-w-0 flex-1">
         <div className="relative">
           <Search
@@ -206,35 +204,36 @@ export function Topbar() {
       </div>
 
       {/* To Be Budgeted */}
-      <div className="hidden flex-shrink-0 items-center gap-3 md:flex">
-        <div className="h-5 w-px bg-[#1E2B42]" />
-        <div className="flex flex-col items-start">
-          <span className="text-sm leading-tight font-semibold text-[#4ADE80] tabular-nums">
-            {formatCurrency(mockBudgets[0].toBeBudgeted)}
-          </span>
-          <span className="mt-0.5 text-[10px] leading-tight tracking-wider text-[#3A4A60] uppercase">
-            To Be Budgeted
-          </span>
-        </div>
+      {summary != null && (
+        <div className="hidden flex-shrink-0 items-center gap-3 md:flex">
+          <div className="h-5 w-px bg-[#1E2B42]" />
+          <div className="flex flex-col items-start">
+            <span className="text-sm leading-tight font-semibold text-[#4ADE80] tabular-nums">
+              {formatCurrency(summary.toBeBudgeted)}
+            </span>
+            <span className="mt-0.5 text-[10px] leading-tight tracking-wider text-[#3A4A60] uppercase">
+              To Be Budgeted
+            </span>
+          </div>
 
-        {/* Overspent */}
-        {mockBudgets[0].overspent > 0 && (
-          <>
-            <div className="h-5 w-px bg-[#1E2B42]" />
-            <div className="flex flex-col items-start">
-              <span className="text-sm leading-tight font-semibold text-[#F87171] tabular-nums">
-                {formatCurrency(mockBudgets[0].overspent)}
-              </span>
-              <span className="mt-0.5 text-[10px] leading-tight tracking-wider text-[#3A4A60] uppercase">
-                Overspent
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+          {summary.overspentEnvelopesCount > 0 && (
+            <>
+              <div className="h-5 w-px bg-[#1E2B42]" />
+              <div className="flex flex-col items-start">
+                <span className="text-sm leading-tight font-semibold text-[#F87171] tabular-nums">
+                  {summary.overspentEnvelopesCount} envelope
+                  {summary.overspentEnvelopesCount > 1 ? "s" : ""}
+                </span>
+                <span className="mt-0.5 text-[10px] leading-tight tracking-wider text-[#3A4A60] uppercase">
+                  Overspent
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="ml-auto flex items-center gap-1">
-        {/* Notification */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -244,7 +243,6 @@ export function Topbar() {
           <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#6C3AED]" />
         </motion.button>
 
-        {/* Help */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -253,7 +251,6 @@ export function Topbar() {
           <HelpCircle size={20} />
         </motion.button>
 
-        {/* Theme toggle */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -262,19 +259,12 @@ export function Topbar() {
           <Sun size={20} />
         </motion.button>
 
-        {/* Divider */}
         <div className="mx-1 h-5 w-px bg-[#1E2B42]" />
 
-        {/* User */}
+        {/* User placeholder — wired when auth is added */}
         <button className="flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-[#131C2E]">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
-            {getInitials(mockUser.name)}
-          </div>
-          <div className="hidden text-left sm:block">
-            <div className="text-[15px] leading-tight font-medium text-white">{mockUser.name}</div>
-            <div className="text-[13px] leading-tight text-[#5A6A85]">
-              {mockUser.role.charAt(0) + mockUser.role.slice(1).toLowerCase()}
-            </div>
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5]">
+            <User size={16} className="text-white" />
           </div>
           <ChevronDown size={12} className="hidden flex-shrink-0 text-[#5A6A85] sm:block" />
         </button>

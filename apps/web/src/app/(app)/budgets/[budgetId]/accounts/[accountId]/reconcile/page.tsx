@@ -27,5 +27,7 @@ interface Props {
 
 export default async function ReconcileAccountPage({ params }: Props) {
   const { budgetId, accountId } = await params;
-  return <ReconcileAccountView budgetId={budgetId} accountId={accountId} />;
+  return (
+    <ReconcileAccountView budgetId={parseInt(budgetId, 10)} accountId={parseInt(accountId, 10)} />
+  );
 }

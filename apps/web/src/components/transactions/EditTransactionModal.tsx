@@ -33,15 +33,15 @@ import {
   PiggyBank,
   CreditCard,
   Wallet,
-  TrendingUp,
   Landmark,
   Info,
   AlertTriangle,
   ArrowRight,
   Save,
 } from "lucide-react";
-import { mockAccounts } from "@/mock/data";
-import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useUIStore } from "@/stores/ui.store";
+import { useAccounts } from "@/hooks/use-accounts";
+import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Transaction, TransactionType, AccountType } from "@/types";
 
@@ -64,7 +64,6 @@ const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: str
   savings: { icon: <PiggyBank size={13} />, color: "#22C55E" },
   credit: { icon: <CreditCard size={13} />, color: "#F87171" },
   cash: { icon: <Wallet size={13} />, color: "#F59E0B" },
-  investment: { icon: <TrendingUp size={13} />, color: "#8B5CF6" },
   loan: { icon: <Landmark size={13} />, color: "#EC4899" },
 };
 
@@ -151,16 +150,18 @@ interface Props {
 /* ── component ────────────────────────────────────────────── */
 
 export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
-  const { envelopes } = useEnvelopes();
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: accounts } = useAccounts(activeBudgetId);
+  const { data: envelopes } = useEnvelopes(activeBudgetId);
 
   /* form state */
   const [txType, setTxType] = useState<TransactionType>("expense");
   const [date, setDate] = useState("");
   const [payee, setPayee] = useState("");
-  const [accountId, setAccountId] = useState("");
-  const [envId, setEnvId] = useState("");
+  const [accountId, setAccountId] = useState<number | null>(null);
+  const [envId, setEnvId] = useState<number | null>(null);
   const [amount, setAmount] = useState("");
-  const [transferTo, setTransferTo] = useState("");
+  const [transferTo, setTransferTo] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -178,9 +179,9 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
     setDate(formatInputDate(tx.date));
     setPayee(tx.payee);
     setAccountId(tx.accountId);
-    setEnvId(tx.envelopeId ?? "");
+    setEnvId(tx.envelopeId ?? null);
     setAmount(Math.abs(tx.amount).toFixed(2));
-    setTransferTo("");
+    setTransferTo(tx.transferAccountId ?? null);
     setNotes(tx.memo ?? "");
   }, [tx]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -219,20 +220,19 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
 
-  const selectedAccount = mockAccounts.find((a) => a.id === accountId) ?? mockAccounts[0];
-  const selectedEnvelope = envelopes.find((e) => String(e.id) === envId) ?? null;
-  const selectedTransferAccount = mockAccounts.find((a) => a.id === transferTo) ?? null;
-  const accMeta = ACCOUNT_TYPE_META[selectedAccount.type];
+  const selectedAccount = accounts.find((a) => a.id === accountId) ?? accounts[0] ?? null;
+  const selectedEnvelope = envelopes.find((e) => e.id === envId) ?? null;
+  const selectedTransferAccount = accounts.find((a) => a.id === transferTo) ?? null;
+  const accMeta = selectedAccount
+    ? (ACCOUNT_TYPE_META[selectedAccount.type] ?? ACCOUNT_TYPE_META.checking)
+    : ACCOUNT_TYPE_META.checking;
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;
-  const accountBefore = selectedAccount.balance - signedAmount;
-  const _accountAfter = selectedAccount.balance;
+  const accountBefore = (selectedAccount?.balance ?? 0) - signedAmount;
   const realAccountBefore = accountBefore;
   const realAccountAfter = accountBefore + signedAmount;
 
-  const envelopeAvailable = selectedEnvelope
-    ? selectedEnvelope.allocated_amt - selectedEnvelope.spent_amt
-    : 0;
+  const envelopeAvailable = selectedEnvelope?.available ?? 0;
   const envBefore = selectedEnvelope ? envelopeAvailable + (isExpense ? numericAmount : 0) : 0;
   const envAfter = selectedEnvelope ? envelopeAvailable : 0;
 
@@ -255,7 +255,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
       ...tx!,
       type: txType,
       payee,
-      accountId,
+      accountId: accountId ?? tx!.accountId,
       envelopeId: envId || undefined,
       amount: signedAmount,
       memo: notes || undefined,
@@ -320,7 +320,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                     <div className="flex min-w-0 items-center gap-3">
                       <div
                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
-                        style={{ backgroundColor: tx.payeeColor ?? "#1E2B42" }}
+                        style={{ backgroundColor: "#1E2B42" }}
                       >
                         {tx.payee[0]}
                       </div>
@@ -486,16 +486,16 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                             {accMeta.icon}
                           </div>
                           <span className="flex-1 truncate text-left text-sm text-white">
-                            {selectedAccount.institution ?? selectedAccount.name}
+                            {selectedAccount?.name ?? "Account"}
                             <span className="ml-1 text-xs text-[#5A6A85] capitalize">
-                              ({selectedAccount.type})
+                              ({selectedAccount?.type ?? ""})
                             </span>
                           </span>
                           <ChevronDown size={13} className="shrink-0 text-[#5A6A85]" />
                         </button>
                         {accountOpen && (
                           <div className="absolute top-full left-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
-                            {mockAccounts.map((acc) => {
+                            {accounts.map((acc) => {
                               const meta = ACCOUNT_TYPE_META[acc.type];
                               return (
                                 <button
@@ -522,9 +522,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                     {meta.icon}
                                   </div>
                                   <div className="flex-1 text-left">
-                                    <p className="text-sm leading-tight text-white">
-                                      {acc.institution ?? acc.name}
-                                    </p>
+                                    <p className="text-sm leading-tight text-white">{acc.name}</p>
                                     <p className="text-xs text-[#5A6A85] capitalize">
                                       {acc.type} · {formatCurrency(acc.balance)}
                                     </p>
@@ -555,12 +553,12 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                               <>
                                 <div
                                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs"
-                                  style={{ backgroundColor: "rgba(108,58,237,0.18)" }}
+                                  style={{ backgroundColor: `${"#6C3AED"}30` }}
                                 >
-                                  💼
+                                  {selectedEnvelope?.name?.[0] ?? "?"}
                                 </div>
                                 <span className="flex-1 truncate text-left text-sm text-white">
-                                  {selectedEnvelope.title}
+                                  {selectedEnvelope?.name ?? ""}
                                 </span>
                               </>
                             ) : (
@@ -572,43 +570,35 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           </button>
                           {envOpen && (
                             <div className="absolute top-full left-0 z-30 mt-1 max-h-56 w-64 overflow-y-auto rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
-                              {envelopes.length === 0 && (
-                                <p className="px-3 py-3 text-sm text-[#5A6A85]">No envelopes.</p>
-                              )}
-                              {envelopes.map((env) => {
-                                const envAvail = env.allocated_amt - env.spent_amt;
-                                return (
-                                  <button
-                                    key={env.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEnvId(String(env.id));
-                                      setEnvOpen(false);
-                                    }}
-                                    className={cn(
-                                      "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                      envId === String(env.id)
-                                        ? "bg-[#6C3AED]/15 text-white"
-                                        : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
-                                    )}
+                              {envelopes.map((env) => (
+                                <button
+                                  key={env.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEnvId(env.id);
+                                    setEnvOpen(false);
+                                  }}
+                                  className={cn(
+                                    "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
+                                    envId === env.id
+                                      ? "bg-[#6C3AED]/15 text-white"
+                                      : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
+                                  )}
+                                >
+                                  <div
+                                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px]"
+                                    style={{ backgroundColor: `${"#6C3AED"}30` }}
                                   >
-                                    <div
-                                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px]"
-                                      style={{ backgroundColor: "rgba(108,58,237,0.18)" }}
-                                    >
-                                      💼
-                                    </div>
-                                    <div className="flex-1 text-left">
-                                      <p className="text-sm leading-tight text-white">
-                                        {env.title}
-                                      </p>
-                                      <p className="text-xs text-[#5A6A85]">
-                                        Available: {formatCurrency(envAvail)}
-                                      </p>
-                                    </div>
-                                  </button>
-                                );
-                              })}
+                                    {env.name[0]}
+                                  </div>
+                                  <div className="flex-1 text-left">
+                                    <p className="text-sm leading-tight text-white">{env.name}</p>
+                                    <p className="text-xs text-[#5A6A85]">
+                                      Available: {formatCurrency(env.available)}
+                                    </p>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -652,8 +642,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                           <span className="flex-1 text-left text-sm">
                             {selectedTransferAccount ? (
                               <span className="text-white">
-                                {selectedTransferAccount.institution ??
-                                  selectedTransferAccount.name}
+                                {selectedTransferAccount?.name ?? "Account"}
                               </span>
                             ) : (
                               "Select account (optional)"
@@ -666,14 +655,14 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setTransferTo("");
+                                setTransferTo(null);
                                 setTransferOpen(false);
                               }}
                               className="w-full px-3 py-2 text-left text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white"
                             >
                               None
                             </button>
-                            {mockAccounts
+                            {accounts
                               .filter((a) => a.id !== accountId)
                               .map((acc) => {
                                 const meta = ACCOUNT_TYPE_META[acc.type];
@@ -701,7 +690,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                                     >
                                       {meta.icon}
                                     </div>
-                                    <span>{acc.institution ?? acc.name}</span>
+                                    <span>{acc.name}</span>
                                   </button>
                                 );
                               })}
@@ -742,7 +731,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                       <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                         Account Impact{" "}
                         <span className="font-normal text-[#5A6A85]">
-                          ({selectedAccount.institution ?? selectedAccount.name})
+                          ({selectedAccount?.name ?? "Account"})
                         </span>
                       </p>
                       <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">
@@ -769,7 +758,7 @@ export function EditTransactionModal({ tx, open, onClose, onSave }: Props) {
                         <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                           Envelope Impact{" "}
                           <span className="font-normal text-[#5A6A85]">
-                            ({selectedEnvelope.title})
+                            ({selectedEnvelope?.name ?? ""})
                           </span>
                         </p>
                         <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">

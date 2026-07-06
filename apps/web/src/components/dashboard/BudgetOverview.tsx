@@ -20,12 +20,24 @@
 "use client";
 
 import { Wallet } from "lucide-react";
-import { mockBudgetOverview } from "@/mock/data";
+import { useUIStore } from "@/stores/ui.store";
+import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrency } from "@/lib/utils";
 
 export function BudgetOverview() {
-  const { totalBudget, spent, remaining } = mockBudgetOverview;
-  const pct = Math.round((spent / totalBudget) * 100);
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { summary, isLoading } = useEnvelopes(activeBudgetId);
+
+  const totalBudget = summary?.totalAllocated ?? 0;
+  const spent = summary?.totalSpent ?? 0;
+  const remaining = totalBudget - spent;
+  const pct = totalBudget > 0 ? Math.round((spent / totalBudget) * 100) : 0;
+
+  if (isLoading && summary == null) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-[#3A4A60]">Loading…</div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">

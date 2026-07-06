@@ -20,42 +20,47 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useUIStore } from "@/stores/ui.store";
+import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrencyCompact, cn } from "@/lib/utils";
 
-export function EnvelopeOverview() {
-  const { envelopes, loading, error } = useEnvelopes();
+const ENVELOPE_COLORS = [
+  "#6C3AED",
+  "#00E6B4",
+  "#F59E0B",
+  "#EF4444",
+  "#22C55E",
+  "#3B82F6",
+  "#A855F7",
+  "#F97316",
+  "#06B6D4",
+];
 
-  if (loading) {
+export function EnvelopeOverview() {
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: envelopes, isLoading } = useEnvelopes(activeBudgetId);
+
+  if (isLoading && envelopes.length === 0) {
     return (
-      <div className="space-y-2">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-8 animate-pulse rounded-lg bg-[#131C2E]" />
-        ))}
+      <div className="flex items-center justify-center py-8 text-sm text-[#3A4A60]">Loading…</div>
+    );
+  }
+
+  if (envelopes.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-8 text-sm text-[#3A4A60]">
+        No envelopes yet
       </div>
     );
   }
 
-  if (error) {
-    return <p className="text-xs text-[#5A6A85]">{error}</p>;
-  }
-
-  if (envelopes.length === 0) {
-    return <p className="text-xs text-[#5A6A85]">No envelopes yet.</p>;
-  }
-
-  const displayed = envelopes.slice(0, 6);
-
   return (
     <div className="space-y-1.5">
-      {displayed.map((env, i) => {
-        const available = env.allocated_amt - env.spent_amt;
-        const pct =
-          env.allocated_amt > 0 ? Math.min((env.spent_amt / env.allocated_amt) * 100, 100) : 0;
-        const low = available <= env.allocated_amt * 0.1;
-        const empty = available <= 0;
-        const barColor = empty ? "#EF4444" : low ? "#F59E0B" : "#6C3AED";
-
+      {envelopes.map((env, i) => {
+        const pct = env.allocated > 0 ? Math.min((env.spent / env.allocated) * 100, 100) : 0;
+        const low = env.allocated > 0 && env.available <= env.allocated * 0.1;
+        const empty = env.available <= 0;
+        const color = ENVELOPE_COLORS[i % ENVELOPE_COLORS.length];
         return (
           <motion.div
             key={env.id}
@@ -66,20 +71,23 @@ export function EnvelopeOverview() {
           >
             <div className="min-w-0 flex-1">
               <div className="mb-0.5 flex items-center justify-between">
-                <span className="truncate text-[13px] text-[#A8B4CC]">{env.title}</span>
+                <span className="truncate text-[13px] text-[#A8B4CC]">{env.name}</span>
                 <span
                   className={cn(
                     "text-[12px] font-medium tabular-nums",
                     empty ? "text-[#EF4444]" : low ? "text-[#F59E0B]" : "text-[#22C55E]",
                   )}
                 >
-                  {formatCurrencyCompact(available)}
+                  {formatCurrencyCompact(env.available)}
                 </span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-[#1E2B42]">
                 <div
                   className="h-full rounded-full transition-all"
-                  style={{ width: `${pct}%`, background: barColor }}
+                  style={{
+                    width: `${pct}%`,
+                    background: empty ? "#EF4444" : low ? "#F59E0B" : color,
+                  }}
                 />
               </div>
             </div>
