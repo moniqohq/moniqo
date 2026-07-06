@@ -190,7 +190,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap } = useEnvelopes(budgetId);
   const account = accounts.find((a) => a.id === accountId);
-  const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
+  const typeMeta = account ? TYPE_META[account.type as AccountType] : TYPE_META.checking;
 
   const { transactions: allTxns } = useTransactions(budgetId, accountMap, envelopeMap, {
     accountId,
@@ -201,8 +201,8 @@ export function AccountDetails({ accountId, budgetId }: Props) {
     createdDate: "—",
     lastActivity: "—",
     lastReconciled: "—",
-    onBudget: account?.isOnBudget ?? true,
-    requiresReconciliation: account?.requiresRecon ?? false,
+    onBudget: account?.is_on_budget ?? true,
+    requiresReconciliation: account?.requires_recon ?? false,
     notes: account?.notes ?? "",
     clearedBalance: account?.balance ?? 0,
     unclearedBalance: 0,
@@ -281,14 +281,14 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                   icon: <CheckCircle size={14} />,
                   label: "Reconcile",
                   onClick: () =>
-                    router.push(`/budgets/${account.budgetId}/accounts/${accountId}/reconcile`),
+                    router.push(`/budgets/${account.budget_id}/accounts/${accountId}/reconcile`),
                 },
                 { icon: <Edit2 size={14} />, label: "Edit", onClick: () => setModifyOpen(true) },
                 {
                   icon: <Archive size={14} />,
                   label: "Archive",
                   onClick: () =>
-                    router.push(`/budgets/${account.budgetId}/accounts/${accountId}/archive`),
+                    router.push(`/budgets/${account.budget_id}/accounts/${accountId}/archive`),
                 },
               ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
             ).map(({ icon, label, onClick }) => (
@@ -537,7 +537,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
       <ForceDeleteAccountDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        account={{ id: String(account.id), name: account.name, type: account.type }}
+        account={{ id: String(account.id), name: account.name, type: account.type as AccountType }}
       />
     </div>
   );

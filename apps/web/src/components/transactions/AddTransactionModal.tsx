@@ -192,12 +192,10 @@ export function AddTransactionModal({
         payload.budget_envelope_id = selectedEnvelope?.id ?? null;
         payload.amount = isIncome ? absAmount : -absAmount;
       }
-      const res = await apiFetch(`/api/v1/budgets/${budgetId}/transactions`, {
+      await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/transactions`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      const body = await res.json();
-      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to create transaction.");
       onSuccess?.();
       onClose();
     } catch (err) {

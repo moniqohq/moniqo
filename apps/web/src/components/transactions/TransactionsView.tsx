@@ -215,7 +215,7 @@ function TxRow({
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           {(() => {
-            const acc = accounts.find((a) => String(a.id) === tx.accountId);
+            const acc = accounts.find((a) => a.id === tx.accountId);
             const meta =
               (acc ? ACCOUNT_TYPE_META[acc.type as AccountType] : undefined) ??
               ACCOUNT_TYPE_META.checking;
@@ -230,11 +230,8 @@ function TxRow({
           })()}
           <div>
             <p className="text-sm leading-tight whitespace-nowrap text-[#A8B4CC]">
-              {tx.accountInstitution ?? tx.accountName}
+              {tx.accountName}
             </p>
-            {tx.accountSubLabel && (
-              <p className="text-xs leading-tight text-[#5A6A85]">{tx.accountSubLabel}</p>
-            )}
           </div>
         </div>
       </td>
@@ -291,8 +288,8 @@ function AccountFilter({
   triggerClassName,
   accounts,
 }: {
-  value: Set<string>;
-  onChange: (ids: Set<string>) => void;
+  value: Set<number>;
+  onChange: (ids: Set<number>) => void;
   triggerClassName?: string;
   accounts: ApiAccount[];
 }) {
@@ -307,7 +304,7 @@ function AccountFilter({
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  function toggle(id: string) {
+  function toggle(id: number) {
     const next = new Set(value);
     if (next.has(id)) {
       next.delete(id);
@@ -320,14 +317,14 @@ function AccountFilter({
   function triggerLabel() {
     if (value.size === 0) return "All Accounts";
     if (value.size === 1) {
-      const acc = accounts.find((a) => String(a.id) === [...value][0]);
+      const acc = accounts.find((a) => a.id === [...value][0]);
       return acc ? acc.name : "All Accounts";
     }
     return `${value.size} Accounts`;
   }
 
   const firstSelected =
-    value.size === 1 ? accounts.find((a) => String(a.id) === [...value][0]) : null;
+    value.size === 1 ? accounts.find((a) => a.id === [...value][0]) : null;
   return (
     <div ref={ref} className="relative">
       <button
@@ -384,12 +381,12 @@ function AccountFilter({
           {/* list */}
           <div className="max-h-64 overflow-y-auto py-1">
             {accounts.map((acc) => {
-              const checked = value.has(String(acc.id));
+              const checked = value.has(acc.id);
               const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;
               return (
                 <button
                   key={acc.id}
-                  onClick={() => toggle(String(acc.id))}
+                  onClick={() => toggle(acc.id)}
                   className={cn(
                     "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
                     checked
@@ -444,8 +441,8 @@ function EnvelopeFilter({
   triggerClassName,
   envelopes,
 }: {
-  value: Set<string>;
-  onChange: (ids: Set<string>) => void;
+  value: Set<number>;
+  onChange: (ids: Set<number>) => void;
   triggerClassName?: string;
   envelopes: ApiEnvelope[];
 }) {
@@ -460,7 +457,7 @@ function EnvelopeFilter({
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  function toggle(id: string) {
+  function toggle(id: number) {
     const next = new Set(value);
     if (next.has(id)) {
       next.delete(id);
@@ -473,14 +470,14 @@ function EnvelopeFilter({
   function triggerLabel() {
     if (value.size === 0) return "All Envelopes";
     if (value.size === 1) {
-      const env = envelopes.find((e) => String(e.id) === [...value][0]);
+      const env = envelopes.find((e) => e.id === [...value][0]);
       return env ? env.title : "All Envelopes";
     }
     return `${value.size} Envelopes`;
   }
 
   const firstSelected =
-    value.size === 1 ? envelopes.find((e) => String(e.id) === [...value][0]) : null;
+    value.size === 1 ? envelopes.find((e) => e.id === [...value][0]) : null;
   return (
     <div ref={ref} className="relative">
       <button
@@ -521,11 +518,11 @@ function EnvelopeFilter({
           {/* list */}
           <div className="max-h-64 overflow-y-auto py-1">
             {envelopes.map((env) => {
-              const checked = value.has(String(env.id));
+              const checked = value.has(env.id);
               return (
                 <button
                   key={env.id}
-                  onClick={() => toggle(String(env.id))}
+                  onClick={() => toggle(env.id)}
                   className={cn(
                     "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
                     checked
@@ -776,7 +773,7 @@ export function TransactionsView() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pageSize, setPageSize] = useState(25);
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
   const [accountFilter, setAccountFilter] = useState<Set<number>>(new Set());
@@ -818,7 +815,7 @@ export function TransactionsView() {
     }
   }
 
-  function toggleRow(id: string) {
+  function toggleRow(id: number) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -846,11 +843,9 @@ export function TransactionsView() {
     setDeleteLoading(true);
     setDeleteError(null);
     try {
-      const res = await apiFetch(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, {
+      await apiFetch<unknown>(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, {
         method: "DELETE",
       });
-      const body = await res.json();
-      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to delete transaction.");
       refetch();
       setDeleteOpen(false);
       setDetailOpen(false);

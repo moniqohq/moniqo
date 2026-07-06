@@ -413,7 +413,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
   });
 
   const account = accounts.find((a) => a.id === accountId);
-  const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
+  const meta = account ? TYPE_META[account.type as AccountType] : TYPE_META.checking;
   const txCount = accountTransactions.length;
   const balance = account?.balance ?? 0;
   const transfers = 0;

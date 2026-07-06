@@ -226,9 +226,9 @@ export function EditTransactionModal({
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
 
-  const selectedAccount = accounts.find((a) => String(a.id) === accountId) ?? accounts[0] ?? null;
-  const selectedEnvelope = envelopes.find((e) => String(e.id) === envId) ?? null;
-  const selectedTransferAccount = accounts.find((a) => String(a.id) === transferTo) ?? null;
+  const selectedAccount = accounts.find((a) => a.id === accountId) ?? accounts[0] ?? null;
+  const selectedEnvelope = envelopes.find((e) => e.id === envId) ?? null;
+  const selectedTransferAccount = accounts.find((a) => a.id === transferTo) ?? null;
   const accMeta = selectedAccount
     ? (ACCOUNT_TYPE_META[selectedAccount.type as AccountType] ?? ACCOUNT_TYPE_META.checking)
     : ACCOUNT_TYPE_META.checking;
@@ -270,12 +270,10 @@ export function EditTransactionModal({
         payload.account_id = Number(accountId) || undefined;
         payload.budget_envelope_id = Number(envId) || null;
       }
-      const res = await apiFetch(`/api/v1/budgets/${budgetId}/transactions/${tx.id}`, {
+      await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/transactions/${tx.id}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      const body = await res.json();
-      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to update transaction.");
       onSave?.();
       onClose();
     } catch {
@@ -526,12 +524,12 @@ export function EditTransactionModal({
                                   key={acc.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setAccountId(String(acc.id));
+                                    setAccountId(acc.id);
                                     setAccountOpen(false);
                                   }}
                                   className={cn(
                                     "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                    accountId === String(acc.id)
+                                    accountId === acc.id
                                       ? "bg-[#6C3AED]/15 text-white"
                                       : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                   )}
@@ -599,12 +597,12 @@ export function EditTransactionModal({
                                   key={env.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setEnvId(String(env.id));
+                                    setEnvId(env.id);
                                     setEnvOpen(false);
                                   }}
                                   className={cn(
                                     "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                    envId === String(env.id)
+                                    envId === env.id
                                       ? "bg-[#6C3AED]/15 text-white"
                                       : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                   )}
@@ -687,7 +685,7 @@ export function EditTransactionModal({
                               None
                             </button>
                             {accounts
-                              .filter((a) => String(a.id) !== accountId)
+                              .filter((a) => a.id !== accountId)
                               .map((acc) => {
                                 const meta =
                                   ACCOUNT_TYPE_META[acc.type as AccountType] ??
@@ -697,12 +695,12 @@ export function EditTransactionModal({
                                     key={acc.id}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setTransferTo(String(acc.id));
+                                      setTransferTo(acc.id);
                                       setTransferOpen(false);
                                     }}
                                     className={cn(
                                       "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                                      transferTo === String(acc.id)
+                                      transferTo === acc.id
                                         ? "bg-[#6C3AED]/15 text-white"
                                         : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                                     )}
