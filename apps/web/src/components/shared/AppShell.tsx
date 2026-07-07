@@ -79,7 +79,7 @@ export function AppShell({ children }: AppShellProps) {
         clearAuth();
         router.push("/login");
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally runs once on mount
 
   return (

@@ -231,7 +231,8 @@ export function EditTransactionModal({
   const selectedEnvelope = envelopes.find((e) => e.id === envId) ?? null;
   const selectedTransferAccount = accounts.find((a) => a.id === transferTo) ?? null;
   const accMeta = selectedAccount
-    ? (ACCOUNT_TYPE_META[API_TO_UI[selectedAccount.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking)
+    ? (ACCOUNT_TYPE_META[API_TO_UI[selectedAccount.type as ApiAccountType]] ??
+      ACCOUNT_TYPE_META.checking)
     : ACCOUNT_TYPE_META.checking;
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;

@@ -341,13 +341,16 @@ function AccountFilter({
             <span
               style={{
                 color: (
-                  ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking
+                  ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ??
+                  ACCOUNT_TYPE_META.checking
                 ).color,
               }}
             >
               {
-                (ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking)
-                  .icon
+                (
+                  ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ??
+                  ACCOUNT_TYPE_META.checking
+                ).icon
               }
             </span>
           </span>
@@ -382,7 +385,9 @@ function AccountFilter({
           <div className="max-h-64 overflow-y-auto py-1">
             {accounts.map((acc) => {
               const checked = value.has(acc.id);
-              const meta = ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking;
+              const meta =
+                ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] ??
+                ACCOUNT_TYPE_META.checking;
               return (
                 <button
                   key={acc.id}

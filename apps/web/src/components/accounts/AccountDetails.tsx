@@ -539,7 +539,11 @@ export function AccountDetails({ accountId, budgetId }: Props) {
       <ForceDeleteAccountDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        account={{ id: String(account.id), name: account.name, type: API_TO_UI[account.type as ApiAccountType] ?? "checking" }}
+        account={{
+          id: String(account.id),
+          name: account.name,
+          type: API_TO_UI[account.type as ApiAccountType] ?? "checking",
+        }}
       />
     </div>
   );
