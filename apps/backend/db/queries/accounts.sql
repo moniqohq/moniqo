@@ -1,15 +1,15 @@
 -- name: CreateAccount :one
-INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, notes)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
 
 -- name: GetAccountByID :one
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: ListAccountsByBudget :many
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE budget_id = $1 AND deleted_at IS NULL
 ORDER BY lower(name) ASC;
@@ -20,10 +20,11 @@ SET name           = $3,
     type           = $4,
     requires_recon = $5,
     is_on_budget   = $6,
-    notes          = $7,
+    is_immutable   = $7,
+    notes          = $8,
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
 
 -- name: PatchAccount :one
 UPDATE accounts
@@ -31,16 +32,17 @@ SET name           = COALESCE(sqlc.narg(name), name),
     type           = COALESCE(sqlc.narg(type), type),
     requires_recon = COALESCE(sqlc.narg(requires_recon), requires_recon),
     is_on_budget   = COALESCE(sqlc.narg(is_on_budget), is_on_budget),
+    is_immutable   = COALESCE(sqlc.narg(is_immutable), is_immutable),
     notes          = COALESCE(sqlc.narg(notes), notes),
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
 
 -- name: MarkAccountReconciled :one
 UPDATE accounts
 SET last_reconciled_at = now(), updated_at = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
 
 -- name: SoftDeleteAccount :exec
 UPDATE accounts

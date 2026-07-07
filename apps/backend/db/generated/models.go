@@ -236,6 +236,7 @@ type Account struct {
 	Type             AccountType
 	RequiresRecon    bool
 	IsOnBudget       bool
+	IsImmutable      bool
 	Notes            *string
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz

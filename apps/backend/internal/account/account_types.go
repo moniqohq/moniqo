@@ -51,6 +51,7 @@ type CreateRequest struct {
 	Type           models.AccountType `json:"type"`
 	RequiresRecon  bool               `json:"requires_recon"`
 	IsOnBudget     *bool              `json:"is_on_budget"` // nil uses the type default
+	IsImmutable    bool               `json:"is_immutable"`
 	Notes          *string            `json:"notes"`
 	InitialBalance money.Amount       `json:"initial_balance"`
 }
@@ -62,6 +63,7 @@ type ReplaceRequest struct {
 	Type          models.AccountType `json:"type"`
 	RequiresRecon bool               `json:"requires_recon"`
 	IsOnBudget    *bool              `json:"is_on_budget"`
+	IsImmutable   bool               `json:"is_immutable"`
 	Notes         *string            `json:"notes"`
 }
 
@@ -72,6 +74,7 @@ type PatchRequest struct {
 	Type          *models.AccountType `json:"type"`
 	RequiresRecon *bool               `json:"requires_recon"`
 	IsOnBudget    *bool               `json:"is_on_budget"`
+	IsImmutable   *bool               `json:"is_immutable"`
 	Notes         *string             `json:"notes"`
 }
 
@@ -83,6 +86,7 @@ type CreateParams struct {
 	Type          models.AccountType
 	RequiresRecon bool
 	IsOnBudget    bool
+	IsImmutable   bool
 	Notes         *string
 }
 
@@ -94,6 +98,7 @@ type UpdateParams struct {
 	Type          models.AccountType
 	RequiresRecon bool
 	IsOnBudget    bool
+	IsImmutable   bool
 	Notes         *string
 }
 
@@ -106,5 +111,6 @@ type PatchParams struct {
 	Type          *models.AccountType
 	RequiresRecon *bool
 	IsOnBudget    *bool
+	IsImmutable   *bool
 	Notes         *string
 }

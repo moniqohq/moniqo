@@ -69,6 +69,7 @@ type Account struct {
 	ClearedBalance   money.Amount `json:"cleared_balance"`
 	RequiresRecon    bool         `json:"requires_recon"`
 	IsOnBudget       bool         `json:"is_on_budget"`
+	IsImmutable      bool         `json:"is_immutable"`
 	Notes            *string      `json:"notes"`
 	LastReconciledAt *time.Time   `json:"last_reconciled_at"`
 	CreatedAt        time.Time    `json:"created_at"`
