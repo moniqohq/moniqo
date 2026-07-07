@@ -43,9 +43,19 @@ import { getInitials, formatCurrency, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { Budget } from "@/types";
+import { CreateBudgetModal } from "@/components/budget/CreateBudgetModal";
 
-function BudgetSwitcher({ budgets, isLoading }: { budgets: Budget[]; isLoading: boolean }) {
+function BudgetSwitcher({
+  budgets,
+  isLoading,
+  onBudgetCreated,
+}: {
+  budgets: Budget[];
+  isLoading: boolean;
+  onBudgetCreated: () => void;
+}) {
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
@@ -153,7 +163,13 @@ function BudgetSwitcher({ budgets, isLoading }: { budgets: Budget[]; isLoading: 
 
             <div className="mx-1.5 border-t border-[#131E30]" />
             <div className="px-1.5 py-1.5">
-              <button className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white">
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setCreateOpen(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white"
+              >
                 <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-dashed border-[#2A3A54] bg-[#131C2E]">
                   <Plus size={13} className="text-[#3A4A60]" />
                 </span>
@@ -163,6 +179,12 @@ function BudgetSwitcher({ budgets, isLoading }: { budgets: Budget[]; isLoading: 
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CreateBudgetModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={onBudgetCreated}
+      />
     </div>
   );
 }
@@ -288,7 +310,7 @@ function UserMenu() {
 export function Topbar() {
   const { setMobileSidebar } = useUIStore();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: budgets, isLoading: budgetsLoading } = useBudgets();
+  const { data: budgets, isLoading: budgetsLoading, refetch: refetchBudgets } = useBudgets();
   const { data: envelopes, summary } = useEnvelopes(activeBudgetId);
   const overspentAmount = envelopes
     .filter((e) => e.isOverspent)
@@ -304,7 +326,7 @@ export function Topbar() {
         <Menu size={18} />
       </button>
 
-      <BudgetSwitcher budgets={budgets} isLoading={budgetsLoading} />
+      <BudgetSwitcher budgets={budgets} isLoading={budgetsLoading} onBudgetCreated={refetchBudgets} />
 
       {/* Search bar */}
       <div className="max-w-md min-w-0 flex-1">
