@@ -1,15 +1,15 @@
 -- name: CreateAccount :one
 INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, notes)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
 
 -- name: GetAccountByID :one
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: ListAccountsByBudget :many
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE budget_id = $1 AND deleted_at IS NULL
 ORDER BY lower(name) ASC;
@@ -23,7 +23,7 @@ SET name           = $3,
     notes          = $7,
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
 
 -- name: PatchAccount :one
 UPDATE accounts
@@ -34,7 +34,13 @@ SET name           = COALESCE(sqlc.narg(name), name),
     notes          = COALESCE(sqlc.narg(notes), notes),
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+
+-- name: MarkAccountReconciled :one
+UPDATE accounts
+SET last_reconciled_at = now(), updated_at = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at;
 
 -- name: SoftDeleteAccount :exec
 UPDATE accounts

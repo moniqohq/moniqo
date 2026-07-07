@@ -23,6 +23,7 @@ package account_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,7 +89,7 @@ func TestSvc_Create(t *testing.T) {
 			IsOnBudget: true,
 		}).Return(makeAccount("Savings"), nil)
 		repo.On("CreateOpeningTransaction", testBudgetID, testAccountID, money.FromMinorUnits(1000)).Return(nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(1000), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(1000), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.Create(context.Background(), testBudgetID, account.CreateRequest{
@@ -156,9 +157,11 @@ func TestSvc_GetByID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
+		withBalance := makeAccount("Main")
+		withBalance.Balance = money.FromMinorUnits(5000)
+
 		repo := &internalmock.AccountRepository{}
-		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Main"), nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(5000), nil)
+		repo.On("GetByID", testAccountID, testBudgetID).Return(withBalance, nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.GetByID(context.Background(), testAccountID, testBudgetID)
@@ -207,8 +210,8 @@ func TestSvc_List(t *testing.T) {
 
 		repo := &internalmock.AccountRepository{}
 		repo.On("ListByBudget", testBudgetID).Return([]models.Account{acc1, acc2}, nil)
-		repo.On("SumBalance", int64(1), testBudgetID).Return(money.FromMinorUnits(100), nil)
-		repo.On("SumBalance", int64(2), testBudgetID).Return(money.FromMinorUnits(200), nil)
+		repo.On("Balances", int64(1), testBudgetID).Return(money.FromMinorUnits(100), money.FromMinorUnits(0), nil)
+		repo.On("Balances", int64(2), testBudgetID).Return(money.FromMinorUnits(200), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		accounts, err := svc.List(context.Background(), testBudgetID)
@@ -247,7 +250,7 @@ func TestSvc_Replace(t *testing.T) {
 			Type:       models.AccountTypeChecking,
 			IsOnBudget: true,
 		}).Return(updated, nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(300), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(300), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.Replace(context.Background(), testAccountID, testBudgetID, account.ReplaceRequest{
@@ -300,7 +303,7 @@ func TestSvc_Patch(t *testing.T) {
 			Name:     &patchedName,
 			Notes:    &notes,
 		}).Return(models.Account{ID: testAccountID, BudgetID: testBudgetID, Name: "NewName"}, nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.Patch(context.Background(), testAccountID, testBudgetID, account.PatchRequest{
@@ -321,7 +324,7 @@ func TestSvc_Patch(t *testing.T) {
 			ID:       testAccountID,
 			BudgetID: testBudgetID,
 		}).Return(makeAccount("Original"), nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		_, err := svc.Patch(context.Background(), testAccountID, testBudgetID, account.PatchRequest{})
@@ -401,5 +404,40 @@ func TestSvc_Delete(t *testing.T) {
 		repo.AssertExpectations(t)
 		repo.AssertNotCalled(t, "HardDelete")
 		repo.AssertNotCalled(t, "SoftDelete")
+	})
+}
+
+// TestSvc_Reconcile covers account.Svc.Reconcile.
+func TestSvc_Reconcile(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		reconciled := makeAccount("Main")
+		reconciled.LastReconciledAt = &now
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("MarkReconciled", testAccountID, testBudgetID).Return(reconciled, nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID)
+
+		require.NoError(t, err)
+		assert.Equal(t, &now, a.LastReconciledAt)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("MarkReconciled", testAccountID, testBudgetID).Return(models.Account{}, account.ErrNotFound)
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID)
+
+		assert.ErrorIs(t, err, account.ErrNotFound)
+		repo.AssertExpectations(t)
 	})
 }

@@ -456,3 +456,60 @@ func TestHandler_DeleteAccount(t *testing.T) {
 		assert.False(t, parseResp(t, rec.Body.String()).Success)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// TestHandler_ReconcileAccount
+// ---------------------------------------------------------------------------
+
+func TestHandler_ReconcileAccount(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("success returns 200", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ReconcileFn: func(_ context.Context, _, _ int64) (models.Account, error) {
+				return makeAccount("Main"), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.True(t, resp.Success)
+		assert.Equal(t, "account reconciled successfully", resp.Msg)
+	})
+
+	t.Run("not found returns 404", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ReconcileFn: func(_ context.Context, _, _ int64) (models.Account, error) {
+				return models.Account{}, account.ErrNotFound
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+		assert.False(t, parseResp(t, rec.Body.String()).Success)
+	})
+
+	t.Run("invalid account id returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "abc")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}

@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const accountExistsByName = `-- name: AccountExistsByName :one
@@ -58,7 +60,7 @@ func (q *Queries) AccountExistsByNameExcluding(ctx context.Context, arg AccountE
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, notes)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
 `
 
 type CreateAccountParams struct {
@@ -70,7 +72,21 @@ type CreateAccountParams struct {
 	Notes         *string
 }
 
-func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error) {
+type CreateAccountRow struct {
+	ID               int64
+	BudgetID         int64
+	Name             string
+	Type             AccountType
+	RequiresRecon    bool
+	IsOnBudget       bool
+	Notes            *string
+	LastReconciledAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (CreateAccountRow, error) {
 	row := q.db.QueryRow(ctx, createAccount,
 		arg.BudgetID,
 		arg.Name,
@@ -79,7 +95,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		arg.IsOnBudget,
 		arg.Notes,
 	)
-	var i Account
+	var i CreateAccountRow
 	err := row.Scan(
 		&i.ID,
 		&i.BudgetID,
@@ -88,6 +104,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		&i.RequiresRecon,
 		&i.IsOnBudget,
 		&i.Notes,
+		&i.LastReconciledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -96,7 +113,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 }
 
 const getAccountByID = `-- name: GetAccountByID :one
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
 `
@@ -106,9 +123,23 @@ type GetAccountByIDParams struct {
 	BudgetID int64
 }
 
-func (q *Queries) GetAccountByID(ctx context.Context, arg GetAccountByIDParams) (Account, error) {
+type GetAccountByIDRow struct {
+	ID               int64
+	BudgetID         int64
+	Name             string
+	Type             AccountType
+	RequiresRecon    bool
+	IsOnBudget       bool
+	Notes            *string
+	LastReconciledAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) GetAccountByID(ctx context.Context, arg GetAccountByIDParams) (GetAccountByIDRow, error) {
 	row := q.db.QueryRow(ctx, getAccountByID, arg.ID, arg.BudgetID)
-	var i Account
+	var i GetAccountByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.BudgetID,
@@ -117,6 +148,7 @@ func (q *Queries) GetAccountByID(ctx context.Context, arg GetAccountByIDParams) 
 		&i.RequiresRecon,
 		&i.IsOnBudget,
 		&i.Notes,
+		&i.LastReconciledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -140,21 +172,35 @@ func (q *Queries) HardDeleteAccount(ctx context.Context, arg HardDeleteAccountPa
 }
 
 const listAccountsByBudget = `-- name: ListAccountsByBudget :many
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE budget_id = $1 AND deleted_at IS NULL
 ORDER BY lower(name) ASC
 `
 
-func (q *Queries) ListAccountsByBudget(ctx context.Context, budgetID int64) ([]Account, error) {
+type ListAccountsByBudgetRow struct {
+	ID               int64
+	BudgetID         int64
+	Name             string
+	Type             AccountType
+	RequiresRecon    bool
+	IsOnBudget       bool
+	Notes            *string
+	LastReconciledAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) ListAccountsByBudget(ctx context.Context, budgetID int64) ([]ListAccountsByBudgetRow, error) {
 	rows, err := q.db.Query(ctx, listAccountsByBudget, budgetID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Account
+	var items []ListAccountsByBudgetRow
 	for rows.Next() {
-		var i Account
+		var i ListAccountsByBudgetRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.BudgetID,
@@ -163,6 +209,7 @@ func (q *Queries) ListAccountsByBudget(ctx context.Context, budgetID int64) ([]A
 			&i.RequiresRecon,
 			&i.IsOnBudget,
 			&i.Notes,
+			&i.LastReconciledAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -177,6 +224,51 @@ func (q *Queries) ListAccountsByBudget(ctx context.Context, budgetID int64) ([]A
 	return items, nil
 }
 
+const markAccountReconciled = `-- name: MarkAccountReconciled :one
+UPDATE accounts
+SET last_reconciled_at = now(), updated_at = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
+`
+
+type MarkAccountReconciledParams struct {
+	ID       int64
+	BudgetID int64
+}
+
+type MarkAccountReconciledRow struct {
+	ID               int64
+	BudgetID         int64
+	Name             string
+	Type             AccountType
+	RequiresRecon    bool
+	IsOnBudget       bool
+	Notes            *string
+	LastReconciledAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) MarkAccountReconciled(ctx context.Context, arg MarkAccountReconciledParams) (MarkAccountReconciledRow, error) {
+	row := q.db.QueryRow(ctx, markAccountReconciled, arg.ID, arg.BudgetID)
+	var i MarkAccountReconciledRow
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.Name,
+		&i.Type,
+		&i.RequiresRecon,
+		&i.IsOnBudget,
+		&i.Notes,
+		&i.LastReconciledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const patchAccount = `-- name: PatchAccount :one
 UPDATE accounts
 SET name           = COALESCE($3, name),
@@ -186,7 +278,7 @@ SET name           = COALESCE($3, name),
     notes          = COALESCE($7, notes),
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
 `
 
 type PatchAccountParams struct {
@@ -199,7 +291,21 @@ type PatchAccountParams struct {
 	Notes         *string
 }
 
-func (q *Queries) PatchAccount(ctx context.Context, arg PatchAccountParams) (Account, error) {
+type PatchAccountRow struct {
+	ID               int64
+	BudgetID         int64
+	Name             string
+	Type             AccountType
+	RequiresRecon    bool
+	IsOnBudget       bool
+	Notes            *string
+	LastReconciledAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) PatchAccount(ctx context.Context, arg PatchAccountParams) (PatchAccountRow, error) {
 	row := q.db.QueryRow(ctx, patchAccount,
 		arg.ID,
 		arg.BudgetID,
@@ -209,7 +315,7 @@ func (q *Queries) PatchAccount(ctx context.Context, arg PatchAccountParams) (Acc
 		arg.IsOnBudget,
 		arg.Notes,
 	)
-	var i Account
+	var i PatchAccountRow
 	err := row.Scan(
 		&i.ID,
 		&i.BudgetID,
@@ -218,6 +324,7 @@ func (q *Queries) PatchAccount(ctx context.Context, arg PatchAccountParams) (Acc
 		&i.RequiresRecon,
 		&i.IsOnBudget,
 		&i.Notes,
+		&i.LastReconciledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -250,7 +357,7 @@ SET name           = $3,
     notes          = $7,
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, notes, last_reconciled_at, created_at, updated_at, deleted_at
 `
 
 type UpdateAccountParams struct {
@@ -263,7 +370,21 @@ type UpdateAccountParams struct {
 	Notes         *string
 }
 
-func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (Account, error) {
+type UpdateAccountRow struct {
+	ID               int64
+	BudgetID         int64
+	Name             string
+	Type             AccountType
+	RequiresRecon    bool
+	IsOnBudget       bool
+	Notes            *string
+	LastReconciledAt pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (UpdateAccountRow, error) {
 	row := q.db.QueryRow(ctx, updateAccount,
 		arg.ID,
 		arg.BudgetID,
@@ -273,7 +394,7 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (A
 		arg.IsOnBudget,
 		arg.Notes,
 	)
-	var i Account
+	var i UpdateAccountRow
 	err := row.Scan(
 		&i.ID,
 		&i.BudgetID,
@@ -282,6 +403,7 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (A
 		&i.RequiresRecon,
 		&i.IsOnBudget,
 		&i.Notes,
+		&i.LastReconciledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,

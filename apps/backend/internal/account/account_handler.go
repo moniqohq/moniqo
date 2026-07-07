@@ -353,3 +353,31 @@ func (h *Handler) DeleteAccount(c echo.Context) error {
 
 	return httpx.OK(c, nil, "account deleted successfully")
 }
+
+// ReconcileAccount handles POST /api/v1/budgets/:budget_id/accounts/:id/reconcile.
+func (h *Handler) ReconcileAccount(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	id, err := parseAccountID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errInvalidID}})
+	}
+
+	acc, err := h.svc.Reconcile(c.Request().Context(), id, budgetID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return httpx.NotFound(c, "account not found")
+		}
+		h.log.Error("Reconcile account failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, acc, "account reconciled successfully")
+}

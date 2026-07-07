@@ -36,12 +36,13 @@ import (
 
 // AccountService is a test double for the account.Service interface.
 type AccountService struct {
-	CreateFn  func(ctx context.Context, budgetID int64, req account.CreateRequest) (models.Account, error)
-	GetByIDFn func(ctx context.Context, id, budgetID int64) (models.Account, error)
-	ListFn    func(ctx context.Context, budgetID int64) ([]models.Account, error)
-	ReplaceFn func(ctx context.Context, id, budgetID int64, req account.ReplaceRequest) (models.Account, error)
-	PatchFn   func(ctx context.Context, id, budgetID int64, req account.PatchRequest) (models.Account, error)
-	DeleteFn  func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	CreateFn    func(ctx context.Context, budgetID int64, req account.CreateRequest) (models.Account, error)
+	GetByIDFn   func(ctx context.Context, id, budgetID int64) (models.Account, error)
+	ListFn      func(ctx context.Context, budgetID int64) ([]models.Account, error)
+	ReplaceFn   func(ctx context.Context, id, budgetID int64, req account.ReplaceRequest) (models.Account, error)
+	PatchFn     func(ctx context.Context, id, budgetID int64, req account.PatchRequest) (models.Account, error)
+	DeleteFn    func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	ReconcileFn func(ctx context.Context, id, budgetID int64) (models.Account, error)
 }
 
 // Create delegates to CreateFn.
@@ -72,6 +73,11 @@ func (m *AccountService) Patch(ctx context.Context, id, budgetID int64, req acco
 // Delete delegates to DeleteFn.
 func (m *AccountService) Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
 	return m.DeleteFn(ctx, id, budgetID, callerRole)
+}
+
+// Reconcile delegates to ReconcileFn.
+func (m *AccountService) Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error) {
+	return m.ReconcileFn(ctx, id, budgetID)
 }
 
 // -----------------------------------------------------------------------------
@@ -157,12 +163,26 @@ func (m *AccountRepository) HasTransactions(_ context.Context, id, budgetID int6
 	return args.Bool(0), args.Error(1)
 }
 
-// SumBalance records the call and returns the configured stub values.
-func (m *AccountRepository) SumBalance(_ context.Context, id, budgetID int64) (money.Amount, error) {
+// Balances records the call and returns the configured stub values.
+func (m *AccountRepository) Balances(_ context.Context, id, budgetID int64) (balance, clearedBalance money.Amount, err error) {
 	args := m.Called(id, budgetID)
-	a, ok := args.Get(0).(money.Amount)
+	balance, ok := args.Get(0).(money.Amount)
 	if !ok {
-		return 0, args.Error(1)
+		return 0, 0, args.Error(2) //nolint:mnd
+	}
+	clearedBalance, ok = args.Get(1).(money.Amount)
+	if !ok {
+		return 0, 0, args.Error(2) //nolint:mnd
+	}
+	return balance, clearedBalance, args.Error(2) //nolint:mnd
+}
+
+// MarkReconciled records the call and returns the configured stub values.
+func (m *AccountRepository) MarkReconciled(_ context.Context, id, budgetID int64) (models.Account, error) {
+	args := m.Called(id, budgetID)
+	a, ok := args.Get(0).(models.Account)
+	if !ok {
+		return models.Account{}, args.Error(1)
 	}
 	return a, args.Error(1)
 }

@@ -368,6 +368,8 @@ func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
 	accountsGroup.DELETE("/:id", accountHandler.DeleteAccount,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
+	accountsGroup.POST("/:id/reconcile", accountHandler.ReconcileAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
 }
 
 func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {

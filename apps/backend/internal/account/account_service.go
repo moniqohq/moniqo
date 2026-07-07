@@ -42,6 +42,7 @@ type Service interface {
 	Replace(ctx context.Context, id, budgetID int64, req ReplaceRequest) (models.Account, error)
 	Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.Account, error)
 	Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error)
 }
 
 // Svc is the concrete implementation of Service.
@@ -119,16 +120,17 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 			return models.Account{}, fmt.Errorf("create opening transaction: %w", err)
 		}
 
-		balance, err := s.repo.SumBalance(ctx, account.ID, budgetID)
+		balance, clearedBalance, err := s.repo.Balances(ctx, account.ID, budgetID)
 		if err != nil {
-			s.log.Error("SumBalance failed after opening transaction",
+			s.log.Error("Balances failed after opening transaction",
 				zap.Int64("budget_id", budgetID),
 				zap.Int64("account_id", account.ID),
 				zap.Error(err),
 			)
-			return models.Account{}, fmt.Errorf("sum balance after opening transaction: %w", err)
+			return models.Account{}, fmt.Errorf("get balances after opening transaction: %w", err)
 		}
 		account.Balance = balance
+		account.ClearedBalance = clearedBalance
 	}
 
 	s.log.Info("account created",
@@ -158,17 +160,6 @@ func (s *Svc) GetByID(ctx context.Context, id, budgetID int64) (models.Account, 
 		return models.Account{}, err //nolint:wrapcheck
 	}
 
-	balance, err := s.repo.SumBalance(ctx, id, budgetID)
-	if err != nil {
-		s.log.Error("SumBalance failed in GetByID",
-			zap.Int64("account_id", id),
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return models.Account{}, fmt.Errorf("sum balance: %w", err)
-	}
-	account.Balance = balance
-
 	return account, nil
 }
 
@@ -192,16 +183,17 @@ func (s *Svc) List(ctx context.Context, budgetID int64) ([]models.Account, error
 	}
 
 	for i, a := range accounts {
-		balance, err := s.repo.SumBalance(ctx, a.ID, budgetID)
+		balance, clearedBalance, err := s.repo.Balances(ctx, a.ID, budgetID)
 		if err != nil {
-			s.log.Error("SumBalance failed during List",
+			s.log.Error("Balances failed during List",
 				zap.Int64("account_id", a.ID),
 				zap.Int64("budget_id", budgetID),
 				zap.Error(err),
 			)
-			return nil, fmt.Errorf("sum balance for account %d: %w", a.ID, err)
+			return nil, fmt.Errorf("get balances for account %d: %w", a.ID, err)
 		}
 		accounts[i].Balance = balance
+		accounts[i].ClearedBalance = clearedBalance
 	}
 
 	return accounts, nil
@@ -270,16 +262,17 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		return models.Account{}, fmt.Errorf("update account: %w", err)
 	}
 
-	balance, err := s.repo.SumBalance(ctx, account.ID, budgetID)
+	balance, clearedBalance, err := s.repo.Balances(ctx, account.ID, budgetID)
 	if err != nil {
-		s.log.Error("SumBalance failed during Replace",
+		s.log.Error("Balances failed during Replace",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
 			zap.Error(err),
 		)
-		return models.Account{}, fmt.Errorf("sum balance: %w", err)
+		return models.Account{}, fmt.Errorf("get balances: %w", err)
 	}
 	account.Balance = balance
+	account.ClearedBalance = clearedBalance
 
 	s.log.Info("account replaced",
 		zap.Int64("account_id", account.ID),
@@ -347,16 +340,17 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		return models.Account{}, fmt.Errorf("patch account: %w", err)
 	}
 
-	balance, err := s.repo.SumBalance(ctx, account.ID, budgetID)
+	balance, clearedBalance, err := s.repo.Balances(ctx, account.ID, budgetID)
 	if err != nil {
-		s.log.Error("SumBalance failed during Patch",
+		s.log.Error("Balances failed during Patch",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
 			zap.Error(err),
 		)
-		return models.Account{}, fmt.Errorf("sum balance: %w", err)
+		return models.Account{}, fmt.Errorf("get balances: %w", err)
 	}
 	account.Balance = balance
+	account.ClearedBalance = clearedBalance
 
 	s.log.Info("account patched",
 		zap.Int64("account_id", account.ID),
@@ -426,4 +420,32 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		zap.Bool("soft_delete", hasTxns),
 	)
 	return nil
+}
+
+// Reconcile marks all cleared transactions on the account as reconciled and
+// stamps last_reconciled_at, returning the refreshed account.
+// Returns ErrNotFound if the account does not exist or is soft-deleted.
+func (s *Svc) Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error) {
+	s.log.Debug("reconciling account",
+		zap.Int64("account_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	account, err := s.repo.MarkReconciled(ctx, id, budgetID)
+	if err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			s.log.Error("repo.MarkReconciled failed",
+				zap.Int64("account_id", id),
+				zap.Int64("budget_id", budgetID),
+				zap.Error(err),
+			)
+		}
+		return models.Account{}, err //nolint:wrapcheck
+	}
+
+	s.log.Info("account reconciled",
+		zap.Int64("account_id", account.ID),
+		zap.Int64("budget_id", budgetID),
+	)
+	return account, nil
 }
