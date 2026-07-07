@@ -55,8 +55,8 @@ type Config struct {
 	RefreshTokenTTL       time.Duration
 	RefreshTokenMaxAge    time.Duration
 	PasswordResetTokenTTL time.Duration
-	AppBaseURL            string // frontend base URL (APP_BASE_URL)
-	APIBaseURL            string // backend self URL for building API links (API_BASE_URL)
+	AppBaseURL            string   // frontend base URL (APP_BASE_URL)
+	APIBaseURL            string   // backend self URL for building API links (API_BASE_URL)
 	CORSOrigins           []string // CORS_ORIGINS comma-separated; defaults to AppBaseURL
 	Email                 EmailConfig
 }

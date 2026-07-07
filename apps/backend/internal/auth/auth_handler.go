@@ -63,30 +63,6 @@ func NewHandler(svc Service, log *zap.Logger, secureCookie bool) *Handler {
 	return &Handler{svc: svc, log: log, secureCookie: secureCookie}
 }
 
-func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time) {
-	cookie := new(http.Cookie)
-	cookie.Name = refreshCookieName
-	cookie.Value = raw
-	cookie.HttpOnly = true
-	cookie.Secure = h.secureCookie
-	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Path = "/"
-	cookie.MaxAge = int(time.Until(expiresAt).Seconds())
-	c.SetCookie(cookie)
-}
-
-func (h *Handler) clearRefreshCookie(c echo.Context) {
-	cookie := new(http.Cookie)
-	cookie.Name = refreshCookieName
-	cookie.Value = ""
-	cookie.HttpOnly = true
-	cookie.Secure = h.secureCookie
-	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Path = "/"
-	cookie.MaxAge = -1
-	c.SetCookie(cookie)
-}
-
 // Login handles POST /api/v1/auth/login.
 func (h *Handler) Login(c echo.Context) error {
 	h.log.Debug("received login request")
@@ -268,4 +244,28 @@ func (h *Handler) Logout(c echo.Context) error {
 
 	h.log.Info("logout request completed", zap.Int64("user_id", userID))
 	return httpx.OK(c, nil, "logged out successfully")
+}
+
+func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time) {
+	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is configurable; HttpOnly and SameSite are always set
+		Name:     refreshCookieName,
+		Value:    raw,
+		HttpOnly: true,
+		Secure:   h.secureCookie,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   int(time.Until(expiresAt).Seconds()),
+	})
+}
+
+func (h *Handler) clearRefreshCookie(c echo.Context) {
+	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is configurable; HttpOnly and SameSite are always set
+		Name:     refreshCookieName,
+		Value:    "",
+		HttpOnly: true,
+		Secure:   h.secureCookie,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   -1,
+	})
 }

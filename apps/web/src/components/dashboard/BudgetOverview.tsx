@@ -49,7 +49,9 @@ export function BudgetOverview() {
           className="relative flex h-14 w-14 items-center justify-center rounded-2xl"
           style={{
             background: isOverBudget ? "rgba(239,68,68,0.08)" : "rgba(0,230,180,0.08)",
-            boxShadow: isOverBudget ? "0 0 28px 4px rgba(239,68,68,0.18)" : "0 0 28px 4px rgba(0,230,180,0.18)",
+            boxShadow: isOverBudget
+              ? "0 0 28px 4px rgba(239,68,68,0.18)"
+              : "0 0 28px 4px rgba(0,230,180,0.18)",
           }}
         >
           <Wallet size={28} style={{ color: isOverBudget ? "#EF4444" : "#00E6B4" }} />
@@ -70,7 +72,12 @@ export function BudgetOverview() {
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#1E2B42]">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${barPct}%`, background: isOverBudget ? "linear-gradient(90deg, #DC2626, #EF4444)" : "linear-gradient(90deg, #00C49A, #00E6B4)" }}
+              style={{
+                width: `${barPct}%`,
+                background: isOverBudget
+                  ? "linear-gradient(90deg, #DC2626, #EF4444)"
+                  : "linear-gradient(90deg, #00C49A, #00E6B4)",
+              }}
             />
           </div>
           <span className="shrink-0 text-[11px] text-[#A8B4CC]">{pct}%</span>
@@ -89,7 +96,11 @@ export function BudgetOverview() {
         </div>
         <div>
           <p className="text-[11px] text-[#5A6A85]">Remaining</p>
-          <p className={`text-[15px] font-semibold ${isOverBudget ? "text-[#EF4444]" : "text-[#00E6B4]"}`}>{formatCurrency(remaining)}</p>
+          <p
+            className={`text-[15px] font-semibold ${isOverBudget ? "text-[#EF4444]" : "text-[#00E6B4]"}`}
+          >
+            {formatCurrency(remaining)}
+          </p>
         </div>
       </div>
 

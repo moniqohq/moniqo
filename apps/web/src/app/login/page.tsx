@@ -419,10 +419,13 @@ function LoginPageInner() {
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [bannerMsg, setBannerMsg] = useState<{ type: "error" | "info" | "success"; text: string } | null>(
+  const [bannerMsg, setBannerMsg] = useState<{
+    type: "error" | "info" | "success";
+    text: string;
+  } | null>(
     searchParams.get("verified") === "true"
       ? { type: "success", text: "Your account has been verified — you can now log in." }
-      : null
+      : null,
   );
 
   const {

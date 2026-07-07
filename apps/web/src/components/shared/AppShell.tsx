@@ -50,7 +50,9 @@ export function AppShell({ children }: AppShellProps) {
       if (!user) {
         try {
           const id = parseUserIdFromToken(accessToken);
-          authFetch<ApiUser>(`/api/v1/users/${id}`).then(setUser).catch(() => {});
+          authFetch<ApiUser>(`/api/v1/users/${id}`)
+            .then(setUser)
+            .catch(() => {});
         } catch {
           // malformed token; authFetch will handle 401
         }
@@ -68,13 +70,16 @@ export function AppShell({ children }: AppShellProps) {
         setAccessToken(access_token);
         if (!user) {
           const id = parseUserIdFromToken(access_token);
-          authFetch<ApiUser>(`/api/v1/users/${id}`).then(setUser).catch(() => {});
+          authFetch<ApiUser>(`/api/v1/users/${id}`)
+            .then(setUser)
+            .catch(() => {});
         }
       })
       .catch(() => {
         clearAuth();
         router.push("/login");
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally runs once on mount
 
   return (
