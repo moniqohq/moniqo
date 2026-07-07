@@ -57,6 +57,15 @@ export function formatDate(
   return d.toLocaleDateString("en-IN", opts[format]);
 }
 
+export function formatRelativeDate(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const days = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  return formatDate(d, "medium");
+}
+
 export function getAmountColor(amount: number): string {
   if (amount > 0) return "amount-positive";
   if (amount < 0) return "amount-negative";

@@ -39,9 +39,11 @@ export function apiAccountToUI(a: ApiAccount): Account {
     name: a.name,
     type: TYPE_MAP[a.type] ?? "checking",
     balance: a.balance,
+    clearedBalance: a.cleared_balance,
     requiresRecon: a.requires_recon,
     isOnBudget: a.is_on_budget,
     notes: a.notes ?? undefined,
+    lastReconciledAt: a.last_reconciled_at ?? undefined,
   };
 }
 

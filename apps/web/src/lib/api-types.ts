@@ -53,9 +53,11 @@ export interface ApiAccount {
   name: string;
   type: string;
   balance: number;
+  cleared_balance: number;
   requires_recon: boolean;
   is_on_budget: boolean;
   notes?: string | null;
+  last_reconciled_at?: string | null;
   created_at: string;
 }
 

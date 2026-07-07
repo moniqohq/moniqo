@@ -40,7 +40,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -202,12 +202,14 @@ export function AccountDetails({ accountId, budgetId }: Props) {
     accountNumber: "—",
     createdDate: "—",
     lastActivity: "—",
-    lastReconciled: "—",
+    lastReconciled: account?.last_reconciled_at
+      ? formatRelativeDate(account.last_reconciled_at)
+      : "Never",
     onBudget: account?.is_on_budget ?? true,
     requiresReconciliation: account?.requires_recon ?? false,
     notes: account?.notes ?? "",
-    clearedBalance: account?.balance ?? 0,
-    unclearedBalance: 0,
+    clearedBalance: account?.cleared_balance ?? 0,
+    unclearedBalance: (account?.balance ?? 0) - (account?.cleared_balance ?? 0),
     monthChangePct: 0,
     balanceHistory: [],
   };

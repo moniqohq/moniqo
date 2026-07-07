@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { useAccounts } from "@/hooks/use-accounts";
 import { patchAccount } from "@/lib/api/accounts";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
 
 /* ── types ────────────────────────────────────────────── */
@@ -345,7 +345,10 @@ export function ModifyAccountModal({
   const typeColor = TYPE_META[accountType]?.color ?? "#3B82F6";
 
   /* derived balance figures */
-  const clearedBalance = Math.round((account?.balance ?? 0) * 0.985);
+  const clearedBalance = account?.clearedBalance ?? 0;
+  const lastReconciled = account?.lastReconciledAt
+    ? formatRelativeDate(account.lastReconciledAt)
+    : "Never";
 
   return (
     <AnimatePresence>
@@ -494,7 +497,7 @@ export function ModifyAccountModal({
                 <BalanceSummaryCard
                   currentBalance={account?.balance ?? 0}
                   clearedBalance={clearedBalance}
-                  lastReconciled="3 days ago"
+                  lastReconciled={lastReconciled}
                 />
 
                 {/* Account Settings */}

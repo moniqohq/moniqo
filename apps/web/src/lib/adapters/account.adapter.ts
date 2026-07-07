@@ -28,9 +28,11 @@ export interface ApiAccount {
   name: string;
   type: ApiAccountType;
   balance: string;
+  cleared_balance: string;
   requires_recon: boolean;
   is_on_budget: boolean;
   notes: string | null;
+  last_reconciled_at: string | null;
   archived: boolean;
 }
 
@@ -57,8 +59,10 @@ export function adaptAccount(raw: ApiAccount): Account {
     name: raw.name,
     type: API_TO_UI[raw.type],
     balance: parseFloat(raw.balance),
+    clearedBalance: parseFloat(raw.cleared_balance),
     requiresRecon: raw.requires_recon,
     isOnBudget: raw.is_on_budget,
     notes: raw.notes ?? undefined,
+    lastReconciledAt: raw.last_reconciled_at ?? undefined,
   };
 }
