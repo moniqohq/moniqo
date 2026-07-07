@@ -178,3 +178,14 @@ func (m *TransactionRepository) WithTx(tx pgx.Tx) transaction.Repository { //nol
 	}
 	return r
 }
+
+// AccountChecker is a testify mock for transaction.AccountChecker.
+type AccountChecker struct {
+	mock.Mock
+}
+
+// IsArchived records the call and returns the configured stub values.
+func (m *AccountChecker) IsArchived(_ context.Context, id, budgetID int64) (bool, error) {
+	args := m.Called(id, budgetID)
+	return args.Bool(0), args.Error(1)
+}

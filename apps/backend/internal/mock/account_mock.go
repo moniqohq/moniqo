@@ -38,11 +38,13 @@ import (
 type AccountService struct {
 	CreateFn    func(ctx context.Context, budgetID int64, req account.CreateRequest) (models.Account, error)
 	GetByIDFn   func(ctx context.Context, id, budgetID int64) (models.Account, error)
-	ListFn      func(ctx context.Context, budgetID int64) ([]models.Account, error)
+	ListFn      func(ctx context.Context, budgetID int64, archived *bool) ([]models.Account, error)
 	ReplaceFn   func(ctx context.Context, id, budgetID int64, req account.ReplaceRequest) (models.Account, error)
-	PatchFn     func(ctx context.Context, id, budgetID int64, req account.PatchRequest) (models.Account, error)
+	PatchFn     func(ctx context.Context, id, budgetID int64, req account.PatchRequest, callerRole models.Role) (models.Account, error)
 	DeleteFn    func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 	ReconcileFn func(ctx context.Context, id, budgetID int64) (models.Account, error)
+	ArchiveFn   func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
+	UnarchiveFn func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
 }
 
 // Create delegates to CreateFn.
@@ -56,8 +58,8 @@ func (m *AccountService) GetByID(ctx context.Context, id, budgetID int64) (model
 }
 
 // List delegates to ListFn.
-func (m *AccountService) List(ctx context.Context, budgetID int64) ([]models.Account, error) {
-	return m.ListFn(ctx, budgetID)
+func (m *AccountService) List(ctx context.Context, budgetID int64, archived *bool) ([]models.Account, error) {
+	return m.ListFn(ctx, budgetID, archived)
 }
 
 // Replace delegates to ReplaceFn.
@@ -66,8 +68,10 @@ func (m *AccountService) Replace(ctx context.Context, id, budgetID int64, req ac
 }
 
 // Patch delegates to PatchFn.
-func (m *AccountService) Patch(ctx context.Context, id, budgetID int64, req account.PatchRequest) (models.Account, error) {
-	return m.PatchFn(ctx, id, budgetID, req)
+func (m *AccountService) Patch(
+	ctx context.Context, id, budgetID int64, req account.PatchRequest, callerRole models.Role,
+) (models.Account, error) {
+	return m.PatchFn(ctx, id, budgetID, req, callerRole)
 }
 
 // Delete delegates to DeleteFn.
@@ -78,6 +82,16 @@ func (m *AccountService) Delete(ctx context.Context, id, budgetID int64, callerR
 // Reconcile delegates to ReconcileFn.
 func (m *AccountService) Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error) {
 	return m.ReconcileFn(ctx, id, budgetID)
+}
+
+// Archive delegates to ArchiveFn.
+func (m *AccountService) Archive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
+	return m.ArchiveFn(ctx, id, budgetID, callerRole)
+}
+
+// Unarchive delegates to UnarchiveFn.
+func (m *AccountService) Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
+	return m.UnarchiveFn(ctx, id, budgetID, callerRole)
 }
 
 // -----------------------------------------------------------------------------
@@ -110,8 +124,8 @@ func (m *AccountRepository) GetByID(_ context.Context, id, budgetID int64) (mode
 }
 
 // ListByBudget records the call and returns the configured stub values.
-func (m *AccountRepository) ListByBudget(_ context.Context, budgetID int64) ([]models.Account, error) {
-	args := m.Called(budgetID)
+func (m *AccountRepository) ListByBudget(_ context.Context, budgetID int64, archived *bool) ([]models.Account, error) {
+	args := m.Called(budgetID, archived)
 	as, ok := args.Get(0).([]models.Account)
 	if !ok {
 		return nil, args.Error(1)
@@ -185,6 +199,32 @@ func (m *AccountRepository) MarkReconciled(_ context.Context, id, budgetID int64
 		return models.Account{}, args.Error(1)
 	}
 	return a, args.Error(1)
+}
+
+// Archive records the call and returns the configured stub values.
+func (m *AccountRepository) Archive(_ context.Context, id, budgetID int64) (models.Account, error) {
+	args := m.Called(id, budgetID)
+	a, ok := args.Get(0).(models.Account)
+	if !ok {
+		return models.Account{}, args.Error(1)
+	}
+	return a, args.Error(1)
+}
+
+// Unarchive records the call and returns the configured stub values.
+func (m *AccountRepository) Unarchive(_ context.Context, id, budgetID int64) (models.Account, error) {
+	args := m.Called(id, budgetID)
+	a, ok := args.Get(0).(models.Account)
+	if !ok {
+		return models.Account{}, args.Error(1)
+	}
+	return a, args.Error(1)
+}
+
+// IsArchived records the call and returns the configured stub values.
+func (m *AccountRepository) IsArchived(_ context.Context, id, budgetID int64) (bool, error) {
+	args := m.Called(id, budgetID)
+	return args.Bool(0), args.Error(1)
 }
 
 // CreateOpeningTransaction records the call and returns the configured stub error.

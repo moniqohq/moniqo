@@ -236,12 +236,13 @@ type Account struct {
 	Type             AccountType
 	RequiresRecon    bool
 	IsOnBudget       bool
-	IsImmutable      bool
 	Notes            *string
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
 	DeletedAt        pgtype.Timestamptz
 	LastReconciledAt pgtype.Timestamptz
+	IsImmutable      bool
+	ArchivedAt       pgtype.Timestamptz
 }
 
 type Budget struct {

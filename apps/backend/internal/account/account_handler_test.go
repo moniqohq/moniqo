@@ -83,7 +83,7 @@ func TestHandler_ListAccounts(t *testing.T) {
 	t.Run("success returns 200 with accounts", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.AccountService{
-			ListFn: func(_ context.Context, _ int64) ([]models.Account, error) {
+			ListFn: func(_ context.Context, _ int64, _ *bool) ([]models.Account, error) {
 				return []models.Account{makeAccount("Acc1"), makeAccount("Acc2")}, nil
 			},
 		}
@@ -105,7 +105,7 @@ func TestHandler_ListAccounts(t *testing.T) {
 	t.Run("empty list returns 200 with empty array", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.AccountService{
-			ListFn: func(_ context.Context, _ int64) ([]models.Account, error) {
+			ListFn: func(_ context.Context, _ int64, _ *bool) ([]models.Account, error) {
 				return []models.Account{}, nil
 			},
 		}
@@ -364,7 +364,7 @@ func TestHandler_PatchAccount(t *testing.T) {
 		t.Parallel()
 		notes := "my note"
 		svc := &internalmock.AccountService{
-			PatchFn: func(_ context.Context, _, _ int64, req account.PatchRequest) (models.Account, error) {
+			PatchFn: func(_ context.Context, _, _ int64, req account.PatchRequest, _ models.Role) (models.Account, error) {
 				a := makeAccount("Main")
 				a.Notes = req.Notes
 				return a, nil
@@ -374,6 +374,7 @@ func TestHandler_PatchAccount(t *testing.T) {
 		c, rec := newCtx(e, http.MethodPatch, "/", body)
 		c.SetParamNames("budget_id", "id")
 		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleEditor))
 		h := account.NewHandler(svc, log)
 
 		require.NoError(t, h.PatchAccount(c))
@@ -511,5 +512,238 @@ func TestHandler_ReconcileAccount(t *testing.T) {
 
 		require.NoError(t, h.ReconcileAccount(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestHandler_ListAccounts_StatusFilter
+// ---------------------------------------------------------------------------
+
+func TestHandler_ListAccounts_StatusFilter(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("invalid status returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodGet, "/?status=bogus", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ListAccounts(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("status=archived passes true filter", func(t *testing.T) {
+		t.Parallel()
+		var gotArchived *bool
+		svc := &internalmock.AccountService{
+			ListFn: func(_ context.Context, _ int64, archived *bool) ([]models.Account, error) {
+				gotArchived = archived
+				return []models.Account{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/?status=archived", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ListAccounts(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		require.NotNil(t, gotArchived)
+		assert.True(t, *gotArchived)
+	})
+
+	t.Run("status=all passes nil filter", func(t *testing.T) {
+		t.Parallel()
+		called := false
+		svc := &internalmock.AccountService{
+			ListFn: func(_ context.Context, _ int64, archived *bool) ([]models.Account, error) {
+				called = true
+				assert.Nil(t, archived)
+				return []models.Account{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/?status=all", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ListAccounts(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.True(t, called)
+	})
+
+	t.Run("default status passes false filter", func(t *testing.T) {
+		t.Parallel()
+		var gotArchived *bool
+		svc := &internalmock.AccountService{
+			ListFn: func(_ context.Context, _ int64, archived *bool) ([]models.Account, error) {
+				gotArchived = archived
+				return []models.Account{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ListAccounts(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		require.NotNil(t, gotArchived)
+		assert.False(t, *gotArchived)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestHandler_ArchiveAccount
+// ---------------------------------------------------------------------------
+
+func TestHandler_ArchiveAccount(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("success returns 200", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ArchiveFn: func(_ context.Context, _, _ int64, _ models.Role) (models.Account, error) {
+				a := makeAccount("Main")
+				a.IsArchived = true
+				return a, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleOwner))
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ArchiveAccount(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.True(t, resp.Success)
+		assert.Equal(t, "account archived successfully", resp.Msg)
+	})
+
+	t.Run("forbidden returns 403", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ArchiveFn: func(_ context.Context, _, _ int64, _ models.Role) (models.Account, error) {
+				return models.Account{}, account.ErrForbidden
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleEditor))
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ArchiveAccount(c))
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("non-zero balance returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ArchiveFn: func(_ context.Context, _, _ int64, _ models.Role) (models.Account, error) {
+				return models.Account{}, account.ErrArchiveNonZeroBalance
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleOwner))
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ArchiveAccount(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("not found returns 404", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ArchiveFn: func(_ context.Context, _, _ int64, _ models.Role) (models.Account, error) {
+				return models.Account{}, account.ErrNotFound
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleOwner))
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ArchiveAccount(c))
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("no membership returns 401", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ArchiveAccount(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestHandler_UnarchiveAccount
+// ---------------------------------------------------------------------------
+
+func TestHandler_UnarchiveAccount(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("success returns 200", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			UnarchiveFn: func(_ context.Context, _, _ int64, _ models.Role) (models.Account, error) {
+				return makeAccount("Main"), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleOwner))
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.UnarchiveAccount(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.True(t, resp.Success)
+		assert.Equal(t, "account unarchived successfully", resp.Msg)
+	})
+
+	t.Run("forbidden returns 403", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			UnarchiveFn: func(_ context.Context, _, _ int64, _ models.Role) (models.Account, error) {
+				return models.Account{}, account.ErrForbidden
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleEditor))
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.UnarchiveAccount(c))
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("no membership returns 401", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.UnarchiveAccount(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 }

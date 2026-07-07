@@ -368,3 +368,148 @@ func TestSvc_Delete(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// TestSvc_ArchivedAccountGuard covers the archived-account guard wired via
+// SetAccountChecker across Create, CreateTransfer, Replace, and Patch.
+// ---------------------------------------------------------------------------
+
+func TestSvc_ArchivedAccountGuard(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("Create rejects archived account", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsArchived", testAccountID, testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrAccountArchived)
+		repo.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("Create succeeds when account is active", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", testifymock.Anything).Return(makeTxnWithEnvelope(-1000), nil)
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsArchived", testAccountID, testBudgetID).Return(false, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		require.NoError(t, err)
+		checker.AssertExpectations(t)
+	})
+
+	t.Run("CreateTransfer rejects when source account is archived", func(t *testing.T) {
+		t.Parallel()
+		dst := testAccount2ID
+		repo := &internalmock.TransactionRepository{}
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsArchived", testAccountID, testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		_, err := svc.CreateTransfer(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:         testAccountID,
+			TransferAccountID: &dst,
+			Amount:            money.FromMinorUnits(-1000),
+			Date:              testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrAccountArchived)
+		repo.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("CreateTransfer rejects when destination account is archived", func(t *testing.T) {
+		t.Parallel()
+		dst := testAccount2ID
+		repo := &internalmock.TransactionRepository{}
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsArchived", testAccountID, testBudgetID).Return(false, nil)
+		checker.On("IsArchived", testAccount2ID, testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		_, err := svc.CreateTransfer(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:         testAccountID,
+			TransferAccountID: &dst,
+			Amount:            money.FromMinorUnits(-1000),
+			Date:              testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrAccountArchived)
+		repo.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("Replace rejects archived account", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsArchived", testAccountID, testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(-1000),
+			Date:      testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrAccountArchived)
+		repo.AssertNotCalled(t, "Update")
+	})
+
+	t.Run("Patch rejects moving transaction to archived account", func(t *testing.T) {
+		t.Parallel()
+		newAccountID := testAccount2ID
+		repo := &internalmock.TransactionRepository{}
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsArchived", testAccount2ID, testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{
+			AccountID: &newAccountID,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrAccountArchived)
+		repo.AssertNotCalled(t, "GetByID")
+	})
+
+	t.Run("guard is skipped when no AccountChecker is wired", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", testifymock.Anything).Return(makeTxnWithEnvelope(-1000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		require.NoError(t, err)
+	})
+}

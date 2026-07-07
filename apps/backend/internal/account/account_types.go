@@ -43,6 +43,10 @@ var (
 	// ErrBalanceImmutable is returned when a caller attempts to set a balance directly;
 	// balances are derived from transactions and are never stored on the account row.
 	ErrBalanceImmutable = errors.New("balance cannot be modified directly")
+
+	// ErrArchiveNonZeroBalance is returned when archiving is attempted on an
+	// account whose balance is not zero.
+	ErrArchiveNonZeroBalance = errors.New("account balance must be zero before archiving")
 )
 
 // CreateRequest is the request payload for POST /api/v1/budgets/:budget_id/accounts.
@@ -76,6 +80,7 @@ type PatchRequest struct {
 	IsOnBudget    *bool               `json:"is_on_budget"`
 	IsImmutable   *bool               `json:"is_immutable"`
 	Notes         *string             `json:"notes"`
+	Archived      *bool               `json:"archived"`
 }
 
 // CreateParams carries the repository-layer arguments for inserting a new account.

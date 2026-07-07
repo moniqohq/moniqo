@@ -35,6 +35,17 @@ import (
 // ErrForbidden is returned when the caller's role is insufficient for the operation.
 var ErrForbidden = errors.New("insufficient role")
 
+// ErrAccountArchived is returned when a transaction is created or moved onto an archived account.
+// Archived accounts are read-only: their transaction history is preserved but no new activity is allowed.
+var ErrAccountArchived = errors.New("account is archived")
+
+// AccountChecker reports whether an account is archived. Satisfied by the
+// account package's Repository; kept as a narrow interface here to avoid an
+// import cycle between the transaction and account packages.
+type AccountChecker interface {
+	IsArchived(ctx context.Context, id, budgetID int64) (bool, error)
+}
+
 // statusOrDefault returns s if set, otherwise the default uncleared status for new transactions.
 func statusOrDefault(s *models.TransactionStatus) models.TransactionStatus {
 	if s == nil {
@@ -56,13 +67,20 @@ type Service interface {
 
 // Svc is the concrete implementation of Service.
 type Svc struct {
-	repo Repository
-	log  *zap.Logger
+	repo     Repository
+	accounts AccountChecker
+	log      *zap.Logger
 }
 
 // NewSvc returns a Svc wired to the given repository.
 func NewSvc(repo Repository, log *zap.Logger) *Svc {
 	return &Svc{repo: repo, log: log}
+}
+
+// SetAccountChecker wires an AccountChecker used to reject transactions
+// against archived accounts. When unset, the archived-account guard is skipped.
+func (s *Svc) SetAccountChecker(accounts AccountChecker) {
+	s.accounts = accounts
 }
 
 // Create persists a standard (non-transfer) transaction.
@@ -78,6 +96,9 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	}
 	if req.EnvelopeID == nil {
 		return models.Transaction{}, ErrValidation
+	}
+	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
+		return models.Transaction{}, err
 	}
 
 	txn, err := s.repo.Create(ctx, CreateParams{
@@ -125,6 +146,12 @@ func (s *Svc) CreateTransfer(ctx context.Context, budgetID int64, req CreateRequ
 	}
 	if *req.TransferAccountID == req.AccountID {
 		return models.Transaction{}, ErrConflict
+	}
+	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
+		return models.Transaction{}, err
+	}
+	if err := s.checkNotArchived(ctx, *req.TransferAccountID, budgetID); err != nil {
+		return models.Transaction{}, err
 	}
 
 	groupID := uuid.New().String()
@@ -260,6 +287,14 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 	if req.TransferAccountID != nil && *req.TransferAccountID == req.AccountID {
 		return models.Transaction{}, ErrConflict
 	}
+	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
+		return models.Transaction{}, err
+	}
+	if req.TransferAccountID != nil {
+		if err := s.checkNotArchived(ctx, *req.TransferAccountID, budgetID); err != nil {
+			return models.Transaction{}, err
+		}
+	}
 
 	updated, err := s.repo.Update(ctx, UpdateParams{
 		ID:                id,
@@ -335,6 +370,16 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 	}
 	if req.Amount != nil && req.Amount.Int64() == 0 {
 		return models.Transaction{}, ErrValidation
+	}
+	if req.AccountID != nil {
+		if err := s.checkNotArchived(ctx, *req.AccountID, budgetID); err != nil {
+			return models.Transaction{}, err
+		}
+	}
+	if req.TransferAccountID != nil {
+		if err := s.checkNotArchived(ctx, *req.TransferAccountID, budgetID); err != nil {
+			return models.Transaction{}, err
+		}
 	}
 
 	existing, err := s.repo.GetByID(ctx, id, budgetID)
@@ -459,5 +504,21 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		zap.Int64("transaction_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
+	return nil
+}
+
+// checkNotArchived returns ErrAccountArchived if accountID refers to an archived account.
+// No-ops when no AccountChecker is wired.
+func (s *Svc) checkNotArchived(ctx context.Context, accountID, budgetID int64) error {
+	if s.accounts == nil {
+		return nil
+	}
+	archived, err := s.accounts.IsArchived(ctx, accountID, budgetID)
+	if err != nil {
+		return fmt.Errorf("check account archived: %w", err)
+	}
+	if archived {
+		return ErrAccountArchived
+	}
 	return nil
 }

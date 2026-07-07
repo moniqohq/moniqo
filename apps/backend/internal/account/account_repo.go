@@ -42,7 +42,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, p CreateParams) (models.Account, error)
 	GetByID(ctx context.Context, id, budgetID int64) (models.Account, error)
-	ListByBudget(ctx context.Context, budgetID int64) ([]models.Account, error)
+	ListByBudget(ctx context.Context, budgetID int64, archived *bool) ([]models.Account, error)
 	Update(ctx context.Context, p UpdateParams) (models.Account, error)
 	Patch(ctx context.Context, p PatchParams) (models.Account, error)
 	SoftDelete(ctx context.Context, id, budgetID int64) error
@@ -51,6 +51,9 @@ type Repository interface {
 	HasTransactions(ctx context.Context, id, budgetID int64) (bool, error)
 	Balances(ctx context.Context, id, budgetID int64) (balance, clearedBalance money.Amount, err error)
 	MarkReconciled(ctx context.Context, id, budgetID int64) (models.Account, error)
+	Archive(ctx context.Context, id, budgetID int64) (models.Account, error)
+	Unarchive(ctx context.Context, id, budgetID int64) (models.Account, error)
+	IsArchived(ctx context.Context, id, budgetID int64) (bool, error)
 	CreateOpeningTransaction(ctx context.Context, budgetID, accountID int64, amount money.Amount) error
 }
 
@@ -76,12 +79,16 @@ func rowToAccount(
 	accType db.AccountType,
 	requiresRecon, isOnBudget, isImmutable bool,
 	notes *string,
-	lastReconciledAt, createdAt pgtype.Timestamptz,
+	lastReconciledAt, archivedAt, createdAt pgtype.Timestamptz,
 	balance, clearedBalance money.Amount,
 ) models.Account {
 	var reconciledAt *time.Time
 	if lastReconciledAt.Valid {
 		reconciledAt = &lastReconciledAt.Time
+	}
+	var archived *time.Time
+	if archivedAt.Valid {
+		archived = &archivedAt.Time
 	}
 	return models.Account{
 		ID:               id,
@@ -95,6 +102,8 @@ func rowToAccount(
 		IsImmutable:      isImmutable,
 		Notes:            notes,
 		LastReconciledAt: reconciledAt,
+		IsArchived:       archived != nil,
+		ArchivedAt:       archived,
 		CreatedAt:        createdAt.Time,
 	}
 }
@@ -138,7 +147,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.Account, erro
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.CreatedAt, balance, clearedBalance,
+		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -174,17 +183,22 @@ func (r *Repo) GetByID(ctx context.Context, id, budgetID int64) (models.Account,
 
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.CreatedAt, balance, clearedBalance,
+		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
 	), nil
 }
 
-// ListByBudget returns all active accounts belonging to budgetID.
-// Returns an empty slice (never nil) when the budget has no accounts.
-func (r *Repo) ListByBudget(ctx context.Context, budgetID int64) ([]models.Account, error) {
+// ListByBudget returns accounts belonging to budgetID, filtered by archived
+// state: nil returns all accounts, true returns only archived accounts, false
+// returns only active accounts. Returns an empty slice (never nil) when the
+// budget has no matching accounts.
+func (r *Repo) ListByBudget(ctx context.Context, budgetID int64, archived *bool) ([]models.Account, error) {
 	r.log.Debug("executing ListAccountsByBudget query", zap.Int64("budget_id", budgetID))
 
 	q := db.New(r.pool)
-	rows, err := q.ListAccountsByBudget(ctx, budgetID)
+	rows, err := q.ListAccountsByBudget(ctx, db.ListAccountsByBudgetParams{
+		BudgetID: budgetID,
+		Archived: archived,
+	})
 	if err != nil {
 		r.log.Error("ListAccountsByBudget query failed",
 			zap.Int64("budget_id", budgetID),
@@ -201,7 +215,7 @@ func (r *Repo) ListByBudget(ctx context.Context, budgetID int64) ([]models.Accou
 		}
 		out = append(out, rowToAccount(
 			row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-			row.LastReconciledAt, row.CreatedAt, balance, clearedBalance,
+			row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
 		))
 	}
 	return out, nil
@@ -249,7 +263,7 @@ func (r *Repo) Update(ctx context.Context, p UpdateParams) (models.Account, erro
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.CreatedAt, balance, clearedBalance,
+		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -302,7 +316,7 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Account, error)
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.CreatedAt, balance, clearedBalance,
+		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -492,8 +506,111 @@ func (r *Repo) MarkReconciled(ctx context.Context, id, budgetID int64) (models.A
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.CreatedAt, balance, clearedBalance,
+		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
 	), nil
+}
+
+// Archive stamps archived_at on the account, returning the refreshed account.
+// Returns ErrNotFound if the account does not exist, is soft-deleted, or is
+// already archived (callers should check IsArchived first for idempotency).
+func (r *Repo) Archive(ctx context.Context, id, budgetID int64) (models.Account, error) {
+	r.log.Debug("executing ArchiveAccount query",
+		zap.Int64("account_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	q := db.New(r.pool)
+	row, err := q.ArchiveAccount(ctx, db.ArchiveAccountParams{
+		ID:       id,
+		BudgetID: budgetID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Account{}, ErrNotFound
+		}
+		r.log.Error("ArchiveAccount query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return models.Account{}, fmt.Errorf("archive account: %w", err)
+	}
+
+	balance, clearedBalance, err := r.Balances(ctx, row.ID, row.BudgetID)
+	if err != nil {
+		return models.Account{}, err
+	}
+
+	r.log.Info("account archived",
+		zap.Int64("account_id", row.ID),
+		zap.Int64("budget_id", row.BudgetID),
+	)
+	return rowToAccount(
+		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
+		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+	), nil
+}
+
+// Unarchive clears archived_at on the account, returning the refreshed account.
+// Returns ErrNotFound if the account does not exist or is soft-deleted.
+func (r *Repo) Unarchive(ctx context.Context, id, budgetID int64) (models.Account, error) {
+	r.log.Debug("executing UnarchiveAccount query",
+		zap.Int64("account_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	q := db.New(r.pool)
+	row, err := q.UnarchiveAccount(ctx, db.UnarchiveAccountParams{
+		ID:       id,
+		BudgetID: budgetID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Account{}, ErrNotFound
+		}
+		r.log.Error("UnarchiveAccount query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return models.Account{}, fmt.Errorf("unarchive account: %w", err)
+	}
+
+	balance, clearedBalance, err := r.Balances(ctx, row.ID, row.BudgetID)
+	if err != nil {
+		return models.Account{}, err
+	}
+
+	r.log.Info("account unarchived",
+		zap.Int64("account_id", row.ID),
+		zap.Int64("budget_id", row.BudgetID),
+	)
+	return rowToAccount(
+		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
+		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+	), nil
+}
+
+// IsArchived reports whether the account is currently archived.
+// Returns ErrNotFound if the account does not exist or is soft-deleted.
+func (r *Repo) IsArchived(ctx context.Context, id, budgetID int64) (bool, error) {
+	q := db.New(r.pool)
+	archived, err := q.IsAccountArchived(ctx, db.IsAccountArchivedParams{
+		ID:       id,
+		BudgetID: budgetID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrNotFound
+		}
+		r.log.Error("IsAccountArchived query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return false, fmt.Errorf("is account archived: %w", err)
+	}
+	return archived, nil
 }
 
 // CreateOpeningTransaction inserts the initial balance transaction for a newly

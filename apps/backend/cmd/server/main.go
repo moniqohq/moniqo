@@ -370,6 +370,10 @@ func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
 	accountsGroup.POST("/:id/reconcile", accountHandler.ReconcileAccount,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
+	accountsGroup.POST("/:id/archive", accountHandler.ArchiveAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
+	accountsGroup.POST("/:id/unarchive", accountHandler.UnarchiveAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
 }
 
 func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
@@ -408,6 +412,7 @@ func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger
 
 	txnRepo := transaction.NewRepo(pool, log)
 	txnSvc := transaction.NewSvc(txnRepo, log)
+	txnSvc.SetAccountChecker(account.NewRepo(pool, log))
 	txnHandler := transaction.NewHandler(txnSvc, log)
 
 	txnGroup := e.Group("/api/v1/budgets/:budget_id/transactions")

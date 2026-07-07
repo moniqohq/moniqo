@@ -1,17 +1,19 @@
 -- name: CreateAccount :one
 INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at;
 
 -- name: GetAccountByID :one
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: ListAccountsByBudget :many
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 FROM accounts
-WHERE budget_id = $1 AND deleted_at IS NULL
+WHERE budget_id = $1
+  AND deleted_at IS NULL
+  AND (sqlc.narg(archived)::bool IS NULL OR (archived_at IS NOT NULL) = sqlc.narg(archived))
 ORDER BY lower(name) ASC;
 
 -- name: UpdateAccount :one
@@ -24,7 +26,7 @@ SET name           = $3,
     notes          = $8,
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at;
 
 -- name: PatchAccount :one
 UPDATE accounts
@@ -36,13 +38,30 @@ SET name           = COALESCE(sqlc.narg(name), name),
     notes          = COALESCE(sqlc.narg(notes), notes),
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at;
 
 -- name: MarkAccountReconciled :one
 UPDATE accounts
 SET last_reconciled_at = now(), updated_at = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at;
+
+-- name: ArchiveAccount :one
+UPDATE accounts
+SET archived_at = now(), updated_at = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL AND archived_at IS NULL
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at;
+
+-- name: UnarchiveAccount :one
+UPDATE accounts
+SET archived_at = NULL, updated_at = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, last_reconciled_at, archived_at, created_at, updated_at, deleted_at;
+
+-- name: IsAccountArchived :one
+SELECT (archived_at IS NOT NULL)::bool AS archived
+FROM accounts
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: SoftDeleteAccount :exec
 UPDATE accounts

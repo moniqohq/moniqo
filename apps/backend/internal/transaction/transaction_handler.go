@@ -48,10 +48,12 @@ const (
 	errSelfTransfer      = "transfer_account_id must differ from account_id"
 	errValidationFailed  = "validation failed"
 
-	fieldAmount      = "amount"
-	fieldEnvelopeID  = "budget_envelope_id"
-	fieldStatus      = "status"
-	errInvalidStatus = "must be one of uncleared, cleared, reconciled"
+	fieldAmount        = "amount"
+	fieldEnvelopeID    = "budget_envelope_id"
+	fieldStatus        = "status"
+	fieldAccountID     = "account_id"
+	errInvalidStatus   = "must be one of uncleared, cleared, reconciled"
+	errAccountArchived = "account is archived and cannot accept new transactions"
 
 	defaultPageSize = 20
 )
@@ -128,7 +130,7 @@ func appendStatusError(errs []httpx.FieldError, status *models.TransactionStatus
 func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 	var errs []httpx.FieldError
 	if req.AccountID <= 0 {
-		errs = append(errs, httpx.FieldError{Field: "account_id", Error: "must be a positive integer"})
+		errs = append(errs, httpx.FieldError{Field: fieldAccountID, Error: errInvalidID})
 	}
 	if req.Amount.Int64() == 0 {
 		errs = append(errs, httpx.FieldError{Field: fieldAmount, Error: errAmountNonZero})
@@ -155,7 +157,7 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 	var errs []httpx.FieldError
 	if req.AccountID <= 0 {
-		errs = append(errs, httpx.FieldError{Field: "account_id", Error: "must be a positive integer"})
+		errs = append(errs, httpx.FieldError{Field: fieldAccountID, Error: errInvalidID})
 	}
 	if req.Amount.Int64() == 0 {
 		errs = append(errs, httpx.FieldError{Field: fieldAmount, Error: errAmountNonZero})
@@ -289,6 +291,9 @@ func (h *Handler) CreateTransaction(c echo.Context) error {
 		if errors.Is(err, ErrValidation) {
 			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
 		}
+		if errors.Is(err, ErrAccountArchived) {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+		}
 		h.log.Error("Create transaction failed",
 			zap.Int64("budget_id", budgetID),
 			zap.Error(err),
@@ -332,6 +337,9 @@ func (h *Handler) ReplaceTransaction(c echo.Context) error {
 		}
 		if errors.Is(err, ErrValidation) {
 			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
+		}
+		if errors.Is(err, ErrAccountArchived) {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
 		}
 		h.log.Error("Replace transaction failed",
 			zap.Int64("transaction_id", id),
@@ -383,6 +391,9 @@ func (h *Handler) PatchTransaction(c echo.Context) error {
 		}
 		if errors.Is(err, ErrValidation) {
 			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
+		}
+		if errors.Is(err, ErrAccountArchived) {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
 		}
 		h.log.Error("Patch transaction failed",
 			zap.Int64("transaction_id", id),

@@ -144,7 +144,7 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 //nolint:revive
 func validatePatchRequest(req PatchRequest) []httpx.FieldError {
 	if req.Name == nil && req.Type == nil && req.RequiresRecon == nil &&
-		req.IsOnBudget == nil && req.IsImmutable == nil && req.Notes == nil {
+		req.IsOnBudget == nil && req.IsImmutable == nil && req.Notes == nil && req.Archived == nil {
 		return []httpx.FieldError{{Field: fieldBody, Error: "request body must contain at least one field"}}
 	}
 	var errs []httpx.FieldError
@@ -163,6 +163,23 @@ func validatePatchRequest(req PatchRequest) []httpx.FieldError {
 	return errs
 }
 
+// parseStatusFilter parses the ?status query param into an archived filter:
+// "active" (default) -> false, "archived" -> true, "all" -> nil.
+func parseStatusFilter(c echo.Context) (*bool, *httpx.FieldError) {
+	switch status := c.QueryParam("status"); status {
+	case "", "active":
+		active := false
+		return &active, nil
+	case "archived":
+		archived := true
+		return &archived, nil
+	case "all":
+		return nil, nil
+	default:
+		return nil, &httpx.FieldError{Field: "status", Error: "must be one of active, archived, all"}
+	}
+}
+
 // ListAccounts handles GET /api/v1/budgets/:budget_id/accounts.
 func (h *Handler) ListAccounts(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
@@ -170,7 +187,12 @@ func (h *Handler) ListAccounts(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
 	}
 
-	accounts, err := h.svc.List(c.Request().Context(), budgetID)
+	archived, fe := parseStatusFilter(c)
+	if fe != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{*fe})
+	}
+
+	accounts, err := h.svc.List(c.Request().Context(), budgetID, archived)
 	if err != nil {
 		h.log.Error("List accounts failed", zap.Int64("budget_id", budgetID), zap.Error(err))
 		return httpx.InternalError(c)
@@ -304,13 +326,24 @@ func (h *Handler) PatchAccount(c echo.Context) error {
 		return httpx.ValidationError(c, errs)
 	}
 
-	acc, err := h.svc.Patch(c.Request().Context(), id, budgetID, req)
+	membership, ok := membershipFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, "not authenticated")
+	}
+
+	acc, err := h.svc.Patch(c.Request().Context(), id, budgetID, req, membership.Role)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return httpx.NotFound(c, "account not found")
 		}
 		if errors.Is(err, ErrConflict) {
 			return httpx.Conflict(c, "account name already in use")
+		}
+		if errors.Is(err, ErrForbidden) {
+			return httpx.Forbidden(c, "insufficient role")
+		}
+		if errors.Is(err, ErrArchiveNonZeroBalance) {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: "balance", Error: "must be zero before archiving"}})
 		}
 		h.log.Error("Patch account failed",
 			zap.Int64("account_id", id),
@@ -381,4 +414,83 @@ func (h *Handler) ReconcileAccount(c echo.Context) error {
 	}
 
 	return httpx.OK(c, acc, "account reconciled successfully")
+}
+
+// ArchiveAccount handles POST /api/v1/budgets/:budget_id/accounts/:id/archive.
+//
+//nolint:revive
+func (h *Handler) ArchiveAccount(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	id, err := parseAccountID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errInvalidID}})
+	}
+
+	membership, ok := membershipFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, "not authenticated")
+	}
+
+	acc, err := h.svc.Archive(c.Request().Context(), id, budgetID, membership.Role)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return httpx.NotFound(c, "account not found")
+		}
+		if errors.Is(err, ErrForbidden) {
+			return httpx.Forbidden(c, "insufficient role")
+		}
+		if errors.Is(err, ErrArchiveNonZeroBalance) {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: "balance", Error: "must be zero before archiving"}})
+		}
+		h.log.Error("Archive account failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, acc, "account archived successfully")
+}
+
+// UnarchiveAccount handles POST /api/v1/budgets/:budget_id/accounts/:id/unarchive.
+//
+//nolint:revive
+func (h *Handler) UnarchiveAccount(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	id, err := parseAccountID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errInvalidID}})
+	}
+
+	membership, ok := membershipFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, "not authenticated")
+	}
+
+	acc, err := h.svc.Unarchive(c.Request().Context(), id, budgetID, membership.Role)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return httpx.NotFound(c, "account not found")
+		}
+		if errors.Is(err, ErrForbidden) {
+			return httpx.Forbidden(c, "insufficient role")
+		}
+		h.log.Error("Unarchive account failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, acc, "account unarchived successfully")
 }
