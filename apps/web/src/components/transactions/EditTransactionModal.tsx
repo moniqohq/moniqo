@@ -42,6 +42,7 @@ import {
 import { formatCurrency, cn } from "@/lib/utils";
 import type { Transaction, TransactionType, AccountType } from "@/types";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
+import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { apiFetch } from "@/lib/api";
 
 /* ── helpers ──────────────────────────────────────────────── */
@@ -230,7 +231,7 @@ export function EditTransactionModal({
   const selectedEnvelope = envelopes.find((e) => e.id === envId) ?? null;
   const selectedTransferAccount = accounts.find((a) => a.id === transferTo) ?? null;
   const accMeta = selectedAccount
-    ? (ACCOUNT_TYPE_META[selectedAccount.type as AccountType] ?? ACCOUNT_TYPE_META.checking)
+    ? (ACCOUNT_TYPE_META[API_TO_UI[selectedAccount.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking)
     : ACCOUNT_TYPE_META.checking;
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;
@@ -517,7 +518,7 @@ export function EditTransactionModal({
                           <div className="absolute top-full left-0 z-30 mt-1 w-64 overflow-hidden rounded-lg border border-[#1A2640] bg-[#0D1B2E] py-1 shadow-xl">
                             {accounts.map((acc) => {
                               const meta =
-                                ACCOUNT_TYPE_META[acc.type as AccountType] ??
+                                ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] ??
                                 ACCOUNT_TYPE_META.checking;
                               return (
                                 <button
@@ -688,7 +689,7 @@ export function EditTransactionModal({
                               .filter((a) => a.id !== accountId)
                               .map((acc) => {
                                 const meta =
-                                  ACCOUNT_TYPE_META[acc.type as AccountType] ??
+                                  ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] ??
                                   ACCOUNT_TYPE_META.checking;
                                 return (
                                   <button

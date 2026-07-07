@@ -48,6 +48,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { AccountType, Transaction } from "@/types";
+import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -413,7 +414,9 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
   });
 
   const account = accounts.find((a) => a.id === accountId);
-  const meta = account ? TYPE_META[account.type as AccountType] : TYPE_META.checking;
+  const meta = account
+    ? (TYPE_META[API_TO_UI[account.type as ApiAccountType]] ?? TYPE_META.checking)
+    : TYPE_META.checking;
   const txCount = accountTransactions.length;
   const balance = account?.balance ?? 0;
   const transfers = 0;

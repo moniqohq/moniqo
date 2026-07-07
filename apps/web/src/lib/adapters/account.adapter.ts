@@ -34,7 +34,7 @@ export interface ApiAccount {
   archived: boolean;
 }
 
-const API_TO_UI: Record<ApiAccountType, AccountType> = {
+export const API_TO_UI: Record<ApiAccountType, AccountType> = {
   CHECKING: "checking",
   SAVINGS: "savings",
   CREDIT_CARD: "credit",

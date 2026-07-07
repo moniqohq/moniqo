@@ -51,6 +51,7 @@ import { EditTransactionModal } from "./EditTransactionModal";
 import { DateRangePicker } from "./DateRangePicker";
 import type { DateRange } from "./DateRangePicker";
 import type { Transaction, AccountType } from "@/types";
+import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
@@ -217,7 +218,7 @@ function TxRow({
           {(() => {
             const acc = accounts.find((a) => a.id === tx.accountId);
             const meta =
-              (acc ? ACCOUNT_TYPE_META[acc.type as AccountType] : undefined) ??
+              (acc ? ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] : undefined) ??
               ACCOUNT_TYPE_META.checking;
             return (
               <div
@@ -334,18 +335,18 @@ function AccountFilter({
           <span
             className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
             style={{
-              backgroundColor: `${(ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking).color}22`,
+              backgroundColor: `${(ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking).color}22`,
             }}
           >
             <span
               style={{
                 color: (
-                  ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking
+                  ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking
                 ).color,
               }}
             >
               {
-                (ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking)
+                (ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking)
                   .icon
               }
             </span>
@@ -381,7 +382,7 @@ function AccountFilter({
           <div className="max-h-64 overflow-y-auto py-1">
             {accounts.map((acc) => {
               const checked = value.has(acc.id);
-              const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;
+              const meta = ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking;
               return (
                 <button
                   key={acc.id}

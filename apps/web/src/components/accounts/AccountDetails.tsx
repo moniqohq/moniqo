@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
+import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -189,7 +190,9 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap } = useEnvelopes(budgetId);
   const account = accounts.find((a) => a.id === accountId);
-  const typeMeta = account ? TYPE_META[account.type as AccountType] : TYPE_META.checking;
+  const typeMeta = account
+    ? (TYPE_META[API_TO_UI[account.type as ApiAccountType]] ?? TYPE_META.checking)
+    : TYPE_META.checking;
 
   const { transactions: allTxns } = useTransactions(budgetId, accountMap, envelopeMap, {
     accountId,
@@ -536,7 +539,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
       <ForceDeleteAccountDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        account={{ id: String(account.id), name: account.name, type: account.type as AccountType }}
+        account={{ id: String(account.id), name: account.name, type: API_TO_UI[account.type as ApiAccountType] ?? "checking" }}
       />
     </div>
   );
