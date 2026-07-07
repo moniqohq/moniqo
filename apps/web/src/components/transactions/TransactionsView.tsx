@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Plus,
   Upload,
@@ -805,17 +805,30 @@ export function TransactionsView() {
     dateTo: dateRange.to?.toISOString(),
     pageSize,
   });
-  const allSelected = selected.size === transactions.length && transactions.length > 0;
+  const filteredTransactions = useMemo(
+    () =>
+      typeFilter.size === 0
+        ? transactions
+        : transactions.filter((t) => typeFilter.has(t.type)),
+    [transactions, typeFilter],
+  );
+
+  const allSelected =
+    selected.size === filteredTransactions.length && filteredTransactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
 
-  const totalInflow = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const totalOutflow = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0);
+  const totalInflow = filteredTransactions
+    .filter((t) => t.amount > 0)
+    .reduce((s, t) => s + t.amount, 0);
+  const totalOutflow = filteredTransactions
+    .filter((t) => t.amount < 0)
+    .reduce((s, t) => s + t.amount, 0);
   const netFlow = totalInflow + totalOutflow;
   function toggleAll() {
     if (allSelected || someSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(transactions.map((t) => t.id)));
+      setSelected(new Set(filteredTransactions.map((t) => t.id)));
     }
   }
 
@@ -1061,7 +1074,9 @@ export function TransactionsView() {
               <p className="mb-1 text-xs font-semibold tracking-widest text-[#5A6A85] uppercase">
                 Transactions
               </p>
-              <p className="text-2xl font-bold text-[#E8EEF8] tabular-nums">{totalCount}</p>
+              <p className="text-2xl font-bold text-[#E8EEF8] tabular-nums">
+                {filteredTransactions.length}
+              </p>
               <div className="-mx-1 mt-1 h-12">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -1136,7 +1151,7 @@ export function TransactionsView() {
                   </td>
                 </tr>
               )}
-              {!txLoading && !txError && transactions.length === 0 && (
+              {!txLoading && !txError && filteredTransactions.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
                     No transactions found.
@@ -1144,7 +1159,7 @@ export function TransactionsView() {
                 </tr>
               )}
               {!txLoading &&
-                transactions.map((tx, i) => (
+                filteredTransactions.map((tx, i) => (
                   <TxRow
                     key={tx.id}
                     tx={tx}
@@ -1166,7 +1181,7 @@ export function TransactionsView() {
         <div className="flex items-center justify-between border-t border-[#131E30] px-4 py-3">
           <span className="text-sm text-[#5A6A85]">
             Showing <span className="font-medium text-[#A8B4CC]">1</span> to{" "}
-            <span className="font-medium text-[#A8B4CC]">{transactions.length}</span> of{" "}
+            <span className="font-medium text-[#A8B4CC]">{filteredTransactions.length}</span> of{" "}
             <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
           </span>
 
