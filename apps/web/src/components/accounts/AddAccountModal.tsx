@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCreateAccount } from "@/hooks/accounts/use-accounts";
 import { UI_TO_API } from "@/lib/adapters/account.adapter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -440,7 +440,10 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("checking");
   const [initialBalance, setInitialBalance] = useState("");
-  const [balanceDate] = useState("May 15, 2026");
+  const [balanceDate, setBalanceDate] = useState<Date>(() => new Date());
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
+  const calendarRef = useRef<HTMLDivElement>(null);
   const [includeInBudget, setIncludeInBudget] = useState(true);
   const [reconciliation, setReconciliation] = useState(true);
   const [immutability, setImmutability] = useState(false);
@@ -461,6 +464,17 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
       document.body.style.overflow = "";
     };
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setCalendarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [calendarOpen]);
 
   const handleCreate = async () => {
     if (!accountName.trim()) {
@@ -674,15 +688,97 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                           />
                         </div>
                       </div>
-                      <div>
+                      <div className="relative" ref={calendarRef}>
                         <label className="mb-1.5 block text-xs font-medium text-[#A8B4CC]">
                           As of date
                         </label>
-                        <button className="flex w-full items-center gap-2 rounded-xl border border-[#1A2540] bg-[#0B1120] px-3 py-2.5 text-sm transition-colors hover:border-[#2A3A54] focus:outline-none">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCalendarMonth(new Date(balanceDate.getFullYear(), balanceDate.getMonth(), 1));
+                            setCalendarOpen((v) => !v);
+                          }}
+                          className="flex w-full items-center gap-2 rounded-xl border border-[#1A2540] bg-[#0B1120] px-3 py-2.5 text-sm transition-colors hover:border-[#2A3A54] focus:outline-none"
+                        >
                           <CalendarDays size={13} className="flex-shrink-0 text-[#4A5A75]" />
-                          <span className="flex-1 text-left text-sm text-white">{balanceDate}</span>
-                          <ChevronDown size={12} className="flex-shrink-0 text-[#4A5A75]" />
+                          <span className="flex-1 text-left text-sm text-white">
+                            {balanceDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                          <ChevronDown size={12} className={cn("flex-shrink-0 text-[#4A5A75] transition-transform", calendarOpen && "rotate-180")} />
                         </button>
+
+                        {calendarOpen && (() => {
+                          const y = calendarMonth.getFullYear();
+                          const m = calendarMonth.getMonth();
+                          const firstOffset = new Date(y, m, 1).getDay();
+                          const daysInMonth = new Date(y, m + 1, 0).getDate();
+                          const cells: (number | null)[] = [
+                            ...Array(firstOffset).fill(null),
+                            ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+                          ];
+                          const isSelected = (d: number) =>
+                            balanceDate.getFullYear() === y &&
+                            balanceDate.getMonth() === m &&
+                            balanceDate.getDate() === d;
+                          const isToday = (d: number) => {
+                            const t = new Date();
+                            return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
+                          };
+                          return (
+                            <div className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[240px] rounded-xl border border-[#1A2540] bg-[#0B1120] p-3 shadow-xl">
+                              <div className="mb-2 flex items-center justify-between">
+                                <button
+                                  type="button"
+                                  onClick={() => setCalendarMonth(new Date(y, m - 1, 1))}
+                                  className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white"
+                                >
+                                  <ChevronDown size={13} className="-rotate-90" />
+                                </button>
+                                <span className="text-xs font-semibold text-white">
+                                  {calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setCalendarMonth(new Date(y, m + 1, 1))}
+                                  className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white"
+                                >
+                                  <ChevronDown size={13} className="rotate-90" />
+                                </button>
+                              </div>
+                              <div className="mb-1 grid grid-cols-7 text-center">
+                                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                                  <span key={d} className="text-[10px] font-medium text-[#4A5A75]">{d}</span>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-7 gap-y-0.5 text-center">
+                                {cells.map((day, i) =>
+                                  day === null ? (
+                                    <span key={`e-${i}`} />
+                                  ) : (
+                                    <button
+                                      key={day}
+                                      type="button"
+                                      onClick={() => {
+                                        setBalanceDate(new Date(y, m, day));
+                                        setCalendarOpen(false);
+                                      }}
+                                      className={cn(
+                                        "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors",
+                                        isSelected(day)
+                                          ? "bg-[#7C3AED] font-semibold text-white"
+                                          : isToday(day)
+                                          ? "border border-[#7C3AED] text-white"
+                                          : "text-[#A8B4CC] hover:bg-[#1A2540] hover:text-white"
+                                      )}
+                                    >
+                                      {day}
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -757,7 +853,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                     accountName={accountName}
                     accountType={accountType}
                     initialBalance={initialBalance}
-                    balanceDate={balanceDate}
+                    balanceDate={balanceDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     includeInBudget={includeInBudget}
                     reconciliation={reconciliation}
                     immutability={immutability}
