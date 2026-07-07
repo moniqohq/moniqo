@@ -48,8 +48,10 @@ const (
 	errSelfTransfer      = "transfer_account_id must differ from account_id"
 	errValidationFailed  = "validation failed"
 
-	fieldAmount     = "amount"
-	fieldEnvelopeID = "budget_envelope_id"
+	fieldAmount      = "amount"
+	fieldEnvelopeID  = "budget_envelope_id"
+	fieldStatus      = "status"
+	errInvalidStatus = "must be one of uncleared, cleared, reconciled"
 
 	defaultPageSize = 20
 )
@@ -112,6 +114,14 @@ func parseOptionalPage(s string, defaultVal int) int {
 	return v
 }
 
+// appendStatusError appends a field error to errs if status is set but invalid.
+func appendStatusError(errs []httpx.FieldError, status *models.TransactionStatus) []httpx.FieldError {
+	if status != nil && !status.IsValid() {
+		errs = append(errs, httpx.FieldError{Field: fieldStatus, Error: errInvalidStatus})
+	}
+	return errs
+}
+
 // validateCreateRequest validates POST/transfer body.
 //
 //nolint:revive
@@ -138,7 +148,7 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 		// Standard: envelope required
 		errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeRequired})
 	}
-	return errs
+	return appendStatusError(errs, req.Status)
 }
 
 // validateReplaceRequest validates PUT body.
@@ -159,7 +169,7 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 	if req.TransferAccountID != nil && *req.TransferAccountID == req.AccountID {
 		errs = append(errs, httpx.FieldError{Field: "transfer_account_id", Error: errSelfTransfer})
 	}
-	return errs
+	return appendStatusError(errs, req.Status)
 }
 
 // validatePatchRequest validates PATCH body; also checks raw bytes for amount=0.
@@ -167,7 +177,7 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 //nolint:revive
 func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
 	if req.AccountID == nil && req.TransferAccountID == nil && req.EnvelopeID == nil &&
-		req.Amount == nil && req.Date == nil && req.Memo == nil {
+		req.Amount == nil && req.Date == nil && req.Status == nil && req.Memo == nil {
 		return []httpx.FieldError{{Field: fieldBody, Error: "request body must contain at least one field"}}
 	}
 
@@ -182,6 +192,9 @@ func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
 	var errs []httpx.FieldError
 	if req.Amount != nil && req.Amount.Int64() == 0 {
 		errs = append(errs, httpx.FieldError{Field: fieldAmount, Error: errAmountNonZero})
+	}
+	if req.Status != nil && !req.Status.IsValid() {
+		errs = append(errs, httpx.FieldError{Field: fieldStatus, Error: errInvalidStatus})
 	}
 	return errs
 }

@@ -81,6 +81,7 @@ func toModel(
 	groupID pgtype.UUID,
 	amount int64,
 	date, createdAt pgtype.Timestamptz,
+	status db.TransactionStatus,
 	memo *string,
 ) models.Transaction {
 	var gidPtr *string
@@ -99,6 +100,7 @@ func toModel(
 		TransferGroupID:   gidPtr,
 		Amount:            money.FromMinorUnits(amount),
 		Date:              date.Time,
+		Status:            models.TransactionStatus(status),
 		Memo:              memo,
 		CreatedAt:         createdAt.Time,
 	}
@@ -110,7 +112,7 @@ func rowToModel(row db.CreateFullTransactionRow) models.Transaction {
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
-		row.Amount, row.Date, row.CreatedAt, row.Memo,
+		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
 }
 
@@ -120,7 +122,7 @@ func getRowToModel(row db.GetTransactionByIDRow) models.Transaction {
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
-		row.Amount, row.Date, row.CreatedAt, row.Memo,
+		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
 }
 
@@ -130,7 +132,7 @@ func listRowToModel(row db.ListTransactionsRow) models.Transaction {
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
-		row.Amount, row.Date, row.CreatedAt, row.Memo,
+		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
 }
 
@@ -140,7 +142,7 @@ func updateRowToModel(row db.UpdateTransactionRow) models.Transaction {
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
-		row.Amount, row.Date, row.CreatedAt, row.Memo,
+		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
 }
 
@@ -150,7 +152,7 @@ func patchRowToModel(row db.PatchTransactionRow) models.Transaction {
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
-		row.Amount, row.Date, row.CreatedAt, row.Memo,
+		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
 }
 
@@ -160,7 +162,7 @@ func groupRowToModel(row db.GetTransactionsByGroupIDRow) models.Transaction {
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
-		row.Amount, row.Date, row.CreatedAt, row.Memo,
+		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
 }
 
@@ -211,6 +213,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.Transaction, 
 		TransferGroupID:   groupID,
 		Amount:            p.Amount.Int64(),
 		Date:              timeValToPg(p.Date),
+		Status:            db.TransactionStatus(p.Status),
 		Memo:              p.Memo,
 	})
 	if err != nil {
@@ -362,6 +365,12 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Transaction, er
 		amountPtr = &v
 	}
 
+	var statusPtr *db.TransactionStatus
+	if p.Status != nil {
+		v := db.TransactionStatus(*p.Status)
+		statusPtr = &v
+	}
+
 	q := db.New(r.conn)
 	row, err := q.PatchTransaction(ctx, db.PatchTransactionParams{
 		ID:                p.ID,
@@ -371,6 +380,7 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Transaction, er
 		TransferAccountID: p.TransferAccountID,
 		Amount:            amountPtr,
 		Date:              timeToPg(p.Date),
+		Status:            statusPtr,
 		Memo:              p.Memo,
 	})
 	if err != nil {

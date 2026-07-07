@@ -82,6 +82,7 @@ func TestSvc_Create(t *testing.T) {
 			EnvelopeID: &eid,
 			Amount:     money.FromMinorUnits(-150000),
 			Date:       testDate,
+			Status:     models.TransactionStatusUncleared,
 		}).Return(makeTxnWithEnvelope(-150000), nil)
 
 		svc := transaction.NewSvc(repo, log)

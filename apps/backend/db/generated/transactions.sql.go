@@ -64,9 +64,9 @@ func (q *Queries) CountTransactions(ctx context.Context, arg CountTransactionsPa
 }
 
 const createFullTransaction = `-- name: CreateFullTransaction :one
-INSERT INTO transactions (budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+INSERT INTO transactions (budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 `
 
 type CreateFullTransactionParams struct {
@@ -78,6 +78,7 @@ type CreateFullTransactionParams struct {
 	Amount            int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            TransactionStatus
 }
 
 type CreateFullTransactionRow struct {
@@ -90,6 +91,7 @@ type CreateFullTransactionRow struct {
 	Amount            int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            TransactionStatus
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
@@ -105,6 +107,7 @@ func (q *Queries) CreateFullTransaction(ctx context.Context, arg CreateFullTrans
 		arg.Amount,
 		arg.Date,
 		arg.Memo,
+		arg.Status,
 	)
 	var i CreateFullTransactionRow
 	err := row.Scan(
@@ -117,6 +120,7 @@ func (q *Queries) CreateFullTransaction(ctx context.Context, arg CreateFullTrans
 		&i.Amount,
 		&i.Date,
 		&i.Memo,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -185,6 +189,31 @@ func (q *Queries) EnvelopeHasTransactions(ctx context.Context, arg EnvelopeHasTr
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const getAccountBalances = `-- name: GetAccountBalances :one
+SELECT
+    COALESCE(SUM(amount), 0)::BIGINT AS balance,
+    COALESCE(SUM(amount) FILTER (WHERE status <> 'uncleared'), 0)::BIGINT AS cleared_balance
+FROM transactions
+WHERE account_id = $1 AND budget_id = $2 AND deleted_at IS NULL
+`
+
+type GetAccountBalancesParams struct {
+	AccountID int64
+	BudgetID  int64
+}
+
+type GetAccountBalancesRow struct {
+	Balance        int64
+	ClearedBalance int64
+}
+
+func (q *Queries) GetAccountBalances(ctx context.Context, arg GetAccountBalancesParams) (GetAccountBalancesRow, error) {
+	row := q.db.QueryRow(ctx, getAccountBalances, arg.AccountID, arg.BudgetID)
+	var i GetAccountBalancesRow
+	err := row.Scan(&i.Balance, &i.ClearedBalance)
+	return i, err
 }
 
 const getMonthlySparkline = `-- name: GetMonthlySparkline :many
@@ -272,7 +301,7 @@ func (q *Queries) GetNetWorth(ctx context.Context, budgetID int64) (int64, error
 }
 
 const getTransactionByID = `-- name: GetTransactionByID :one
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
 `
@@ -292,6 +321,7 @@ type GetTransactionByIDRow struct {
 	Amount            int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            TransactionStatus
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
@@ -310,6 +340,7 @@ func (q *Queries) GetTransactionByID(ctx context.Context, arg GetTransactionByID
 		&i.Amount,
 		&i.Date,
 		&i.Memo,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -318,7 +349,7 @@ func (q *Queries) GetTransactionByID(ctx context.Context, arg GetTransactionByID
 }
 
 const getTransactionsByGroupID = `-- name: GetTransactionsByGroupID :many
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions
 WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL
 `
@@ -338,6 +369,7 @@ type GetTransactionsByGroupIDRow struct {
 	Amount            int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            TransactionStatus
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
@@ -362,6 +394,7 @@ func (q *Queries) GetTransactionsByGroupID(ctx context.Context, arg GetTransacti
 			&i.Amount,
 			&i.Date,
 			&i.Memo,
+			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -377,7 +410,7 @@ func (q *Queries) GetTransactionsByGroupID(ctx context.Context, arg GetTransacti
 }
 
 const listTransactions = `-- name: ListTransactions :many
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions
 WHERE budget_id = $1
   AND deleted_at IS NULL
@@ -409,6 +442,7 @@ type ListTransactionsRow struct {
 	Amount            int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            TransactionStatus
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
@@ -441,6 +475,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 			&i.Amount,
 			&i.Date,
 			&i.Memo,
+			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -455,6 +490,22 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 	return items, nil
 }
 
+const markAccountTransactionsReconciled = `-- name: MarkAccountTransactionsReconciled :exec
+UPDATE transactions
+SET status = 'reconciled', updated_at = now()
+WHERE account_id = $1 AND budget_id = $2 AND status = 'cleared' AND deleted_at IS NULL
+`
+
+type MarkAccountTransactionsReconciledParams struct {
+	AccountID int64
+	BudgetID  int64
+}
+
+func (q *Queries) MarkAccountTransactionsReconciled(ctx context.Context, arg MarkAccountTransactionsReconciledParams) error {
+	_, err := q.db.Exec(ctx, markAccountTransactionsReconciled, arg.AccountID, arg.BudgetID)
+	return err
+}
+
 const patchTransaction = `-- name: PatchTransaction :one
 UPDATE transactions
 SET account_id          = COALESCE($3, account_id),
@@ -463,9 +514,10 @@ SET account_id          = COALESCE($3, account_id),
     amount              = COALESCE($6, amount),
     date                = COALESCE($7, date),
     memo                = COALESCE($8, memo),
+    status              = COALESCE($9, status),
     updated_at          = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 `
 
 type PatchTransactionParams struct {
@@ -477,6 +529,7 @@ type PatchTransactionParams struct {
 	Amount            *int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            *TransactionStatus
 }
 
 type PatchTransactionRow struct {
@@ -489,6 +542,7 @@ type PatchTransactionRow struct {
 	Amount            int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            TransactionStatus
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
@@ -504,6 +558,7 @@ func (q *Queries) PatchTransaction(ctx context.Context, arg PatchTransactionPara
 		arg.Amount,
 		arg.Date,
 		arg.Memo,
+		arg.Status,
 	)
 	var i PatchTransactionRow
 	err := row.Scan(
@@ -516,6 +571,7 @@ func (q *Queries) PatchTransaction(ctx context.Context, arg PatchTransactionPara
 		&i.Amount,
 		&i.Date,
 		&i.Memo,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -553,24 +609,6 @@ type SoftDeleteTransactionsByGroupIDParams struct {
 func (q *Queries) SoftDeleteTransactionsByGroupID(ctx context.Context, arg SoftDeleteTransactionsByGroupIDParams) error {
 	_, err := q.db.Exec(ctx, softDeleteTransactionsByGroupID, arg.TransferGroupID, arg.BudgetID)
 	return err
-}
-
-const sumAccountBalance = `-- name: SumAccountBalance :one
-SELECT COALESCE(SUM(amount), 0)::BIGINT AS balance
-FROM transactions
-WHERE account_id = $1 AND budget_id = $2 AND deleted_at IS NULL
-`
-
-type SumAccountBalanceParams struct {
-	AccountID int64
-	BudgetID  int64
-}
-
-func (q *Queries) SumAccountBalance(ctx context.Context, arg SumAccountBalanceParams) (int64, error) {
-	row := q.db.QueryRow(ctx, sumAccountBalance, arg.AccountID, arg.BudgetID)
-	var balance int64
-	err := row.Scan(&balance)
-	return balance, err
 }
 
 const sumEnvelopeSpent = `-- name: SumEnvelopeSpent :one
@@ -618,7 +656,7 @@ SET account_id         = $3,
     memo               = $8,
     updated_at         = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 `
 
 type UpdateTransactionParams struct {
@@ -642,6 +680,7 @@ type UpdateTransactionRow struct {
 	Amount            int64
 	Date              pgtype.Timestamptz
 	Memo              *string
+	Status            TransactionStatus
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
@@ -669,6 +708,7 @@ func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionPa
 		&i.Amount,
 		&i.Date,
 		&i.Memo,
+		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,

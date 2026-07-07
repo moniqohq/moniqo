@@ -35,6 +35,14 @@ import (
 // ErrForbidden is returned when the caller's role is insufficient for the operation.
 var ErrForbidden = errors.New("insufficient role")
 
+// statusOrDefault returns s if set, otherwise the default uncleared status for new transactions.
+func statusOrDefault(s *models.TransactionStatus) models.TransactionStatus {
+	if s == nil {
+		return models.TransactionStatusUncleared
+	}
+	return *s
+}
+
 // Service is the business-logic contract for transactions.
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Transaction, error)
@@ -78,6 +86,7 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 		EnvelopeID: req.EnvelopeID,
 		Amount:     req.Amount,
 		Date:       req.Date,
+		Status:     statusOrDefault(req.Status),
 		Memo:       req.Memo,
 	})
 	if err != nil {
@@ -119,6 +128,7 @@ func (s *Svc) CreateTransfer(ctx context.Context, budgetID int64, req CreateRequ
 	}
 
 	groupID := uuid.New().String()
+	status := statusOrDefault(req.Status)
 
 	// Source leg
 	src, err := s.repo.Create(ctx, CreateParams{
@@ -128,6 +138,7 @@ func (s *Svc) CreateTransfer(ctx context.Context, budgetID int64, req CreateRequ
 		TransferGroupID:   &groupID,
 		Amount:            req.Amount,
 		Date:              req.Date,
+		Status:            status,
 		Memo:              req.Memo,
 	})
 	if err != nil {
@@ -147,6 +158,7 @@ func (s *Svc) CreateTransfer(ctx context.Context, budgetID int64, req CreateRequ
 		TransferGroupID:   &groupID,
 		Amount:            negated,
 		Date:              req.Date,
+		Status:            status,
 		Memo:              req.Memo,
 	})
 	if err != nil {
@@ -318,7 +330,7 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 
 	// Reject empty body.
 	if req.AccountID == nil && req.TransferAccountID == nil && req.EnvelopeID == nil &&
-		req.Amount == nil && req.Date == nil && req.Memo == nil {
+		req.Amount == nil && req.Date == nil && req.Status == nil && req.Memo == nil {
 		return models.Transaction{}, ErrValidation
 	}
 	if req.Amount != nil && req.Amount.Int64() == 0 {
@@ -345,6 +357,7 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		EnvelopeID:        req.EnvelopeID,
 		Amount:            req.Amount,
 		Date:              req.Date,
+		Status:            req.Status,
 		Memo:              req.Memo,
 	})
 	if err != nil {

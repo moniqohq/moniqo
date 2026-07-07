@@ -26,17 +26,38 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/money"
 )
 
+// TransactionStatus is the clearing state of a transaction.
+type TransactionStatus string
+
+// TransactionStatus constants for the transaction clearing lifecycle.
+const (
+	TransactionStatusUncleared  TransactionStatus = "uncleared"
+	TransactionStatusCleared    TransactionStatus = "cleared"
+	TransactionStatusReconciled TransactionStatus = "reconciled"
+)
+
+// IsValid reports whether s is a recognized TransactionStatus.
+func (s TransactionStatus) IsValid() bool {
+	switch s {
+	case TransactionStatusUncleared, TransactionStatusCleared, TransactionStatusReconciled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Transaction is the API-facing representation of a ledger entry.
 // Amount is stored as minor units (BIGINT) and serialized as a decimal by money.Amount.
 type Transaction struct {
-	ID                int64        `json:"id"`
-	BudgetID          int64        `json:"budget_id"`
-	AccountID         int64        `json:"account_id"`
-	TransferAccountID *int64       `json:"transfer_account_id"`
-	EnvelopeID        *int64       `json:"budget_envelope_id"`
-	TransferGroupID   *string      `json:"transfer_group_id,omitempty"`
-	Amount            money.Amount `json:"amount"`
-	Date              time.Time    `json:"date"`
-	Memo              *string      `json:"memo,omitempty"`
-	CreatedAt         time.Time    `json:"created_at"`
+	ID                int64             `json:"id"`
+	BudgetID          int64             `json:"budget_id"`
+	AccountID         int64             `json:"account_id"`
+	TransferAccountID *int64            `json:"transfer_account_id"`
+	EnvelopeID        *int64            `json:"budget_envelope_id"`
+	TransferGroupID   *string           `json:"transfer_group_id,omitempty"`
+	Amount            money.Amount      `json:"amount"`
+	Date              time.Time         `json:"date"`
+	Status            TransactionStatus `json:"status"`
+	Memo              *string           `json:"memo,omitempty"`
+	CreatedAt         time.Time         `json:"created_at"`
 }
