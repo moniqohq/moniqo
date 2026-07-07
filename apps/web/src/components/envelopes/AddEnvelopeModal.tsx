@@ -23,6 +23,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Heart, Star, Target, ShieldCheck, ChevronDown, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { createEnvelope } from "@/lib/api/envelopes";
 
 /* ── types ────────────────────────────────────────────── */
 
@@ -412,18 +413,11 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                     setLoading(true);
                     setError(null);
                     try {
-                      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          title: title.trim(),
-                          allocated_amt: allocatedAmt,
-                          description: description.trim() || undefined,
-                        }),
+                      await createEnvelope(budgetId, {
+                        title: title.trim(),
+                        allocated_amt: allocatedAmt,
+                        description: description.trim() || undefined,
                       });
-                      const body = await res.json();
-                      if (!res.ok || !body.success)
-                        throw new Error(body.msg || "Failed to create envelope.");
                       onCreated();
                       onClose();
                     } catch (err) {

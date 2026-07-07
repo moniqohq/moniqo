@@ -66,3 +66,7 @@ export function patchEnvelope(
 export function deleteEnvelope(budgetId: number, id: number): Promise<void> {
   return apiFetch<void>(`${base(budgetId)}/${id}`, { method: "DELETE" });
 }
+
+export function forceDeleteEnvelope(budgetId: number, id: number): Promise<void> {
+  return apiFetch<void>(`${base(budgetId)}/${id}/force`, { method: "DELETE" });
+}

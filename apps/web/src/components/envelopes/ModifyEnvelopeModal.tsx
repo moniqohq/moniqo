@@ -36,6 +36,7 @@ import {
   Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { patchEnvelope } from "@/lib/api/envelopes";
 
 /* ── types ───────────────────────────────────────────────── */
 
@@ -534,17 +535,11 @@ export function ModifyEnvelopeModal({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          allocated_amt: allocatedNum,
-          description: description.trim() || undefined,
-        }),
+      await patchEnvelope(budgetId, envelope.id, {
+        title: title.trim(),
+        allocated_amt: allocatedNum,
+        description: description.trim() || undefined,
       });
-      const body = await res.json();
-      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to save changes.");
       onUpdated();
       onClose();
     } catch (err) {

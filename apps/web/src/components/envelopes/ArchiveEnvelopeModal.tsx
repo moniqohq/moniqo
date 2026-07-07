@@ -39,6 +39,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
+import { deleteEnvelope } from "@/lib/api/envelopes";
 
 import type { BudgetEnvelope } from "@/types";
 
@@ -201,11 +202,7 @@ export function ArchiveEnvelopeModal({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes/${envelope.id}`, {
-        method: "DELETE",
-      });
-      const body = await res.json();
-      if (!res.ok || !body.success) throw new Error(body.msg || "Failed to archive envelope.");
+      await deleteEnvelope(budgetId, envelope.id);
       onDeleted();
       onClose();
     } catch (err) {

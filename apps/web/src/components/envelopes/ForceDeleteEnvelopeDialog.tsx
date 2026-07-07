@@ -23,6 +23,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, AlertTriangle, Trash2, FileClock, Receipt, ChartColumn, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { forceDeleteEnvelope } from "@/lib/api/envelopes";
 
 /* ── Types ────────────────────────────────────────────────── */
 export interface ForceDeleteEnvelopeDialogProps {
@@ -93,13 +94,7 @@ export function ForceDeleteEnvelopeDialog({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/budgets/${budgetId}/envelopes/${envelope.id}/force`, {
-        method: "DELETE",
-      });
-      const body = await res.json();
-      if (!res.ok || !body.success) {
-        throw new Error(body.msg || "Failed to delete envelope.");
-      }
+      await forceDeleteEnvelope(budgetId, envelope.id);
       onOpenChange(false);
       /* Caller is responsible for refreshing the envelope list */
     } catch (err) {

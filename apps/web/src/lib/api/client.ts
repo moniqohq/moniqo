@@ -18,26 +18,4 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useAuthStore } from "@/stores/auth.store";
-import type { ApiResponse } from "./types";
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = useAuthStore.getState().accessToken;
-
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-  });
-
-  const body: ApiResponse<T> = await res.json();
-  if (!res.ok || !body.success) {
-    throw new Error(body.msg ?? "API error");
-  }
-  return body.data;
-}
+export { authFetch as apiFetch } from "@/lib/api-client";
