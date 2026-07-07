@@ -187,6 +187,90 @@ func (q *Queries) EnvelopeHasTransactions(ctx context.Context, arg EnvelopeHasTr
 	return exists, err
 }
 
+const getMonthlySparkline = `-- name: GetMonthlySparkline :many
+SELECT
+    date_trunc('month', date)::date AS month,
+    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions
+WHERE budget_id  = $1
+  AND deleted_at IS NULL
+  AND date >= date_trunc('month', now()) - interval '5 months'
+  AND date <  date_trunc('month', now()) + interval '1 month'
+GROUP BY date_trunc('month', date)
+ORDER BY month ASC
+`
+
+type GetMonthlySparklineRow struct {
+	Month    pgtype.Date
+	Income   int64
+	Expenses int64
+}
+
+func (q *Queries) GetMonthlySparkline(ctx context.Context, budgetID int64) ([]GetMonthlySparklineRow, error) {
+	rows, err := q.db.Query(ctx, getMonthlySparkline, budgetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMonthlySparklineRow
+	for rows.Next() {
+		var i GetMonthlySparklineRow
+		if err := rows.Scan(&i.Month, &i.Income, &i.Expenses); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMonthlyStats = `-- name: GetMonthlyStats :one
+SELECT
+    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions
+WHERE budget_id  = $1
+  AND deleted_at IS NULL
+  AND date >= date_trunc('month', $2::timestamptz)
+  AND date <  date_trunc('month', $2::timestamptz) + interval '1 month'
+`
+
+type GetMonthlyStatsParams struct {
+	BudgetID int64
+	Column2  pgtype.Timestamptz
+}
+
+type GetMonthlyStatsRow struct {
+	Income   int64
+	Expenses int64
+}
+
+func (q *Queries) GetMonthlyStats(ctx context.Context, arg GetMonthlyStatsParams) (GetMonthlyStatsRow, error) {
+	row := q.db.QueryRow(ctx, getMonthlyStats, arg.BudgetID, arg.Column2)
+	var i GetMonthlyStatsRow
+	err := row.Scan(&i.Income, &i.Expenses)
+	return i, err
+}
+
+const getNetWorth = `-- name: GetNetWorth :one
+SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS net_worth
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+`
+
+func (q *Queries) GetNetWorth(ctx context.Context, budgetID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getNetWorth, budgetID)
+	var net_worth int64
+	err := row.Scan(&net_worth)
+	return net_worth, err
+}
+
 const getTransactionByID = `-- name: GetTransactionByID :one
 SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
 FROM transactions

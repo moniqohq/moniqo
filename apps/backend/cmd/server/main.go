@@ -395,6 +395,10 @@ func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 	// Budget summary endpoint.
 	e.GET("/api/v1/budgets/:budget_id/summary", envelopeHandler.GetBudgetSummary,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.BudgetView, log))
+
+	// Dashboard stats endpoint.
+	e.GET("/api/v1/budgets/:budget_id/dashboard", envelopeHandler.GetDashboardStats,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.BudgetView, log))
 }
 
 func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {

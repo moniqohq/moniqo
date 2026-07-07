@@ -106,3 +106,34 @@ WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 UPDATE transactions
 SET deleted_at = now()
 WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: GetNetWorth :one
+SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS net_worth
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL;
+
+-- name: GetMonthlyStats :one
+SELECT
+    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions
+WHERE budget_id  = $1
+  AND deleted_at IS NULL
+  AND date >= date_trunc('month', $2::timestamptz)
+  AND date <  date_trunc('month', $2::timestamptz) + interval '1 month';
+
+-- name: GetMonthlySparkline :many
+SELECT
+    date_trunc('month', date)::date AS month,
+    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions
+WHERE budget_id  = $1
+  AND deleted_at IS NULL
+  AND date >= date_trunc('month', now()) - interval '5 months'
+  AND date <  date_trunc('month', now()) + interval '1 month'
+GROUP BY date_trunc('month', date)
+ORDER BY month ASC;

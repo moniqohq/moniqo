@@ -24,8 +24,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
@@ -50,6 +52,9 @@ type Repository interface {
 	SumSpent(ctx context.Context, id, budgetID int64) (money.Amount, error)
 	SumOnBudgetBalances(ctx context.Context, budgetID int64) (money.Amount, error)
 	GetBudgetSummaryRow(ctx context.Context, budgetID int64) (db.GetBudgetEnvelopeSummaryRow, error)
+	GetNetWorth(ctx context.Context, budgetID int64) (money.Amount, error)
+	GetMonthlyStats(ctx context.Context, budgetID int64, month time.Time) (db.GetMonthlyStatsRow, error)
+	GetMonthlySparkline(ctx context.Context, budgetID int64) ([]db.GetMonthlySparklineRow, error)
 }
 
 // Repo is the sqlc-backed implementation of Repository.
@@ -397,4 +402,40 @@ func (r *Repo) GetBudgetSummaryRow(ctx context.Context, budgetID int64) (db.GetB
 		return db.GetBudgetEnvelopeSummaryRow{}, fmt.Errorf("get budget envelope summary: %w", err)
 	}
 	return row, nil
+}
+
+// GetNetWorth returns the sum of all transaction amounts across all accounts in the budget.
+func (r *Repo) GetNetWorth(ctx context.Context, budgetID int64) (money.Amount, error) {
+	q := db.New(r.pool)
+	total, err := q.GetNetWorth(ctx, budgetID)
+	if err != nil {
+		r.log.Error("GetNetWorth query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return 0, fmt.Errorf("get net worth: %w", err)
+	}
+	return money.FromMinorUnits(total), nil
+}
+
+// GetMonthlyStats returns total income and expenses for the month containing t.
+func (r *Repo) GetMonthlyStats(ctx context.Context, budgetID int64, month time.Time) (db.GetMonthlyStatsRow, error) {
+	q := db.New(r.pool)
+	row, err := q.GetMonthlyStats(ctx, db.GetMonthlyStatsParams{
+		BudgetID: budgetID,
+		Column2:  pgtype.Timestamptz{Time: month, Valid: true},
+	})
+	if err != nil {
+		r.log.Error("GetMonthlyStats query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return db.GetMonthlyStatsRow{}, fmt.Errorf("get monthly stats: %w", err)
+	}
+	return row, nil
+}
+
+// GetMonthlySparkline returns the last 6 months of income/expense data.
+func (r *Repo) GetMonthlySparkline(ctx context.Context, budgetID int64) ([]db.GetMonthlySparklineRow, error) {
+	q := db.New(r.pool)
+	rows, err := q.GetMonthlySparkline(ctx, budgetID)
+	if err != nil {
+		r.log.Error("GetMonthlySparkline query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return nil, fmt.Errorf("get monthly sparkline: %w", err)
+	}
+	return rows, nil
 }

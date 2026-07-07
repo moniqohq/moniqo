@@ -73,3 +73,17 @@ export type ApiBudgetSummary = {
   total_spent: number;
   overspent_envelopes_count: number;
 };
+
+export type ApiSparklinePoint = {
+  month: string;
+  income: number;
+  expenses: number;
+};
+
+export type ApiDashboardStats = {
+  net_worth: number;
+  monthly_income: number;
+  monthly_expenses: number;
+  monthly_savings: number;
+  sparkline: ApiSparklinePoint[];
+};
