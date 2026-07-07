@@ -49,6 +49,7 @@ export interface Account {
   clearedBalance: number;
   requiresRecon: boolean;
   isOnBudget: boolean;
+  isImmutable: boolean;
   notes?: string;
   lastReconciledAt?: string;
 }

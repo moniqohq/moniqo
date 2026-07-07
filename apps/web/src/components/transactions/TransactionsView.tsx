@@ -807,9 +807,7 @@ export function TransactionsView() {
   });
   const filteredTransactions = useMemo(
     () =>
-      typeFilter.size === 0
-        ? transactions
-        : transactions.filter((t) => typeFilter.has(t.type)),
+      typeFilter.size === 0 ? transactions : transactions.filter((t) => typeFilter.has(t.type)),
     [transactions, typeFilter],
   );
 
@@ -1224,13 +1222,19 @@ export function TransactionsView() {
         tx={detailTx}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        onDelete={() => detailTx && openDeleteModal(detailTx)}
+        onDelete={() => {
+          if (!detailTx) return;
+          const acc = accountMap.get(detailTx.accountId);
+          if (acc?.is_immutable) return;
+          openDeleteModal(detailTx);
+        }}
         onEdit={() => {
-          if (detailTx) {
-            setEditTx(detailTx);
-            setEditOpen(true);
-            setDetailOpen(false);
-          }
+          if (!detailTx) return;
+          const acc = accountMap.get(detailTx.accountId);
+          if (acc?.is_immutable) return;
+          setEditTx(detailTx);
+          setEditOpen(true);
+          setDetailOpen(false);
         }}
       />
       <EditTransactionModal

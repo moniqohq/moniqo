@@ -488,6 +488,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
         type: UI_TO_API[accountType],
         requires_recon: reconciliation,
         is_on_budget: includeInBudget,
+        is_immutable: immutability,
         notes: notes.trim() || undefined,
         initial_balance: parseFloat(initialBalance) || 0,
       });
@@ -695,90 +696,113 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            setCalendarMonth(new Date(balanceDate.getFullYear(), balanceDate.getMonth(), 1));
+                            setCalendarMonth(
+                              new Date(balanceDate.getFullYear(), balanceDate.getMonth(), 1),
+                            );
                             setCalendarOpen((v) => !v);
                           }}
                           className="flex w-full items-center gap-2 rounded-xl border border-[#1A2540] bg-[#0B1120] px-3 py-2.5 text-sm transition-colors hover:border-[#2A3A54] focus:outline-none"
                         >
                           <CalendarDays size={13} className="flex-shrink-0 text-[#4A5A75]" />
                           <span className="flex-1 text-left text-sm text-white">
-                            {balanceDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            {balanceDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
                           </span>
-                          <ChevronDown size={12} className={cn("flex-shrink-0 text-[#4A5A75] transition-transform", calendarOpen && "rotate-180")} />
+                          <ChevronDown
+                            size={12}
+                            className={cn(
+                              "flex-shrink-0 text-[#4A5A75] transition-transform",
+                              calendarOpen && "rotate-180",
+                            )}
+                          />
                         </button>
 
-                        {calendarOpen && (() => {
-                          const y = calendarMonth.getFullYear();
-                          const m = calendarMonth.getMonth();
-                          const firstOffset = new Date(y, m, 1).getDay();
-                          const daysInMonth = new Date(y, m + 1, 0).getDate();
-                          const cells: (number | null)[] = [
-                            ...Array(firstOffset).fill(null),
-                            ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-                          ];
-                          const isSelected = (d: number) =>
-                            balanceDate.getFullYear() === y &&
-                            balanceDate.getMonth() === m &&
-                            balanceDate.getDate() === d;
-                          const isToday = (d: number) => {
-                            const t = new Date();
-                            return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
-                          };
-                          return (
-                            <div className="absolute left-0 top-full z-50 mt-1.5 w-full min-w-[240px] rounded-xl border border-[#1A2540] bg-[#0B1120] p-3 shadow-xl">
-                              <div className="mb-2 flex items-center justify-between">
-                                <button
-                                  type="button"
-                                  onClick={() => setCalendarMonth(new Date(y, m - 1, 1))}
-                                  className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white"
-                                >
-                                  <ChevronDown size={13} className="-rotate-90" />
-                                </button>
-                                <span className="text-xs font-semibold text-white">
-                                  {calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setCalendarMonth(new Date(y, m + 1, 1))}
-                                  className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white"
-                                >
-                                  <ChevronDown size={13} className="rotate-90" />
-                                </button>
-                              </div>
-                              <div className="mb-1 grid grid-cols-7 text-center">
-                                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                                  <span key={d} className="text-[10px] font-medium text-[#4A5A75]">{d}</span>
-                                ))}
-                              </div>
-                              <div className="grid grid-cols-7 gap-y-0.5 text-center">
-                                {cells.map((day, i) =>
-                                  day === null ? (
-                                    <span key={`e-${i}`} />
-                                  ) : (
-                                    <button
-                                      key={day}
-                                      type="button"
-                                      onClick={() => {
-                                        setBalanceDate(new Date(y, m, day));
-                                        setCalendarOpen(false);
-                                      }}
-                                      className={cn(
-                                        "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors",
-                                        isSelected(day)
-                                          ? "bg-[#7C3AED] font-semibold text-white"
-                                          : isToday(day)
-                                          ? "border border-[#7C3AED] text-white"
-                                          : "text-[#A8B4CC] hover:bg-[#1A2540] hover:text-white"
-                                      )}
+                        {calendarOpen &&
+                          (() => {
+                            const y = calendarMonth.getFullYear();
+                            const m = calendarMonth.getMonth();
+                            const firstOffset = new Date(y, m, 1).getDay();
+                            const daysInMonth = new Date(y, m + 1, 0).getDate();
+                            const cells: (number | null)[] = [
+                              ...Array(firstOffset).fill(null),
+                              ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+                            ];
+                            const isSelected = (d: number) =>
+                              balanceDate.getFullYear() === y &&
+                              balanceDate.getMonth() === m &&
+                              balanceDate.getDate() === d;
+                            const isToday = (d: number) => {
+                              const t = new Date();
+                              return (
+                                t.getFullYear() === y && t.getMonth() === m && t.getDate() === d
+                              );
+                            };
+                            return (
+                              <div className="absolute top-full left-0 z-50 mt-1.5 w-full min-w-[240px] rounded-xl border border-[#1A2540] bg-[#0B1120] p-3 shadow-xl">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <button
+                                    type="button"
+                                    onClick={() => setCalendarMonth(new Date(y, m - 1, 1))}
+                                    className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white"
+                                  >
+                                    <ChevronDown size={13} className="-rotate-90" />
+                                  </button>
+                                  <span className="text-xs font-semibold text-white">
+                                    {calendarMonth.toLocaleDateString("en-US", {
+                                      month: "long",
+                                      year: "numeric",
+                                    })}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCalendarMonth(new Date(y, m + 1, 1))}
+                                    className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white"
+                                  >
+                                    <ChevronDown size={13} className="rotate-90" />
+                                  </button>
+                                </div>
+                                <div className="mb-1 grid grid-cols-7 text-center">
+                                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                                    <span
+                                      key={d}
+                                      className="text-[10px] font-medium text-[#4A5A75]"
                                     >
-                                      {day}
-                                    </button>
-                                  )
-                                )}
+                                      {d}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="grid grid-cols-7 gap-y-0.5 text-center">
+                                  {cells.map((day, i) =>
+                                    day === null ? (
+                                      <span key={`e-${i}`} />
+                                    ) : (
+                                      <button
+                                        key={day}
+                                        type="button"
+                                        onClick={() => {
+                                          setBalanceDate(new Date(y, m, day));
+                                          setCalendarOpen(false);
+                                        }}
+                                        className={cn(
+                                          "mx-auto flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors",
+                                          isSelected(day)
+                                            ? "bg-[#7C3AED] font-semibold text-white"
+                                            : isToday(day)
+                                              ? "border border-[#7C3AED] text-white"
+                                              : "text-[#A8B4CC] hover:bg-[#1A2540] hover:text-white",
+                                        )}
+                                      >
+                                        {day}
+                                      </button>
+                                    ),
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })()}
+                            );
+                          })()}
                       </div>
                     </div>
 
@@ -853,7 +877,11 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                     accountName={accountName}
                     accountType={accountType}
                     initialBalance={initialBalance}
-                    balanceDate={balanceDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    balanceDate={balanceDate.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                     includeInBudget={includeInBudget}
                     reconciliation={reconciliation}
                     immutability={immutability}

@@ -31,6 +31,7 @@ export interface ApiAccount {
   cleared_balance: string;
   requires_recon: boolean;
   is_on_budget: boolean;
+  is_immutable: boolean;
   notes: string | null;
   last_reconciled_at: string | null;
   archived: boolean;
@@ -62,6 +63,7 @@ export function adaptAccount(raw: ApiAccount): Account {
     clearedBalance: parseFloat(raw.cleared_balance),
     requiresRecon: raw.requires_recon,
     isOnBudget: raw.is_on_budget,
+    isImmutable: raw.is_immutable,
     notes: raw.notes ?? undefined,
     lastReconciledAt: raw.last_reconciled_at ?? undefined,
   };

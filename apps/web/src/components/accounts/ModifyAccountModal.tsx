@@ -273,7 +273,7 @@ export function ModifyAccountModal({
   const [typeOpen, setTypeOpen] = useState(false);
   const [includeInBudget, setIncludeInBudget] = useState(account?.isOnBudget ?? true);
   const [reconciliation, setReconciliation] = useState(account?.requiresRecon ?? true);
-  const [lockTransactions, setLockTransactions] = useState(false);
+  const [lockTransactions, setLockTransactions] = useState(account?.isImmutable ?? false);
   const [notes, setNotes] = useState(account?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -286,7 +286,7 @@ export function ModifyAccountModal({
       setAccountType(account.type);
       setIncludeInBudget(account.isOnBudget);
       setReconciliation(account.requiresRecon);
-      setLockTransactions(false);
+      setLockTransactions(account.isImmutable);
       setNotes(account.notes ?? "");
       setError(null);
     }
@@ -313,7 +313,7 @@ export function ModifyAccountModal({
     setAccountType(account.type);
     setIncludeInBudget(account.isOnBudget);
     setReconciliation(account.requiresRecon);
-    setLockTransactions(false);
+    setLockTransactions(account.isImmutable);
     setNotes(account.notes ?? "");
   };
 
@@ -326,6 +326,7 @@ export function ModifyAccountModal({
         name: accountName,
         requires_recon: reconciliation,
         is_on_budget: includeInBudget,
+        is_immutable: lockTransactions,
         notes: notes || null,
       });
       await refetch();

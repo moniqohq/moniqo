@@ -188,7 +188,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { accountMap, accounts } = useAccounts(budgetId);
-  const { envelopeMap } = useEnvelopes(budgetId);
+  const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account
     ? (TYPE_META[API_TO_UI[account.type as ApiAccountType]] ?? TYPE_META.checking)
@@ -537,6 +537,10 @@ export function AccountDetails({ accountId, budgetId }: Props) {
         open={addTxOpen}
         onClose={() => setAddTxOpen(false)}
         defaultType={addTxDefault}
+        budgetId={budgetId}
+        accounts={accounts}
+        envelopes={envelopes}
+        defaultAccountId={accountId}
       />
       <ForceDeleteAccountDialog
         open={deleteOpen}
