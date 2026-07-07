@@ -217,11 +217,6 @@ export function AddTransactionModal({
 
   const wordsLabel = numericAmount ? `${numberToWords(Math.floor(numericAmount))} rupees` : "";
 
-  /* amount display split: integer vs decimal */
-  const [rawInt, rawDec] = amount.split(".");
-  const displayInt = rawInt ? Number(rawInt).toLocaleString("en-IN") : "";
-  const displayDec = rawDec !== undefined ? rawDec.slice(0, 2).padEnd(2, "0") : "";
-
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value.replace(/[^0-9.]/g, "");
     const parts = v.split(".");
@@ -702,40 +697,16 @@ export function AddTransactionModal({
                         <label className={fieldLabel}>Amount</label>
                         <div className="flex items-center rounded-xl border border-[#1A2540] bg-[#0D1525] px-5 py-4 transition-all focus-within:border-[#6C3AED] focus-within:ring-2 focus-within:ring-[#6C3AED]/40">
                           <span className="mr-4 flex-shrink-0 text-2xl text-[#4A5A75]">₹</span>
-                          <div className="flex flex-1 items-baseline justify-end">
-                            {displayInt || displayDec ? (
-                              <>
-                                <span className="text-[2.6rem] leading-none font-bold text-white tabular-nums">
-                                  {displayInt || "0"}
-                                </span>
-                                <span className="text-[2.6rem] leading-none font-bold text-white tabular-nums">
-                                  .{displayDec || "00"}
-                                </span>
-                              </>
-                            ) : (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                placeholder="0.00"
-                                className="flex-1 bg-transparent text-right text-[2.6rem] leading-none font-bold text-white tabular-nums placeholder:text-[#1E2B42] focus:outline-none"
-                                aria-label="Amount"
-                              />
-                            )}
-                            {/* hidden real input for editing when value present */}
-                            {(displayInt || displayDec) && (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                className="pointer-events-none absolute h-0 w-0 opacity-0"
-                                aria-hidden="true"
-                                tabIndex={-1}
-                              />
-                            )}
-                          </div>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={amount}
+                            onChange={handleAmountChange}
+                            placeholder="0.00"
+                            style={{ color: "white" }}
+                            className="flex-1 bg-transparent text-left text-[2.6rem] leading-none font-bold tabular-nums placeholder:text-[#2A3A54] focus:outline-none"
+                            aria-label="Amount"
+                          />
                         </div>
                         {wordsLabel && (
                           <p className="mt-1.5 px-1 text-xs leading-relaxed text-[#4A5A75] capitalize italic">
