@@ -42,12 +42,16 @@ export function CreateBudgetModal({ open, onClose, onCreated }: CreateBudgetModa
 
   useEffect(() => {
     if (open) {
-      setTitle("");
-      setNotes("");
-      setError(null);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
+
+  function handleClose() {
+    setTitle("");
+    setNotes("");
+    setError(null);
+    onClose();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,7 +63,7 @@ export function CreateBudgetModal({ open, onClose, onCreated }: CreateBudgetModa
       const created = await createBudget({ title: trimmed, notes: notes.trim() || undefined });
       setActiveBudget(created.id);
       onCreated();
-      onClose();
+      handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create budget");
     } finally {
@@ -68,7 +72,7 @@ export function CreateBudgetModal({ open, onClose, onCreated }: CreateBudgetModa
   }
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) handleClose();
   }
 
   return (
@@ -98,7 +102,7 @@ export function CreateBudgetModal({ open, onClose, onCreated }: CreateBudgetModa
                 <h2 className="text-[15px] font-semibold text-white">New Budget</h2>
               </div>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="rounded-lg p-1.5 text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white"
               >
                 <X size={16} />
@@ -106,7 +110,7 @@ export function CreateBudgetModal({ open, onClose, onCreated }: CreateBudgetModa
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium tracking-wide text-[#5A6A85] uppercase">
                   Budget name <span className="text-[#F87171]">*</span>
@@ -150,7 +154,7 @@ export function CreateBudgetModal({ open, onClose, onCreated }: CreateBudgetModa
               <div className="flex items-center justify-end gap-3 pt-1">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="rounded-lg border border-[#1E2B42] px-4 py-2 text-sm text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white"
                 >
                   Cancel

@@ -326,7 +326,11 @@ export function Topbar() {
         <Menu size={18} />
       </button>
 
-      <BudgetSwitcher budgets={budgets} isLoading={budgetsLoading} onBudgetCreated={refetchBudgets} />
+      <BudgetSwitcher
+        budgets={budgets}
+        isLoading={budgetsLoading}
+        onBudgetCreated={refetchBudgets}
+      />
 
       {/* Search bar */}
       <div className="max-w-md min-w-0 flex-1">
