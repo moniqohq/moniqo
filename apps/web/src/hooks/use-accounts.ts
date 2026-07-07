@@ -45,6 +45,8 @@ export function apiAccountToUI(a: ApiAccount): Account {
     isImmutable: a.is_immutable,
     notes: a.notes ?? undefined,
     lastReconciledAt: a.last_reconciled_at ?? undefined,
+    isArchived: a.is_archived,
+    archivedAt: a.archived_at ?? undefined,
   };
 }
 

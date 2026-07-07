@@ -52,6 +52,8 @@ export interface Account {
   isImmutable: boolean;
   notes?: string;
   lastReconciledAt?: string;
+  isArchived: boolean;
+  archivedAt?: string;
 }
 
 export interface BudgetEnvelope {
