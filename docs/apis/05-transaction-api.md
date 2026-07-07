@@ -39,6 +39,16 @@ This API supports full CRUD operations and maintains financial integrity rules.
 | `budget_envelope_id` | Integer | No | Associated envelope for budgeting impact |
 | `amount` | Decimal | Yes | Monetary value (positive or negative based on type) |
 | `date` | Time | Yes | Transaction date |
+| `status` | Enum | Yes | Clearing state: `uncleared`, `cleared`, `reconciled` |
+
+### TransactionStatus Enum
+
+Allowed values: `uncleared`, `cleared`, `reconciled`
+
+- `uncleared` — default status for newly created transactions.
+- `cleared` — the transaction has been matched against a bank statement and counts toward the account's `cleared_balance`.
+- `reconciled` — set automatically when the containing account is reconciled (see Account API); also counts toward `cleared_balance`.
+- Transactions may be created or patched with an explicit `status`; omitting it defaults to `uncleared`.
 
 ---
 

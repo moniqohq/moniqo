@@ -36,8 +36,10 @@ Represents a financial ledger within a budget.
 | `name` | String | Yes | Account display name |
 | `type` | Enum | Yes | Account classification |
 | `budget_id` | Integer | Yes | Foreign key referencing Budget |
-| `balance` | Decimal | Yes | Computed current account balance |
+| `balance` | Decimal | Yes | Computed current account balance (all transactions) |
+| `cleared_balance` | Decimal | Yes | Computed balance from cleared + reconciled transactions only |
 | `requires_recon` | Boolean | Yes | Indicates if reconciliation workflow is enabled |
+| `last_reconciled_at` | String (ISO 8601) or null | Yes | Timestamp of the most recent reconciliation, null if never reconciled |
 | `notes` | String | No | Optional descriptive notes |
 
 ### AccountType Enum
@@ -60,8 +62,10 @@ Allowed values: `CHECKING`, `SAVINGS`, `CREDIT_CARD`, `CASH`, `LOAN`
 ### Account-Specific Rules
 
 - `name` must be unique within a budget.
-- `balance` is system-calculated from transactions.
-- `balance` cannot be directly modified via update endpoints.
+- `balance` and `cleared_balance` are system-calculated from transactions.
+- `balance` and `cleared_balance` cannot be directly modified via update endpoints.
+- `cleared_balance` sums only transactions with status `cleared` or `reconciled`; `balance` sums all active transactions regardless of status.
+- `last_reconciled_at` is only updated via the reconcile endpoint.
 - `is_on_budget` determines whether account affects budget allocations.
 - Credit card accounts may require special allocation logic.
 - Deleting an account performs cascade delete and soft deletes the associated transactions.
@@ -304,6 +308,50 @@ Idempotent operation.
 
 - Mark account inactive.
 - Exclude from standard queries.
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid ID |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 404 | `NOT_FOUND` | Account not found |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+### Reconcile Account
+
+Marks all `cleared` transactions on the account as `reconciled` and stamps `last_reconciled_at` with the current time.
+
+**`POST /api/v1/budgets/{budget_id}/accounts/{id}/reconcile`**
+**Authentication:** Required
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 101,
+    "name": "HDFC Checking",
+    "type": "checking",
+    "budget_id": 1,
+    "balance": 10000.00,
+    "cleared_balance": 10000.00,
+    "requires_recon": true,
+    "last_reconciled_at": "2026-07-07T10:15:00Z",
+    "notes": "Primary salary account"
+  },
+  "msg": "account reconciled successfully"
+}
+```
+
+**Business Rules**
+
+- Transactions with status `cleared` transition to `reconciled`; `uncleared` transactions are untouched.
+- `cleared_balance` is unchanged by reconciling (reconciled transactions still count toward it).
+- Idempotent: reconciling with no cleared transactions still updates `last_reconciled_at`.
 
 **Error Scenarios**
 
