@@ -21,7 +21,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const AUTH_COOKIE = "moniqo_token";
+const AUTH_COOKIE = "moniqo_refresh";
 
 const PROTECTED_PATHS = [
   "/dashboard",

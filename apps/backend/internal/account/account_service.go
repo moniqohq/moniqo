@@ -38,10 +38,13 @@ var ErrForbidden = errors.New("insufficient role")
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Account, error)
 	GetByID(ctx context.Context, id, budgetID int64) (models.Account, error)
-	List(ctx context.Context, budgetID int64) ([]models.Account, error)
+	List(ctx context.Context, budgetID int64, archived *bool) ([]models.Account, error)
 	Replace(ctx context.Context, id, budgetID int64, req ReplaceRequest) (models.Account, error)
-	Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.Account, error)
+	Patch(ctx context.Context, id, budgetID int64, req PatchRequest, callerRole models.Role) (models.Account, error)
 	Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error)
+	Archive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
+	Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
 }
 
 // Svc is the concrete implementation of Service.
@@ -96,6 +99,7 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 		Type:          req.Type,
 		RequiresRecon: req.RequiresRecon,
 		IsOnBudget:    isOnBudget,
+		IsImmutable:   req.IsImmutable,
 		Notes:         req.Notes,
 	}
 	account, err := s.repo.Create(ctx, p)
@@ -119,16 +123,17 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 			return models.Account{}, fmt.Errorf("create opening transaction: %w", err)
 		}
 
-		balance, err := s.repo.SumBalance(ctx, account.ID, budgetID)
+		balance, clearedBalance, err := s.repo.Balances(ctx, account.ID, budgetID)
 		if err != nil {
-			s.log.Error("SumBalance failed after opening transaction",
+			s.log.Error("Balances failed after opening transaction",
 				zap.Int64("budget_id", budgetID),
 				zap.Int64("account_id", account.ID),
 				zap.Error(err),
 			)
-			return models.Account{}, fmt.Errorf("sum balance after opening transaction: %w", err)
+			return models.Account{}, fmt.Errorf("get balances after opening transaction: %w", err)
 		}
 		account.Balance = balance
+		account.ClearedBalance = clearedBalance
 	}
 
 	s.log.Info("account created",
@@ -158,26 +163,17 @@ func (s *Svc) GetByID(ctx context.Context, id, budgetID int64) (models.Account, 
 		return models.Account{}, err //nolint:wrapcheck
 	}
 
-	balance, err := s.repo.SumBalance(ctx, id, budgetID)
-	if err != nil {
-		s.log.Error("SumBalance failed in GetByID",
-			zap.Int64("account_id", id),
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return models.Account{}, fmt.Errorf("sum balance: %w", err)
-	}
-	account.Balance = balance
-
 	return account, nil
 }
 
-// List returns all active accounts within budgetID with their computed balances.
-// Returns an empty (non-nil) slice when the budget has no accounts.
-func (s *Svc) List(ctx context.Context, budgetID int64) ([]models.Account, error) {
+// List returns accounts within budgetID with their computed balances, filtered
+// by archived state: nil returns all accounts, true returns only archived
+// accounts, false returns only active accounts. Returns an empty (non-nil)
+// slice when the budget has no matching accounts.
+func (s *Svc) List(ctx context.Context, budgetID int64, archived *bool) ([]models.Account, error) {
 	s.log.Debug("listing accounts", zap.Int64("budget_id", budgetID))
 
-	accounts, err := s.repo.ListByBudget(ctx, budgetID)
+	accounts, err := s.repo.ListByBudget(ctx, budgetID, archived)
 	if err != nil {
 		s.log.Error("repo.ListByBudget failed",
 			zap.Int64("budget_id", budgetID),
@@ -192,16 +188,17 @@ func (s *Svc) List(ctx context.Context, budgetID int64) ([]models.Account, error
 	}
 
 	for i, a := range accounts {
-		balance, err := s.repo.SumBalance(ctx, a.ID, budgetID)
+		balance, clearedBalance, err := s.repo.Balances(ctx, a.ID, budgetID)
 		if err != nil {
-			s.log.Error("SumBalance failed during List",
+			s.log.Error("Balances failed during List",
 				zap.Int64("account_id", a.ID),
 				zap.Int64("budget_id", budgetID),
 				zap.Error(err),
 			)
-			return nil, fmt.Errorf("sum balance for account %d: %w", a.ID, err)
+			return nil, fmt.Errorf("get balances for account %d: %w", a.ID, err)
 		}
 		accounts[i].Balance = balance
+		accounts[i].ClearedBalance = clearedBalance
 	}
 
 	return accounts, nil
@@ -258,6 +255,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		Type:          req.Type,
 		RequiresRecon: req.RequiresRecon,
 		IsOnBudget:    isOnBudget,
+		IsImmutable:   req.IsImmutable,
 		Notes:         req.Notes,
 	}
 	account, err := s.repo.Update(ctx, p)
@@ -270,16 +268,17 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		return models.Account{}, fmt.Errorf("update account: %w", err)
 	}
 
-	balance, err := s.repo.SumBalance(ctx, account.ID, budgetID)
+	balance, clearedBalance, err := s.repo.Balances(ctx, account.ID, budgetID)
 	if err != nil {
-		s.log.Error("SumBalance failed during Replace",
+		s.log.Error("Balances failed during Replace",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
 			zap.Error(err),
 		)
-		return models.Account{}, fmt.Errorf("sum balance: %w", err)
+		return models.Account{}, fmt.Errorf("get balances: %w", err)
 	}
 	account.Balance = balance
+	account.ClearedBalance = clearedBalance
 
 	s.log.Info("account replaced",
 		zap.Int64("account_id", account.ID),
@@ -291,13 +290,22 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 // Patch applies only the non-nil fields from req to the account identified by
 // id within budgetID. Returns ErrNotFound if the account does not exist, and
 // ErrConflict if the new name is already taken by another account in the budget.
+// If req.Archived is set, the change is delegated to Archive/Unarchive so the
+// OWNER/ADMIN gate and zero-balance rule are enforced consistently.
 //
 //nolint:revive,funlen
-func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.Account, error) {
+func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest, callerRole models.Role) (models.Account, error) {
 	s.log.Debug("patching account",
 		zap.Int64("account_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
+
+	if req.Archived != nil {
+		if *req.Archived {
+			return s.Archive(ctx, id, budgetID, callerRole)
+		}
+		return s.Unarchive(ctx, id, budgetID, callerRole)
+	}
 
 	// Verify the account exists.
 	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {
@@ -335,6 +343,7 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		Type:          req.Type,
 		RequiresRecon: req.RequiresRecon,
 		IsOnBudget:    req.IsOnBudget,
+		IsImmutable:   req.IsImmutable,
 		Notes:         req.Notes,
 	}
 	account, err := s.repo.Patch(ctx, p)
@@ -347,16 +356,17 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		return models.Account{}, fmt.Errorf("patch account: %w", err)
 	}
 
-	balance, err := s.repo.SumBalance(ctx, account.ID, budgetID)
+	balance, clearedBalance, err := s.repo.Balances(ctx, account.ID, budgetID)
 	if err != nil {
-		s.log.Error("SumBalance failed during Patch",
+		s.log.Error("Balances failed during Patch",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
 			zap.Error(err),
 		)
-		return models.Account{}, fmt.Errorf("sum balance: %w", err)
+		return models.Account{}, fmt.Errorf("get balances: %w", err)
 	}
 	account.Balance = balance
+	account.ClearedBalance = clearedBalance
 
 	s.log.Info("account patched",
 		zap.Int64("account_id", account.ID),
@@ -426,4 +436,125 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		zap.Bool("soft_delete", hasTxns),
 	)
 	return nil
+}
+
+// Reconcile marks all cleared transactions on the account as reconciled and
+// stamps last_reconciled_at, returning the refreshed account.
+// Returns ErrNotFound if the account does not exist or is soft-deleted.
+func (s *Svc) Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error) {
+	s.log.Debug("reconciling account",
+		zap.Int64("account_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	account, err := s.repo.MarkReconciled(ctx, id, budgetID)
+	if err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			s.log.Error("repo.MarkReconciled failed",
+				zap.Int64("account_id", id),
+				zap.Int64("budget_id", budgetID),
+				zap.Error(err),
+			)
+		}
+		return models.Account{}, err //nolint:wrapcheck
+	}
+
+	s.log.Info("account reconciled",
+		zap.Int64("account_id", account.ID),
+		zap.Int64("budget_id", budgetID),
+	)
+	return account, nil
+}
+
+// Archive marks the account identified by id within budgetID as archived,
+// making it read-only and hiding it from active selection while preserving
+// its transaction history. Only OWNER or ADMIN callers may archive accounts.
+// The operation is idempotent: archiving an already-archived account returns
+// it unchanged. The account's balance must be zero before it can be archived.
+//
+//nolint:revive
+func (s *Svc) Archive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
+	if callerRole != models.RoleOwner && callerRole != models.RoleAdmin {
+		return models.Account{}, ErrForbidden
+	}
+
+	account, err := s.repo.GetByID(ctx, id, budgetID)
+	if err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			s.log.Error("repo.GetByID failed during Archive",
+				zap.Int64("account_id", id),
+				zap.Int64("budget_id", budgetID),
+				zap.Error(err),
+			)
+		}
+		return models.Account{}, err //nolint:wrapcheck
+	}
+
+	// Idempotent: archiving an already-archived account is a no-op success.
+	if account.IsArchived {
+		return account, nil
+	}
+
+	if account.Balance.Int64() != 0 {
+		return models.Account{}, ErrArchiveNonZeroBalance
+	}
+
+	archived, err := s.repo.Archive(ctx, id, budgetID)
+	if err != nil {
+		s.log.Error("repo.Archive failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return models.Account{}, err //nolint:wrapcheck
+	}
+
+	s.log.Info("account archived",
+		zap.Int64("account_id", archived.ID),
+		zap.Int64("budget_id", budgetID),
+	)
+	return archived, nil
+}
+
+// Unarchive clears the archived state of the account identified by id within
+// budgetID, restoring it to active use. Only OWNER or ADMIN callers may
+// unarchive accounts. The operation is idempotent: unarchiving an already
+// active account returns it unchanged.
+func (s *Svc) Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
+	if callerRole != models.RoleOwner && callerRole != models.RoleAdmin {
+		return models.Account{}, ErrForbidden
+	}
+
+	account, err := s.repo.GetByID(ctx, id, budgetID)
+	if err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			s.log.Error("repo.GetByID failed during Unarchive",
+				zap.Int64("account_id", id),
+				zap.Int64("budget_id", budgetID),
+				zap.Error(err),
+			)
+		}
+		return models.Account{}, err //nolint:wrapcheck
+	}
+
+	// Idempotent: unarchiving an already-active account is a no-op success.
+	if !account.IsArchived {
+		return account, nil
+	}
+
+	unarchived, err := s.repo.Unarchive(ctx, id, budgetID)
+	if err != nil {
+		s.log.Error("repo.Unarchive failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return models.Account{}, err //nolint:wrapcheck
+	}
+
+	s.log.Info("account unarchived",
+		zap.Int64("account_id", unarchived.ID),
+		zap.Int64("budget_id", budgetID),
+	)
+	return unarchived, nil
 }

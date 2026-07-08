@@ -49,7 +49,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useAccounts } from "@/hooks/use-accounts";
+import { ApiError } from "@/lib/api-client";
+import { useAccounts, useArchiveAccount } from "@/hooks/accounts/use-accounts";
 import type { AccountType } from "@/types";
 
 /* ── Constants ───────────────────────────────────────────── */
@@ -176,6 +177,8 @@ function ArchiveConfirmationDialog({
   lastActivity,
   onClose,
   onConfirm,
+  error,
+  isLoading,
 }: {
   accountName: string;
   balance: number;
@@ -183,6 +186,8 @@ function ArchiveConfirmationDialog({
   lastActivity: string;
   onClose: () => void;
   onConfirm: () => void;
+  error?: string | null;
+  isLoading?: boolean;
 }) {
   const [understood, setUnderstood] = useState(false);
 
@@ -263,30 +268,37 @@ function ArchiveConfirmationDialog({
           </label>
         </div>
 
+        {error && (
+          <div className="mx-5 mb-1 rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-2.5">
+            <p className="text-[12px] text-[#EF4444]">{error}</p>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="flex items-center gap-3 border-t border-[#1E2B42] px-5 py-4">
           <button
             onClick={onClose}
-            className="flex-1 rounded-xl border border-[#1E2B42] py-2.5 text-[13px] font-medium text-[#A8B4CC] transition-all hover:border-[#2A3A54] hover:text-[#E8EEF8]"
+            disabled={isLoading}
+            className="flex-1 rounded-xl border border-[#1E2B42] py-2.5 text-[13px] font-medium text-[#A8B4CC] transition-all hover:border-[#2A3A54] hover:text-[#E8EEF8] disabled:opacity-50"
           >
             Cancel
           </button>
           <button
-            onClick={understood ? onConfirm : undefined}
-            disabled={!understood}
+            onClick={understood && !isLoading ? onConfirm : undefined}
+            disabled={!understood || isLoading}
             className={cn(
               "flex-1 rounded-xl py-2.5 text-[13px] font-semibold transition-all",
-              understood
+              understood && !isLoading
                 ? "text-white shadow-lg shadow-purple-900/20"
                 : "cursor-not-allowed text-[#6C3AED]/40",
             )}
             style={
-              understood
+              understood && !isLoading
                 ? { background: "linear-gradient(135deg, #6C3AED, #7C4AFF)" }
                 : { background: "rgba(108,58,237,0.15)" }
             }
           >
-            Archive Account
+            {isLoading ? "Archiving…" : "Archive Account"}
           </button>
         </div>
       </motion.div>
@@ -398,7 +410,8 @@ interface Props {
 
 export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
-  const { data: accounts } = useAccounts(budgetId);
+  const { data: accounts } = useAccounts();
+  const archiveMutation = useArchiveAccount();
   const account = accounts.find((a) => a.id === accountId);
   const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
@@ -424,6 +437,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   ]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const balance = account?.balance ?? 0;
   const txCount = 0;
@@ -432,7 +446,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const lastActivityAgo = "5 days ago";
   const lastReconciled = "Apr 30, 2024";
   const createdDate = "Jan 5, 2024";
-  const hasBalance = balance > 0;
+  const hasBalance = balance !== 0;
   const riskLevel = hasBalance ? "Medium" : "Low";
   const archiveStatus = hasBalance ? "Archive Recommended" : "Ready to Archive";
   const riskDotColor = ({ Low: "#22C55E", Medium: "#F59E0B", High: "#EF4444" } as const)[riskLevel];
@@ -442,9 +456,21 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   }
 
   async function handleArchiveConfirmed() {
-    await new Promise((r) => setTimeout(r, 900));
-    setShowConfirm(false);
-    setShowSuccess(true);
+    setArchiveError(null);
+    try {
+      await archiveMutation.mutateAsync(String(accountId));
+      setShowConfirm(false);
+      setShowSuccess(true);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        const balanceField = e.fields?.find((f) => f.field === "balance");
+        setArchiveError(
+          balanceField ? "Account balance must be zero before archiving." : e.message,
+        );
+      } else {
+        setArchiveError("Something went wrong. Please try again.");
+      }
+    }
   }
 
   /* ── Timeline nodes ───────────────────────────────────── */
@@ -900,8 +926,13 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
             balance={balance}
             txCount={txCount}
             lastActivity={lastActivity}
-            onClose={() => setShowConfirm(false)}
+            onClose={() => {
+              setShowConfirm(false);
+              setArchiveError(null);
+            }}
             onConfirm={handleArchiveConfirmed}
+            error={archiveError}
+            isLoading={archiveMutation.isPending}
           />
         )}
         {showSuccess && (

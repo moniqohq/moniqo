@@ -186,7 +186,7 @@ func TestHandler_Register(t *testing.T) {
 			t.Parallel()
 
 			c, rec := newEchoCtx(e, tc.body)
-			h := user.NewHandler(tc.svc, log)
+			h := user.NewHandler(tc.svc, "http://localhost:3000", log)
 
 			err := h.Register(c)
 			require.NoError(t, err)
@@ -221,7 +221,7 @@ func TestHandler_Register_InputForwarding(t *testing.T) {
 	}
 
 	c, _ := newEchoCtx(e, `{"username":"saqibtest","password":"SecurePass1","email":"saqib@example.com","name":"Saqib"}`)
-	h := user.NewHandler(svc, log)
+	h := user.NewHandler(svc, "http://localhost:3000", log)
 	require.NoError(t, h.Register(c))
 
 	assert.Equal(t, "saqibtest", captured.Username)

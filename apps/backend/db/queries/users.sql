@@ -39,3 +39,8 @@ SELECT id, name, email, status
 FROM users
 WHERE lower(email) = lower($1)
   AND deleted_at IS NULL;
+
+-- name: ActivateUser :exec
+UPDATE users
+SET status = 'active', updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL;

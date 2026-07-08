@@ -208,6 +208,17 @@ func (r *Repo) GetHashByID(ctx context.Context, id int64) (string, error) {
 	return hash, nil
 }
 
+// Activate sets the user's status to active.
+func (r *Repo) Activate(ctx context.Context, id int64) error {
+	r.log.Debug("executing ActivateUser query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	if err := q.ActivateUser(ctx, id); err != nil {
+		r.log.Error("ActivateUser query failed", zap.Int64("user_id", id), zap.Error(err))
+		return fmt.Errorf("activate user: %w", err)
+	}
+	return nil
+}
+
 // insertWithTx inserts a user row within the provided transaction and returns the
 // public-safe model. Callers are responsible for commit/rollback.
 func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (models.User, error) {

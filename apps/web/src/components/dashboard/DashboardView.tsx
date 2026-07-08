@@ -19,7 +19,10 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useAuthStore } from "@/stores/auth.store";
+import { useUIStore } from "@/stores/ui.store";
+import { useDashboardStats } from "@/hooks/use-dashboard";
 import {
   Wallet,
   TrendingUp,
@@ -101,15 +104,39 @@ const DATE_OPTIONS = [
   { label: "All Time", value: "all-time" },
 ];
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good Morning";
+  if (h < 17) return "Good Afternoon";
+  return "Good Evening";
+}
+
+function periodToMonth(period: string): string | undefined {
+  const now = new Date();
+  if (period === "this-month") {
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }
+  if (period === "last-month") {
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+  return undefined;
+}
+
 export function DashboardView() {
   const [period, setPeriod] = useState("this-month");
   const [open, setOpen] = useState(false);
   const selected = DATE_OPTIONS.find((o) => o.value === period)!;
+  const user = useAuthStore((s) => s.user);
+  const displayName = user?.name || user?.username || "there";
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const month = useMemo(() => periodToMonth(period), [period]);
+  const { data: dashStats } = useDashboardStats(activeBudgetId, month);
 
   return (
     <div className="layout-page space-y-6 py-6">
       <PageHeader
-        title="Good Morning, Saqib 👋"
+        title={`${getGreeting()}, ${displayName} 👋`}
         description="Here's what's happening with your finance today."
         actions={
           <div className="relative">
@@ -153,26 +180,27 @@ export function DashboardView() {
         <div className="col-span-1 lg:col-span-2">
           <StatCard
             label="Net Worth"
-            amount={645000}
+            amount={dashStats?.netWorth ?? 0}
             change={4.3}
             icon={Wallet}
             iconColor="#6C3AED"
             iconBg="rgba(108,58,237,0.15)"
             accentColor="#6C3AED"
-            sparkData={sparkNetWorth}
+            sparkData={
+              dashStats?.sparkline.map((p) => ({ v: p.income - p.expenses })) ?? sparkNetWorth
+            }
             index={0}
           />
         </div>
         <div className="col-span-1 lg:col-span-2">
           <StatCard
             label="Monthly Income"
-            amount={470000}
-            change={4.4}
+            amount={dashStats?.monthlyIncome ?? 0}
             icon={TrendingUp}
             iconColor="#22C55E"
             iconBg="rgba(34,197,94,0.12)"
             accentColor="#22C55E"
-            sparkData={sparkIncome}
+            sparkData={dashStats?.sparkline.map((p) => ({ v: p.income })) ?? sparkIncome}
             index={1}
           />
         </div>
@@ -181,25 +209,26 @@ export function DashboardView() {
         <div className="col-span-1 lg:col-span-2">
           <StatCard
             label="Monthly Expenses"
-            amount={189000}
-            change={-3.1}
+            amount={dashStats?.monthlyExpenses ?? 0}
             icon={TrendingDown}
             iconColor="#EF4444"
             iconBg="rgba(239,68,68,0.12)"
             accentColor="#EF4444"
-            sparkData={sparkExpenses}
+            sparkData={dashStats?.sparkline.map((p) => ({ v: p.expenses })) ?? sparkExpenses}
             index={2}
           />
         </div>
         <div className="col-span-1 lg:col-span-2">
           <StatCard
-            label="To Be Budgeted"
-            amount={294000}
+            label="Monthly Savings"
+            amount={dashStats?.monthlySavings ?? 0}
             icon={PiggyBank}
             iconColor="#F59E0B"
             iconBg="rgba(245,158,11,0.12)"
             accentColor="#F59E0B"
-            sparkData={sparkToBudget}
+            sparkData={
+              dashStats?.sparkline.map((p) => ({ v: p.income - p.expenses })) ?? sparkToBudget
+            }
             index={3}
           />
         </div>

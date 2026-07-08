@@ -46,3 +46,19 @@ type BudgetSummary struct {
 	TotalSpent         money.Amount `json:"total_spent"`
 	OverspentEnvelopes int64        `json:"overspent_envelopes_count"`
 }
+
+// SparklinePoint is one month's income/expense data for sparkline charts.
+type SparklinePoint struct {
+	Month    string       `json:"month"`
+	Income   money.Amount `json:"income"`
+	Expenses money.Amount `json:"expenses"`
+}
+
+// DashboardStats is the API-facing payload for the dashboard stats cards.
+type DashboardStats struct {
+	NetWorth        money.Amount     `json:"net_worth"`
+	MonthlyIncome   money.Amount     `json:"monthly_income"`
+	MonthlyExpenses money.Amount     `json:"monthly_expenses"`
+	MonthlySavings  money.Amount     `json:"monthly_savings"`
+	Sparkline       []SparklinePoint `json:"sparkline"`
+}

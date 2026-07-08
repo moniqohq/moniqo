@@ -27,14 +27,19 @@ export interface ApiAccount {
   budget_id: number;
   name: string;
   type: ApiAccountType;
-  balance: string;
+  balance: number;
+  cleared_balance: number;
   requires_recon: boolean;
   is_on_budget: boolean;
+  is_immutable: boolean;
   notes: string | null;
-  archived: boolean;
+  last_reconciled_at: string | null;
+  is_archived: boolean;
+  archived_at: string | null;
+  created_at: string;
 }
 
-const API_TO_UI: Record<ApiAccountType, AccountType> = {
+export const API_TO_UI: Record<ApiAccountType, AccountType> = {
   CHECKING: "checking",
   SAVINGS: "savings",
   CREDIT_CARD: "credit",
@@ -56,9 +61,14 @@ export function adaptAccount(raw: ApiAccount): Account {
     budgetId: raw.budget_id,
     name: raw.name,
     type: API_TO_UI[raw.type],
-    balance: parseFloat(raw.balance),
+    balance: raw.balance,
+    clearedBalance: raw.cleared_balance,
     requiresRecon: raw.requires_recon,
     isOnBudget: raw.is_on_budget,
+    isImmutable: raw.is_immutable,
     notes: raw.notes ?? undefined,
+    lastReconciledAt: raw.last_reconciled_at ?? undefined,
+    isArchived: raw.is_archived,
+    archivedAt: raw.archived_at ?? undefined,
   };
 }

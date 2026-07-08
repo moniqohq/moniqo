@@ -49,6 +49,7 @@ interface AddTransactionModalProps {
   budgetId?: number | null;
   accounts?: ApiAccount[];
   envelopes?: ApiEnvelope[];
+  defaultAccountId?: number | null;
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
@@ -120,6 +121,7 @@ export function AddTransactionModal({
   budgetId,
   accounts = [],
   envelopes = [],
+  defaultAccountId,
 }: AddTransactionModalProps) {
   /* core state */
   const [txType, setTxType] = useState<TransactionType>(defaultType);
@@ -127,7 +129,7 @@ export function AddTransactionModal({
   const [payee, setPayee] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<ApiAccount | null>(null);
   const [selectedEnvelope, setSelectedEnvelope] = useState<ApiEnvelope | null>(null);
-  const [date] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -154,6 +156,11 @@ export function AddTransactionModal({
   useEffect(() => {
     if (!open) return;
     setTxType(defaultType);
+    if (defaultAccountId != null) {
+      const acc = accounts.find((a) => a.id === defaultAccountId) ?? null;
+      setSelectedAccount(acc);
+      setFromAccountId(defaultAccountId);
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -163,7 +170,7 @@ export function AddTransactionModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose, defaultType]);
+  }, [open, onClose, defaultType, defaultAccountId, accounts]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* derived */
@@ -216,11 +223,6 @@ export function AddTransactionModal({
   const toAfter = (toAccount?.balance ?? 0) + numericAmount;
 
   const wordsLabel = numericAmount ? `${numberToWords(Math.floor(numericAmount))} rupees` : "";
-
-  /* amount display split: integer vs decimal */
-  const [rawInt, rawDec] = amount.split(".");
-  const displayInt = rawInt ? Number(rawInt).toLocaleString("en-IN") : "";
-  const displayDec = rawDec !== undefined ? rawDec.slice(0, 2).padEnd(2, "0") : "";
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value.replace(/[^0-9.]/g, "");
@@ -519,11 +521,19 @@ export function AddTransactionModal({
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className={fieldLabel}>Date</label>
-                          <button className="flex w-full items-center gap-2.5 rounded-xl border border-[#1A2540] bg-[#0D1525] px-4 py-2.5 text-sm transition-colors hover:border-[#2A3A54] focus:outline-none">
-                            <CalendarDays size={14} className="flex-shrink-0 text-[#4A5A75]" />
-                            <span className="flex-1 text-left text-white">{date}</span>
-                            <ChevronDown size={13} className="flex-shrink-0 text-[#4A5A75]" />
-                          </button>
+                          <div className="relative flex items-center rounded-xl border border-[#1A2540] bg-[#0D1525] px-4 py-2.5 transition-colors focus-within:border-[#1D4ED8] focus-within:ring-2 focus-within:ring-[#1D4ED8]/40">
+                            <CalendarDays
+                              size={14}
+                              className="pointer-events-none mr-2.5 flex-shrink-0 text-[#4A5A75]"
+                            />
+                            <input
+                              type="date"
+                              value={date}
+                              onChange={(e) => setDate(e.target.value)}
+                              className="flex-1 bg-transparent text-sm text-white [color-scheme:dark] focus:outline-none"
+                              aria-label="Date"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className={fieldLabel}>
@@ -702,40 +712,16 @@ export function AddTransactionModal({
                         <label className={fieldLabel}>Amount</label>
                         <div className="flex items-center rounded-xl border border-[#1A2540] bg-[#0D1525] px-5 py-4 transition-all focus-within:border-[#6C3AED] focus-within:ring-2 focus-within:ring-[#6C3AED]/40">
                           <span className="mr-4 flex-shrink-0 text-2xl text-[#4A5A75]">₹</span>
-                          <div className="flex flex-1 items-baseline justify-end">
-                            {displayInt || displayDec ? (
-                              <>
-                                <span className="text-[2.6rem] leading-none font-bold text-white tabular-nums">
-                                  {displayInt || "0"}
-                                </span>
-                                <span className="text-[2.6rem] leading-none font-bold text-white tabular-nums">
-                                  .{displayDec || "00"}
-                                </span>
-                              </>
-                            ) : (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                placeholder="0.00"
-                                className="flex-1 bg-transparent text-right text-[2.6rem] leading-none font-bold text-white tabular-nums placeholder:text-[#1E2B42] focus:outline-none"
-                                aria-label="Amount"
-                              />
-                            )}
-                            {/* hidden real input for editing when value present */}
-                            {(displayInt || displayDec) && (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                className="pointer-events-none absolute h-0 w-0 opacity-0"
-                                aria-hidden="true"
-                                tabIndex={-1}
-                              />
-                            )}
-                          </div>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={amount}
+                            onChange={handleAmountChange}
+                            placeholder="0.00"
+                            style={{ color: "white" }}
+                            className="flex-1 bg-transparent text-left text-[2.6rem] leading-none font-bold tabular-nums placeholder:text-[#2A3A54] focus:outline-none"
+                            aria-label="Amount"
+                          />
                         </div>
                         {wordsLabel && (
                           <p className="mt-1.5 px-1 text-xs leading-relaxed text-[#4A5A75] capitalize italic">
@@ -748,11 +734,19 @@ export function AddTransactionModal({
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className={fieldLabel}>Date</label>
-                          <button className="flex w-full items-center gap-2.5 rounded-xl border border-[#1A2540] bg-[#0D1525] px-4 py-2.5 text-sm transition-colors hover:border-[#2A3A54] focus:outline-none">
-                            <CalendarDays size={14} className="flex-shrink-0 text-[#4A5A75]" />
-                            <span className="flex-1 text-left text-white">{date}</span>
-                            <ChevronDown size={13} className="flex-shrink-0 text-[#4A5A75]" />
-                          </button>
+                          <div className="relative flex items-center rounded-xl border border-[#1A2540] bg-[#0D1525] px-4 py-2.5 transition-colors focus-within:border-[#6C3AED] focus-within:ring-2 focus-within:ring-[#6C3AED]/40">
+                            <CalendarDays
+                              size={14}
+                              className="pointer-events-none mr-2.5 flex-shrink-0 text-[#4A5A75]"
+                            />
+                            <input
+                              type="date"
+                              value={date}
+                              onChange={(e) => setDate(e.target.value)}
+                              className="flex-1 bg-transparent text-sm text-white [color-scheme:dark] focus:outline-none"
+                              aria-label="Date"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className={fieldLabel}>

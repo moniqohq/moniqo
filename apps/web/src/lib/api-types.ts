@@ -32,7 +32,6 @@ export interface ApiUser {
 export interface ApiAuthTokens {
   access_token: string;
   token_type: string;
-  refresh_token: string;
 }
 
 export interface ApiTransaction {
@@ -54,9 +53,12 @@ export interface ApiAccount {
   name: string;
   type: string;
   balance: number;
+  cleared_balance: number;
   requires_recon: boolean;
   is_on_budget: boolean;
+  is_immutable: boolean;
   notes?: string | null;
+  last_reconciled_at?: string | null;
   created_at: string;
 }
 

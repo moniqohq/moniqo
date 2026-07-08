@@ -31,7 +31,9 @@ export function BudgetOverview() {
   const totalBudget = summary?.totalAllocated ?? 0;
   const spent = summary?.totalSpent ?? 0;
   const remaining = totalBudget - spent;
+  const isOverBudget = remaining < 0;
   const pct = totalBudget > 0 ? Math.round((spent / totalBudget) * 100) : 0;
+  const barPct = Math.min(pct, 100);
 
   if (isLoading && summary == null) {
     return (
@@ -46,13 +48,17 @@ export function BudgetOverview() {
         <div
           className="relative flex h-14 w-14 items-center justify-center rounded-2xl"
           style={{
-            background: "rgba(0,230,180,0.08)",
-            boxShadow: "0 0 28px 4px rgba(0,230,180,0.18)",
+            background: isOverBudget ? "rgba(239,68,68,0.08)" : "rgba(0,230,180,0.08)",
+            boxShadow: isOverBudget
+              ? "0 0 28px 4px rgba(239,68,68,0.18)"
+              : "0 0 28px 4px rgba(0,230,180,0.18)",
           }}
         >
-          <Wallet size={28} style={{ color: "#00E6B4" }} />
+          <Wallet size={28} style={{ color: isOverBudget ? "#EF4444" : "#00E6B4" }} />
         </div>
-        <p className="mt-1 text-[14px] font-semibold text-white">You&apos;re on track!</p>
+        <p className="mt-1 text-[14px] font-semibold text-white">
+          {isOverBudget ? "Over budget!" : "You're on track!"}
+        </p>
         <p className="px-2 text-center text-[11px] leading-tight text-[#5A6A85]">
           You&apos;ve used {pct}% of your
           <br />
@@ -66,7 +72,12 @@ export function BudgetOverview() {
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#1E2B42]">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${pct}%`, background: "linear-gradient(90deg, #00C49A, #00E6B4)" }}
+              style={{
+                width: `${barPct}%`,
+                background: isOverBudget
+                  ? "linear-gradient(90deg, #DC2626, #EF4444)"
+                  : "linear-gradient(90deg, #00C49A, #00E6B4)",
+              }}
             />
           </div>
           <span className="shrink-0 text-[11px] text-[#A8B4CC]">{pct}%</span>
@@ -85,7 +96,11 @@ export function BudgetOverview() {
         </div>
         <div>
           <p className="text-[11px] text-[#5A6A85]">Remaining</p>
-          <p className="text-[15px] font-semibold text-[#00E6B4]">{formatCurrency(remaining)}</p>
+          <p
+            className={`text-[15px] font-semibold ${isOverBudget ? "text-[#EF4444]" : "text-[#00E6B4]"}`}
+          >
+            {formatCurrency(remaining)}
+          </p>
         </div>
       </div>
 

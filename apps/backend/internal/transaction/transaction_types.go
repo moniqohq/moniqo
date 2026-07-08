@@ -26,6 +26,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"github.com/moniqohq/moniqo/apps/backend/internal/money"
 )
 
@@ -43,33 +44,36 @@ var (
 
 // CreateRequest is the request payload for POST /api/v1/budgets/:budget_id/transactions.
 type CreateRequest struct {
-	AccountID         int64        `json:"account_id"`
-	TransferAccountID *int64       `json:"transfer_account_id"`
-	EnvelopeID        *int64       `json:"budget_envelope_id"`
-	Amount            money.Amount `json:"amount"`
-	Date              time.Time    `json:"date"`
-	Memo              *string      `json:"memo"`
+	AccountID         int64                     `json:"account_id"`
+	TransferAccountID *int64                    `json:"transfer_account_id"`
+	EnvelopeID        *int64                    `json:"budget_envelope_id"`
+	Amount            money.Amount              `json:"amount"`
+	Date              time.Time                 `json:"date"`
+	Status            *models.TransactionStatus `json:"status"`
+	Memo              *string                   `json:"memo"`
 }
 
 // ReplaceRequest is the request payload for PUT /api/v1/budgets/:budget_id/transactions/:id.
 type ReplaceRequest struct {
-	AccountID         int64        `json:"account_id"`
-	TransferAccountID *int64       `json:"transfer_account_id"`
-	EnvelopeID        *int64       `json:"budget_envelope_id"`
-	Amount            money.Amount `json:"amount"`
-	Date              time.Time    `json:"date"`
-	Memo              *string      `json:"memo"`
+	AccountID         int64                     `json:"account_id"`
+	TransferAccountID *int64                    `json:"transfer_account_id"`
+	EnvelopeID        *int64                    `json:"budget_envelope_id"`
+	Amount            money.Amount              `json:"amount"`
+	Date              time.Time                 `json:"date"`
+	Status            *models.TransactionStatus `json:"status"`
+	Memo              *string                   `json:"memo"`
 }
 
 // PatchRequest is the request payload for PATCH /api/v1/budgets/:budget_id/transactions/:id.
 // All fields are optional; any nil field is left unchanged.
 type PatchRequest struct {
-	AccountID         *int64        `json:"account_id"`
-	TransferAccountID *int64        `json:"transfer_account_id"`
-	EnvelopeID        *int64        `json:"budget_envelope_id"`
-	Amount            *money.Amount `json:"amount"`
-	Date              *time.Time    `json:"date"`
-	Memo              *string       `json:"memo"`
+	AccountID         *int64                    `json:"account_id"`
+	TransferAccountID *int64                    `json:"transfer_account_id"`
+	EnvelopeID        *int64                    `json:"budget_envelope_id"`
+	Amount            *money.Amount             `json:"amount"`
+	Date              *time.Time                `json:"date"`
+	Status            *models.TransactionStatus `json:"status"`
+	Memo              *string                   `json:"memo"`
 }
 
 // ListFilters carries optional filter/pagination parameters for ListTransactions.
@@ -91,6 +95,7 @@ type CreateParams struct {
 	EnvelopeID        *int64
 	Amount            money.Amount
 	Date              time.Time
+	Status            models.TransactionStatus
 	Memo              *string
 }
 
@@ -115,5 +120,6 @@ type PatchParams struct {
 	EnvelopeID        *int64
 	Amount            *money.Amount
 	Date              *time.Time
+	Status            *models.TransactionStatus
 	Memo              *string
 }

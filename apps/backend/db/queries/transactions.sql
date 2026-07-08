@@ -3,10 +3,17 @@ INSERT INTO transactions (budget_id, account_id, amount, memo)
 VALUES ($1, $2, $3, $4)
 RETURNING id, budget_id, account_id, amount, memo, created_at, deleted_at;
 
--- name: SumAccountBalance :one
-SELECT COALESCE(SUM(amount), 0)::BIGINT AS balance
+-- name: GetAccountBalances :one
+SELECT
+    COALESCE(SUM(amount), 0)::BIGINT AS balance,
+    COALESCE(SUM(amount) FILTER (WHERE status <> 'uncleared'), 0)::BIGINT AS cleared_balance
 FROM transactions
 WHERE account_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: MarkAccountTransactionsReconciled :exec
+UPDATE transactions
+SET status = 'reconciled', updated_at = now()
+WHERE account_id = $1 AND budget_id = $2 AND status = 'cleared' AND deleted_at IS NULL;
 
 -- name: AccountHasTransactions :one
 SELECT EXISTS (
@@ -37,17 +44,17 @@ WHERE t.budget_id    = $1
   AND t.deleted_at   IS NULL;
 
 -- name: CreateFullTransaction :one
-INSERT INTO transactions (budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at;
+INSERT INTO transactions (budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at;
 
 -- name: GetTransactionByID :one
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: ListTransactions :many
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions
 WHERE budget_id = $1
   AND deleted_at IS NULL
@@ -78,7 +85,7 @@ SET account_id         = $3,
     memo               = $8,
     updated_at         = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at;
 
 -- name: PatchTransaction :one
 UPDATE transactions
@@ -88,9 +95,10 @@ SET account_id          = COALESCE(sqlc.narg(account_id), account_id),
     amount              = COALESCE(sqlc.narg(amount), amount),
     date                = COALESCE(sqlc.narg(date), date),
     memo                = COALESCE(sqlc.narg(memo), memo),
+    status              = COALESCE(sqlc.narg(status), status),
     updated_at          = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at;
 
 -- name: SoftDeleteTransaction :exec
 UPDATE transactions
@@ -98,7 +106,7 @@ SET deleted_at = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: GetTransactionsByGroupID :many
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, created_at, updated_at, deleted_at
+SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions
 WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
@@ -106,3 +114,34 @@ WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 UPDATE transactions
 SET deleted_at = now()
 WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
+-- name: GetNetWorth :one
+SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS net_worth
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL;
+
+-- name: GetMonthlyStats :one
+SELECT
+    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions
+WHERE budget_id  = $1
+  AND deleted_at IS NULL
+  AND date >= date_trunc('month', $2::timestamptz)
+  AND date <  date_trunc('month', $2::timestamptz) + interval '1 month';
+
+-- name: GetMonthlySparkline :many
+SELECT
+    date_trunc('month', date)::date AS month,
+    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions
+WHERE budget_id  = $1
+  AND deleted_at IS NULL
+  AND date >= date_trunc('month', now()) - interval '5 months'
+  AND date <  date_trunc('month', now()) + interval '1 month'
+GROUP BY date_trunc('month', date)
+ORDER BY month ASC;

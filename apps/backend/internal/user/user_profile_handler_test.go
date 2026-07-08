@@ -165,7 +165,7 @@ func TestHandler_GetProfile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c, rec := newProfileCtx(e, http.MethodGet, tc.pathID, "", tc.authedAs)
-			h := user.NewHandler(tc.svc, log)
+			h := user.NewHandler(tc.svc, "http://localhost:3000", log)
 			require.NoError(t, h.GetProfile(c))
 			assert.Equal(t, tc.wantStatus, rec.Code)
 			resp, _ := parseEnvelope(t, rec.Body.String())
@@ -267,7 +267,7 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c, rec := newProfileCtx(e, http.MethodPut, tc.pathID, tc.body, tc.authedAs)
-			h := user.NewHandler(tc.svc, log)
+			h := user.NewHandler(tc.svc, "http://localhost:3000", log)
 			require.NoError(t, h.ReplaceProfile(c))
 			assert.Equal(t, tc.wantStatus, rec.Code)
 			resp, _ := parseEnvelope(t, rec.Body.String())
@@ -399,7 +399,7 @@ func TestHandler_PatchProfile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c, rec := newProfileCtx(e, http.MethodPatch, tc.pathID, tc.body, tc.authedAs)
-			h := user.NewHandler(tc.svc, log)
+			h := user.NewHandler(tc.svc, "http://localhost:3000", log)
 			require.NoError(t, h.PatchProfile(c))
 			assert.Equal(t, tc.wantStatus, rec.Code)
 			resp, _ := parseEnvelope(t, rec.Body.String())
@@ -488,7 +488,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c, rec := newProfileCtx(e, http.MethodDelete, tc.pathID, "", tc.authedAs)
-			h := user.NewHandler(tc.svc, log)
+			h := user.NewHandler(tc.svc, "http://localhost:3000", log)
 			require.NoError(t, h.DeleteProfile(c))
 			assert.Equal(t, tc.wantStatus, rec.Code)
 			resp, _ := parseEnvelope(t, rec.Body.String())

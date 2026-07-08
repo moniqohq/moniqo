@@ -63,6 +63,11 @@ func (m *UserService) Delete(ctx context.Context, id int64) error {
 	return m.DeleteFn(ctx, id)
 }
 
+// VerifyEmail records the call and returns the configured stub error.
+func (*UserService) VerifyEmail(_ context.Context, _ string) error {
+	return nil
+}
+
 // UserRepository is a testify mock for user.Repository.
 type UserRepository struct {
 	mock.Mock
@@ -114,4 +119,10 @@ func (m *UserRepository) SoftDelete(_ context.Context, id int64) error {
 func (m *UserRepository) GetHashByID(_ context.Context, id int64) (string, error) {
 	args := m.Called(id)
 	return args.String(0), args.Error(1)
+}
+
+// Activate records the call and returns the configured stub error.
+func (m *UserRepository) Activate(_ context.Context, id int64) error {
+	args := m.Called(id)
+	return args.Error(0)
 }

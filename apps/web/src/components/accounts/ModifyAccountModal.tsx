@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { useAccounts } from "@/hooks/use-accounts";
 import { patchAccount } from "@/lib/api/accounts";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
 
 /* ── types ────────────────────────────────────────────── */
@@ -273,7 +273,7 @@ export function ModifyAccountModal({
   const [typeOpen, setTypeOpen] = useState(false);
   const [includeInBudget, setIncludeInBudget] = useState(account?.isOnBudget ?? true);
   const [reconciliation, setReconciliation] = useState(account?.requiresRecon ?? true);
-  const [lockTransactions, setLockTransactions] = useState(false);
+  const [lockTransactions, setLockTransactions] = useState(account?.isImmutable ?? false);
   const [notes, setNotes] = useState(account?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -286,7 +286,7 @@ export function ModifyAccountModal({
       setAccountType(account.type);
       setIncludeInBudget(account.isOnBudget);
       setReconciliation(account.requiresRecon);
-      setLockTransactions(false);
+      setLockTransactions(account.isImmutable);
       setNotes(account.notes ?? "");
       setError(null);
     }
@@ -313,7 +313,7 @@ export function ModifyAccountModal({
     setAccountType(account.type);
     setIncludeInBudget(account.isOnBudget);
     setReconciliation(account.requiresRecon);
-    setLockTransactions(false);
+    setLockTransactions(account.isImmutable);
     setNotes(account.notes ?? "");
   };
 
@@ -326,6 +326,7 @@ export function ModifyAccountModal({
         name: accountName,
         requires_recon: reconciliation,
         is_on_budget: includeInBudget,
+        is_immutable: lockTransactions,
         notes: notes || null,
       });
       await refetch();
@@ -345,7 +346,10 @@ export function ModifyAccountModal({
   const typeColor = TYPE_META[accountType]?.color ?? "#3B82F6";
 
   /* derived balance figures */
-  const clearedBalance = Math.round((account?.balance ?? 0) * 0.985);
+  const clearedBalance = account?.clearedBalance ?? 0;
+  const lastReconciled = account?.lastReconciledAt
+    ? formatRelativeDate(account.lastReconciledAt)
+    : "Never";
 
   return (
     <AnimatePresence>
@@ -494,7 +498,7 @@ export function ModifyAccountModal({
                 <BalanceSummaryCard
                   currentBalance={account?.balance ?? 0}
                   clearedBalance={clearedBalance}
-                  lastReconciled="3 days ago"
+                  lastReconciled={lastReconciled}
                 />
 
                 {/* Account Settings */}

@@ -20,37 +20,29 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { listEnvelopes, getBudgetSummary } from "@/lib/api/envelopes";
-import type { BudgetEnvelope, BudgetSummary } from "@/types";
-import type { ApiEnvelope, ApiBudgetSummary } from "@/lib/api/types";
+import { getDashboardStats } from "@/lib/api/envelopes";
+import type { ApiDashboardStats } from "@/lib/api/types";
 
-export function apiEnvelopeToUI(e: ApiEnvelope): BudgetEnvelope {
-  const spent = -e.spent_amt;
-  const available = e.allocated_amt - spent;
+export type DashboardStats = {
+  netWorth: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  monthlySavings: number;
+  sparkline: { month: string; income: number; expenses: number }[];
+};
+
+function toUI(raw: ApiDashboardStats): DashboardStats {
   return {
-    id: e.id,
-    budgetId: e.budget_id,
-    name: e.title,
-    description: e.description ?? undefined,
-    allocated: e.allocated_amt,
-    spent,
-    available,
-    isOverspent: e.is_overspent,
+    netWorth: raw.net_worth,
+    monthlyIncome: raw.monthly_income,
+    monthlyExpenses: raw.monthly_expenses,
+    monthlySavings: raw.monthly_savings,
+    sparkline: raw.sparkline ?? [],
   };
 }
 
-function apiSummaryToUI(s: ApiBudgetSummary): BudgetSummary {
-  return {
-    toBeBudgeted: s.to_be_budgeted,
-    totalAllocated: s.total_allocated,
-    totalSpent: -s.total_spent,
-    overspentEnvelopesCount: s.overspent_envelopes_count,
-  };
-}
-
-export function useEnvelopes(budgetId: number | null) {
-  const [data, setData] = useState<BudgetEnvelope[]>([]);
-  const [summary, setSummary] = useState<BudgetSummary | null>(null);
+export function useDashboardStats(budgetId: number | null, month?: string) {
+  const [data, setData] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,23 +51,19 @@ export function useEnvelopes(budgetId: number | null) {
     setIsLoading(true);
     setError(null);
     try {
-      const [rawEnvelopes, rawSummary] = await Promise.all([
-        listEnvelopes(budgetId),
-        getBudgetSummary(budgetId),
-      ]);
-      setData(rawEnvelopes.map(apiEnvelopeToUI));
-      setSummary(apiSummaryToUI(rawSummary));
+      const raw = await getDashboardStats(budgetId, month);
+      setData(toUI(raw));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load envelopes");
+      setError(e instanceof Error ? e.message : "Failed to load dashboard stats");
     } finally {
       setIsLoading(false);
     }
-  }, [budgetId]);
+  }, [budgetId, month]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetch();
   }, [fetch]);
 
-  return { data, summary, isLoading, error, refetch: fetch };
+  return { data, isLoading, error, refetch: fetch };
 }

@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Plus,
   Upload,
@@ -51,6 +51,7 @@ import { EditTransactionModal } from "./EditTransactionModal";
 import { DateRangePicker } from "./DateRangePicker";
 import type { DateRange } from "./DateRangePicker";
 import type { Transaction, AccountType } from "@/types";
+import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
@@ -217,7 +218,7 @@ function TxRow({
           {(() => {
             const acc = accounts.find((a) => a.id === tx.accountId);
             const meta =
-              (acc ? ACCOUNT_TYPE_META[acc.type as AccountType] : undefined) ??
+              (acc ? ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] : undefined) ??
               ACCOUNT_TYPE_META.checking;
             return (
               <div
@@ -334,19 +335,22 @@ function AccountFilter({
           <span
             className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
             style={{
-              backgroundColor: `${(ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking).color}22`,
+              backgroundColor: `${(ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ?? ACCOUNT_TYPE_META.checking).color}22`,
             }}
           >
             <span
               style={{
                 color: (
-                  ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking
+                  ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ??
+                  ACCOUNT_TYPE_META.checking
                 ).color,
               }}
             >
               {
-                (ACCOUNT_TYPE_META[firstSelected.type as AccountType] ?? ACCOUNT_TYPE_META.checking)
-                  .icon
+                (
+                  ACCOUNT_TYPE_META[API_TO_UI[firstSelected.type as ApiAccountType]] ??
+                  ACCOUNT_TYPE_META.checking
+                ).icon
               }
             </span>
           </span>
@@ -381,7 +385,9 @@ function AccountFilter({
           <div className="max-h-64 overflow-y-auto py-1">
             {accounts.map((acc) => {
               const checked = value.has(acc.id);
-              const meta = ACCOUNT_TYPE_META[acc.type as AccountType] ?? ACCOUNT_TYPE_META.checking;
+              const meta =
+                ACCOUNT_TYPE_META[API_TO_UI[acc.type as ApiAccountType]] ??
+                ACCOUNT_TYPE_META.checking;
               return (
                 <button
                   key={acc.id}
@@ -799,17 +805,28 @@ export function TransactionsView() {
     dateTo: dateRange.to?.toISOString(),
     pageSize,
   });
-  const allSelected = selected.size === transactions.length && transactions.length > 0;
+  const filteredTransactions = useMemo(
+    () =>
+      typeFilter.size === 0 ? transactions : transactions.filter((t) => typeFilter.has(t.type)),
+    [transactions, typeFilter],
+  );
+
+  const allSelected =
+    selected.size === filteredTransactions.length && filteredTransactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
 
-  const totalInflow = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const totalOutflow = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0);
+  const totalInflow = filteredTransactions
+    .filter((t) => t.amount > 0)
+    .reduce((s, t) => s + t.amount, 0);
+  const totalOutflow = filteredTransactions
+    .filter((t) => t.amount < 0)
+    .reduce((s, t) => s + t.amount, 0);
   const netFlow = totalInflow + totalOutflow;
   function toggleAll() {
     if (allSelected || someSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(transactions.map((t) => t.id)));
+      setSelected(new Set(filteredTransactions.map((t) => t.id)));
     }
   }
 
@@ -1055,7 +1072,9 @@ export function TransactionsView() {
               <p className="mb-1 text-xs font-semibold tracking-widest text-[#5A6A85] uppercase">
                 Transactions
               </p>
-              <p className="text-2xl font-bold text-[#E8EEF8] tabular-nums">{totalCount}</p>
+              <p className="text-2xl font-bold text-[#E8EEF8] tabular-nums">
+                {filteredTransactions.length}
+              </p>
               <div className="-mx-1 mt-1 h-12">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -1130,7 +1149,7 @@ export function TransactionsView() {
                   </td>
                 </tr>
               )}
-              {!txLoading && !txError && transactions.length === 0 && (
+              {!txLoading && !txError && filteredTransactions.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
                     No transactions found.
@@ -1138,7 +1157,7 @@ export function TransactionsView() {
                 </tr>
               )}
               {!txLoading &&
-                transactions.map((tx, i) => (
+                filteredTransactions.map((tx, i) => (
                   <TxRow
                     key={tx.id}
                     tx={tx}
@@ -1160,7 +1179,7 @@ export function TransactionsView() {
         <div className="flex items-center justify-between border-t border-[#131E30] px-4 py-3">
           <span className="text-sm text-[#5A6A85]">
             Showing <span className="font-medium text-[#A8B4CC]">1</span> to{" "}
-            <span className="font-medium text-[#A8B4CC]">{transactions.length}</span> of{" "}
+            <span className="font-medium text-[#A8B4CC]">{filteredTransactions.length}</span> of{" "}
             <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
           </span>
 
@@ -1203,13 +1222,19 @@ export function TransactionsView() {
         tx={detailTx}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        onDelete={() => detailTx && openDeleteModal(detailTx)}
+        onDelete={() => {
+          if (!detailTx) return;
+          const acc = accountMap.get(detailTx.accountId);
+          if (acc?.is_immutable) return;
+          openDeleteModal(detailTx);
+        }}
         onEdit={() => {
-          if (detailTx) {
-            setEditTx(detailTx);
-            setEditOpen(true);
-            setDetailOpen(false);
-          }
+          if (!detailTx) return;
+          const acc = accountMap.get(detailTx.accountId);
+          if (acc?.is_immutable) return;
+          setEditTx(detailTx);
+          setEditOpen(true);
+          setDetailOpen(false);
         }}
       />
       <EditTransactionModal

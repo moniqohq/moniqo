@@ -40,8 +40,9 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
+import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -187,9 +188,11 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { accountMap, accounts } = useAccounts(budgetId);
-  const { envelopeMap } = useEnvelopes(budgetId);
+  const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const account = accounts.find((a) => a.id === accountId);
-  const typeMeta = account ? TYPE_META[account.type as AccountType] : TYPE_META.checking;
+  const typeMeta = account
+    ? (TYPE_META[API_TO_UI[account.type as ApiAccountType]] ?? TYPE_META.checking)
+    : TYPE_META.checking;
 
   const { transactions: allTxns } = useTransactions(budgetId, accountMap, envelopeMap, {
     accountId,
@@ -199,12 +202,14 @@ export function AccountDetails({ accountId, budgetId }: Props) {
     accountNumber: "—",
     createdDate: "—",
     lastActivity: "—",
-    lastReconciled: "—",
+    lastReconciled: account?.last_reconciled_at
+      ? formatRelativeDate(account.last_reconciled_at)
+      : "Never",
     onBudget: account?.is_on_budget ?? true,
     requiresReconciliation: account?.requires_recon ?? false,
     notes: account?.notes ?? "",
-    clearedBalance: account?.balance ?? 0,
-    unclearedBalance: 0,
+    clearedBalance: account?.cleared_balance ?? 0,
+    unclearedBalance: (account?.balance ?? 0) - (account?.cleared_balance ?? 0),
     monthChangePct: 0,
     balanceHistory: [],
   };
@@ -532,11 +537,19 @@ export function AccountDetails({ accountId, budgetId }: Props) {
         open={addTxOpen}
         onClose={() => setAddTxOpen(false)}
         defaultType={addTxDefault}
+        budgetId={budgetId}
+        accounts={accounts}
+        envelopes={envelopes}
+        defaultAccountId={accountId}
       />
       <ForceDeleteAccountDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        account={{ id: String(account.id), name: account.name, type: account.type as AccountType }}
+        account={{
+          id: String(account.id),
+          name: account.name,
+          type: API_TO_UI[account.type as ApiAccountType] ?? "checking",
+        }}
       />
     </div>
   );
