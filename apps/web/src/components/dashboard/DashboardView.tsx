@@ -30,11 +30,8 @@ import {
   PiggyBank,
   ChevronDown,
   LayoutGrid,
-  BarChart2,
   ShoppingBag,
   Receipt,
-  Target,
-  ArrowUpRight,
 } from "lucide-react";
 import { StatCard } from "./StatCard";
 
@@ -86,15 +83,11 @@ const sparkToBudget = [
   { v: 255000 },
   { v: 294000 },
 ];
-import { MonthlyChart } from "./MonthlyChart";
 import { CategorySpendingList } from "./CategorySpendingList";
-import { SavingsGoalsList } from "./SavingsGoalsList";
 import { RecentTransactions } from "./RecentTransactions";
 import { BudgetOverview } from "./BudgetOverview";
-import { SubscriptionsList } from "./SubscriptionsList";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
-import { isFeatureEnabled } from "@/features/feature-flags";
 
 const DATE_OPTIONS = [
   { label: "This Month", value: "this-month" },
@@ -249,17 +242,18 @@ export function DashboardView() {
           </SectionCard>
         </div>
 
-        {/* ── Row 2 left — Cash Flow (cols 1–4) ── */}
+        {/* ── Row 2 left — Recent Transactions (cols 1–4) ── */}
         <div className="col-span-2 h-full lg:col-span-4">
           <SectionCard
-            title="Cash Flow"
+            title="Recent Transactions"
             description="This week"
-            icon={BarChart2}
-            iconColor="#3B82F6"
-            iconBg="rgba(59,130,246,0.12)"
+            noPadding
+            icon={Receipt}
+            iconColor="#22C55E"
+            iconBg="rgba(34,197,94,0.12)"
             className="h-full"
           >
-            <MonthlyChart />
+            <RecentTransactions />
           </SectionCard>
         </div>
 
@@ -276,55 +270,6 @@ export function DashboardView() {
             <CategorySpendingList />
           </SectionCard>
         </div>
-
-        {/* ── Row 3 left — Recent Transactions (cols 1–4) ── */}
-        <div className="col-span-2 h-full lg:col-span-4">
-          <SectionCard
-            title="Recent Transactions"
-            description="This week"
-            noPadding
-            icon={Receipt}
-            iconColor="#22C55E"
-            iconBg="rgba(34,197,94,0.12)"
-            className="h-full"
-          >
-            <RecentTransactions />
-          </SectionCard>
-        </div>
-
-        {/* ── Row 3 middle — Financial Goals (cols 5–8) ── */}
-        <div className="col-span-2 h-full lg:col-span-4">
-          <SectionCard
-            title="Financial Goals"
-            description="Overview"
-            icon={Target}
-            iconColor="#8B5CF6"
-            iconBg="rgba(139,92,246,0.12)"
-            noPadding
-            className="h-full"
-          >
-            <SavingsGoalsList />
-          </SectionCard>
-        </div>
-
-        {/* ── Row 3 right — Subscriptions aligned with Financial Goals (cols 9–10) ── */}
-        {isFeatureEnabled("recurringTransactions") && (
-          <div className="col-span-2 h-full lg:col-span-2">
-            <SectionCard
-              title="Subscriptions"
-              description="This month"
-              noPadding
-              className="h-full"
-              actions={
-                <button className="flex items-center gap-1 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
-                  View All <ArrowUpRight size={12} />
-                </button>
-              }
-            >
-              <SubscriptionsList />
-            </SectionCard>
-          </div>
-        )}
       </div>
     </div>
   );
