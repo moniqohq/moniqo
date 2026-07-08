@@ -274,7 +274,9 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
             {daysSinceLast !== null ? (
               <div className="flex-shrink-0 text-right">
                 <p className="text-xs font-bold text-[#C8D4E8] tabular-nums">
-                  {daysSinceLast} {daysSinceLast === 1 ? "day" : "days"} ago
+                  {daysSinceLast === 0
+                    ? "Today"
+                    : `${daysSinceLast} ${daysSinceLast === 1 ? "day" : "days"} ago`}
                 </p>
                 <p className="text-[10px] text-[#3A4A60]">{lastTxn!.payee}</p>
               </div>
