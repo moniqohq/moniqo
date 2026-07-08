@@ -210,7 +210,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
       const candidates: Date[] = [
         account.updated_at ? tryDate(account.updated_at) : null,
         account.last_reconciled_at ? tryDate(account.last_reconciled_at) : null,
-        allTxns[0]?.date ? tryDate(allTxns[0].date + "T00:00:00") : null,
+        allTxns[0]?.date ? tryDate(allTxns[0].date) : null,
       ].filter((d): d is Date => d !== null);
       if (candidates.length === 0) return "—";
       const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
@@ -467,9 +467,10 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                     className="cursor-pointer transition-colors hover:bg-[#0D1525]"
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-[#8A9AB5]">
-                      {new Date(tx.date + "T00:00:00").toLocaleDateString("en-IN", {
-                        day: "numeric",
+                      {new Date(tx.date).toLocaleDateString("en-US", {
                         month: "short",
+                        day: "numeric",
+                        year: "numeric",
                       })}
                     </td>
                     <td className="px-4 py-3">
