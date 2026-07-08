@@ -33,6 +33,7 @@ export interface ApiAccount {
   is_on_budget: boolean;
   is_immutable: boolean;
   notes: string | null;
+  account_number: string | null;
   last_reconciled_at: string | null;
   is_archived: boolean;
   archived_at: string | null;
@@ -67,6 +68,7 @@ export function adaptAccount(raw: ApiAccount): Account {
     isOnBudget: raw.is_on_budget,
     isImmutable: raw.is_immutable,
     notes: raw.notes ?? undefined,
+    accountNumber: raw.account_number ?? undefined,
     lastReconciledAt: raw.last_reconciled_at ?? undefined,
     isArchived: raw.is_archived,
     archivedAt: raw.archived_at ?? undefined,

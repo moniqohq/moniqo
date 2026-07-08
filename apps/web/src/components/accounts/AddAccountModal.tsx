@@ -269,6 +269,7 @@ function hexToRgb(hex: string) {
 
 function PreviewPanel({
   accountName,
+  accountNumber,
   accountType,
   initialBalance,
   balanceDate,
@@ -277,6 +278,7 @@ function PreviewPanel({
   immutability,
 }: {
   accountName: string;
+  accountNumber: string;
   accountType: AccountType;
   initialBalance: string;
   balanceDate: string;
@@ -343,6 +345,11 @@ function PreviewPanel({
           >
             New account
           </span>
+          {accountNumber.trim().length >= 4 && (
+            <p className="mt-1 text-xs text-[#5C6E8A] tabular-nums">
+              •••• {accountNumber.trim().slice(-4)}
+            </p>
+          )}
         </div>
       </div>
 
@@ -438,6 +445,7 @@ function PreviewPanel({
 
 export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
   const [accountName, setAccountName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("checking");
   const [initialBalance, setInitialBalance] = useState("");
   const [balanceDate, setBalanceDate] = useState<Date>(() => new Date());
@@ -490,6 +498,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
         is_on_budget: includeInBudget,
         is_immutable: immutability,
         notes: notes.trim() || undefined,
+        account_number: accountNumber.trim() || undefined,
         initial_balance: parseFloat(initialBalance) || 0,
       });
       handleReset();
@@ -501,6 +510,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
 
   const handleReset = () => {
     setAccountName("");
+    setAccountNumber("");
     setAccountType("checking");
     setInitialBalance("");
     setIncludeInBudget(true);
@@ -608,6 +618,19 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                         Account name is required
                       </p>
                     )}
+                  </div>
+
+                  {/* Account number */}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[#C8D4E4]">
+                      Account number <span className="font-normal text-[#3D4E65]">(optional)</span>
+                    </label>
+                    <input
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      placeholder="e.g., 1234567890"
+                      className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
+                    />
                   </div>
 
                   {/* Account type */}
@@ -875,6 +898,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                 <div className="relative w-[215px] flex-shrink-0">
                   <PreviewPanel
                     accountName={accountName}
+                    accountNumber={accountNumber}
                     accountType={accountType}
                     initialBalance={initialBalance}
                     balanceDate={balanceDate.toLocaleDateString("en-US", {

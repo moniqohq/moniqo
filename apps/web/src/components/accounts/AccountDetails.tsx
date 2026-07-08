@@ -199,7 +199,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   });
 
   const meta: AccountMeta = {
-    accountNumber: "—",
+    accountNumber: account?.account_number ?? "—",
     createdDate: account?.created_at ? formatDate(account.created_at) : "—",
     lastActivity: (() => {
       if (!account) return "—";

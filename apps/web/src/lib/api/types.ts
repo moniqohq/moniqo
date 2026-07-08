@@ -42,6 +42,7 @@ export type ApiAccount = {
   is_on_budget: boolean;
   is_immutable: boolean;
   notes: string | null;
+  account_number: string | null;
   last_reconciled_at: string | null;
   is_archived: boolean;
   archived_at: string | null;

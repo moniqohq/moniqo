@@ -51,6 +51,7 @@ export interface Account {
   isOnBudget: boolean;
   isImmutable: boolean;
   notes?: string;
+  accountNumber?: string;
   lastReconciledAt?: string;
   isArchived: boolean;
   archivedAt?: string;

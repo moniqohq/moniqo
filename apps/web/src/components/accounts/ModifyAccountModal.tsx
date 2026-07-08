@@ -269,6 +269,7 @@ export function ModifyAccountModal({
   const account = accounts.find((a) => a.id === accountId);
 
   const [accountName, setAccountName] = useState(account?.name ?? "");
+  const [accountNumber, setAccountNumber] = useState(account?.accountNumber ?? "");
   const [accountType, setAccountType] = useState<AccountType>(account?.type ?? "checking");
   const [typeOpen, setTypeOpen] = useState(false);
   const [includeInBudget, setIncludeInBudget] = useState(account?.isOnBudget ?? true);
@@ -283,6 +284,7 @@ export function ModifyAccountModal({
   useEffect(() => {
     if (open && account) {
       setAccountName(account.name);
+      setAccountNumber(account.accountNumber ?? "");
       setAccountType(account.type);
       setIncludeInBudget(account.isOnBudget);
       setReconciliation(account.requiresRecon);
@@ -310,6 +312,7 @@ export function ModifyAccountModal({
   const handleReset = () => {
     if (!account) return;
     setAccountName(account.name);
+    setAccountNumber(account.accountNumber ?? "");
     setAccountType(account.type);
     setIncludeInBudget(account.isOnBudget);
     setReconciliation(account.requiresRecon);
@@ -328,6 +331,7 @@ export function ModifyAccountModal({
         is_on_budget: includeInBudget,
         is_immutable: lockTransactions,
         notes: notes || null,
+        account_number: accountNumber.trim() || null,
       });
       await refetch();
       onClose();
@@ -425,6 +429,20 @@ export function ModifyAccountModal({
                       <input
                         value={accountName}
                         onChange={(e) => setAccountName(e.target.value)}
+                        className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Account Number */}
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#A8B4CC]">
+                        Account Number{" "}
+                        <span className="font-normal text-[#3D4E65]">(optional)</span>
+                      </label>
+                      <input
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        placeholder="e.g., 1234567890"
                         className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                       />
                     </div>
