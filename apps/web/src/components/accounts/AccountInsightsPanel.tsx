@@ -35,6 +35,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { isFeatureEnabled } from "@/features/feature-flags";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
@@ -68,20 +69,28 @@ const QUICK_ACTIONS = [
     title: "Reconcile Balance",
     desc: "Verify cleared transactions",
   },
-  {
-    icon: <Download size={16} />,
-    color: "#F59E0B",
-    bg: "rgba(245,158,11,0.15)",
-    title: "Export Transactions",
-    desc: "Download CSV or PDF",
-  },
-  {
-    icon: <BarChart2 size={16} />,
-    color: "#06B6D4",
-    bg: "rgba(6,182,212,0.15)",
-    title: "View Reports",
-    desc: "Account spending insights",
-  },
+  ...(isFeatureEnabled("transactionExport")
+    ? [
+        {
+          icon: <Download size={16} />,
+          color: "#F59E0B",
+          bg: "rgba(245,158,11,0.15)",
+          title: "Export Transactions",
+          desc: "Download CSV or PDF",
+        },
+      ]
+    : []),
+  ...(isFeatureEnabled("reports")
+    ? [
+        {
+          icon: <BarChart2 size={16} />,
+          color: "#06B6D4",
+          bg: "rgba(6,182,212,0.15)",
+          title: "View Reports",
+          desc: "Account spending insights",
+        },
+      ]
+    : []),
   {
     icon: <Archive size={16} />,
     color: "#6B7280",

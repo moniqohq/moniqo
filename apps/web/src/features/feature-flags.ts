@@ -34,6 +34,7 @@ export const FeatureFlags = {
   userProfile: false,
   transactionImport: false,
   transactionFilters: false,
+  transactionExport: false,
   accountImport: false,
   accountFilters: false,
   envelopeFilters: false,
