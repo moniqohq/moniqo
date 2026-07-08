@@ -21,6 +21,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { listBudgets } from "@/lib/api/budget";
+import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
 import type { Budget } from "@/types";
 import type { ApiBudget } from "@/lib/api/types";
@@ -38,10 +39,12 @@ export function useBudgets() {
   const [data, setData] = useState<Budget[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const accessToken = useAuthStore((s) => s.accessToken);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
 
   const fetch = useCallback(async () => {
+    if (!accessToken) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -56,7 +59,7 @@ export function useBudgets() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeBudgetId, setActiveBudget]);
+  }, [accessToken, activeBudgetId, setActiveBudget]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

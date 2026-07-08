@@ -37,9 +37,14 @@ export type ApiAccount = {
   name: string;
   type: string;
   balance: number;
+  cleared_balance: number;
   requires_recon: boolean;
   is_on_budget: boolean;
+  is_immutable: boolean;
   notes: string | null;
+  last_reconciled_at: string | null;
+  is_archived: boolean;
+  archived_at: string | null;
   created_at: string;
 };
 
@@ -72,4 +77,18 @@ export type ApiBudgetSummary = {
   total_allocated: number;
   total_spent: number;
   overspent_envelopes_count: number;
+};
+
+export type ApiSparklinePoint = {
+  month: string;
+  income: number;
+  expenses: number;
+};
+
+export type ApiDashboardStats = {
+  net_worth: number;
+  monthly_income: number;
+  monthly_expenses: number;
+  monthly_savings: number;
+  sparkline: ApiSparklinePoint[];
 };

@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -44,6 +45,7 @@ type Service interface {
 	Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.BudgetEnvelope, error)
 	Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 	GetBudgetSummary(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
+	GetDashboardStats(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error)
 }
 
 // Svc is the concrete implementation of Service.
@@ -355,6 +357,47 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		zap.Bool("soft_delete", hasTxns),
 	)
 	return nil
+}
+
+// GetDashboardStats returns net worth, monthly income/expenses, monthly savings, and a 6-month sparkline.
+func (s *Svc) GetDashboardStats(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error) {
+	netWorth, err := s.repo.GetNetWorth(ctx, budgetID)
+	if err != nil {
+		return models.DashboardStats{}, fmt.Errorf("get net worth: %w", err)
+	}
+
+	statsRow, err := s.repo.GetMonthlyStats(ctx, budgetID, month)
+	if err != nil {
+		return models.DashboardStats{}, fmt.Errorf("get monthly stats: %w", err)
+	}
+
+	sparkRows, err := s.repo.GetMonthlySparkline(ctx, budgetID)
+	if err != nil {
+		return models.DashboardStats{}, fmt.Errorf("get sparkline: %w", err)
+	}
+
+	income := money.FromMinorUnits(statsRow.Income)
+	expenses := money.FromMinorUnits(statsRow.Expenses)
+	savings := money.FromMinorUnits(income.Int64() - expenses.Int64())
+
+	spark := make([]models.SparklinePoint, 0, len(sparkRows))
+	for _, r := range sparkRows {
+		if r.Month.Valid {
+			spark = append(spark, models.SparklinePoint{
+				Month:    r.Month.Time.Format("2006-01"),
+				Income:   money.FromMinorUnits(r.Income),
+				Expenses: money.FromMinorUnits(r.Expenses),
+			})
+		}
+	}
+
+	return models.DashboardStats{
+		NetWorth:        netWorth,
+		MonthlyIncome:   income,
+		MonthlyExpenses: expenses,
+		MonthlySavings:  savings,
+		Sparkline:       spark,
+	}, nil
 }
 
 // GetBudgetSummary returns the computed TBB and overspending summary for a budget.

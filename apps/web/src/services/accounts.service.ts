@@ -26,6 +26,7 @@ export interface CreateAccountPayload {
   type: ApiAccountType;
   requires_recon: boolean;
   is_on_budget: boolean;
+  is_immutable?: boolean;
   notes?: string;
   initial_balance: number;
 }
@@ -89,5 +90,17 @@ export async function patchAccount(
 export async function deleteAccount(budgetId: string, accountId: string): Promise<void> {
   await authFetch<null>(`/api/v1/budgets/${budgetId}/accounts/${accountId}`, {
     method: "DELETE",
+  });
+}
+
+export async function archiveAccount(budgetId: string, accountId: string): Promise<ApiAccount> {
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts/${accountId}/archive`, {
+    method: "POST",
+  });
+}
+
+export async function unarchiveAccount(budgetId: string, accountId: string): Promise<ApiAccount> {
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts/${accountId}/unarchive`, {
+    method: "POST",
   });
 }

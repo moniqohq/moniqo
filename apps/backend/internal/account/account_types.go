@@ -43,6 +43,10 @@ var (
 	// ErrBalanceImmutable is returned when a caller attempts to set a balance directly;
 	// balances are derived from transactions and are never stored on the account row.
 	ErrBalanceImmutable = errors.New("balance cannot be modified directly")
+
+	// ErrArchiveNonZeroBalance is returned when archiving is attempted on an
+	// account whose balance is not zero.
+	ErrArchiveNonZeroBalance = errors.New("account balance must be zero before archiving")
 )
 
 // CreateRequest is the request payload for POST /api/v1/budgets/:budget_id/accounts.
@@ -51,6 +55,7 @@ type CreateRequest struct {
 	Type           models.AccountType `json:"type"`
 	RequiresRecon  bool               `json:"requires_recon"`
 	IsOnBudget     *bool              `json:"is_on_budget"` // nil uses the type default
+	IsImmutable    bool               `json:"is_immutable"`
 	Notes          *string            `json:"notes"`
 	InitialBalance money.Amount       `json:"initial_balance"`
 }
@@ -62,6 +67,7 @@ type ReplaceRequest struct {
 	Type          models.AccountType `json:"type"`
 	RequiresRecon bool               `json:"requires_recon"`
 	IsOnBudget    *bool              `json:"is_on_budget"`
+	IsImmutable   bool               `json:"is_immutable"`
 	Notes         *string            `json:"notes"`
 }
 
@@ -72,7 +78,9 @@ type PatchRequest struct {
 	Type          *models.AccountType `json:"type"`
 	RequiresRecon *bool               `json:"requires_recon"`
 	IsOnBudget    *bool               `json:"is_on_budget"`
+	IsImmutable   *bool               `json:"is_immutable"`
 	Notes         *string             `json:"notes"`
+	Archived      *bool               `json:"archived"`
 }
 
 // CreateParams carries the repository-layer arguments for inserting a new account.
@@ -83,6 +91,7 @@ type CreateParams struct {
 	Type          models.AccountType
 	RequiresRecon bool
 	IsOnBudget    bool
+	IsImmutable   bool
 	Notes         *string
 }
 
@@ -94,6 +103,7 @@ type UpdateParams struct {
 	Type          models.AccountType
 	RequiresRecon bool
 	IsOnBudget    bool
+	IsImmutable   bool
 	Notes         *string
 }
 
@@ -106,5 +116,6 @@ type PatchParams struct {
 	Type          *models.AccountType
 	RequiresRecon *bool
 	IsOnBudget    *bool
+	IsImmutable   *bool
 	Notes         *string
 }

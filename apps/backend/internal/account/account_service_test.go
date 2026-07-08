@@ -23,6 +23,7 @@ package account_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,7 +89,7 @@ func TestSvc_Create(t *testing.T) {
 			IsOnBudget: true,
 		}).Return(makeAccount("Savings"), nil)
 		repo.On("CreateOpeningTransaction", testBudgetID, testAccountID, money.FromMinorUnits(1000)).Return(nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(1000), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(1000), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.Create(context.Background(), testBudgetID, account.CreateRequest{
@@ -156,9 +157,11 @@ func TestSvc_GetByID(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
+		withBalance := makeAccount("Main")
+		withBalance.Balance = money.FromMinorUnits(5000)
+
 		repo := &internalmock.AccountRepository{}
-		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Main"), nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(5000), nil)
+		repo.On("GetByID", testAccountID, testBudgetID).Return(withBalance, nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.GetByID(context.Background(), testAccountID, testBudgetID)
@@ -189,10 +192,10 @@ func TestSvc_List(t *testing.T) {
 	t.Run("returns empty slice not nil for no accounts", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.AccountRepository{}
-		repo.On("ListByBudget", testBudgetID).Return(nil, nil)
+		repo.On("ListByBudget", testBudgetID, (*bool)(nil)).Return(nil, nil)
 
 		svc := account.NewSvc(repo, log)
-		accounts, err := svc.List(context.Background(), testBudgetID)
+		accounts, err := svc.List(context.Background(), testBudgetID, nil)
 
 		require.NoError(t, err)
 		assert.NotNil(t, accounts)
@@ -206,12 +209,12 @@ func TestSvc_List(t *testing.T) {
 		acc2 := models.Account{ID: 2, BudgetID: testBudgetID, Name: "Acc2", Type: models.AccountTypeSavings}
 
 		repo := &internalmock.AccountRepository{}
-		repo.On("ListByBudget", testBudgetID).Return([]models.Account{acc1, acc2}, nil)
-		repo.On("SumBalance", int64(1), testBudgetID).Return(money.FromMinorUnits(100), nil)
-		repo.On("SumBalance", int64(2), testBudgetID).Return(money.FromMinorUnits(200), nil)
+		repo.On("ListByBudget", testBudgetID, (*bool)(nil)).Return([]models.Account{acc1, acc2}, nil)
+		repo.On("Balances", int64(1), testBudgetID).Return(money.FromMinorUnits(100), money.FromMinorUnits(0), nil)
+		repo.On("Balances", int64(2), testBudgetID).Return(money.FromMinorUnits(200), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
-		accounts, err := svc.List(context.Background(), testBudgetID)
+		accounts, err := svc.List(context.Background(), testBudgetID, nil)
 
 		require.NoError(t, err)
 		require.Len(t, accounts, 2)
@@ -247,7 +250,7 @@ func TestSvc_Replace(t *testing.T) {
 			Type:       models.AccountTypeChecking,
 			IsOnBudget: true,
 		}).Return(updated, nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(300), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(300), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.Replace(context.Background(), testAccountID, testBudgetID, account.ReplaceRequest{
@@ -300,13 +303,13 @@ func TestSvc_Patch(t *testing.T) {
 			Name:     &patchedName,
 			Notes:    &notes,
 		}).Return(models.Account{ID: testAccountID, BudgetID: testBudgetID, Name: "NewName"}, nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
 		a, err := svc.Patch(context.Background(), testAccountID, testBudgetID, account.PatchRequest{
 			Name:  &patchedName,
 			Notes: &notes,
-		})
+		}, models.RoleEditor)
 
 		require.NoError(t, err)
 		assert.Equal(t, "NewName", a.Name)
@@ -321,10 +324,10 @@ func TestSvc_Patch(t *testing.T) {
 			ID:       testAccountID,
 			BudgetID: testBudgetID,
 		}).Return(makeAccount("Original"), nil)
-		repo.On("SumBalance", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), money.FromMinorUnits(0), nil)
 
 		svc := account.NewSvc(repo, log)
-		_, err := svc.Patch(context.Background(), testAccountID, testBudgetID, account.PatchRequest{})
+		_, err := svc.Patch(context.Background(), testAccountID, testBudgetID, account.PatchRequest{}, models.RoleEditor)
 
 		require.NoError(t, err)
 		repo.AssertNotCalled(t, "ExistsByName")
@@ -401,5 +404,226 @@ func TestSvc_Delete(t *testing.T) {
 		repo.AssertExpectations(t)
 		repo.AssertNotCalled(t, "HardDelete")
 		repo.AssertNotCalled(t, "SoftDelete")
+	})
+}
+
+// TestSvc_Reconcile covers account.Svc.Reconcile.
+func TestSvc_Reconcile(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		reconciled := makeAccount("Main")
+		reconciled.LastReconciledAt = &now
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("MarkReconciled", testAccountID, testBudgetID).Return(reconciled, nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID)
+
+		require.NoError(t, err)
+		assert.Equal(t, &now, a.LastReconciledAt)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("MarkReconciled", testAccountID, testBudgetID).Return(models.Account{}, account.ErrNotFound)
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID)
+
+		assert.ErrorIs(t, err, account.ErrNotFound)
+		repo.AssertExpectations(t)
+	})
+}
+
+// TestSvc_Archive covers account.Svc.Archive.
+func TestSvc_Archive(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("owner archives zero-balance account", func(t *testing.T) {
+		t.Parallel()
+		zeroBalance := makeAccount("Main")
+		archived := makeAccount("Main")
+		now := time.Now()
+		archived.IsArchived = true
+		archived.ArchivedAt = &now
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(zeroBalance, nil)
+		repo.On("Archive", testAccountID, testBudgetID).Return(archived, nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Archive(context.Background(), testAccountID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		assert.True(t, a.IsArchived)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("viewer returns ErrForbidden — no repo calls", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Archive(context.Background(), testAccountID, testBudgetID, models.RoleViewer)
+
+		assert.ErrorIs(t, err, account.ErrForbidden)
+		repo.AssertNotCalled(t, "GetByID")
+	})
+
+	t.Run("editor returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Archive(context.Background(), testAccountID, testBudgetID, models.RoleEditor)
+
+		assert.ErrorIs(t, err, account.ErrForbidden)
+		repo.AssertNotCalled(t, "GetByID")
+	})
+
+	t.Run("non-zero balance returns ErrArchiveNonZeroBalance", func(t *testing.T) {
+		t.Parallel()
+		withBalance := makeAccount("Main")
+		withBalance.Balance = money.FromMinorUnits(500)
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(withBalance, nil)
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Archive(context.Background(), testAccountID, testBudgetID, models.RoleOwner)
+
+		assert.ErrorIs(t, err, account.ErrArchiveNonZeroBalance)
+		repo.AssertNotCalled(t, "Archive")
+	})
+
+	t.Run("idempotent — already archived returns unchanged", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		already := makeAccount("Main")
+		already.IsArchived = true
+		already.ArchivedAt = &now
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(already, nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Archive(context.Background(), testAccountID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		assert.True(t, a.IsArchived)
+		repo.AssertNotCalled(t, "Archive")
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(models.Account{}, account.ErrNotFound)
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Archive(context.Background(), testAccountID, testBudgetID, models.RoleOwner)
+
+		assert.ErrorIs(t, err, account.ErrNotFound)
+		repo.AssertExpectations(t)
+	})
+}
+
+// TestSvc_Unarchive covers account.Svc.Unarchive.
+func TestSvc_Unarchive(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("owner unarchives", func(t *testing.T) {
+		t.Parallel()
+		now := time.Now()
+		archived := makeAccount("Main")
+		archived.IsArchived = true
+		archived.ArchivedAt = &now
+		active := makeAccount("Main")
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(archived, nil)
+		repo.On("Unarchive", testAccountID, testBudgetID).Return(active, nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Unarchive(context.Background(), testAccountID, testBudgetID, models.RoleAdmin)
+
+		require.NoError(t, err)
+		assert.False(t, a.IsArchived)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("viewer returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Unarchive(context.Background(), testAccountID, testBudgetID, models.RoleViewer)
+
+		assert.ErrorIs(t, err, account.ErrForbidden)
+		repo.AssertNotCalled(t, "GetByID")
+	})
+
+	t.Run("idempotent — already active returns unchanged", func(t *testing.T) {
+		t.Parallel()
+		active := makeAccount("Main")
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(active, nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Unarchive(context.Background(), testAccountID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		assert.False(t, a.IsArchived)
+		repo.AssertNotCalled(t, "Unarchive")
+	})
+}
+
+// TestSvc_Patch_Archived covers the archive delegation path in account.Svc.Patch.
+func TestSvc_Patch_Archived(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("archived:true delegates to Archive with role gate", func(t *testing.T) {
+		t.Parallel()
+		zeroBalance := makeAccount("Main")
+		now := time.Now()
+		archived := makeAccount("Main")
+		archived.IsArchived = true
+		archived.ArchivedAt = &now
+		archivedTrue := true
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(zeroBalance, nil)
+		repo.On("Archive", testAccountID, testBudgetID).Return(archived, nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Patch(context.Background(), testAccountID, testBudgetID,
+			account.PatchRequest{Archived: &archivedTrue}, models.RoleOwner)
+
+		require.NoError(t, err)
+		assert.True(t, a.IsArchived)
+		repo.AssertNotCalled(t, "Patch")
+	})
+
+	t.Run("archived:true as editor returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		archivedTrue := true
+		repo := &internalmock.AccountRepository{}
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testAccountID, testBudgetID,
+			account.PatchRequest{Archived: &archivedTrue}, models.RoleEditor)
+
+		assert.ErrorIs(t, err, account.ErrForbidden)
+		repo.AssertNotCalled(t, "GetByID")
 	})
 }

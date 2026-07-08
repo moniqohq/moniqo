@@ -58,10 +58,16 @@ type LoginRequest struct {
 }
 
 // LoginResponseData is the HTTP response body for a successful login.
+// The refresh token is delivered via an HttpOnly cookie, not this payload.
 type LoginResponseData struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+}
+
+// RefreshResponseData is the HTTP response body for a successful token refresh.
+type RefreshResponseData struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
 }
 
 // -----------------------------------------------------------------------------
@@ -70,9 +76,10 @@ type LoginResponseData struct {
 
 // LoginResult holds the data returned on a successful login.
 type LoginResult struct {
-	AccessToken  string
-	TokenType    string
-	RefreshToken string
+	AccessToken           string
+	TokenType             string
+	RefreshToken          string
+	RefreshTokenExpiresAt time.Time
 }
 
 // RefreshIssue holds the raw refresh token and its expiry returned by IssueRefreshToken.

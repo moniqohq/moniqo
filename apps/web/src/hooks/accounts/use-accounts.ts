@@ -27,6 +27,8 @@ import {
   createAccount,
   updateAccount,
   deleteAccount,
+  archiveAccount,
+  unarchiveAccount,
   type CreateAccountPayload,
   type UpdateAccountPayload,
 } from "@/services/accounts.service";
@@ -93,6 +95,32 @@ export function useDeleteAccount() {
 
   return useMutation({
     mutationFn: (accountId: string) => deleteAccount(budgetId, accountId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
+    },
+  });
+}
+
+export function useArchiveAccount() {
+  const queryClient = useQueryClient();
+  const budgetIdNum = useUIStore((s) => s.activeBudgetId);
+  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
+
+  return useMutation({
+    mutationFn: (accountId: string) => archiveAccount(budgetId, accountId).then(adaptAccount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
+    },
+  });
+}
+
+export function useUnarchiveAccount() {
+  const queryClient = useQueryClient();
+  const budgetIdNum = useUIStore((s) => s.activeBudgetId);
+  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
+
+  return useMutation({
+    mutationFn: (accountId: string) => unarchiveAccount(budgetId, accountId).then(adaptAccount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
     },

@@ -236,6 +236,7 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                       // cookie-based refresh
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                // request reset
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // confirm reset + subpaths
+		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -255,12 +256,12 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	jwtSecret := []byte(cfg.JWTSecret)
 
 	userRepo := user.NewRepo(pool, log)
-	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.AppBaseURL, jwtSecret, log)
-	userHandler := user.NewHandler(userSvc, log)
+	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.APIBaseURL, jwtSecret, log)
+	userHandler := user.NewHandler(userSvc, cfg.AppBaseURL, log)
 
 	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
-	authHandler := auth.NewHandler(authSvc, log)
+	authHandler := auth.NewHandler(authSvc, log, cfg.Env != "development")
 
 	passwordResetSvc := auth.NewPasswordResetSvc(
 		authRepo,
@@ -282,6 +283,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	loginGroup := e.Group("/api/v1/auth")
 	loginGroup.Use(appmw.LoginRateLimiter())
 	loginGroup.POST("/login", authHandler.Login)
+	loginGroup.POST("/refresh", authHandler.Refresh)
 
 	authGroup := e.Group("/api/v1/auth")
 	authGroup.POST("/logout", authHandler.Logout)
@@ -290,6 +292,9 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	passwordResetGroup.Use(appmw.PasswordResetRateLimiter())
 	passwordResetGroup.POST("", passwordResetHandler.RequestReset)
 	passwordResetGroup.POST("/confirm", passwordResetHandler.ConfirmReset)
+
+	verifyGroup := e.Group("/api/v1/users")
+	verifyGroup.GET("/verify", userHandler.VerifyEmail)
 
 	usersGroup := e.Group("/api/v1/users")
 	usersGroup.GET("/:id", userHandler.GetProfile)
@@ -362,7 +367,13 @@ func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 	accountsGroup.PATCH("/:id", accountHandler.PatchAccount,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
 	accountsGroup.DELETE("/:id", accountHandler.DeleteAccount,
-		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
+	accountsGroup.POST("/:id/reconcile", accountHandler.ReconcileAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
+	accountsGroup.POST("/:id/archive", accountHandler.ArchiveAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
+	accountsGroup.POST("/:id/unarchive", accountHandler.UnarchiveAccount,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
 }
 
 func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
@@ -390,6 +401,10 @@ func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 	// Budget summary endpoint.
 	e.GET("/api/v1/budgets/:budget_id/summary", envelopeHandler.GetBudgetSummary,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.BudgetView, log))
+
+	// Dashboard stats endpoint.
+	e.GET("/api/v1/budgets/:budget_id/dashboard", envelopeHandler.GetDashboardStats,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.BudgetView, log))
 }
 
 func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
@@ -397,6 +412,7 @@ func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger
 
 	txnRepo := transaction.NewRepo(pool, log)
 	txnSvc := transaction.NewSvc(txnRepo, log)
+	txnSvc.SetAccountChecker(account.NewRepo(pool, log))
 	txnHandler := transaction.NewHandler(txnSvc, log)
 
 	txnGroup := e.Group("/api/v1/budgets/:budget_id/transactions")

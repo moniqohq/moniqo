@@ -46,9 +46,14 @@ export interface Account {
   name: string;
   type: AccountType;
   balance: number;
+  clearedBalance: number;
   requiresRecon: boolean;
   isOnBudget: boolean;
+  isImmutable: boolean;
   notes?: string;
+  lastReconciledAt?: string;
+  isArchived: boolean;
+  archivedAt?: string;
 }
 
 export interface BudgetEnvelope {

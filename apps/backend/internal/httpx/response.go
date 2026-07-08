@@ -94,6 +94,15 @@ func Forbidden(c echo.Context, msg string) error {
 	})
 }
 
+// BadRequest writes a 400 JSON response.
+func BadRequest(c echo.Context, msg string) error {
+	return c.JSON(http.StatusBadRequest, Response{
+		Success: false,
+		Data:    nil,
+		Msg:     msg,
+	})
+}
+
 // NotFound writes a 404 JSON response.
 func NotFound(c echo.Context, msg string) error {
 	return c.JSON(http.StatusNotFound, Response{

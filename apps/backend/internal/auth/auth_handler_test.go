@@ -209,7 +209,7 @@ func TestHandler_Login(t *testing.T) {
 			t.Parallel()
 
 			c, rec := newLoginCtx(e, tc.body)
-			h := auth.NewHandler(tc.svc, log)
+			h := auth.NewHandler(tc.svc, log, false)
 
 			err := h.Login(c)
 			require.NoError(t, err)
@@ -244,7 +244,7 @@ func TestHandler_Login_InputForwarding(t *testing.T) {
 	}
 
 	c, _ := newLoginCtx(e, `{"email":"user@example.com","password":"SecurePass1"}`)
-	h := auth.NewHandler(svc, log)
+	h := auth.NewHandler(svc, log, false)
 	require.NoError(t, h.Login(c))
 
 	assert.Equal(t, "user@example.com", captured.Email)
@@ -310,7 +310,7 @@ func TestHandler_Logout(t *testing.T) {
 
 			c, rec := newLogoutCtx(e)
 			tc.setupCtx(c)
-			h := auth.NewHandler(tc.svc, log)
+			h := auth.NewHandler(tc.svc, log, false)
 
 			err := h.Logout(c)
 			require.NoError(t, err)
@@ -345,7 +345,7 @@ func TestHandler_Logout_ParamsForwarding(t *testing.T) {
 
 	c, _ := newLogoutCtx(e)
 	auth.SetClaimsInContext(c, claims)
-	h := auth.NewHandler(svc, log)
+	h := auth.NewHandler(svc, log, false)
 	require.NoError(t, h.Logout(c))
 
 	parsedJTI, err := uuid.Parse(claims.ID)

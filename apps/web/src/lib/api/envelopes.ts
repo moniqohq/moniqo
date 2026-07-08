@@ -19,7 +19,7 @@
  */
 
 import { apiFetch } from "./client";
-import type { ApiEnvelope, ApiBudgetSummary } from "./types";
+import type { ApiEnvelope, ApiBudgetSummary, ApiDashboardStats } from "./types";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/envelopes`;
 
@@ -33,6 +33,13 @@ export function getEnvelope(budgetId: number, id: number): Promise<ApiEnvelope> 
 
 export function getBudgetSummary(budgetId: number): Promise<ApiBudgetSummary> {
   return apiFetch<ApiBudgetSummary>(`/api/v1/budgets/${budgetId}/summary`);
+}
+
+export function getDashboardStats(budgetId: number, month?: string): Promise<ApiDashboardStats> {
+  const url = month
+    ? `/api/v1/budgets/${budgetId}/dashboard?month=${month}`
+    : `/api/v1/budgets/${budgetId}/dashboard`;
+  return apiFetch<ApiDashboardStats>(url);
 }
 
 export function createEnvelope(
@@ -58,4 +65,8 @@ export function patchEnvelope(
 
 export function deleteEnvelope(budgetId: number, id: number): Promise<void> {
   return apiFetch<void>(`${base(budgetId)}/${id}`, { method: "DELETE" });
+}
+
+export function forceDeleteEnvelope(budgetId: number, id: number): Promise<void> {
+  return apiFetch<void>(`${base(budgetId)}/${id}/force`, { method: "DELETE" });
 }

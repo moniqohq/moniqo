@@ -26,6 +26,7 @@ import (
 	"errors"
 	"io"
 	"strconv"
+	"time"
 	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
@@ -356,4 +357,30 @@ func (h *Handler) GetBudgetSummary(c echo.Context) error {
 	}
 
 	return httpx.OK(c, summary, "budget summary fetched successfully")
+}
+
+// GetDashboardStats handles GET /api/v1/budgets/:budget_id/dashboard.
+// Accepts an optional ?month=YYYY-MM query param; defaults to the current month.
+func (h *Handler) GetDashboardStats(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	month := time.Now()
+	if raw := c.QueryParam("month"); raw != "" {
+		parsed, parseErr := time.Parse("2006-01", raw)
+		if parseErr != nil {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: "month", Error: "must be in YYYY-MM format"}})
+		}
+		month = parsed
+	}
+
+	stats, err := h.svc.GetDashboardStats(c.Request().Context(), budgetID, month)
+	if err != nil {
+		h.log.Error("GetDashboardStats failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, stats, "dashboard stats fetched successfully")
 }

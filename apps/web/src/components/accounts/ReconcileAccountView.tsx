@@ -660,6 +660,29 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
 
   /* ── Render ──────────────────────────────────────────────── */
 
+  if (account && !account.requiresRecon) {
+    return (
+      <div className="min-h-screen bg-[#080C14] text-[#E8EEF8]">
+        <div className="layout-page flex min-h-[60vh] flex-col items-center justify-center gap-4 py-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#1A2540]">
+            <X size={28} className="text-[#4A5A75]" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Reconciliation Disabled</h2>
+          <p className="max-w-sm text-center text-sm text-[#5A6A85]">
+            Reconciliation is not enabled for this account. You can enable it in the account
+            settings to track cleared balances and reconcile statements.
+          </p>
+          <button
+            onClick={() => router.back()}
+            className="mt-2 rounded-xl border border-[#1A2540] px-5 py-2 text-sm font-semibold text-[#A8B4CC] transition-colors hover:bg-[#1A2540] hover:text-white focus:outline-none"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#080C14] text-[#E8EEF8]">
       <ReconciliationSuccessDialog

@@ -31,6 +31,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateUser = `-- name: ActivateUser :exec
+UPDATE users
+SET status = 'active', updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) ActivateUser(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, activateUser, id)
+	return err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, hash, name)
 VALUES ($1, $2, $3, $4)

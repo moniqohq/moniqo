@@ -39,17 +39,56 @@ export class ApiError extends Error {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
+// Serialises concurrent 401s into a single refresh attempt.
+let refreshPromise: Promise<string> | null = null;
+
+async function doRefresh(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) throw new Error("refresh failed");
+        const envelope: ApiEnvelope<{ access_token: string }> = await res.json();
+        if (!envelope.success) throw new Error("refresh failed");
+        return envelope.data.access_token;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+  return refreshPromise;
+}
+
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit & { token?: string } = {},
+  options: RequestInit & { token?: string; _retry?: boolean } = {},
 ): Promise<T> {
-  const { token, ...init } = options;
+  const { token, _retry, ...init } = options;
 
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
+
+  if (res.status === 401 && !_retry) {
+    try {
+      const newToken = await doRefresh();
+      useAuthStore.getState().setAccessToken(newToken);
+      return apiFetch<T>(path, { ...options, token: newToken, _retry: true });
+    } catch {
+      useAuthStore.getState().clearAuth();
+      throw new ApiError(401, "Session expired. Please log in again.");
+    }
+  }
 
   if (res.status === 401) {
     useAuthStore.getState().clearAuth();

@@ -50,6 +50,11 @@ func (m *AuthService) Logout(ctx context.Context, params auth.LogoutParams) erro
 	return m.LogoutFn(ctx, params)
 }
 
+// RefreshAccessToken delegates to RefreshAccessTokenFn.
+func (m *AuthService) RefreshAccessToken(ctx context.Context, rawToken string) (auth.RefreshResult, error) {
+	return m.RefreshAccessTokenFn(ctx, rawToken)
+}
+
 // AuthRepository is a testify mock for auth.Repository.
 type AuthRepository struct {
 	mock.Mock

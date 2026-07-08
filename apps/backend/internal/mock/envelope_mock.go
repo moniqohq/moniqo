@@ -22,6 +22,7 @@ package mock
 
 import (
 	"context"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 
@@ -37,13 +38,14 @@ import (
 
 // EnvelopeService is a test double for the envelope.Service interface.
 type EnvelopeService struct {
-	CreateFn           func(ctx context.Context, budgetID int64, req envelope.CreateRequest) (models.BudgetEnvelope, error)
-	GetByIDFn          func(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
-	ListFn             func(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error)
-	ReplaceFn          func(ctx context.Context, id, budgetID int64, req envelope.ReplaceRequest) (models.BudgetEnvelope, error)
-	PatchFn            func(ctx context.Context, id, budgetID int64, req envelope.PatchRequest) (models.BudgetEnvelope, error)
-	DeleteFn           func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
-	GetBudgetSummaryFn func(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
+	CreateFn            func(ctx context.Context, budgetID int64, req envelope.CreateRequest) (models.BudgetEnvelope, error)
+	GetByIDFn           func(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
+	ListFn              func(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error)
+	ReplaceFn           func(ctx context.Context, id, budgetID int64, req envelope.ReplaceRequest) (models.BudgetEnvelope, error)
+	PatchFn             func(ctx context.Context, id, budgetID int64, req envelope.PatchRequest) (models.BudgetEnvelope, error)
+	DeleteFn            func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	GetBudgetSummaryFn  func(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
+	GetDashboardStatsFn func(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error)
 }
 
 // Create delegates to CreateFn.
@@ -79,6 +81,14 @@ func (m *EnvelopeService) Delete(ctx context.Context, id, budgetID int64, caller
 // GetBudgetSummary delegates to GetBudgetSummaryFn.
 func (m *EnvelopeService) GetBudgetSummary(ctx context.Context, budgetID int64) (models.BudgetSummary, error) {
 	return m.GetBudgetSummaryFn(ctx, budgetID)
+}
+
+// GetDashboardStats delegates to GetDashboardStatsFn.
+func (m *EnvelopeService) GetDashboardStats(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error) {
+	if m.GetDashboardStatsFn != nil {
+		return m.GetDashboardStatsFn(ctx, budgetID, month)
+	}
+	return models.DashboardStats{}, nil
 }
 
 // -----------------------------------------------------------------------------
@@ -190,6 +200,36 @@ func (m *EnvelopeRepository) GetBudgetSummaryRow(_ context.Context, budgetID int
 	r, ok := args.Get(0).(db.GetBudgetEnvelopeSummaryRow)
 	if !ok {
 		return db.GetBudgetEnvelopeSummaryRow{}, args.Error(1)
+	}
+	return r, args.Error(1)
+}
+
+// GetNetWorth records the call and returns the configured stub values.
+func (m *EnvelopeRepository) GetNetWorth(_ context.Context, budgetID int64) (money.Amount, error) {
+	args := m.Called(budgetID)
+	a, ok := args.Get(0).(money.Amount)
+	if !ok {
+		return 0, args.Error(1)
+	}
+	return a, args.Error(1)
+}
+
+// GetMonthlyStats records the call and returns the configured stub values.
+func (m *EnvelopeRepository) GetMonthlyStats(_ context.Context, budgetID int64, month time.Time) (db.GetMonthlyStatsRow, error) {
+	args := m.Called(budgetID, month)
+	r, ok := args.Get(0).(db.GetMonthlyStatsRow)
+	if !ok {
+		return db.GetMonthlyStatsRow{}, args.Error(1)
+	}
+	return r, args.Error(1)
+}
+
+// GetMonthlySparkline records the call and returns the configured stub values.
+func (m *EnvelopeRepository) GetMonthlySparkline(_ context.Context, budgetID int64) ([]db.GetMonthlySparklineRow, error) {
+	args := m.Called(budgetID)
+	r, ok := args.Get(0).([]db.GetMonthlySparklineRow)
+	if !ok {
+		return nil, args.Error(1)
 	}
 	return r, args.Error(1)
 }

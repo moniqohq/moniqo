@@ -59,15 +59,20 @@ func (t AccountType) IsLiability() bool {
 }
 
 // Account is the API-facing representation of a financial account.
-// Balance is a computed value derived from transactions, never stored directly.
+// Balance and ClearedBalance are computed values derived from transactions, never stored directly.
 type Account struct {
-	ID            int64        `json:"id"`
-	BudgetID      int64        `json:"budget_id"`
-	Name          string       `json:"name"`
-	Type          AccountType  `json:"type"`
-	Balance       money.Amount `json:"balance"`
-	RequiresRecon bool         `json:"requires_recon"`
-	IsOnBudget    bool         `json:"is_on_budget"`
-	Notes         *string      `json:"notes"`
-	CreatedAt     time.Time    `json:"created_at"`
+	ID               int64        `json:"id"`
+	BudgetID         int64        `json:"budget_id"`
+	Name             string       `json:"name"`
+	Type             AccountType  `json:"type"`
+	Balance          money.Amount `json:"balance"`
+	ClearedBalance   money.Amount `json:"cleared_balance"`
+	RequiresRecon    bool         `json:"requires_recon"`
+	IsOnBudget       bool         `json:"is_on_budget"`
+	IsImmutable      bool         `json:"is_immutable"`
+	Notes            *string      `json:"notes"`
+	LastReconciledAt *time.Time   `json:"last_reconciled_at"`
+	IsArchived       bool         `json:"is_archived"`
+	ArchivedAt       *time.Time   `json:"archived_at"`
+	CreatedAt        time.Time    `json:"created_at"`
 }

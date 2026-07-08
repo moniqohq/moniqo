@@ -38,6 +38,7 @@ export function createAccount(
     type: string;
     requires_recon: boolean;
     is_on_budget?: boolean;
+    is_immutable?: boolean;
     notes?: string;
     initial_balance: number;
   },
@@ -56,6 +57,7 @@ export function patchAccount(
     type: string;
     requires_recon: boolean;
     is_on_budget: boolean;
+    is_immutable: boolean;
     notes: string | null;
   }>,
 ): Promise<ApiAccount> {
