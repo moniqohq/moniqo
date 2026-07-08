@@ -38,6 +38,7 @@ import {
   SquarePen,
   CalendarDays,
 } from "lucide-react";
+import { isFeatureEnabled } from "@/features/feature-flags";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PreferencesView } from "./PreferencesView";
 import { NotificationsView } from "./NotificationsView";
@@ -62,6 +63,7 @@ type NavItem = {
   icon: React.ElementType;
   iconColor: string;
   iconBg: string;
+  flag?: Parameters<typeof isFeatureEnabled>[0];
 };
 
 type NavGroup = {
@@ -90,6 +92,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Settings2,
         iconColor: "#60A5FA",
         iconBg: "rgba(59,130,246,0.12)",
+        flag: "settingsPreferences" as const,
       },
       {
         id: "notifications",
@@ -98,6 +101,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Bell,
         iconColor: "#FBBF24",
         iconBg: "rgba(245,158,11,0.12)",
+        flag: "settingsNotifications" as const,
       },
     ],
   },
@@ -111,6 +115,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Shield,
         iconColor: "#34D399",
         iconBg: "rgba(34,197,94,0.12)",
+        flag: "settingsSecurity" as const,
       },
       {
         id: "privacy",
@@ -119,6 +124,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Database,
         iconColor: "#C084FC",
         iconBg: "rgba(168,85,247,0.12)",
+        flag: "settingsDataPrivacy" as const,
       },
     ],
   },
@@ -132,6 +138,7 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Users,
         iconColor: "#FB923C",
         iconBg: "rgba(249,115,22,0.12)",
+        flag: "settingsMembersPermissions" as const,
       },
     ],
   },
@@ -337,9 +344,10 @@ export function SettingsView() {
     ...group,
     items: group.items.filter(
       (item) =>
-        !searchQuery ||
-        item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()),
+        (item.flag === undefined || isFeatureEnabled(item.flag)) &&
+        (!searchQuery ||
+          item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.description.toLowerCase().includes(searchQuery.toLowerCase())),
     ),
   })).filter((group) => group.items.length > 0);
 

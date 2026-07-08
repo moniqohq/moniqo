@@ -30,11 +30,8 @@ import {
   PiggyBank,
   ChevronDown,
   LayoutGrid,
-  BarChart2,
   ShoppingBag,
   Receipt,
-  Target,
-  ArrowUpRight,
 } from "lucide-react";
 import { StatCard } from "./StatCard";
 
@@ -86,12 +83,9 @@ const sparkToBudget = [
   { v: 255000 },
   { v: 294000 },
 ];
-import { MonthlyChart } from "./MonthlyChart";
 import { CategorySpendingList } from "./CategorySpendingList";
-import { SavingsGoalsList } from "./SavingsGoalsList";
 import { RecentTransactions } from "./RecentTransactions";
 import { BudgetOverview } from "./BudgetOverview";
-import { SubscriptionsList } from "./SubscriptionsList";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
 
@@ -248,35 +242,7 @@ export function DashboardView() {
           </SectionCard>
         </div>
 
-        {/* ── Row 2 left — Cash Flow (cols 1–4) ── */}
-        <div className="col-span-2 h-full lg:col-span-4">
-          <SectionCard
-            title="Cash Flow"
-            description="This week"
-            icon={BarChart2}
-            iconColor="#3B82F6"
-            iconBg="rgba(59,130,246,0.12)"
-            className="h-full"
-          >
-            <MonthlyChart />
-          </SectionCard>
-        </div>
-
-        {/* ── Row 2 middle — Expense Categories (cols 5–8) ── */}
-        <div className="col-span-2 h-full lg:col-span-4">
-          <SectionCard
-            title="Expense Categories"
-            description="This month"
-            icon={ShoppingBag}
-            iconColor="#F59E0B"
-            iconBg="rgba(245,158,11,0.12)"
-            className="h-full"
-          >
-            <CategorySpendingList />
-          </SectionCard>
-        </div>
-
-        {/* ── Row 3 left — Recent Transactions (cols 1–4) ── */}
+        {/* ── Row 2 left — Recent Transactions (cols 1–4) ── */}
         <div className="col-span-2 h-full lg:col-span-4">
           <SectionCard
             title="Recent Transactions"
@@ -291,35 +257,17 @@ export function DashboardView() {
           </SectionCard>
         </div>
 
-        {/* ── Row 3 middle — Financial Goals (cols 5–8) ── */}
+        {/* ── Row 2 middle — Expense Categories (cols 5–8) ── */}
         <div className="col-span-2 h-full lg:col-span-4">
           <SectionCard
-            title="Financial Goals"
-            description="Overview"
-            icon={Target}
-            iconColor="#8B5CF6"
-            iconBg="rgba(139,92,246,0.12)"
-            noPadding
-            className="h-full"
-          >
-            <SavingsGoalsList />
-          </SectionCard>
-        </div>
-
-        {/* ── Row 3 right — Subscriptions aligned with Financial Goals (cols 9–10) ── */}
-        <div className="col-span-2 h-full lg:col-span-2">
-          <SectionCard
-            title="Subscriptions"
+            title="Expense Categories"
             description="This month"
-            noPadding
+            icon={ShoppingBag}
+            iconColor="#F59E0B"
+            iconBg="rgba(245,158,11,0.12)"
             className="h-full"
-            actions={
-              <button className="flex items-center gap-1 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
-                View All <ArrowUpRight size={12} />
-              </button>
-            }
           >
-            <SubscriptionsList />
+            <CategorySpendingList />
           </SectionCard>
         </div>
       </div>

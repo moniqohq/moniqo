@@ -58,6 +58,7 @@ import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
 import { apiFetch } from "@/lib/api";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
+import { isFeatureEnabled } from "@/features/feature-flags";
 
 /* ── Sparkline data — populated from API when analytics endpoint is available ── */
 const sparkInflow: { v: number }[] = [];
@@ -901,10 +902,21 @@ export function TransactionsView() {
 
         {/* Flowbite button group pattern */}
         <div className="mt-0.5 flex flex-shrink-0 items-center gap-2">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-4 py-2.5 text-sm font-medium text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
-            <Upload size={14} />
-            Import
-          </button>
+          <div className="relative">
+            <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]" />
+            <input
+              type="text"
+              placeholder="Search transactions…"
+              className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
+            />
+          </div>
+
+          {isFeatureEnabled("transactionImport") && (
+            <button className="inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-4 py-2.5 text-sm font-medium text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
+              <Upload size={14} />
+              Import
+            </button>
+          )}
 
           <button
             onClick={() => setModalOpen(true)}
@@ -920,18 +932,6 @@ export function TransactionsView() {
       <div className="overflow-hidden rounded-lg border border-[#1A2640] bg-[#0B1220] shadow-sm">
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-2 border-b border-[#131E30] px-4 py-3">
-          {/* Flowbite search input */}
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search size={13} className="text-[#3A4A60]" />
-            </div>
-            <input
-              type="search"
-              placeholder="Search transactions..."
-              className="block w-56 rounded-lg border border-[#1A2640] bg-[#080D1A] py-2 pr-3 pl-9 text-sm text-[#A8B4CC] transition-colors placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/25 focus:outline-none"
-            />
-          </div>
-
           <AccountFilter
             value={accountFilter}
             onChange={setAccountFilter}
@@ -946,10 +946,12 @@ export function TransactionsView() {
           />
           <DateRangePicker value={dateRange} onChange={setDateRange} triggerClassName={filterBtn} />
           <TypeFilter value={typeFilter} onChange={setTypeFilter} triggerClassName={filterBtn} />
-          <button className={cn(filterBtn, "ml-auto")}>
-            <SlidersHorizontal size={12} />
-            Filters
-          </button>
+          {isFeatureEnabled("transactionFilters") && (
+            <button className={cn(filterBtn, "ml-auto")}>
+              <SlidersHorizontal size={12} />
+              Filters
+            </button>
+          )}
         </div>
 
         {/* Stats row */}

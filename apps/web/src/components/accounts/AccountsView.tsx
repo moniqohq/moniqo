@@ -44,6 +44,7 @@ import { AccountDetails } from "./AccountDetails";
 import { AccountInsightsPanel } from "./AccountInsightsPanel";
 import { AddAccountModal } from "./AddAccountModal";
 import type { AccountType } from "@/types";
+import { isFeatureEnabled } from "@/features/feature-flags";
 
 /* ── Filter types ─────────────────────────────────────── */
 
@@ -518,16 +519,20 @@ export function AccountsView() {
               className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
           </div>
-          <FilterDropdown
-            statusFilter={statusFilter}
-            typeFilter={typeFilter}
-            onStatusChange={handleStatusChange}
-            onTypeChange={handleTypeChange}
-          />
-          <button className="inline-flex items-center gap-2 rounded-xl border border-[#1A2540] px-4 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-colors hover:border-[#2A3A54] hover:text-white">
-            <Upload size={15} />
-            Import
-          </button>
+          {isFeatureEnabled("accountFilters") && (
+            <FilterDropdown
+              statusFilter={statusFilter}
+              typeFilter={typeFilter}
+              onStatusChange={handleStatusChange}
+              onTypeChange={handleTypeChange}
+            />
+          )}
+          {isFeatureEnabled("accountImport") && (
+            <button className="inline-flex items-center gap-2 rounded-xl border border-[#1A2540] px-4 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-colors hover:border-[#2A3A54] hover:text-white">
+              <Upload size={15} />
+              Import
+            </button>
+          )}
           <button
             onClick={() => setAddModalOpen(true)}
             className="mr-2 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.35)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.5)]"

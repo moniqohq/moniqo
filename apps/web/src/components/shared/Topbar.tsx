@@ -44,6 +44,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { Budget } from "@/types";
 import { CreateBudgetModal } from "@/components/budget/CreateBudgetModal";
+import { isFeatureEnabled } from "@/features/feature-flags";
 
 function BudgetSwitcher({
   budgets,
@@ -277,16 +278,18 @@ function UserMenu() {
                 <span className="text-sm">Settings</span>
               </button>
 
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  router.push("/profile");
-                }}
-                className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white"
-              >
-                <User size={15} className="flex-shrink-0" />
-                <span className="text-sm">Profile</span>
-              </button>
+              {isFeatureEnabled("userProfile") && (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    router.push("/profile");
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white"
+                >
+                  <User size={15} className="flex-shrink-0" />
+                  <span className="text-sm">Profile</span>
+                </button>
+              )}
             </div>
 
             <div className="mx-1.5 border-t border-[#131E30]" />
