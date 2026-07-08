@@ -522,12 +522,15 @@ export function AddTransactionModal({
                         <div>
                           <label className={fieldLabel}>Date</label>
                           <div className="relative flex items-center rounded-xl border border-[#1A2540] bg-[#0D1525] px-4 py-2.5 transition-colors focus-within:border-[#1D4ED8] focus-within:ring-2 focus-within:ring-[#1D4ED8]/40">
-                            <CalendarDays size={14} className="pointer-events-none mr-2.5 flex-shrink-0 text-[#4A5A75]" />
+                            <CalendarDays
+                              size={14}
+                              className="pointer-events-none mr-2.5 flex-shrink-0 text-[#4A5A75]"
+                            />
                             <input
                               type="date"
                               value={date}
                               onChange={(e) => setDate(e.target.value)}
-                              className="flex-1 bg-transparent text-sm text-white focus:outline-none [color-scheme:dark]"
+                              className="flex-1 bg-transparent text-sm text-white [color-scheme:dark] focus:outline-none"
                               aria-label="Date"
                             />
                           </div>
@@ -732,12 +735,15 @@ export function AddTransactionModal({
                         <div>
                           <label className={fieldLabel}>Date</label>
                           <div className="relative flex items-center rounded-xl border border-[#1A2540] bg-[#0D1525] px-4 py-2.5 transition-colors focus-within:border-[#6C3AED] focus-within:ring-2 focus-within:ring-[#6C3AED]/40">
-                            <CalendarDays size={14} className="pointer-events-none mr-2.5 flex-shrink-0 text-[#4A5A75]" />
+                            <CalendarDays
+                              size={14}
+                              className="pointer-events-none mr-2.5 flex-shrink-0 text-[#4A5A75]"
+                            />
                             <input
                               type="date"
                               value={date}
                               onChange={(e) => setDate(e.target.value)}
-                              className="flex-1 bg-transparent text-sm text-white focus:outline-none [color-scheme:dark]"
+                              className="flex-1 bg-transparent text-sm text-white [color-scheme:dark] focus:outline-none"
                               aria-label="Date"
                             />
                           </div>

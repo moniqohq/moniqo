@@ -464,7 +464,9 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
     } catch (e) {
       if (e instanceof ApiError) {
         const balanceField = e.fields?.find((f) => f.field === "balance");
-        setArchiveError(balanceField ? "Account balance must be zero before archiving." : e.message);
+        setArchiveError(
+          balanceField ? "Account balance must be zero before archiving." : e.message,
+        );
       } else {
         setArchiveError("Something went wrong. Please try again.");
       }
@@ -924,7 +926,10 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
             balance={balance}
             txCount={txCount}
             lastActivity={lastActivity}
-            onClose={() => { setShowConfirm(false); setArchiveError(null); }}
+            onClose={() => {
+              setShowConfirm(false);
+              setArchiveError(null);
+            }}
             onConfirm={handleArchiveConfirmed}
             error={archiveError}
             isLoading={archiveMutation.isPending}

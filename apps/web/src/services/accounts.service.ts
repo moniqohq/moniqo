@@ -94,15 +94,13 @@ export async function deleteAccount(budgetId: string, accountId: string): Promis
 }
 
 export async function archiveAccount(budgetId: string, accountId: string): Promise<ApiAccount> {
-  return authFetch<ApiAccount>(
-    `/api/v1/budgets/${budgetId}/accounts/${accountId}/archive`,
-    { method: "POST" },
-  );
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts/${accountId}/archive`, {
+    method: "POST",
+  });
 }
 
 export async function unarchiveAccount(budgetId: string, accountId: string): Promise<ApiAccount> {
-  return authFetch<ApiAccount>(
-    `/api/v1/budgets/${budgetId}/accounts/${accountId}/unarchive`,
-    { method: "POST" },
-  );
+  return authFetch<ApiAccount>(`/api/v1/budgets/${budgetId}/accounts/${accountId}/unarchive`, {
+    method: "POST",
+  });
 }

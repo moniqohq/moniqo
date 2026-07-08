@@ -107,8 +107,7 @@ export function useArchiveAccount() {
   const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
-    mutationFn: (accountId: string) =>
-      archiveAccount(budgetId, accountId).then(adaptAccount),
+    mutationFn: (accountId: string) => archiveAccount(budgetId, accountId).then(adaptAccount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
     },
@@ -121,8 +120,7 @@ export function useUnarchiveAccount() {
   const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
-    mutationFn: (accountId: string) =>
-      unarchiveAccount(budgetId, accountId).then(adaptAccount),
+    mutationFn: (accountId: string) => unarchiveAccount(budgetId, accountId).then(adaptAccount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
     },
