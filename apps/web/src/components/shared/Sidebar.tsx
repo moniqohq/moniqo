@@ -37,16 +37,21 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui.store";
+import { isFeatureEnabled, type FeatureName } from "@/features/feature-flags";
 
-const mainNavItems = [
+type NavItem = { label: string; href: string; icon: typeof LayoutDashboard; flag?: FeatureName };
+
+const allMainNavItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
   { label: "Accounts", href: "/accounts", icon: Landmark },
   { label: "Envelopes", href: "/envelopes", icon: Mail },
-  { label: "Goals", href: "/goals", icon: Target },
-  { label: "Reports", href: "/reports", icon: BarChart2 },
+  { label: "Goals", href: "/goals", icon: Target, flag: "goals" },
+  { label: "Reports", href: "/reports", icon: BarChart2, flag: "reports" },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
+
+const mainNavItems = allMainNavItems.filter((item) => !item.flag || isFeatureEnabled(item.flag));
 
 const extrasNavItems = [
   { label: "Documentation", href: "/docs", icon: BookOpen },

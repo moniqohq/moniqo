@@ -94,6 +94,7 @@ import { BudgetOverview } from "./BudgetOverview";
 import { SubscriptionsList } from "./SubscriptionsList";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionCard } from "@/components/shared/SectionCard";
+import { isFeatureEnabled } from "@/features/feature-flags";
 
 const DATE_OPTIONS = [
   { label: "This Month", value: "this-month" },
@@ -307,21 +308,23 @@ export function DashboardView() {
         </div>
 
         {/* ── Row 3 right — Subscriptions aligned with Financial Goals (cols 9–10) ── */}
-        <div className="col-span-2 h-full lg:col-span-2">
-          <SectionCard
-            title="Subscriptions"
-            description="This month"
-            noPadding
-            className="h-full"
-            actions={
-              <button className="flex items-center gap-1 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
-                View All <ArrowUpRight size={12} />
-              </button>
-            }
-          >
-            <SubscriptionsList />
-          </SectionCard>
-        </div>
+        {isFeatureEnabled("recurringTransactions") && (
+          <div className="col-span-2 h-full lg:col-span-2">
+            <SectionCard
+              title="Subscriptions"
+              description="This month"
+              noPadding
+              className="h-full"
+              actions={
+                <button className="flex items-center gap-1 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
+                  View All <ArrowUpRight size={12} />
+                </button>
+              }
+            >
+              <SubscriptionsList />
+            </SectionCard>
+          </div>
+        )}
       </div>
     </div>
   );
