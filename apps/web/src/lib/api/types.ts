@@ -46,6 +46,7 @@ export type ApiAccount = {
   is_archived: boolean;
   archived_at: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type ApiEnvelope = {
