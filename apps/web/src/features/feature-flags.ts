@@ -43,6 +43,9 @@ export const FeatureFlags = {
   settingsSecurity: false,
   settingsDataPrivacy: false,
   settingsMembersPermissions: false,
+  topbarNotifications: false,
+  topbarHelp: false,
+  topbarThemeToggle: false,
 } as const;
 
 export type FeatureName = keyof typeof FeatureFlags;
