@@ -203,7 +203,10 @@ export function AccountDetails({ accountId, budgetId }: Props) {
     createdDate: account?.created_at ? formatDate(account.created_at) : "—",
     lastActivity: (() => {
       if (!account) return "—";
-      const tryDate = (s: string) => { const d = new Date(s); return isNaN(d.getTime()) ? null : d; };
+      const tryDate = (s: string) => {
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      };
       const candidates: Date[] = [
         account.updated_at ? tryDate(account.updated_at) : null,
         account.last_reconciled_at ? tryDate(account.last_reconciled_at) : null,
