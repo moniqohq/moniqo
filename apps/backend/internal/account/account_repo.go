@@ -78,8 +78,8 @@ func rowToAccount(
 	name string,
 	accType db.AccountType,
 	requiresRecon, isOnBudget, isImmutable bool,
-	notes *string,
-	lastReconciledAt, archivedAt, createdAt pgtype.Timestamptz,
+	notes, accountNumber *string,
+	lastReconciledAt, archivedAt, createdAt, updatedAt pgtype.Timestamptz,
 	balance, clearedBalance money.Amount,
 ) models.Account {
 	var reconciledAt *time.Time
@@ -101,10 +101,12 @@ func rowToAccount(
 		IsOnBudget:       isOnBudget,
 		IsImmutable:      isImmutable,
 		Notes:            notes,
+		AccountNumber:    accountNumber,
 		LastReconciledAt: reconciledAt,
 		IsArchived:       archived != nil,
 		ArchivedAt:       archived,
 		CreatedAt:        createdAt.Time,
+		UpdatedAt:        updatedAt.Time,
 	}
 }
 
@@ -125,6 +127,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.Account, erro
 		IsOnBudget:    p.IsOnBudget,
 		IsImmutable:   p.IsImmutable,
 		Notes:         p.Notes,
+		AccountNumber: p.AccountNumber,
 	})
 	if err != nil {
 		r.log.Error("CreateAccount query failed",
@@ -147,7 +150,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.Account, erro
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+		row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -183,7 +186,7 @@ func (r *Repo) GetByID(ctx context.Context, id, budgetID int64) (models.Account,
 
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+		row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -215,7 +218,7 @@ func (r *Repo) ListByBudget(ctx context.Context, budgetID int64, archived *bool)
 		}
 		out = append(out, rowToAccount(
 			row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-			row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+			row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 		))
 	}
 	return out, nil
@@ -239,6 +242,7 @@ func (r *Repo) Update(ctx context.Context, p UpdateParams) (models.Account, erro
 		IsOnBudget:    p.IsOnBudget,
 		IsImmutable:   p.IsImmutable,
 		Notes:         p.Notes,
+		AccountNumber: p.AccountNumber,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -263,7 +267,7 @@ func (r *Repo) Update(ctx context.Context, p UpdateParams) (models.Account, erro
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+		row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -292,6 +296,7 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Account, error)
 		IsOnBudget:    p.IsOnBudget,
 		IsImmutable:   p.IsImmutable,
 		Notes:         p.Notes,
+		AccountNumber: p.AccountNumber,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -316,7 +321,7 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Account, error)
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+		row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -506,7 +511,7 @@ func (r *Repo) MarkReconciled(ctx context.Context, id, budgetID int64) (models.A
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+		row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -547,7 +552,7 @@ func (r *Repo) Archive(ctx context.Context, id, budgetID int64) (models.Account,
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+		row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 	), nil
 }
 
@@ -587,7 +592,7 @@ func (r *Repo) Unarchive(ctx context.Context, id, budgetID int64) (models.Accoun
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
-		row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, balance, clearedBalance,
+		row.AccountNumber, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
 	), nil
 }
 

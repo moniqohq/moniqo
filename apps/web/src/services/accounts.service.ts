@@ -28,6 +28,7 @@ export interface CreateAccountPayload {
   is_on_budget: boolean;
   is_immutable?: boolean;
   notes?: string;
+  account_number?: string;
   initial_balance: number;
 }
 
@@ -37,6 +38,7 @@ export interface UpdateAccountPayload {
   requires_recon: boolean;
   is_on_budget?: boolean;
   notes?: string;
+  account_number?: string;
 }
 
 export interface PatchAccountPayload {
@@ -45,6 +47,7 @@ export interface PatchAccountPayload {
   requires_recon?: boolean;
   is_on_budget?: boolean;
   notes?: string;
+  account_number?: string;
 }
 
 export async function fetchAccounts(budgetId: string): Promise<ApiAccount[]> {

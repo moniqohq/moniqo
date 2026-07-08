@@ -44,6 +44,7 @@ export function apiAccountToUI(a: ApiAccount): Account {
     isOnBudget: a.is_on_budget,
     isImmutable: a.is_immutable,
     notes: a.notes ?? undefined,
+    accountNumber: a.account_number ?? undefined,
     lastReconciledAt: a.last_reconciled_at ?? undefined,
     isArchived: a.is_archived,
     archivedAt: a.archived_at ?? undefined,

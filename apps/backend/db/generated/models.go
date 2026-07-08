@@ -263,6 +263,7 @@ type Account struct {
 	LastReconciledAt pgtype.Timestamptz
 	IsImmutable      bool
 	ArchivedAt       pgtype.Timestamptz
+	AccountNumber    *string
 }
 
 type Budget struct {

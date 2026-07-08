@@ -67,7 +67,12 @@ export function useCreateAccount() {
   const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
-    mutationFn: (payload: CreateAccountPayload) => createAccount(budgetId, payload),
+    mutationFn: (payload: CreateAccountPayload) => {
+      if (budgetIdNum == null) {
+        return Promise.reject(new Error("No active budget. Create a budget first."));
+      }
+      return createAccount(budgetId, payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
     },

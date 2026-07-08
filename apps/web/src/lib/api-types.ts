@@ -58,8 +58,10 @@ export interface ApiAccount {
   is_on_budget: boolean;
   is_immutable: boolean;
   notes?: string | null;
+  account_number?: string | null;
   last_reconciled_at?: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ApiEnvelope {

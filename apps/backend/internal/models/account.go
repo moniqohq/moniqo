@@ -71,8 +71,10 @@ type Account struct {
 	IsOnBudget       bool         `json:"is_on_budget"`
 	IsImmutable      bool         `json:"is_immutable"`
 	Notes            *string      `json:"notes"`
+	AccountNumber    *string      `json:"account_number"`
 	LastReconciledAt *time.Time   `json:"last_reconciled_at"`
 	IsArchived       bool         `json:"is_archived"`
 	ArchivedAt       *time.Time   `json:"archived_at"`
 	CreatedAt        time.Time    `json:"created_at"`
+	UpdatedAt        time.Time    `json:"updated_at"`
 }

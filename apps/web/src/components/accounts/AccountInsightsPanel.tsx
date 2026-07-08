@@ -19,6 +19,7 @@
  */
 "use client";
 
+import { useState } from "react";
 import {
   Plus,
   ArrowLeftRight,
@@ -34,10 +35,12 @@ import {
   Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { isFeatureEnabled } from "@/features/feature-flags";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
+import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 
 interface Props {
   accountId: number;
@@ -66,20 +69,28 @@ const QUICK_ACTIONS = [
     title: "Reconcile Balance",
     desc: "Verify cleared transactions",
   },
-  {
-    icon: <Download size={16} />,
-    color: "#F59E0B",
-    bg: "rgba(245,158,11,0.15)",
-    title: "Export Transactions",
-    desc: "Download CSV or PDF",
-  },
-  {
-    icon: <BarChart2 size={16} />,
-    color: "#06B6D4",
-    bg: "rgba(6,182,212,0.15)",
-    title: "View Reports",
-    desc: "Account spending insights",
-  },
+  ...(isFeatureEnabled("transactionExport")
+    ? [
+        {
+          icon: <Download size={16} />,
+          color: "#F59E0B",
+          bg: "rgba(245,158,11,0.15)",
+          title: "Export Transactions",
+          desc: "Download CSV or PDF",
+        },
+      ]
+    : []),
+  ...(isFeatureEnabled("reports")
+    ? [
+        {
+          icon: <BarChart2 size={16} />,
+          color: "#06B6D4",
+          bg: "rgba(6,182,212,0.15)",
+          title: "View Reports",
+          desc: "Account spending insights",
+        },
+      ]
+    : []),
   {
     icon: <Archive size={16} />,
     color: "#6B7280",
@@ -91,9 +102,11 @@ const QUICK_ACTIONS = [
 
 export function AccountInsightsPanel({ accountId, budgetId }: Props) {
   const router = useRouter();
-  const { accountMap } = useAccounts(budgetId);
-  const { envelopeMap } = useEnvelopes(budgetId);
+  const { accountMap, accounts } = useAccounts(budgetId);
+  const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const { transactions: txns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
+  const [addTxOpen, setAddTxOpen] = useState(false);
+  const [addTxDefault, setAddTxDefault] = useState<"expense" | "transfer">("expense");
   const inflows = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const outflows = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const net = inflows - outflows;
@@ -127,34 +140,54 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
           <h3 className="text-sm font-bold text-white">Quick Actions</h3>
         </div>
         <div className="space-y-1 p-3">
-          {QUICK_ACTIONS.map(({ icon, color, bg, title, desc }) => (
-            <button
-              key={title}
-              onClick={
-                title === "Reconcile Balance"
-                  ? () => router.push(`/budgets/${budgetId}/accounts/${accountId}/reconcile`)
-                  : undefined
-              }
-              className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-all hover:border-[#1A2540] hover:bg-[#0D1525]"
-            >
-              <div
-                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
-                style={{ backgroundColor: bg, color }}
+          {QUICK_ACTIONS.map(({ icon, color, bg, title, desc }) => {
+            let onClick: (() => void) | undefined;
+            switch (title) {
+              case "Create Transaction":
+                onClick = () => {
+                  setAddTxDefault("expense");
+                  setAddTxOpen(true);
+                };
+                break;
+              case "Record Transfer":
+                onClick = () => {
+                  setAddTxDefault("transfer");
+                  setAddTxOpen(true);
+                };
+                break;
+              case "Reconcile Balance":
+                onClick = () => router.push(`/budgets/${budgetId}/accounts/${accountId}/reconcile`);
+                break;
+              case "Archive Account":
+                onClick = () => router.push(`/budgets/${budgetId}/accounts/${accountId}/archive`);
+                break;
+            }
+
+            return (
+              <button
+                key={title}
+                onClick={onClick}
+                className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-all hover:border-[#1A2540] hover:bg-[#0D1525]"
               >
-                {icon}
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <p className="text-xs leading-tight font-semibold text-[#C8D4E8] transition-colors group-hover:text-white">
-                  {title}
-                </p>
-                <p className="mt-0.5 text-[10px] leading-tight text-[#5A6A85]">{desc}</p>
-              </div>
-              <ArrowRight
-                size={12}
-                className="flex-shrink-0 text-[#3A4A60] transition-colors group-hover:text-[#6C3AED]"
-              />
-            </button>
-          ))}
+                <div
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105"
+                  style={{ backgroundColor: bg, color }}
+                >
+                  {icon}
+                </div>
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="text-xs leading-tight font-semibold text-[#C8D4E8] transition-colors group-hover:text-white">
+                    {title}
+                  </p>
+                  <p className="mt-0.5 text-[10px] leading-tight text-[#5A6A85]">{desc}</p>
+                </div>
+                <ArrowRight
+                  size={12}
+                  className="flex-shrink-0 text-[#3A4A60] transition-colors group-hover:text-[#6C3AED]"
+                />
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -294,6 +327,16 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
           </div>
         </div>
       </div>
+
+      <AddTransactionModal
+        open={addTxOpen}
+        onClose={() => setAddTxOpen(false)}
+        defaultType={addTxDefault}
+        budgetId={budgetId}
+        accounts={accounts}
+        envelopes={envelopes}
+        defaultAccountId={accountId}
+      />
     </div>
   );
 }

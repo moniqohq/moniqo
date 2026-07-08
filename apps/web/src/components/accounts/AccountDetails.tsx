@@ -40,7 +40,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils";
+import { formatCurrency, formatRelativeDate, formatDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -199,9 +199,23 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   });
 
   const meta: AccountMeta = {
-    accountNumber: "—",
-    createdDate: "—",
-    lastActivity: "—",
+    accountNumber: account?.account_number ?? "—",
+    createdDate: account?.created_at ? formatDate(account.created_at) : "—",
+    lastActivity: (() => {
+      if (!account) return "—";
+      const tryDate = (s: string) => {
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      };
+      const candidates: Date[] = [
+        account.updated_at ? tryDate(account.updated_at) : null,
+        account.last_reconciled_at ? tryDate(account.last_reconciled_at) : null,
+        allTxns[0]?.date ? tryDate(allTxns[0].date) : null,
+      ].filter((d): d is Date => d !== null);
+      if (candidates.length === 0) return "—";
+      const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
+      return formatRelativeDate(latest.toISOString());
+    })(),
     lastReconciled: account?.last_reconciled_at
       ? formatRelativeDate(account.last_reconciled_at)
       : "Never",
@@ -453,9 +467,10 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                     className="cursor-pointer transition-colors hover:bg-[#0D1525]"
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-[#8A9AB5]">
-                      {new Date(tx.date + "T00:00:00").toLocaleDateString("en-IN", {
-                        day: "numeric",
+                      {new Date(tx.date).toLocaleDateString("en-US", {
                         month: "short",
+                        day: "numeric",
+                        year: "numeric",
                       })}
                     </td>
                     <td className="px-4 py-3">
