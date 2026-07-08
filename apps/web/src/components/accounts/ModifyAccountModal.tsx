@@ -270,6 +270,7 @@ export function ModifyAccountModal({
 
   const [accountName, setAccountName] = useState(account?.name ?? "");
   const [accountNumber, setAccountNumber] = useState(account?.accountNumber ?? "");
+  const [institution, setInstitution] = useState(account?.institution ?? "");
   const [accountType, setAccountType] = useState<AccountType>(account?.type ?? "checking");
   const [typeOpen, setTypeOpen] = useState(false);
   const [includeInBudget, setIncludeInBudget] = useState(account?.isOnBudget ?? true);
@@ -285,6 +286,7 @@ export function ModifyAccountModal({
     if (open && account) {
       setAccountName(account.name);
       setAccountNumber(account.accountNumber ?? "");
+      setInstitution(account.institution ?? "");
       setAccountType(account.type);
       setIncludeInBudget(account.isOnBudget);
       setReconciliation(account.requiresRecon);
@@ -313,6 +315,7 @@ export function ModifyAccountModal({
     if (!account) return;
     setAccountName(account.name);
     setAccountNumber(account.accountNumber ?? "");
+    setInstitution(account.institution ?? "");
     setAccountType(account.type);
     setIncludeInBudget(account.isOnBudget);
     setReconciliation(account.requiresRecon);
@@ -332,6 +335,7 @@ export function ModifyAccountModal({
         is_immutable: lockTransactions,
         notes: notes || null,
         account_number: accountNumber.trim() || null,
+        institution: institution.trim() || null,
       });
       await refetch();
       onClose();
@@ -443,6 +447,19 @@ export function ModifyAccountModal({
                         value={accountNumber}
                         onChange={(e) => setAccountNumber(e.target.value)}
                         placeholder="e.g., 1234567890"
+                        className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Institution */}
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#A8B4CC]">
+                        Institution <span className="font-normal text-[#3D4E65]">(optional)</span>
+                      </label>
+                      <input
+                        value={institution}
+                        onChange={(e) => setInstitution(e.target.value)}
+                        placeholder="e.g., HDFC Bank"
                         className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                       />
                     </div>

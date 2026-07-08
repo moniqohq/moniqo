@@ -384,7 +384,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
         <div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             <MetaCard label="Account Type" value={typeMeta.label} />
-            <MetaCard label="Institution" value="N/A" />
+            <MetaCard label="Institution" value={account?.institution ?? "—"} />
             <MetaCard
               label="Requires Reconciliation"
               value={meta.requiresReconciliation ? "Yes" : "No"}

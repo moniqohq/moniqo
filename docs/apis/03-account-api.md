@@ -45,6 +45,7 @@ Represents a financial ledger within a budget.
 | `archived_at` | String (ISO 8601) or null | Yes | Timestamp the account was archived, null if active |
 | `notes` | String | No | Optional descriptive notes |
 | `account_number` | String or null | No | Optional account/card number, nullable |
+| `institution` | String or null | No | Optional financial institution/bank name, nullable |
 
 ### AccountType Enum
 
@@ -97,6 +98,7 @@ Allowed values: `CHECKING`, `SAVINGS`, `CREDIT_CARD`, `CASH`, `LOAN`
   "requires_recon": true,
   "notes": "primary salary account",
   "account_number": "1234567890",
+  "institution": "HDFC Bank",
   "initial_balance": 10000.00
 }
 ```
@@ -114,7 +116,8 @@ Allowed values: `CHECKING`, `SAVINGS`, `CREDIT_CARD`, `CASH`, `LOAN`
     "balance": 10000.00,
     "requires_recon": true,
     "notes": "Primary salary account",
-    "account_number": "1234567890"
+    "account_number": "1234567890",
+    "institution": "HDFC Bank"
   },
   "msg": "account created successfully"
 }
@@ -278,7 +281,7 @@ Idempotent operation.
 
 - Must not allow empty PATCH body.
 - `balance` cannot be updated.
-- Only mutable fields allowed: `name`, `type`, `is_on_budget`, `requires_recon`, `notes`, `account_number`, `archived`.
+- Only mutable fields allowed: `name`, `type`, `is_on_budget`, `requires_recon`, `notes`, `account_number`, `institution`, `archived`.
 - Setting `archived: true`/`false` is equivalent to calling the dedicated archive/unarchive endpoints below (same OWNER/ADMIN gate and zero-balance rule apply).
 
 **Validation Rules**

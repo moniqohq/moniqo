@@ -81,7 +81,7 @@ const archiveAccount = `-- name: ArchiveAccount :one
 UPDATE accounts
 SET archived_at = now(), updated_at = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL AND archived_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 `
 
 type ArchiveAccountParams struct {
@@ -99,6 +99,7 @@ type ArchiveAccountRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -119,6 +120,7 @@ func (q *Queries) ArchiveAccount(ctx context.Context, arg ArchiveAccountParams) 
 		&i.IsImmutable,
 		&i.Notes,
 		&i.AccountNumber,
+		&i.Institution,
 		&i.LastReconciledAt,
 		&i.ArchivedAt,
 		&i.CreatedAt,
@@ -129,9 +131,9 @@ func (q *Queries) ArchiveAccount(ctx context.Context, arg ArchiveAccountParams) 
 }
 
 const createAccount = `-- name: CreateAccount :one
-INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+INSERT INTO accounts (budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 `
 
 type CreateAccountParams struct {
@@ -143,6 +145,7 @@ type CreateAccountParams struct {
 	IsImmutable   bool
 	Notes         *string
 	AccountNumber *string
+	Institution   *string
 }
 
 type CreateAccountRow struct {
@@ -155,6 +158,7 @@ type CreateAccountRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -172,6 +176,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (C
 		arg.IsImmutable,
 		arg.Notes,
 		arg.AccountNumber,
+		arg.Institution,
 	)
 	var i CreateAccountRow
 	err := row.Scan(
@@ -184,6 +189,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (C
 		&i.IsImmutable,
 		&i.Notes,
 		&i.AccountNumber,
+		&i.Institution,
 		&i.LastReconciledAt,
 		&i.ArchivedAt,
 		&i.CreatedAt,
@@ -194,7 +200,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (C
 }
 
 const getAccountByID = `-- name: GetAccountByID :one
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
 `
@@ -214,6 +220,7 @@ type GetAccountByIDRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -234,6 +241,7 @@ func (q *Queries) GetAccountByID(ctx context.Context, arg GetAccountByIDParams) 
 		&i.IsImmutable,
 		&i.Notes,
 		&i.AccountNumber,
+		&i.Institution,
 		&i.LastReconciledAt,
 		&i.ArchivedAt,
 		&i.CreatedAt,
@@ -277,7 +285,7 @@ func (q *Queries) IsAccountArchived(ctx context.Context, arg IsAccountArchivedPa
 }
 
 const listAccountsByBudget = `-- name: ListAccountsByBudget :many
-SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 FROM accounts
 WHERE budget_id = $1
   AND deleted_at IS NULL
@@ -300,6 +308,7 @@ type ListAccountsByBudgetRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -326,6 +335,7 @@ func (q *Queries) ListAccountsByBudget(ctx context.Context, arg ListAccountsByBu
 			&i.IsImmutable,
 			&i.Notes,
 			&i.AccountNumber,
+			&i.Institution,
 			&i.LastReconciledAt,
 			&i.ArchivedAt,
 			&i.CreatedAt,
@@ -346,7 +356,7 @@ const markAccountReconciled = `-- name: MarkAccountReconciled :one
 UPDATE accounts
 SET last_reconciled_at = now(), updated_at = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 `
 
 type MarkAccountReconciledParams struct {
@@ -364,6 +374,7 @@ type MarkAccountReconciledRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -384,6 +395,7 @@ func (q *Queries) MarkAccountReconciled(ctx context.Context, arg MarkAccountReco
 		&i.IsImmutable,
 		&i.Notes,
 		&i.AccountNumber,
+		&i.Institution,
 		&i.LastReconciledAt,
 		&i.ArchivedAt,
 		&i.CreatedAt,
@@ -402,9 +414,10 @@ SET name           = COALESCE($3, name),
     is_immutable   = COALESCE($7, is_immutable),
     notes          = COALESCE($8, notes),
     account_number = COALESCE($9, account_number),
+    institution    = COALESCE($10, institution),
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 `
 
 type PatchAccountParams struct {
@@ -417,6 +430,7 @@ type PatchAccountParams struct {
 	IsImmutable   *bool
 	Notes         *string
 	AccountNumber *string
+	Institution   *string
 }
 
 type PatchAccountRow struct {
@@ -429,6 +443,7 @@ type PatchAccountRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -447,6 +462,7 @@ func (q *Queries) PatchAccount(ctx context.Context, arg PatchAccountParams) (Pat
 		arg.IsImmutable,
 		arg.Notes,
 		arg.AccountNumber,
+		arg.Institution,
 	)
 	var i PatchAccountRow
 	err := row.Scan(
@@ -459,6 +475,7 @@ func (q *Queries) PatchAccount(ctx context.Context, arg PatchAccountParams) (Pat
 		&i.IsImmutable,
 		&i.Notes,
 		&i.AccountNumber,
+		&i.Institution,
 		&i.LastReconciledAt,
 		&i.ArchivedAt,
 		&i.CreatedAt,
@@ -488,7 +505,7 @@ const unarchiveAccount = `-- name: UnarchiveAccount :one
 UPDATE accounts
 SET archived_at = NULL, updated_at = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 `
 
 type UnarchiveAccountParams struct {
@@ -506,6 +523,7 @@ type UnarchiveAccountRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -526,6 +544,7 @@ func (q *Queries) UnarchiveAccount(ctx context.Context, arg UnarchiveAccountPara
 		&i.IsImmutable,
 		&i.Notes,
 		&i.AccountNumber,
+		&i.Institution,
 		&i.LastReconciledAt,
 		&i.ArchivedAt,
 		&i.CreatedAt,
@@ -544,9 +563,10 @@ SET name           = $3,
     is_immutable   = $7,
     notes          = $8,
     account_number = $9,
+    institution    = $10,
     updated_at     = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
+RETURNING id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 `
 
 type UpdateAccountParams struct {
@@ -559,6 +579,7 @@ type UpdateAccountParams struct {
 	IsImmutable   bool
 	Notes         *string
 	AccountNumber *string
+	Institution   *string
 }
 
 type UpdateAccountRow struct {
@@ -571,6 +592,7 @@ type UpdateAccountRow struct {
 	IsImmutable      bool
 	Notes            *string
 	AccountNumber    *string
+	Institution      *string
 	LastReconciledAt pgtype.Timestamptz
 	ArchivedAt       pgtype.Timestamptz
 	CreatedAt        pgtype.Timestamptz
@@ -589,6 +611,7 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (U
 		arg.IsImmutable,
 		arg.Notes,
 		arg.AccountNumber,
+		arg.Institution,
 	)
 	var i UpdateAccountRow
 	err := row.Scan(
@@ -601,6 +624,7 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (U
 		&i.IsImmutable,
 		&i.Notes,
 		&i.AccountNumber,
+		&i.Institution,
 		&i.LastReconciledAt,
 		&i.ArchivedAt,
 		&i.CreatedAt,

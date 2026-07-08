@@ -59,6 +59,7 @@ export interface ApiAccount {
   is_immutable: boolean;
   notes?: string | null;
   account_number?: string | null;
+  institution?: string | null;
   last_reconciled_at?: string | null;
   created_at: string;
   updated_at: string;

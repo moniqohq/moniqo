@@ -118,6 +118,31 @@ func TestSvc_Create(t *testing.T) {
 		repo.AssertExpectations(t)
 	})
 
+	t.Run("success — with institution", func(t *testing.T) {
+		t.Parallel()
+		institution := "HDFC Bank"
+		repo := &internalmock.AccountRepository{}
+		repo.On("ExistsByName", testBudgetID, "Checking", (*int64)(nil)).Return(false, nil)
+		repo.On("Create", account.CreateParams{
+			BudgetID:    testBudgetID,
+			Name:        "Checking",
+			Type:        models.AccountTypeChecking,
+			IsOnBudget:  true,
+			Institution: &institution,
+		}).Return(makeAccount("Checking"), nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Create(context.Background(), testBudgetID, account.CreateRequest{
+			Name:        "Checking",
+			Type:        models.AccountTypeChecking,
+			Institution: &institution,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, "Checking", a.Name)
+		repo.AssertExpectations(t)
+	})
+
 	t.Run("credit card defaults is_on_budget to false", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.AccountRepository{}
@@ -281,6 +306,44 @@ func TestSvc_Replace(t *testing.T) {
 		assert.ErrorIs(t, err, account.ErrConflict)
 		repo.AssertExpectations(t)
 	})
+
+	t.Run("success — with institution", func(t *testing.T) {
+		t.Parallel()
+		excludeID := testAccountID
+		institution := "Chase"
+		updated := models.Account{
+			ID:          testAccountID,
+			BudgetID:    testBudgetID,
+			Name:        "Updated",
+			Type:        models.AccountTypeChecking,
+			IsOnBudget:  true,
+			Institution: &institution,
+		}
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Original"), nil)
+		repo.On("ExistsByName", testBudgetID, "Updated", &excludeID).Return(false, nil)
+		repo.On("Update", account.UpdateParams{
+			ID:          testAccountID,
+			BudgetID:    testBudgetID,
+			Name:        "Updated",
+			Type:        models.AccountTypeChecking,
+			IsOnBudget:  true,
+			Institution: &institution,
+		}).Return(updated, nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(300), money.FromMinorUnits(0), nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Replace(context.Background(), testAccountID, testBudgetID, account.ReplaceRequest{
+			Name:        "Updated",
+			Type:        models.AccountTypeChecking,
+			Institution: &institution,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, &institution, a.Institution)
+		repo.AssertExpectations(t)
+	})
 }
 
 // TestSvc_Patch covers account.Svc.Patch.
@@ -313,6 +376,29 @@ func TestSvc_Patch(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "NewName", a.Name)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("success — patch institution", func(t *testing.T) {
+		t.Parallel()
+		institution := "Wells Fargo"
+
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Original"), nil)
+		repo.On("Patch", account.PatchParams{
+			ID:          testAccountID,
+			BudgetID:    testBudgetID,
+			Institution: &institution,
+		}).Return(models.Account{ID: testAccountID, BudgetID: testBudgetID, Name: "Original", Institution: &institution}, nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(0), money.FromMinorUnits(0), nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Patch(context.Background(), testAccountID, testBudgetID, account.PatchRequest{
+			Institution: &institution,
+		}, models.RoleEditor)
+
+		require.NoError(t, err)
+		assert.Equal(t, &institution, a.Institution)
 		repo.AssertExpectations(t)
 	})
 
