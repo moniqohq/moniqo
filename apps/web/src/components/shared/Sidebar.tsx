@@ -59,7 +59,9 @@ const allExtrasNavItems: NavItem[] = [
   { label: "Get PRO", href: "/upgrade", icon: Sparkles, flag: "sidebarExtras" },
 ];
 
-const extrasNavItems = allExtrasNavItems.filter((item) => !item.flag || isFeatureEnabled(item.flag));
+const extrasNavItems = allExtrasNavItems.filter(
+  (item) => !item.flag || isFeatureEnabled(item.flag),
+);
 
 export function Sidebar() {
   const pathname = usePathname();
