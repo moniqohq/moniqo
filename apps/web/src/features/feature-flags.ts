@@ -29,6 +29,20 @@ export const FeatureFlags = {
   reports: false,
   goals: false,
   recurringTransactions: false,
+  dashboardFinancialGoals: false,
+  dashboardCashFlow: false,
+  userProfile: false,
+  transactionImport: false,
+  transactionFilters: false,
+  accountImport: false,
+  accountFilters: false,
+  envelopeFilters: false,
+  sidebarExtras: false,
+  settingsPreferences: false,
+  settingsNotifications: false,
+  settingsSecurity: false,
+  settingsDataPrivacy: false,
+  settingsMembersPermissions: false,
 } as const;
 
 export type FeatureName = keyof typeof FeatureFlags;

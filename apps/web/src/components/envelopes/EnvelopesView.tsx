@@ -48,6 +48,7 @@ import { ModifyEnvelopeModal } from "./ModifyEnvelopeModal";
 import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { EnvelopeDetails } from "./EnvelopeDetails";
 import type { BudgetEnvelope } from "@/types";
+import { isFeatureEnabled } from "@/features/feature-flags";
 
 /* ── Status type ────────────────────────────────────────── */
 type Status = "Healthy" | "Warning" | "Fully Used" | "Overspent";
@@ -651,13 +652,15 @@ export function EnvelopesView() {
             />
           </div>
 
-          <FilterDropdown
-            statuses={filterStatuses}
-            onStatuses={(s) => {
-              setFilterStatuses(s);
-              setPage(1);
-            }}
-          />
+          {isFeatureEnabled("envelopeFilters") && (
+            <FilterDropdown
+              statuses={filterStatuses}
+              onStatuses={(s) => {
+                setFilterStatuses(s);
+                setPage(1);
+              }}
+            />
+          )}
 
           <SortDropdown value={sort} onChange={setSort} />
 

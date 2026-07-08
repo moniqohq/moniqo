@@ -53,11 +53,13 @@ const allMainNavItems: NavItem[] = [
 
 const mainNavItems = allMainNavItems.filter((item) => !item.flag || isFeatureEnabled(item.flag));
 
-const extrasNavItems = [
-  { label: "Documentation", href: "/docs", icon: BookOpen },
-  { label: "Help & Support", href: "/support", icon: HelpCircle },
-  { label: "Get PRO", href: "/upgrade", icon: Sparkles },
+const allExtrasNavItems: NavItem[] = [
+  { label: "Documentation", href: "/docs", icon: BookOpen, flag: "sidebarExtras" },
+  { label: "Help & Support", href: "/support", icon: HelpCircle, flag: "sidebarExtras" },
+  { label: "Get PRO", href: "/upgrade", icon: Sparkles, flag: "sidebarExtras" },
 ];
+
+const extrasNavItems = allExtrasNavItems.filter((item) => !item.flag || isFeatureEnabled(item.flag));
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -172,14 +174,16 @@ export function Sidebar() {
           </div>
 
           {/* Extras section */}
-          {!sidebarCollapsed && (
+          {extrasNavItems.length > 0 && !sidebarCollapsed && (
             <div className="mt-4 mb-1 px-2">
               <span className="text-[10px] font-semibold tracking-widest text-[#6B7FA3] uppercase">
                 Extras
               </span>
             </div>
           )}
-          {sidebarCollapsed && <div className="mx-2 my-3 border-t border-[#1E2B42]" />}
+          {extrasNavItems.length > 0 && sidebarCollapsed && (
+            <div className="mx-2 my-3 border-t border-[#1E2B42]" />
+          )}
 
           <div className="space-y-0.5">
             {extrasNavItems.map(({ label, href, icon: Icon }) => {
