@@ -86,7 +86,7 @@ function BudgetSwitcher({
         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-[#6C3AED] shadow-sm shadow-[#6C3AED]/40">
           <Wallet size={13} className="text-white" strokeWidth={2} />
         </span>
-        <span className="hidden max-w-[120px] truncate text-sm font-medium sm:block">
+        <span className="hidden max-w-[200px] truncate text-sm font-medium sm:block">
           {isLoading ? "Loading…" : (activeBudget?.name ?? "Select budget")}
         </span>
         <ChevronDown
