@@ -336,8 +336,6 @@ export function AccountsView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: accounts, isLoading, error: accountsError } = useAccounts(activeBudgetId);
-  const isError = !!accountsError;
 
   const initialStatus = (searchParams.get("status") ?? "active") as StatusFilter;
   const initialType = (searchParams.get("type") ?? "all") as TypeFilter;
@@ -346,11 +344,17 @@ export function AccountsView() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType);
   const [addModalOpen, setAddModalOpen] = useState(false);
 
-  /* Filtered accounts — API returns only active accounts; archived filter always empty */
+  const {
+    data: accounts,
+    isLoading,
+    error: accountsError,
+  } = useAccounts(activeBudgetId, statusFilter);
+  const isError = !!accountsError;
+
+  /* Status filtering happens server-side; only apply type filter here */
   const filteredAccounts = accounts.filter((account) => {
-    const statusMatch = statusFilter === "archived" ? false : true;
     const typeMatch = typeFilter === "all" || account.type === typeFilter;
-    return statusMatch && typeMatch;
+    return typeMatch;
   });
 
   const [selectedId, setSelectedId] = useState<number | null>(null);

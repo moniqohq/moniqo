@@ -23,8 +23,12 @@ import type { ApiAccount } from "./types";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/accounts`;
 
-export function listAccounts(budgetId: number): Promise<ApiAccount[]> {
-  return apiFetch<ApiAccount[]>(base(budgetId));
+export function listAccounts(
+  budgetId: number,
+  status?: "active" | "archived" | "all",
+): Promise<ApiAccount[]> {
+  const qs = status && status !== "active" ? `?status=${status}` : "";
+  return apiFetch<ApiAccount[]>(`${base(budgetId)}${qs}`);
 }
 
 export function getAccount(budgetId: number, id: number): Promise<ApiAccount> {

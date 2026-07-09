@@ -51,7 +51,10 @@ export function apiAccountToUI(a: ApiAccount): Account {
   };
 }
 
-export function useAccounts(budgetId: number | null) {
+export function useAccounts(
+  budgetId: number | null,
+  status?: "active" | "archived" | "all",
+) {
   const [data, setData] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,14 +64,14 @@ export function useAccounts(budgetId: number | null) {
     setIsLoading(true);
     setError(null);
     try {
-      const raw = await listAccounts(budgetId);
+      const raw = await listAccounts(budgetId, status);
       setData(raw.map(apiAccountToUI));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load accounts");
     } finally {
       setIsLoading(false);
     }
-  }, [budgetId]);
+  }, [budgetId, status]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
