@@ -48,10 +48,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, formatRelativeDate } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 import { useAccounts, useArchiveAccount } from "@/hooks/accounts/use-accounts";
 import { useBudgets } from "@/hooks/use-budgets";
+import { useAccounts as useAccountsLegacy } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
+import { useTransactions } from "@/hooks/useTransactions";
 import type { AccountType } from "@/types";
 
 /* ── Constants ───────────────────────────────────────────── */
@@ -98,27 +101,6 @@ const CHART_DATA = [
   { date: "Mar '24", value: 5800 },
   { date: "Apr '24", value: 8400 },
   { date: "May '24", value: 2450 },
-];
-
-const ARCHIVE_TRANSACTIONS = [
-  { id: "at1", date: "May 15, 2024", payee: "Interest Credit", category: "Income", amount: 250 },
-  { id: "at2", date: "May 10, 2024", payee: "Swiggy", category: "Food & Dining", amount: -620 },
-  {
-    id: "at3",
-    date: "May 6, 2024",
-    payee: "ATM Withdrawal",
-    category: "Cash & ATM",
-    amount: -5000,
-  },
-  {
-    id: "at4",
-    date: "May 5, 2024",
-    payee: "Transfer to HDFC Checking",
-    category: "Transfers",
-    amount: -2000,
-  },
-  { id: "at5", date: "Apr 28, 2024", payee: "Salary Deposit", category: "Income", amount: 75000 },
-  { id: "at6", date: "Apr 20, 2024", payee: "DMart", category: "Groceries", amount: -2345.5 },
 ];
 
 /* ── Balance chart ───────────────────────────────────────── */
@@ -418,6 +400,16 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const account = accounts.find((a) => a.id === accountId);
   const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
+  const { accountMap: legacyAccountMap } = useAccountsLegacy(budgetId);
+  const { envelopeMap } = useEnvelopes(budgetId);
+  const { transactions: accountTransactions } = useTransactions(
+    budgetId,
+    legacyAccountMap,
+    envelopeMap,
+    { accountId },
+  );
+  const rawAccount = legacyAccountMap.get(accountId);
+
   const [checklist, setChecklist] = useState<ChecklistItem[]>([
     {
       id: "transfer",
@@ -443,12 +435,15 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const [archiveError, setArchiveError] = useState<string | null>(null);
 
   const balance = account?.balance ?? 0;
-  const txCount = 0;
+  const txCount = accountTransactions.length;
   const openingBalance = 0;
-  const lastActivity = "May 15, 2024";
-  const lastActivityAgo = "5 days ago";
-  const lastReconciled = "Apr 30, 2024";
-  const createdDate = "Jan 5, 2024";
+  const lastActivityDate = accountTransactions[0]?.date;
+  const lastActivity = lastActivityDate ? formatDate(lastActivityDate) : "No activity yet";
+  const lastActivityAgo = lastActivityDate ? formatRelativeDate(lastActivityDate) : "";
+  const lastReconciled = rawAccount?.last_reconciled_at
+    ? formatDate(rawAccount.last_reconciled_at)
+    : "Never";
+  const createdDate = rawAccount?.created_at ? formatDate(rawAccount.created_at) : "—";
   const hasBalance = balance !== 0;
   const riskLevel = hasBalance ? "Medium" : "Low";
   const archiveStatus = hasBalance ? "Archive Recommended" : "Ready to Archive";
@@ -740,16 +735,22 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                 ))}
               </div>
 
-              {ARCHIVE_TRANSACTIONS.map((tx) => (
+              {accountTransactions.length === 0 && (
+                <p className="px-5 py-6 text-center text-[12px] text-[#5A6A85]">
+                  No transactions to display.
+                </p>
+              )}
+
+              {accountTransactions.slice(0, 6).map((tx) => (
                 <div
                   key={tx.id}
                   className="grid grid-cols-[160px_1fr_1fr_120px] border-b border-[#1E2B42]/50 px-5 py-3 transition-colors hover:bg-[#131C2E]"
                 >
-                  <span className="text-[12px] text-[#A8B4CC]">{tx.date}</span>
+                  <span className="text-[12px] text-[#A8B4CC]">{formatDate(tx.date)}</span>
                   <span className="truncate pr-2 text-[12px] font-medium text-[#E8EEF8]">
                     {tx.payee}
                   </span>
-                  <span className="text-[12px] text-[#A8B4CC]">{tx.category}</span>
+                  <span className="text-[12px] text-[#A8B4CC]">{tx.envelopeName ?? "—"}</span>
                   <span
                     className={cn(
                       "text-[12px] font-semibold",
