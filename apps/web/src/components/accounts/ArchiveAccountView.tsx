@@ -939,7 +939,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
           <ArchiveSuccessDialog
             key="success"
             accountName={account?.name ?? "Account"}
-            onViewArchived={() => router.push(`/budgets/${budgetId}/accounts?filter=archived`)}
+            onViewArchived={() => router.push(`/budgets/${budgetId}/accounts?status=archived`)}
             onReturn={() => router.push(`/budgets/${budgetId}/accounts`)}
           />
         )}
