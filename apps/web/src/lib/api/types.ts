@@ -62,6 +62,8 @@ export type ApiEnvelope = {
   created_at: string;
 };
 
+export type ApiTransactionStatus = "uncleared" | "cleared" | "reconciled";
+
 export type ApiTransaction = {
   id: number;
   budget_id: number;
@@ -72,6 +74,7 @@ export type ApiTransaction = {
   amount: number;
   date: string;
   memo: string | null;
+  status: ApiTransactionStatus;
   created_at: string;
 };
 

@@ -78,3 +78,7 @@ export function patchAccount(
 export function deleteAccount(budgetId: number, id: number): Promise<void> {
   return apiFetch<void>(`${base(budgetId)}/${id}`, { method: "DELETE" });
 }
+
+export function reconcileAccount(budgetId: number, id: number): Promise<ApiAccount> {
+  return apiFetch<ApiAccount>(`${base(budgetId)}/${id}/reconcile`, { method: "POST" });
+}

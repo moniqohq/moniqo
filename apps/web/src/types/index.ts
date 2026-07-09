@@ -69,6 +69,8 @@ export interface BudgetEnvelope {
   isOverspent: boolean;
 }
 
+export type TransactionStatus = "uncleared" | "cleared" | "reconciled";
+
 export interface Transaction {
   id: number;
   budgetId: number;
@@ -82,6 +84,7 @@ export interface Transaction {
   type: TransactionType;
   date: string;
   memo?: string;
+  status?: TransactionStatus;
   cleared: boolean;
 }
 

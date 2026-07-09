@@ -48,7 +48,8 @@ export function apiTransactionToUI(
     type,
     date: t.date,
     memo: t.memo ?? undefined,
-    cleared: true,
+    status: t.status,
+    cleared: t.status === "cleared" || t.status === "reconciled",
   };
 }
 

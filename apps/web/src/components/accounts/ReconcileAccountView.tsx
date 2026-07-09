@@ -19,14 +19,13 @@
  */
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeftRight,
   Banknote,
   BadgeCheck,
-  Briefcase,
   Building2,
   Calendar,
   CheckCheck,
@@ -36,10 +35,7 @@ import {
   CreditCard,
   Download,
   Filter,
-  Heart,
   Landmark,
-  Music,
-  Package,
   PiggyBank,
   Plus,
   Search,
@@ -50,11 +46,14 @@ import {
   X,
   Clock,
   AlertCircle,
-  Utensils,
   Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/use-accounts";
+import { listTransactions, patchTransaction } from "@/lib/api/transactions";
+import { reconcileAccount } from "@/lib/api/accounts";
+import { ApiError } from "@/lib/api-client";
+import type { ApiTransaction, ApiTransactionStatus } from "@/lib/api/types";
 import type { AccountType } from "@/types";
 
 /* ── Constants ─────────────────────────────────────────────── */
@@ -95,10 +94,8 @@ const TYPE_META: Record<
   },
 };
 
-const OPENING_RECON_BALANCE = 426215.5;
-
 type ReconTx = {
-  id: string;
+  id: number;
   date: string;
   payee: string;
   category: string;
@@ -107,170 +104,42 @@ type ReconTx = {
   outflow: number;
   runningBalance: number;
   cleared: boolean;
+  status: ApiTransactionStatus;
   icon: React.ReactNode;
   iconBg: string;
   iconColor: string;
   type: "income" | "expense" | "transfer";
 };
 
-const INITIAL_TRANSACTIONS: ReconTx[] = [
-  {
-    id: "r1",
-    date: "2024-05-01",
-    payee: "Salary Deposit",
-    category: "Income",
-    inflow: 75000,
-    outflow: 0,
-    runningBalance: 458250,
-    cleared: true,
-    type: "income",
-    icon: <TrendingUp size={14} />,
-    iconBg: "rgba(34,197,94,0.15)",
-    iconColor: "#22C55E",
-  },
-  {
-    id: "r2",
-    date: "2024-05-02",
-    payee: "Swiggy",
-    category: "Food & Dining",
-    inflow: 0,
-    outflow: 620,
-    runningBalance: 457630,
-    cleared: true,
-    type: "expense",
-    icon: <Utensils size={14} />,
-    iconBg: "rgba(249,115,22,0.15)",
-    iconColor: "#F97316",
-  },
-  {
-    id: "r3",
-    date: "2024-05-03",
-    payee: "DMart",
-    category: "Groceries",
-    inflow: 0,
-    outflow: 2345.5,
-    runningBalance: 455284.5,
-    cleared: true,
-    type: "expense",
-    icon: <ShoppingCart size={14} />,
-    iconBg: "rgba(59,130,246,0.15)",
-    iconColor: "#3B82F6",
-  },
-  {
-    id: "r4",
-    date: "2024-05-05",
-    payee: "Credit Card Payment",
-    category: "Credit Card Payments",
-    inflow: 0,
-    outflow: 25000,
-    runningBalance: 430284.5,
-    cleared: true,
-    type: "expense",
-    icon: <CreditCard size={14} />,
-    iconBg: "rgba(59,130,246,0.15)",
-    iconColor: "#3B82F6",
-  },
-  {
-    id: "r5",
-    date: "2024-05-07",
-    payee: "Transfer to Savings",
-    category: "Transfers",
-    subLabel: "→ Savings Account",
-    inflow: 0,
-    outflow: 10000,
-    runningBalance: 420284.5,
-    cleared: true,
-    type: "transfer",
-    icon: <ArrowLeftRight size={14} />,
-    iconBg: "rgba(90,106,133,0.2)",
-    iconColor: "#8899AA",
-  },
-  {
-    id: "r6",
-    date: "2024-05-10",
-    payee: "ATM Withdrawal",
-    category: "Cash & ATM",
-    inflow: 0,
-    outflow: 5000,
-    runningBalance: 415284.5,
-    cleared: true,
-    type: "expense",
-    icon: <Banknote size={14} />,
-    iconBg: "rgba(245,158,11,0.15)",
-    iconColor: "#F59E0B",
-  },
-  {
-    id: "r7",
-    date: "2024-05-12",
-    payee: "Freelance Payment",
-    category: "Income",
-    inflow: 15000,
-    outflow: 0,
-    runningBalance: 430284.5,
-    cleared: false,
-    type: "income",
-    icon: <Briefcase size={14} />,
-    iconBg: "rgba(34,197,94,0.15)",
-    iconColor: "#22C55E",
-  },
-  {
-    id: "r8",
-    date: "2024-05-13",
-    payee: "Amazon.in",
-    category: "Shopping",
-    inflow: 0,
-    outflow: 3499,
-    runningBalance: 426785.5,
-    cleared: false,
-    type: "expense",
-    icon: <Package size={14} />,
-    iconBg: "rgba(245,158,11,0.15)",
-    iconColor: "#F59E0B",
-  },
-  {
-    id: "r9",
-    date: "2024-05-14",
-    payee: "Transfer from Savings",
-    category: "Transfers",
-    subLabel: "← Savings Account",
-    inflow: 5000,
-    outflow: 0,
-    runningBalance: 431785.5,
-    cleared: false,
-    type: "transfer",
-    icon: <ArrowLeftRight size={14} />,
-    iconBg: "rgba(90,106,133,0.2)",
-    iconColor: "#8899AA",
-  },
-  {
-    id: "r10",
-    date: "2024-05-15",
-    payee: "Pharmacy",
-    category: "Health",
-    inflow: 0,
-    outflow: 850,
-    runningBalance: 430935.5,
-    cleared: false,
-    type: "expense",
-    icon: <Heart size={14} />,
-    iconBg: "rgba(236,72,153,0.15)",
-    iconColor: "#EC4899",
-  },
-  {
-    id: "r11",
-    date: "2024-05-15",
-    payee: "Spotify Subscription",
-    category: "Entertainment",
-    inflow: 0,
-    outflow: 149,
-    runningBalance: 430786.5,
-    cleared: false,
-    type: "expense",
-    icon: <Music size={14} />,
-    iconBg: "rgba(34,197,94,0.15)",
-    iconColor: "#1DB954",
-  },
-];
+const TX_TYPE_META: Record<
+  ReconTx["type"],
+  { icon: React.ReactNode; bg: string; color: string }
+> = {
+  income: { icon: <TrendingUp size={14} />, bg: "rgba(34,197,94,0.15)", color: "#22C55E" },
+  expense: { icon: <ShoppingCart size={14} />, bg: "rgba(59,130,246,0.15)", color: "#3B82F6" },
+  transfer: { icon: <ArrowLeftRight size={14} />, bg: "rgba(90,106,133,0.2)", color: "#8899AA" },
+};
+
+function apiTransactionToRecon(t: ApiTransaction, runningBalance: number): ReconTx {
+  const isTransfer = t.transfer_account_id != null;
+  const type: ReconTx["type"] = isTransfer ? "transfer" : t.amount >= 0 ? "income" : "expense";
+  const meta = TX_TYPE_META[type];
+  return {
+    id: t.id,
+    date: t.date,
+    payee: t.memo ?? (isTransfer ? "Transfer" : type === "income" ? "Income" : "Expense"),
+    category: isTransfer ? "Transfers" : type === "income" ? "Income" : "Expense",
+    inflow: t.amount > 0 ? t.amount : 0,
+    outflow: t.amount < 0 ? -t.amount : 0,
+    runningBalance,
+    cleared: t.status === "cleared" || t.status === "reconciled",
+    status: t.status,
+    icon: meta.icon,
+    iconBg: meta.bg,
+    iconColor: meta.color,
+    type,
+  };
+}
 
 function fmtAmt(v: number) {
   if (v === 0) return "—";
@@ -451,41 +320,26 @@ function ReconciliationSuccessDialog({
 
 type TimelineStage = "completed" | "current" | "future";
 
-function ReconciliationTimeline({ progress }: { progress: number }) {
+function ReconciliationTimeline({
+  progress,
+  lastReconciledAt,
+}: {
+  progress: number;
+  lastReconciledAt?: string;
+}) {
   const nodes = [
     {
-      icon: <Building2 size={16} />,
-      title: "Account Created",
-      date: "Apr 10, 2024",
-      meta: "Opening balance ₹50,000.00",
-      stage: "completed" as TimelineStage,
-    },
-    {
       icon: <CheckCircle2 size={16} />,
-      title: "Reconciled",
-      date: "Apr 30, 2024",
-      meta: "Balance · ₹4,28,500.00",
-      stage: "completed" as TimelineStage,
-    },
-    {
-      icon: <Download size={16} />,
-      title: "Statement Imported",
-      date: "May 1, 2024",
-      meta: "Statement balance ₹4,58,250.00",
-      stage: "completed" as TimelineStage,
-    },
-    {
-      icon: <SlidersHorizontal size={16} />,
-      title: "Manual Adjustment",
-      date: "May 1, 2024",
-      meta: "+₹0.00 (No adjustment)",
+      title: "Last Reconciled",
+      date: lastReconciledAt ? fmtDate(lastReconciledAt) : "Never",
+      meta: lastReconciledAt ? "Account reconciled" : "Not yet reconciled",
       stage: "completed" as TimelineStage,
     },
     {
       icon: <BadgeCheck size={16} />,
       title: "Current Reconciliation",
-      date: "May 15, 2024",
-      meta: `In Progress · ${progress}%`,
+      date: "In progress",
+      meta: `${progress}% cleared`,
       stage: "current" as TimelineStage,
     },
   ];
@@ -558,13 +412,16 @@ interface Props {
 
 export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
-  const { data: accounts } = useAccounts(budgetId);
+  const { data: accounts, refetch: refetchAccounts } = useAccounts(budgetId);
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
-  const [transactions, setTransactions] = useState<ReconTx[]>(INITIAL_TRANSACTIONS);
-  const [statementBalanceStr, setStatementBalanceStr] = useState("458250");
-  const [statementDate, setStatementDate] = useState("2024-05-15");
+  const [rawTransactions, setRawTransactions] = useState<ApiTransaction[]>([]);
+  const [txError, setTxError] = useState<string | null>(null);
+  const [finishError, setFinishError] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
+  const [statementBalanceStr, setStatementBalanceStr] = useState("");
+  const [statementDate, setStatementDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<
     "all" | "cleared" | "uncleared" | "income" | "expense" | "transfer"
@@ -576,22 +433,47 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
+  /* ── Data loading ────────────────────────────────────────── */
+
+  const loadTransactions = useCallback(async () => {
+    try {
+      const raw = await listTransactions(budgetId, { account_id: accountId });
+      setRawTransactions(raw);
+      setTxError(null);
+    } catch (e) {
+      setTxError(e instanceof Error ? e.message : "Failed to load transactions");
+    }
+  }, [budgetId, accountId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadTransactions();
+  }, [loadTransactions]);
+
   /* ── Derived ─────────────────────────────────────────────── */
 
   const statementBalance = parseFloat(statementBalanceStr.replace(/,/g, "")) || 0;
+  const clearedBalance = account?.clearedBalance ?? 0;
 
-  const clearedBalance = useMemo(() => {
-    const net = transactions
-      .filter((t) => t.cleared)
-      .reduce((acc, t) => acc + t.inflow - t.outflow, 0);
-    return OPENING_RECON_BALANCE + net;
-  }, [transactions]);
+  const transactions = useMemo(() => {
+    const sorted = [...rawTransactions].sort(
+      (a, b) => a.date.localeCompare(b.date) || a.id - b.id,
+    );
+    const opening = (account?.balance ?? 0) - sorted.reduce((s, t) => s + t.amount, 0);
+    const rows: ReconTx[] = [];
+    let running = opening;
+    for (const t of sorted) {
+      running += t.amount;
+      rows.push(apiTransactionToRecon(t, running));
+    }
+    return rows;
+  }, [rawTransactions, account?.balance]);
 
   const difference = statementBalance - clearedBalance;
   const clearedCount = transactions.filter((t) => t.cleared).length;
   const totalCount = transactions.length;
   const progress = totalCount > 0 ? Math.round((clearedCount / totalCount) * 100) : 0;
-  const canFinish = Math.abs(difference) < 0.005;
+  const canFinish = totalCount === 0 || Math.abs(difference) < 0.005;
 
   const reconciliationStatus =
     clearedCount === 0 ? "Not Started" : canFinish ? "Reconciled" : "In Progress";
@@ -642,17 +524,53 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
 
   /* ── Handlers ────────────────────────────────────────────── */
 
-  function toggleCleared(id: string) {
-    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, cleared: !t.cleared } : t)));
+  async function patchStatus(ids: number[], status: ApiTransactionStatus) {
+    if (ids.length === 0) return;
+    setRawTransactions((prev) =>
+      prev.map((t) => (ids.includes(t.id) ? { ...t, status } : t)),
+    );
+    try {
+      await Promise.all(ids.map((id) => patchTransaction(budgetId, id, { status })));
+      setTxError(null);
+      refetchAccounts();
+    } catch (e) {
+      setTxError(e instanceof Error ? e.message : "Failed to update transaction status");
+      loadTransactions();
+    }
+  }
+
+  function toggleCleared(id: number) {
+    const tx = rawTransactions.find((t) => t.id === id);
+    if (!tx || tx.status === "reconciled") return;
+    patchStatus([id], tx.status === "uncleared" ? "cleared" : "uncleared");
   }
 
   function markAllCleared() {
-    setTransactions((prev) => prev.map((t) => ({ ...t, cleared: true })));
+    const ids = rawTransactions.filter((t) => t.status === "uncleared").map((t) => t.id);
+    patchStatus(ids, "cleared");
   }
 
   function handleAllCheckbox(e: React.ChangeEvent<HTMLInputElement>) {
     const checked = e.target.checked;
-    setTransactions((prev) => prev.map((t) => ({ ...t, cleared: checked })));
+    const targetStatus: ApiTransactionStatus = checked ? "cleared" : "uncleared";
+    const ids = rawTransactions
+      .filter((t) => t.status !== "reconciled" && t.status !== targetStatus)
+      .map((t) => t.id);
+    patchStatus(ids, targetStatus);
+  }
+
+  async function handleFinishReconciliation() {
+    setFinishError(null);
+    setFinishing(true);
+    try {
+      await reconcileAccount(budgetId, accountId);
+      await Promise.all([loadTransactions(), refetchAccounts()]);
+      setShowSuccess(true);
+    } catch (e) {
+      setFinishError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setFinishing(false);
+    }
   }
 
   const allChecked = transactions.length > 0 && transactions.every((t) => t.cleared);
@@ -688,7 +606,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
       <ReconciliationSuccessDialog
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
-        onViewAccount={() => router.push(`/budgets/${budgetId}/accounts`)}
+        onViewAccount={() => router.push(`/accounts`)}
         clearedCount={clearedCount}
         totalCount={totalCount}
         clearedBalance={clearedBalance}
@@ -704,6 +622,9 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
             <p className="mt-0.5 text-sm text-[#5A6A85]">
               Verify account balances against your bank statement
             </p>
+            {(txError || finishError) && (
+              <p className="mt-1.5 text-xs text-[#EF4444]">{finishError ?? txError}</p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -713,16 +634,16 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
               Cancel
             </button>
             <button
-              disabled={!canFinish}
-              onClick={() => setShowSuccess(true)}
+              disabled={!canFinish || finishing}
+              onClick={handleFinishReconciliation}
               className={cn(
                 "h-10 rounded-xl px-5 text-sm font-semibold transition-all",
-                canFinish
+                canFinish && !finishing
                   ? "bg-[#6C3AED] text-white shadow-lg shadow-purple-900/30 hover:bg-[#7C4AF0]"
                   : "cursor-not-allowed bg-[#6C3AED]/30 text-white/40",
               )}
             >
-              Finish Reconciliation
+              {finishing ? "Reconciling..." : "Finish Reconciliation"}
             </button>
           </div>
         </div>
@@ -809,7 +730,9 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                 </span>
                 <div className="text-[11px] text-[#5A6A85]">
                   <span className="block">Last reconciled</span>
-                  <span className="font-medium text-[#8899AA]">May 1, 2024</span>
+                  <span className="font-medium text-[#8899AA]">
+                    {account?.lastReconciledAt ? fmtDate(account.lastReconciledAt) : "Never"}
+                  </span>
                 </div>
               </div>
 
@@ -1004,7 +927,8 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                         exit={{ opacity: 0 }}
                         onClick={() => toggleCleared(tx.id)}
                         className={cn(
-                          "group cursor-pointer border-b border-[#0F1623] transition-colors",
+                          "group border-b border-[#0F1623] transition-colors",
+                          tx.status === "reconciled" ? "cursor-not-allowed" : "cursor-pointer",
                           tx.cleared
                             ? "bg-[rgba(34,197,94,0.04)] hover:bg-[rgba(34,197,94,0.08)]"
                             : "hover:bg-[#131C2E]",
@@ -1012,6 +936,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                       >
                         <td className="w-10 py-3 pl-4">
                           <div
+                            title={tx.status === "reconciled" ? "Already reconciled" : undefined}
                             className={cn(
                               "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-all",
                               tx.cleared
@@ -1290,10 +1215,12 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                 ].map((action) => (
                   <button
                     key={action.label}
-                    className="group flex flex-col items-center gap-2 rounded-xl border border-[#1E2B42] p-3 text-center transition-all hover:border-[#2A3A54] hover:bg-[#131C2E]"
+                    disabled
+                    title="Coming soon"
+                    className="group flex cursor-not-allowed flex-col items-center gap-2 rounded-xl border border-[#1E2B42] p-3 text-center opacity-40"
                   >
                     <div
-                      className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-110"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl"
                       style={{ background: action.bg, color: action.color }}
                     >
                       {action.icon}
@@ -1312,7 +1239,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <ReconciliationTimeline progress={progress} />
+          <ReconciliationTimeline progress={progress} lastReconciledAt={account?.lastReconciledAt} />
         </motion.div>
       </div>
     </div>
