@@ -51,10 +51,7 @@ export function apiAccountToUI(a: ApiAccount): Account {
   };
 }
 
-export function useAccounts(
-  budgetId: number | null,
-  status?: "active" | "archived" | "all",
-) {
+export function useAccounts(budgetId: number | null, status?: "active" | "archived" | "all") {
   const [data, setData] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
