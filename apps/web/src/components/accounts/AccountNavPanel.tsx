@@ -49,7 +49,8 @@ const TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string; bg:
 };
 
 const GROUPS: { label: string; types: AccountType[] }[] = [
-  { label: "Cash & Checking", types: ["checking", "cash"] },
+  { label: "Checking", types: ["checking"] },
+  { label: "Cash", types: ["cash"] },
   { label: "Savings", types: ["savings"] },
   { label: "Credit Cards", types: ["credit"] },
   { label: "Loans", types: ["loan"] },
