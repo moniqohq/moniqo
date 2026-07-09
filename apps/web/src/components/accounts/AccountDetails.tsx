@@ -44,6 +44,7 @@ import { formatCurrency, formatRelativeDate, formatDate, cn } from "@/lib/utils"
 import type { AccountType } from "@/types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
+import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
 import { BalanceChart, type ChartPoint } from "./BalanceChart";
@@ -189,6 +190,8 @@ export function AccountDetails({ accountId, budgetId }: Props) {
 
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
+  const { data: budgets } = useBudgets();
+  const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account
     ? (TYPE_META[API_TO_UI[account.type as ApiAccountType]] ?? TYPE_META.checking)
@@ -271,7 +274,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                   {typeMeta.label}
                 </span>
               </div>
-              <p className="mt-1 text-xs font-medium text-[#7C4AFF]">Budget #{budgetId}</p>
+              <p className="mt-1 text-xs font-medium text-[#7C4AFF]">{budgetName ?? "—"}</p>
             </div>
           </div>
 

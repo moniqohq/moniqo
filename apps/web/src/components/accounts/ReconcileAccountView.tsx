@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useBudgets } from "@/hooks/use-budgets";
 import { listTransactions, patchTransaction } from "@/lib/api/transactions";
 import { reconcileAccount } from "@/lib/api/accounts";
 import { ApiError } from "@/lib/api-client";
@@ -413,6 +414,8 @@ interface Props {
 export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
   const { data: accounts, refetch: refetchAccounts } = useAccounts(budgetId);
+  const { data: budgets } = useBudgets();
+  const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
@@ -678,7 +681,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                 </div>
                 <div className="mt-0.5 flex items-center gap-1 text-xs text-[#5A6A85]">
                   <Layers size={11} />
-                  <span>Budget #{budgetId}</span>
+                  <span>{budgetName ?? "—"}</span>
                 </div>
               </div>
             </div>

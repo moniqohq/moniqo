@@ -51,6 +51,7 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 import { ApiError } from "@/lib/api-client";
 import { useAccounts, useArchiveAccount } from "@/hooks/accounts/use-accounts";
+import { useBudgets } from "@/hooks/use-budgets";
 import type { AccountType } from "@/types";
 
 /* ── Constants ───────────────────────────────────────────── */
@@ -411,6 +412,8 @@ interface Props {
 export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
   const { data: accounts } = useAccounts();
+  const { data: budgets } = useBudgets();
+  const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const archiveMutation = useArchiveAccount();
   const account = accounts.find((a) => a.id === accountId);
   const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
@@ -611,7 +614,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <Archive size={11} className="text-[#5A6A85]" />
-                  <p className="text-[11px] text-[#5A6A85]">Budget #{budgetId}</p>
+                  <p className="text-[11px] text-[#5A6A85]">{budgetName ?? "—"}</p>
                 </div>
               </div>
             </div>
