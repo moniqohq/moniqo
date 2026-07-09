@@ -145,7 +145,7 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 func validatePatchRequest(req PatchRequest) []httpx.FieldError {
 	if req.Name == nil && req.Type == nil && req.RequiresRecon == nil &&
 		req.IsOnBudget == nil && req.IsImmutable == nil && req.Notes == nil &&
-		req.AccountNumber == nil && req.Archived == nil {
+		req.AccountNumber == nil && req.Institution == nil && req.Archived == nil {
 		return []httpx.FieldError{{Field: fieldBody, Error: "request body must contain at least one field"}}
 	}
 	var errs []httpx.FieldError

@@ -34,6 +34,7 @@ export interface ApiAccount {
   is_immutable: boolean;
   notes: string | null;
   account_number: string | null;
+  institution: string | null;
   last_reconciled_at: string | null;
   is_archived: boolean;
   archived_at: string | null;
@@ -69,6 +70,7 @@ export function adaptAccount(raw: ApiAccount): Account {
     isImmutable: raw.is_immutable,
     notes: raw.notes ?? undefined,
     accountNumber: raw.account_number ?? undefined,
+    institution: raw.institution ?? undefined,
     lastReconciledAt: raw.last_reconciled_at ?? undefined,
     isArchived: raw.is_archived,
     archivedAt: raw.archived_at ?? undefined,

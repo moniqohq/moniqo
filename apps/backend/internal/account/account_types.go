@@ -58,6 +58,7 @@ type CreateRequest struct {
 	IsImmutable    bool               `json:"is_immutable"`
 	Notes          *string            `json:"notes"`
 	AccountNumber  *string            `json:"account_number"`
+	Institution    *string            `json:"institution"`
 	InitialBalance money.Amount       `json:"initial_balance"`
 }
 
@@ -71,6 +72,7 @@ type ReplaceRequest struct {
 	IsImmutable   bool               `json:"is_immutable"`
 	Notes         *string            `json:"notes"`
 	AccountNumber *string            `json:"account_number"`
+	Institution   *string            `json:"institution"`
 }
 
 // PatchRequest is the request payload for PATCH /api/v1/budgets/:budget_id/accounts/:id.
@@ -83,6 +85,7 @@ type PatchRequest struct {
 	IsImmutable   *bool               `json:"is_immutable"`
 	Notes         *string             `json:"notes"`
 	AccountNumber *string             `json:"account_number"`
+	Institution   *string             `json:"institution"`
 	Archived      *bool               `json:"archived"`
 }
 
@@ -97,6 +100,7 @@ type CreateParams struct {
 	IsImmutable   bool
 	Notes         *string
 	AccountNumber *string
+	Institution   *string
 }
 
 // UpdateParams carries the repository-layer arguments for a full account update (PUT).
@@ -110,6 +114,7 @@ type UpdateParams struct {
 	IsImmutable   bool
 	Notes         *string
 	AccountNumber *string
+	Institution   *string
 }
 
 // PatchParams carries the repository-layer arguments for a partial account update (PATCH).
@@ -124,4 +129,5 @@ type PatchParams struct {
 	IsImmutable   *bool
 	Notes         *string
 	AccountNumber *string
+	Institution   *string
 }

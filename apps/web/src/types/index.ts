@@ -52,6 +52,7 @@ export interface Account {
   isImmutable: boolean;
   notes?: string;
   accountNumber?: string;
+  institution?: string;
   lastReconciledAt?: string;
   isArchived: boolean;
   archivedAt?: string;
