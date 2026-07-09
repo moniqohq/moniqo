@@ -343,6 +343,7 @@ export function AccountsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const {
     data: accounts,
@@ -354,7 +355,8 @@ export function AccountsView() {
   /* Status filtering happens server-side; only apply type filter here */
   const filteredAccounts = accounts.filter((account) => {
     const typeMatch = typeFilter === "all" || account.type === typeFilter;
-    return typeMatch;
+    const searchMatch = !search || account.name.toLowerCase().includes(search.toLowerCase());
+    return typeMatch && searchMatch;
   });
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -519,6 +521,8 @@ export function AccountsView() {
             <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]" />
             <input
               type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search accounts…"
               className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
@@ -605,7 +609,7 @@ export function AccountsView() {
 
       {/* 3-column layout */}
       {filteredAccounts.length === 0 ? (
-        <EmptyState status={statusFilter} hasTypeFilter={typeFilter !== "all"} />
+        <EmptyState status={statusFilter} hasTypeFilter={typeFilter !== "all" || !!search} />
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[260px_1fr_256px]">
           <AccountNavPanel
