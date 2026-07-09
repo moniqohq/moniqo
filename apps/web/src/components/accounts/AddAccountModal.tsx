@@ -99,15 +99,26 @@ const TYPE_COLORS: Record<AccountType, { icon: string; bg: string }> = {
 
 /* ── ToggleSwitch ─────────────────────────────────────── */
 
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleSwitch({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-disabled={disabled}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none",
+        disabled && "cursor-not-allowed",
         checked
           ? "bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] shadow-[0_0_12px_rgba(108,58,237,0.5)]"
           : "bg-[#1E2B42]",
@@ -186,6 +197,7 @@ function ToggleSettingRow({
   checked,
   onChange,
   badge,
+  disabled,
 }: {
   icon: React.ElementType;
   iconColor: string;
@@ -195,9 +207,15 @@ function ToggleSettingRow({
   checked: boolean;
   onChange: (v: boolean) => void;
   badge?: string;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[#1E2B42] bg-[#0D1525] p-3.5 transition-colors hover:border-[#2A3A54]">
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-xl border border-[#1E2B42] bg-[#0D1525] p-3.5 transition-colors",
+        disabled ? "opacity-50" : "hover:border-[#2A3A54]",
+      )}
+    >
       <div
         className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
         style={{ backgroundColor: iconBg, color: iconColor }}
@@ -216,7 +234,7 @@ function ToggleSettingRow({
           </span>
         )}
       </div>
-      <ToggleSwitch checked={checked} onChange={onChange} />
+      <ToggleSwitch checked={checked} onChange={onChange} disabled={disabled} />
     </div>
   );
 }
@@ -473,6 +491,12 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
       document.body.style.overflow = "";
     };
   }, [open, onClose]);
+
+  const isLiabilityType = accountType === "credit" || accountType === "loan";
+
+  useEffect(() => {
+    if (isLiabilityType) setIncludeInBudget(false);
+  }, [isLiabilityType]);
 
   useEffect(() => {
     if (!calendarOpen) return;
@@ -865,9 +889,14 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                       iconColor="#8B5CF6"
                       iconBg="rgba(139,92,246,0.12)"
                       title="Include in budget"
-                      description="On-budget accounts affect available cash calculations."
+                      description={
+                        isLiabilityType
+                          ? "Credit card and loan accounts are always tracked off-budget."
+                          : "On-budget accounts affect available cash calculations."
+                      }
                       checked={includeInBudget}
                       onChange={setIncludeInBudget}
+                      disabled={isLiabilityType}
                     />
                     <ToggleSettingRow
                       icon={FileText}
