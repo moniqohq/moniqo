@@ -20,7 +20,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { listAccounts } from "@/lib/api/accounts";
+import { listAccounts, type AccountStatusParam } from "@/lib/api/accounts";
 import type { Account, AccountType } from "@/types";
 import type { ApiAccount } from "@/lib/api/types";
 
@@ -52,7 +52,7 @@ export function apiAccountToUI(a: ApiAccount): Account {
   };
 }
 
-export function useAccounts(budgetId: number | null, status?: "active" | "archived" | "all") {
+export function useAccounts(budgetId: number | null, status: AccountStatusParam = "active") {
   const [data, setData] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

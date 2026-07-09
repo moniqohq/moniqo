@@ -23,12 +23,13 @@ import type { ApiAccount } from "./types";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/accounts`;
 
+export type AccountStatusParam = "active" | "archived" | "all";
+
 export function listAccounts(
   budgetId: number,
-  status?: "active" | "archived" | "all",
+  status: AccountStatusParam = "active",
 ): Promise<ApiAccount[]> {
-  const qs = status && status !== "active" ? `?status=${status}` : "";
-  return apiFetch<ApiAccount[]>(`${base(budgetId)}${qs}`);
+  return apiFetch<ApiAccount[]>(`${base(budgetId)}?status=${status}`);
 }
 
 export function getAccount(budgetId: number, id: number): Promise<ApiAccount> {

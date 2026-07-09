@@ -33,6 +33,7 @@ import {
   TrendingDown,
   ArrowUpRight,
   Check,
+  Archive,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
@@ -197,6 +198,26 @@ function FilterDropdown({
   );
 }
 
+/* ── Archived toggle ──────────────────────────────────── */
+
+function ArchivedToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors",
+        checked
+          ? "border-[rgba(108,58,237,0.5)] bg-[rgba(108,58,237,0.08)] text-[#C4B5FD]"
+          : "border-[#1A2540] text-[#A8B4CC] hover:border-[#2A3A54] hover:text-white",
+      )}
+    >
+      <Archive size={15} />
+      Show archived
+    </button>
+  );
+}
+
 /* ── Summary card ────────────────────────────────────── */
 
 function SparkTooltip({
@@ -345,6 +366,7 @@ export function AccountsView() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [search, setSearch] = useState("");
 
+  const showArchived = statusFilter !== "active";
   const {
     data: accounts,
     isLoading,
@@ -352,7 +374,11 @@ export function AccountsView() {
   } = useAccounts(activeBudgetId, statusFilter);
   const isError = !!accountsError;
 
-  /* Status filtering happens server-side; only apply type filter here */
+  function handleShowArchivedChange(v: boolean) {
+    handleStatusChange(v ? "all" : "active");
+  }
+
+  /* Status filtering happens server-side; only apply type + search here */
   const filteredAccounts = accounts.filter((account) => {
     const typeMatch = typeFilter === "all" || account.type === typeFilter;
     const searchMatch = !search || account.name.toLowerCase().includes(search.toLowerCase());
@@ -390,8 +416,8 @@ export function AccountsView() {
     updateFilter("type", v);
   }
 
-  /* Summary calculations — all fetched accounts are active */
-  const allActive = accounts;
+  /* Summary calculations exclude archived accounts */
+  const allActive = accounts.filter((a) => !a.isArchived);
   const cashAndChecking = allActive.filter((a) => a.type === "checking" || a.type === "cash");
   const totalCash = cashAndChecking.reduce((s, a) => s + a.balance, 0);
   const creditAccounts = allActive.filter((a) => a.type === "credit");
@@ -527,6 +553,7 @@ export function AccountsView() {
               className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
           </div>
+          <ArchivedToggle checked={showArchived} onChange={handleShowArchivedChange} />
           {isFeatureEnabled("accountFilters") && (
             <FilterDropdown
               statusFilter={statusFilter}

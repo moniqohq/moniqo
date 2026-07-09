@@ -181,8 +181,8 @@ function AccountGroup({
 }
 
 export function AccountNavPanel({ accounts, selectedId, onSelect, onCreateAccount }: Props) {
-  const activeAccounts = accounts;
-  const archivedAccounts: typeof accounts = [];
+  const activeAccounts = accounts.filter((a) => !a.isArchived);
+  const archivedAccounts = accounts.filter((a) => a.isArchived);
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120]">
