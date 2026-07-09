@@ -102,6 +102,7 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 		IsImmutable:   req.IsImmutable,
 		Notes:         req.Notes,
 		AccountNumber: req.AccountNumber,
+		Institution:   req.Institution,
 	}
 	account, err := s.repo.Create(ctx, p)
 	if err != nil {
@@ -259,6 +260,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		IsImmutable:   req.IsImmutable,
 		Notes:         req.Notes,
 		AccountNumber: req.AccountNumber,
+		Institution:   req.Institution,
 	}
 	account, err := s.repo.Update(ctx, p)
 	if err != nil {
@@ -348,6 +350,7 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest, c
 		IsImmutable:   req.IsImmutable,
 		Notes:         req.Notes,
 		AccountNumber: req.AccountNumber,
+		Institution:   req.Institution,
 	}
 	account, err := s.repo.Patch(ctx, p)
 	if err != nil {

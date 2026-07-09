@@ -446,6 +446,7 @@ function PreviewPanel({
 export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
   const [accountName, setAccountName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [institution, setInstitution] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("checking");
   const [initialBalance, setInitialBalance] = useState("");
   const [balanceDate, setBalanceDate] = useState<Date>(() => new Date());
@@ -499,6 +500,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
         is_immutable: immutability,
         notes: notes.trim() || undefined,
         account_number: accountNumber.trim() || undefined,
+        institution: institution.trim() || undefined,
         initial_balance: parseFloat(initialBalance) || 0,
       });
       handleReset();
@@ -511,6 +513,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
   const handleReset = () => {
     setAccountName("");
     setAccountNumber("");
+    setInstitution("");
     setAccountType("checking");
     setInitialBalance("");
     setIncludeInBudget(true);
@@ -629,6 +632,19 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                       value={accountNumber}
                       onChange={(e) => setAccountNumber(e.target.value)}
                       placeholder="e.g., 1234567890"
+                      className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Institution */}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-[#C8D4E4]">
+                      Institution <span className="font-normal text-[#3D4E65]">(optional)</span>
+                    </label>
+                    <input
+                      value={institution}
+                      onChange={(e) => setInstitution(e.target.value)}
+                      placeholder="e.g., HDFC Bank"
                       className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                     />
                   </div>

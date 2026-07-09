@@ -41,6 +41,7 @@ export function createAccount(
     is_immutable?: boolean;
     notes?: string;
     account_number?: string;
+    institution?: string;
     initial_balance: number;
   },
 ): Promise<ApiAccount> {
@@ -61,6 +62,7 @@ export function patchAccount(
     is_immutable: boolean;
     notes: string | null;
     account_number: string | null;
+    institution: string | null;
   }>,
 ): Promise<ApiAccount> {
   return apiFetch<ApiAccount>(`${base(budgetId)}/${id}`, {

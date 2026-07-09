@@ -264,6 +264,7 @@ type Account struct {
 	IsImmutable      bool
 	ArchivedAt       pgtype.Timestamptz
 	AccountNumber    *string
+	Institution      *string
 }
 
 type Budget struct {
