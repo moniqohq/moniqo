@@ -39,6 +39,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useAccountBalanceHistory } from "@/hooks/use-account-balance-history";
+import type { ApiBalancePoint } from "@/lib/api/types";
 import { formatCurrency, formatCurrencyCompact, cn } from "@/lib/utils";
 import { AccountNavPanel } from "./AccountNavPanel";
 import { AccountDetails } from "./AccountDetails";
@@ -350,6 +352,25 @@ function EmptyState({ status, hasTypeFilter }: { status: StatusFilter; hasTypeFi
   );
 }
 
+/* ── Trend helpers ───────────────────────────────────── */
+
+/** Percent change from the first to the last point in a balance series, formatted for a card's changeLabel. */
+function pctChange(
+  points: ApiBalancePoint[] | undefined,
+  suffix: string,
+  invert = false,
+): { changeLabel: string; positive: boolean } {
+  if (!points || points.length < 2 || points[0].balance === 0) {
+    return { changeLabel: suffix, positive: true };
+  }
+  const first = points[0].balance;
+  const last = points[points.length - 1].balance;
+  const rawPct = ((last - first) / Math.abs(first)) * 100;
+  const pct = invert ? -rawPct : rawPct;
+  const sign = pct >= 0 ? "+" : "";
+  return { changeLabel: `${sign}${pct.toFixed(1)}% ${suffix}`, positive: pct >= 0 };
+}
+
 /* ── main view ───────────────────────────────────────── */
 
 export function AccountsView() {
@@ -373,6 +394,8 @@ export function AccountsView() {
     error: accountsError,
   } = useAccounts(activeBudgetId, statusFilter);
   const isError = !!accountsError;
+
+  const { data: history } = useAccountBalanceHistory(activeBudgetId);
 
   function handleShowArchivedChange(v: boolean) {
     handleStatusChange(v ? "all" : "active");
@@ -429,6 +452,11 @@ export function AccountsView() {
   const assetPct =
     totalAssets > 0 ? Math.round((totalAssets / (totalAssets + creditDebt)) * 100) : 100;
 
+  const cashTrend = pctChange(history?.cash, "from last month");
+  const creditTrend = pctChange(history?.credit, "vs last month", /* invert */ true);
+  const savingsTrend = pctChange(history?.savings, "growth MTD");
+  const netWorthTrend = pctChange(history?.netWorth, "this month");
+
   const summaryCards: SummaryCardProps[] = [
     {
       icon: <Wallet size={24} />,
@@ -437,20 +465,9 @@ export function AccountsView() {
       accentColor: "#22C55E",
       label: "Total Cash Balance",
       value: formatCurrency(totalCash),
-      changeLabel: "+2.4% from last month",
-      positive: true,
-      sparkData: [
-        { v: 4200 },
-        { v: 4500 },
-        { v: 4100 },
-        { v: 4800 },
-        { v: 4600 },
-        { v: 5000 },
-        { v: 4900 },
-        { v: 5300 },
-        { v: 5100 },
-        { v: 5400 },
-      ],
+      changeLabel: cashTrend.changeLabel,
+      positive: cashTrend.positive,
+      sparkData: history?.cash.map((p) => ({ v: p.balance })),
     },
     {
       icon: <CreditCard size={24} />,
@@ -459,20 +476,9 @@ export function AccountsView() {
       accentColor: "#F87171",
       label: "Credit Card Debt",
       value: formatCurrency(creditDebt),
-      changeLabel: "−5.2% vs last month",
-      positive: true,
-      sparkData: [
-        { v: 2100 },
-        { v: 1950 },
-        { v: 2200 },
-        { v: 1850 },
-        { v: 2050 },
-        { v: 1980 },
-        { v: 1900 },
-        { v: 1820 },
-        { v: 1750 },
-        { v: 1680 },
-      ],
+      changeLabel: creditTrend.changeLabel,
+      positive: creditTrend.positive,
+      sparkData: history?.credit.map((p) => ({ v: p.balance })),
     },
     {
       icon: <PiggyBank size={24} />,
@@ -481,20 +487,9 @@ export function AccountsView() {
       accentColor: "#3B82F6",
       label: "Savings Balance",
       value: formatCurrency(savingsBalance),
-      changeLabel: "+8.1% growth MTD",
-      positive: true,
-      sparkData: [
-        { v: 8000 },
-        { v: 8400 },
-        { v: 8200 },
-        { v: 8900 },
-        { v: 8700 },
-        { v: 9200 },
-        { v: 9000 },
-        { v: 9600 },
-        { v: 9400 },
-        { v: 9800 },
-      ],
+      changeLabel: savingsTrend.changeLabel,
+      positive: savingsTrend.positive,
+      sparkData: history?.savings.map((p) => ({ v: p.balance })),
     },
   ];
 
@@ -598,8 +593,19 @@ export function AccountsView() {
                 {formatCurrency(netWorth)}
               </p>
               <div className="mt-1 flex items-center gap-1">
-                <TrendingUp size={11} className="text-[#22C55E]" />
-                <span className="text-[10px] font-medium text-[#4ADE80]">+3.8% this month</span>
+                {netWorthTrend.positive ? (
+                  <TrendingUp size={11} className="text-[#22C55E]" />
+                ) : (
+                  <TrendingDown size={11} className="text-[#F87171]" />
+                )}
+                <span
+                  className={cn(
+                    "text-[10px] font-medium",
+                    netWorthTrend.positive ? "text-[#4ADE80]" : "text-[#F87171]",
+                  )}
+                >
+                  {netWorthTrend.changeLabel}
+                </span>
               </div>
             </div>
             <div

@@ -55,6 +55,7 @@ type Repository interface {
 	Unarchive(ctx context.Context, id, budgetID int64) (models.Account, error)
 	IsArchived(ctx context.Context, id, budgetID int64) (bool, error)
 	CreateOpeningTransaction(ctx context.Context, budgetID, accountID int64, amount money.Amount) error
+	BalanceHistory(ctx context.Context, budgetID int64, months int) ([]db.GetAccountTypeBalanceHistoryRow, error)
 }
 
 // Repo is the sqlc-backed implementation of Repository.
@@ -654,4 +655,27 @@ func (r *Repo) CreateOpeningTransaction(ctx context.Context, budgetID, accountID
 		zap.Int64("amount", amount.Int64()),
 	)
 	return nil
+}
+
+// BalanceHistory returns, for each of the last `months` months, the cumulative
+// balance of every account type in budgetID as of the end of that month.
+func (r *Repo) BalanceHistory(ctx context.Context, budgetID int64, months int) ([]db.GetAccountTypeBalanceHistoryRow, error) {
+	r.log.Debug("executing GetAccountTypeBalanceHistory query",
+		zap.Int64("budget_id", budgetID),
+		zap.Int("months", months),
+	)
+
+	q := db.New(r.pool)
+	rows, err := q.GetAccountTypeBalanceHistory(ctx, db.GetAccountTypeBalanceHistoryParams{
+		BudgetID: budgetID,
+		Months:   int32(months), //nolint:gosec
+	})
+	if err != nil {
+		r.log.Error("GetAccountTypeBalanceHistory query failed",
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("get account type balance history: %w", err)
+	}
+	return rows, nil
 }

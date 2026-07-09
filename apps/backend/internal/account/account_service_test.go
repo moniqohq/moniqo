@@ -29,6 +29,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/account"
 	internalmock "github.com/moniqohq/moniqo/apps/backend/internal/mock"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
@@ -711,5 +714,78 @@ func TestSvc_Patch_Archived(t *testing.T) {
 
 		assert.ErrorIs(t, err, account.ErrForbidden)
 		repo.AssertNotCalled(t, "GetByID")
+	})
+}
+
+// TestSvc_BalanceHistory covers account.Svc.BalanceHistory.
+func TestSvc_BalanceHistory(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	month := func(y int, m time.Month) pgtype.Date {
+		return pgtype.Date{Time: time.Date(y, m, 1, 0, 0, 0, 0, time.UTC), Valid: true}
+	}
+
+	t.Run("defaults to 6 months and groups cash/credit/savings/net worth", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("BalanceHistory", testBudgetID, 6).Return([]db.GetAccountTypeBalanceHistoryRow{
+			{Month: month(2026, time.January), Type: db.AccountTypeCHECKING, Balance: 10000},
+			{Month: month(2026, time.January), Type: db.AccountTypeCASH, Balance: 5000},
+			{Month: month(2026, time.January), Type: db.AccountTypeSAVINGS, Balance: 20000},
+			{Month: month(2026, time.January), Type: db.AccountTypeCREDITCARD, Balance: -3000},
+			{Month: month(2026, time.February), Type: db.AccountTypeCHECKING, Balance: 12000},
+			{Month: month(2026, time.February), Type: db.AccountTypeCASH, Balance: 5000},
+			{Month: month(2026, time.February), Type: db.AccountTypeSAVINGS, Balance: 21000},
+			{Month: month(2026, time.February), Type: db.AccountTypeCREDITCARD, Balance: -1000},
+		}, nil)
+
+		svc := account.NewSvc(repo, log)
+		history, err := svc.BalanceHistory(context.Background(), testBudgetID, 0)
+
+		require.NoError(t, err)
+		require.Len(t, history.Cash, 2)
+		require.Len(t, history.Credit, 2)
+		require.Len(t, history.Savings, 2)
+		require.Len(t, history.NetWorth, 2)
+
+		assert.Equal(t, "2026-01", history.Cash[0].Month)
+		assert.Equal(t, money.FromMinorUnits(15000), history.Cash[0].Balance)
+		assert.Equal(t, money.FromMinorUnits(3000), history.Credit[0].Balance)
+		assert.Equal(t, money.FromMinorUnits(20000), history.Savings[0].Balance)
+		assert.Equal(t, money.FromMinorUnits(32000), history.NetWorth[0].Balance)
+
+		assert.Equal(t, "2026-02", history.Cash[1].Month)
+		assert.Equal(t, money.FromMinorUnits(17000), history.Cash[1].Balance)
+		assert.Equal(t, money.FromMinorUnits(1000), history.Credit[1].Balance)
+		assert.Equal(t, money.FromMinorUnits(21000), history.Savings[1].Balance)
+		assert.Equal(t, money.FromMinorUnits(37000), history.NetWorth[1].Balance)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("positive credit type balance clamps debt to zero", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("BalanceHistory", testBudgetID, 3).Return([]db.GetAccountTypeBalanceHistoryRow{
+			{Month: month(2026, time.January), Type: db.AccountTypeCREDITCARD, Balance: 500},
+		}, nil)
+
+		svc := account.NewSvc(repo, log)
+		history, err := svc.BalanceHistory(context.Background(), testBudgetID, 3)
+
+		require.NoError(t, err)
+		require.Len(t, history.Credit, 1)
+		assert.Equal(t, money.FromMinorUnits(0), history.Credit[0].Balance)
+	})
+
+	t.Run("repo error is wrapped", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("BalanceHistory", testBudgetID, 6).Return(nil, assert.AnError)
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.BalanceHistory(context.Background(), testBudgetID, 0)
+
+		require.Error(t, err)
 	})
 }

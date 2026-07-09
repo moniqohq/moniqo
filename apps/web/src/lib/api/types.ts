@@ -98,3 +98,15 @@ export type ApiDashboardStats = {
   monthly_savings: number;
   sparkline: ApiSparklinePoint[];
 };
+
+export type ApiBalancePoint = {
+  month: string;
+  balance: number;
+};
+
+export type ApiAccountBalanceHistory = {
+  cash: ApiBalancePoint[];
+  credit: ApiBalancePoint[];
+  savings: ApiBalancePoint[];
+  net_worth: ApiBalancePoint[];
+};

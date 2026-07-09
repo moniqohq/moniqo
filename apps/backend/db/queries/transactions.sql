@@ -145,3 +145,24 @@ WHERE budget_id  = $1
   AND date <  date_trunc('month', now()) + interval '1 month'
 GROUP BY date_trunc('month', date)
 ORDER BY month ASC;
+
+-- name: GetAccountTypeBalanceHistory :many
+WITH months AS (
+    SELECT generate_series(
+        date_trunc('month', now()) - (interval '1 month' * (sqlc.arg(months)::int - 1)),
+        date_trunc('month', now()),
+        interval '1 month'
+    )::date AS month
+)
+SELECT
+    m.month,
+    a.type,
+    COALESCE(SUM(t.amount) FILTER (WHERE t.date < m.month + interval '1 month'), 0)::BIGINT AS balance
+FROM months m
+CROSS JOIN accounts a
+LEFT JOIN transactions t ON t.account_id = a.id AND t.deleted_at IS NULL
+WHERE a.budget_id = $1
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
+GROUP BY m.month, a.type
+ORDER BY m.month ASC;

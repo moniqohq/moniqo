@@ -79,3 +79,19 @@ type Account struct {
 	CreatedAt        time.Time    `json:"created_at"`
 	UpdatedAt        time.Time    `json:"updated_at"`
 }
+
+// BalancePoint is one month's closing balance for an account group.
+type BalancePoint struct {
+	Month   string       `json:"month"`
+	Balance money.Amount `json:"balance"`
+}
+
+// AccountBalanceHistory is the API-facing payload for the Accounts page
+// summary card sparklines: a monthly closing-balance series per account
+// group, plus the derived net worth series.
+type AccountBalanceHistory struct {
+	Cash     []BalancePoint `json:"cash"`
+	Credit   []BalancePoint `json:"credit"`
+	Savings  []BalancePoint `json:"savings"`
+	NetWorth []BalancePoint `json:"net_worth"`
+}

@@ -25,6 +25,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
+	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/account"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"github.com/moniqohq/moniqo/apps/backend/internal/money"
@@ -45,6 +46,8 @@ type AccountService struct {
 	ReconcileFn func(ctx context.Context, id, budgetID int64) (models.Account, error)
 	ArchiveFn   func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
 	UnarchiveFn func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
+
+	BalanceHistoryFn func(ctx context.Context, budgetID int64, months int) (models.AccountBalanceHistory, error)
 }
 
 // Create delegates to CreateFn.
@@ -92,6 +95,11 @@ func (m *AccountService) Archive(ctx context.Context, id, budgetID int64, caller
 // Unarchive delegates to UnarchiveFn.
 func (m *AccountService) Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
 	return m.UnarchiveFn(ctx, id, budgetID, callerRole)
+}
+
+// BalanceHistory delegates to BalanceHistoryFn.
+func (m *AccountService) BalanceHistory(ctx context.Context, budgetID int64, months int) (models.AccountBalanceHistory, error) {
+	return m.BalanceHistoryFn(ctx, budgetID, months)
 }
 
 // -----------------------------------------------------------------------------
@@ -231,4 +239,16 @@ func (m *AccountRepository) IsArchived(_ context.Context, id, budgetID int64) (b
 func (m *AccountRepository) CreateOpeningTransaction(_ context.Context, budgetID, accountID int64, amount money.Amount) error {
 	args := m.Called(budgetID, accountID, amount)
 	return args.Error(0)
+}
+
+// BalanceHistory records the call and returns the configured stub values.
+func (m *AccountRepository) BalanceHistory(
+	_ context.Context, budgetID int64, months int,
+) ([]db.GetAccountTypeBalanceHistoryRow, error) {
+	args := m.Called(budgetID, months)
+	rows, ok := args.Get(0).([]db.GetAccountTypeBalanceHistoryRow)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return rows, args.Error(1)
 }
