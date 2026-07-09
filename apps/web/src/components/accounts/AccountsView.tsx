@@ -612,6 +612,7 @@ export function AccountsView() {
             accounts={filteredAccounts}
             selectedId={selectedAccount?.id ?? 0}
             onSelect={setSelectedId}
+            onCreateAccount={() => setAddModalOpen(true)}
           />
           {selectedAccount != null && (
             <AccountDetails accountId={selectedAccount.id} budgetId={selectedAccount.budgetId} />
