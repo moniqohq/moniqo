@@ -27,6 +27,7 @@ import {
   Download,
   BarChart2,
   Archive,
+  ArchiveRestore,
   Lock,
   ArrowRight,
   ArrowUpDown,
@@ -40,73 +41,81 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useUnarchiveAccount } from "@/hooks/accounts/use-accounts";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 
 interface Props {
   accountId: number;
   budgetId: number;
+  isArchived?: boolean;
 }
 
-const QUICK_ACTIONS = [
-  {
-    icon: <Plus size={16} />,
-    color: "#6C3AED",
-    bg: "rgba(108,58,237,0.15)",
-    title: "Create Transaction",
-    desc: "Record a new transaction",
-  },
-  {
-    icon: <ArrowLeftRight size={16} />,
-    color: "#3B82F6",
-    bg: "rgba(59,130,246,0.15)",
-    title: "Record Transfer",
-    desc: "Move money between accounts",
-  },
-  {
-    icon: <CheckCircle size={16} />,
-    color: "#22C55E",
-    bg: "rgba(34,197,94,0.15)",
-    title: "Reconcile Balance",
-    desc: "Verify cleared transactions",
-  },
-  ...(isFeatureEnabled("transactionExport")
-    ? [
-        {
-          icon: <Download size={16} />,
-          color: "#F59E0B",
-          bg: "rgba(245,158,11,0.15)",
-          title: "Export Transactions",
-          desc: "Download CSV or PDF",
-        },
-      ]
-    : []),
-  ...(isFeatureEnabled("reports")
-    ? [
-        {
-          icon: <BarChart2 size={16} />,
-          color: "#06B6D4",
-          bg: "rgba(6,182,212,0.15)",
-          title: "View Reports",
-          desc: "Account spending insights",
-        },
-      ]
-    : []),
-  {
-    icon: <Archive size={16} />,
-    color: "#6B7280",
-    bg: "rgba(107,114,128,0.12)",
-    title: "Archive Account",
-    desc: "Hide from active accounts",
-  },
-];
-
-export function AccountInsightsPanel({ accountId, budgetId }: Props) {
+export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }: Props) {
   const router = useRouter();
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const { transactions: txns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
+  const unarchiveAccount = useUnarchiveAccount();
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [addTxDefault, setAddTxDefault] = useState<"expense" | "transfer">("expense");
+
+  const quickActions = [
+    {
+      icon: <Plus size={16} />,
+      color: "#6C3AED",
+      bg: "rgba(108,58,237,0.15)",
+      title: "Create Transaction",
+      desc: "Record a new transaction",
+    },
+    {
+      icon: <ArrowLeftRight size={16} />,
+      color: "#3B82F6",
+      bg: "rgba(59,130,246,0.15)",
+      title: "Record Transfer",
+      desc: "Move money between accounts",
+    },
+    {
+      icon: <CheckCircle size={16} />,
+      color: "#22C55E",
+      bg: "rgba(34,197,94,0.15)",
+      title: "Reconcile Balance",
+      desc: "Verify cleared transactions",
+    },
+    {
+      icon: <Download size={16} />,
+      color: "#F59E0B",
+      bg: "rgba(245,158,11,0.15)",
+      title: "Export Transactions",
+      desc: "Download CSV or PDF",
+      disabled: true,
+    },
+    ...(isFeatureEnabled("reports")
+      ? [
+          {
+            icon: <BarChart2 size={16} />,
+            color: "#06B6D4",
+            bg: "rgba(6,182,212,0.15)",
+            title: "View Reports",
+            desc: "Account spending insights",
+          },
+        ]
+      : []),
+    isArchived
+      ? {
+          icon: <ArchiveRestore size={16} />,
+          color: "#6B7280",
+          bg: "rgba(107,114,128,0.12)",
+          title: "Unarchive Account",
+          desc: "Restore to active accounts",
+        }
+      : {
+          icon: <Archive size={16} />,
+          color: "#6B7280",
+          bg: "rgba(107,114,128,0.12)",
+          title: "Archive Account",
+          desc: "Hide from active accounts",
+        },
+  ];
   const inflows = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const outflows = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const net = inflows - outflows;
@@ -140,7 +149,7 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
           <h3 className="text-sm font-bold text-white">Quick Actions</h3>
         </div>
         <div className="space-y-1 p-3">
-          {QUICK_ACTIONS.map(({ icon, color, bg, title, desc }) => {
+          {quickActions.map(({ icon, color, bg, title, desc, disabled }) => {
             let onClick: (() => void) | undefined;
             switch (title) {
               case "Create Transaction":
@@ -161,13 +170,26 @@ export function AccountInsightsPanel({ accountId, budgetId }: Props) {
               case "Archive Account":
                 onClick = () => router.push(`/budgets/${budgetId}/accounts/${accountId}/archive`);
                 break;
+              case "Unarchive Account":
+                onClick = () => unarchiveAccount.mutate(String(accountId));
+                break;
             }
+
+            const isDisabled =
+              disabled === true || (title === "Unarchive Account" && unarchiveAccount.isPending);
 
             return (
               <button
                 key={title}
-                onClick={onClick}
-                className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-all hover:border-[#1A2540] hover:bg-[#0D1525]"
+                onClick={isDisabled ? undefined : onClick}
+                disabled={isDisabled}
+                title={disabled ? "Coming soon" : undefined}
+                className={cn(
+                  "group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-all",
+                  isDisabled
+                    ? "cursor-not-allowed opacity-40"
+                    : "hover:border-[#1A2540] hover:bg-[#0D1525]",
+                )}
               >
                 <div
                   className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105"

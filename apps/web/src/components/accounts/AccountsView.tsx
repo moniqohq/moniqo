@@ -658,6 +658,7 @@ export function AccountsView() {
             <AccountInsightsPanel
               accountId={selectedAccount.id}
               budgetId={selectedAccount.budgetId}
+              isArchived={selectedAccount.isArchived}
             />
           )}
         </div>
