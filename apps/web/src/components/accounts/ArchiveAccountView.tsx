@@ -55,6 +55,7 @@ import { useBudgets } from "@/hooks/use-budgets";
 import { useAccounts as useAccountsLegacy } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
+import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import type { AccountType } from "@/types";
 
 /* ── Constants ───────────────────────────────────────────── */
@@ -400,8 +401,8 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const account = accounts.find((a) => a.id === accountId);
   const meta = account ? TYPE_META[account.type] : TYPE_META.checking;
 
-  const { accountMap: legacyAccountMap } = useAccountsLegacy(budgetId);
-  const { envelopeMap } = useEnvelopes(budgetId);
+  const { accounts: legacyAccounts, accountMap: legacyAccountMap } = useAccountsLegacy(budgetId);
+  const { envelopes, envelopeMap } = useEnvelopes(budgetId);
   const { transactions: accountTransactions } = useTransactions(
     budgetId,
     legacyAccountMap,
@@ -409,6 +410,7 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
     { accountId },
   );
   const rawAccount = legacyAccountMap.get(accountId);
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const [checklist, setChecklist] = useState<ChecklistItem[]>([
     {
@@ -824,13 +826,33 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
               </div>
               <div className="grid grid-cols-3 gap-3 p-4">
                 {[
-                  { icon: <ArrowLeftRight size={18} />, label: "Transfer\nFunds" },
-                  { icon: <RefreshCw size={18} />, label: "Reconcile\nAccount" },
-                  { icon: <Download size={18} />, label: "Export\nTransactions" },
+                  {
+                    icon: <ArrowLeftRight size={18} />,
+                    label: "Transfer\nFunds",
+                    onClick: () => setTransferOpen(true),
+                  },
+                  {
+                    icon: <RefreshCw size={18} />,
+                    label: "Reconcile\nAccount",
+                    onClick: () => router.push(`/budgets/${budgetId}/accounts/${accountId}/reconcile`),
+                  },
+                  {
+                    icon: <Download size={18} />,
+                    label: "Export\nTransactions",
+                    disabled: true,
+                  },
                 ].map((action) => (
                   <button
                     key={action.label}
-                    className="group flex flex-col items-center gap-2 rounded-xl border border-[#1E2B42] bg-[#080C14] p-3 transition-all hover:border-[#2A3A54] hover:bg-[#131C2E]"
+                    onClick={action.disabled ? undefined : action.onClick}
+                    disabled={action.disabled}
+                    title={action.disabled ? "Coming soon" : undefined}
+                    className={cn(
+                      "group flex flex-col items-center gap-2 rounded-xl border border-[#1E2B42] bg-[#080C14] p-3 transition-all",
+                      action.disabled
+                        ? "cursor-not-allowed opacity-40"
+                        : "hover:border-[#2A3A54] hover:bg-[#131C2E]",
+                    )}
                   >
                     <div
                       className="flex h-10 w-10 items-center justify-center rounded-xl text-[#6C3AED]"
@@ -948,6 +970,16 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
           />
         )}
       </AnimatePresence>
+
+      <AddTransactionModal
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        defaultType="transfer"
+        budgetId={budgetId}
+        accounts={legacyAccounts}
+        envelopes={envelopes}
+        defaultAccountId={accountId}
+      />
     </div>
   );
 }
