@@ -21,7 +21,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Heart, Star, Target, ShieldCheck, ChevronDown, ExternalLink } from "lucide-react";
+import { X, Plus, Heart, Star, Target, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createEnvelope } from "@/lib/api/envelopes";
 
@@ -143,85 +143,6 @@ function NatureCard({
   );
 }
 
-/* ── NatureSelect ─────────────────────────────────────── */
-
-function NatureSelect({
-  value,
-  onChange,
-}: {
-  value: Nature | "";
-  onChange: (v: Nature | "") => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const selected = NATURE_OPTIONS.find((o) => o.value === value);
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={cn(
-          "flex w-full items-center justify-between rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-3 text-sm transition-all focus:outline-none",
-          open ? "border-[#6C3AED] ring-2 ring-[#6C3AED]/40" : "hover:border-[#2A3A54]",
-        )}
-      >
-        {selected ? (
-          <span className="text-white">{selected.label}</span>
-        ) : (
-          <span className="text-[#4A5A75]">Select nature</span>
-        )}
-        <ChevronDown
-          size={15}
-          className={cn("text-[#6B7A94] transition-transform duration-150", open && "rotate-180")}
-        />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.12 }}
-            className="absolute top-full right-0 left-0 z-20 mt-1 overflow-hidden rounded-xl border border-[#1E2B42] bg-[#0D1B2E] py-1 shadow-xl"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                onChange("");
-                setOpen(false);
-              }}
-              className="w-full px-3 py-2 text-left text-sm text-[#7A8BA8] transition-colors hover:bg-[#131C2E] hover:text-[#C8D4E4]"
-            >
-              — None —
-            </button>
-            {NATURE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors",
-                  opt.value === value
-                    ? "bg-[#6C3AED]/15 text-white"
-                    : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-[#C8D4E4]",
-                )}
-              >
-                <opt.icon size={14} style={{ color: opt.iconColor }} strokeWidth={1.8} />
-                {opt.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 /* ── Main modal ───────────────────────────────────────── */
 
 export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnvelopeModalProps) {
@@ -231,6 +152,19 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setTitle("");
+      setAmount("");
+      setNature("");
+      setDescription("");
+      setError(null);
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -341,22 +275,12 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                     Nature <span className="font-normal text-[#5A6A85]">(optional)</span>
                   </label>
 
-                  <NatureSelect value={nature} onChange={setNature} />
-
-                  <p className="mt-1.5 text-xs text-[#9AAABF]">
+                  <p className="mb-3 text-xs text-[#9AAABF]">
                     Choose how this envelope fits your spending priorities.
                   </p>
-                  <a
-                    href="#"
-                    onClick={(e) => e.preventDefault()}
-                    className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-[#7C4AFF] transition-colors hover:text-[#9C6AFF]"
-                  >
-                    Learn more
-                    <ExternalLink size={11} />
-                  </a>
 
                   {/* Nature cards */}
-                  <div className="mt-3 flex gap-2">
+                  <div className="flex gap-2">
                     {NATURE_OPTIONS.map((opt) => (
                       <NatureCard
                         key={opt.value}

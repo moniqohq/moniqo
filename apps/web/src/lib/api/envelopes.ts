@@ -23,8 +23,13 @@ import type { ApiEnvelope, ApiBudgetSummary, ApiDashboardStats } from "./types";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/envelopes`;
 
-export function listEnvelopes(budgetId: number): Promise<ApiEnvelope[]> {
-  return apiFetch<ApiEnvelope[]>(base(budgetId));
+export type EnvelopeStatusParam = "active" | "archived" | "all";
+
+export function listEnvelopes(
+  budgetId: number,
+  status: EnvelopeStatusParam = "active",
+): Promise<ApiEnvelope[]> {
+  return apiFetch<ApiEnvelope[]>(`${base(budgetId)}?status=${status}`);
 }
 
 export function getEnvelope(budgetId: number, id: number): Promise<ApiEnvelope> {

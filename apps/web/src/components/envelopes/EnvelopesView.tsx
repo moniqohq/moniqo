@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Plus,
   Search,
@@ -42,17 +43,22 @@ import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useUIStore } from "@/stores/ui.store";
 import { useEnvelopes } from "@/hooks/use-envelopes";
+import type { EnvelopeStatusParam } from "@/lib/api/envelopes";
+import { useEnvelopes as useApiEnvelopes } from "@/hooks/useEnvelopes";
+import { useAccounts } from "@/hooks/useAccounts";
 import { formatCurrency, cn } from "@/lib/utils";
 import { AddEnvelopeModal } from "./AddEnvelopeModal";
 import { ModifyEnvelopeModal } from "./ModifyEnvelopeModal";
 import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { EnvelopeDetails } from "./EnvelopeDetails";
+import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import type { BudgetEnvelope } from "@/types";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
 /* ── Status type ────────────────────────────────────────── */
 type Status = "Healthy" | "Warning" | "Fully Used" | "Overspent";
 type Nature = "Want" | "Should" | "Need" | "Must";
+type ArchivedFilter = "active" | "archived" | "all";
 
 interface EnvelopeRow {
   id: string;
@@ -62,6 +68,7 @@ interface EnvelopeRow {
   nature: Nature;
   allocated: number;
   spent: number;
+  isArchived: boolean;
 }
 
 /* ── Derived computations ───────────────────────────────── */
@@ -140,6 +147,31 @@ function RowActions({
         <Archive size={13} />
       </button>
     </div>
+  );
+}
+
+/* ── Archived toggle ──────────────────────────────────── */
+function ArchivedToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
+        checked
+          ? "border-[rgba(108,58,237,0.5)] bg-[rgba(108,58,237,0.08)] text-[#C4B5FD]"
+          : "border-[#1A2640] text-[#7A8BA8] hover:border-[#2A3A54] hover:text-[#C8D4E8]",
+      )}
+    >
+      <Archive size={13} />
+      Show archived
+    </button>
   );
 }
 
@@ -465,23 +497,40 @@ function HealthRadial({ score }: { score: number }) {
   );
 }
 
-/* ── Allocation donut (static placeholder) ──────────────── */
-const ALLOCATION_SLICES = [
-  { name: "Essentials", value: 40, color: "#6C3AED" },
-  { name: "Lifestyle", value: 25, color: "#22C55E" },
-  { name: "Savings", value: 20, color: "#3B82F6" },
-  { name: "Debt", value: 12, color: "#EF4444" },
-  { name: "Investments", value: 3, color: "#F59E0B" },
-];
+/* ── Allocation donut ───────────────────────────────────── */
+const ALLOCATION_COLORS = ["#6C3AED", "#22C55E", "#3B82F6", "#EF4444", "#F59E0B", "#5A6A85"];
+const ALLOCATION_MAX_SLICES = 5;
 
-function AllocationDonut() {
+function AllocationDonut({ envelopes }: { envelopes: EnvelopeRow[] }) {
+  const totalAllocated = envelopes.reduce((sum, e) => sum + e.allocated, 0);
+
+  const sorted = [...envelopes]
+    .filter((e) => e.allocated > 0)
+    .sort((a, b) => b.allocated - a.allocated);
+  const top = sorted.slice(0, ALLOCATION_MAX_SLICES);
+  const rest = sorted.slice(ALLOCATION_MAX_SLICES);
+  const restTotal = rest.reduce((sum, e) => sum + e.allocated, 0);
+
+  const slices = [
+    ...top.map((e) => ({ name: e.name, allocated: e.allocated })),
+    ...(restTotal > 0 ? [{ name: "Other", allocated: restTotal }] : []),
+  ].map((s, i) => ({
+    ...s,
+    value: totalAllocated > 0 ? Math.round((s.allocated / totalAllocated) * 100) : 0,
+    color: ALLOCATION_COLORS[i % ALLOCATION_COLORS.length],
+  }));
+
+  if (slices.length === 0) {
+    return <p className="text-xs text-[#5A6A85]">No allocations yet.</p>;
+  }
+
   return (
     <div className="flex items-center gap-3">
       <div className="h-[90px] w-[90px] flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={ALLOCATION_SLICES}
+              data={slices}
               cx="50%"
               cy="50%"
               innerRadius={28}
@@ -489,7 +538,7 @@ function AllocationDonut() {
               dataKey="value"
               strokeWidth={0}
             >
-              {ALLOCATION_SLICES.map((s, i) => (
+              {slices.map((s, i) => (
                 <Cell key={i} fill={s.color} />
               ))}
             </Pie>
@@ -508,7 +557,7 @@ function AllocationDonut() {
         </ResponsiveContainer>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        {ALLOCATION_SLICES.map((s) => (
+        {slices.map((s) => (
           <div key={s.name} className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <div
@@ -548,8 +597,22 @@ function SideCard({
 
 /* ── Main view ──────────────────────────────────────────── */
 export function EnvelopesView() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: apiEnvelopes, isLoading, refetch } = useEnvelopes(activeBudgetId);
+
+  const initialStatus = (searchParams.get("status") ?? "active") as ArchivedFilter;
+  const [statusFilter, setStatusFilter] = useState<ArchivedFilter>(initialStatus);
+  const showArchived = statusFilter !== "active";
+
+  const {
+    data: apiEnvelopes,
+    isLoading,
+    refetch,
+  } = useEnvelopes(activeBudgetId, statusFilter as EnvelopeStatusParam);
+  const { envelopes: txEnvelopes } = useApiEnvelopes(activeBudgetId);
+  const { accounts: txAccounts } = useAccounts(activeBudgetId);
 
   const envelopes: EnvelopeRow[] = apiEnvelopes.map((e) => ({
     id: String(e.id),
@@ -559,11 +622,14 @@ export function EnvelopesView() {
     nature: "Need" as Nature,
     allocated: e.allocated,
     spent: e.spent,
+    isArchived: e.isArchived,
   }));
 
   const [addOpen, setAddOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [addTxOpen, setAddTxOpen] = useState(false);
+  const [txEnvelopeId, setTxEnvelopeId] = useState<number | null>(null);
   const [actionEnvelope, setActionEnvelope] = useState<BudgetEnvelope | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
@@ -571,7 +637,32 @@ export function EnvelopesView() {
   const [filterStatuses, setFilterStatuses] = useState<Set<Status>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selectedIdParam = searchParams.get("envelopeId");
+  const selectedId = selectedIdParam ? Number(selectedIdParam) : null;
+
+  function openEnvelope(id: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("envelopeId", String(id));
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function closeEnvelope() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("envelopeId");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
+
+  function handleShowArchivedChange(v: boolean) {
+    const next: ArchivedFilter = v ? "all" : "active";
+    setStatusFilter(next);
+    setPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "active") params.delete("status");
+    else params.set("status", next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   /* Filtering + sorting */
   const filtered = envelopes
@@ -610,7 +701,7 @@ export function EnvelopesView() {
       <div className="layout-page py-6">
         <div className="mb-5">
           <button
-            onClick={() => setSelectedId(null)}
+            onClick={closeEnvelope}
             className="inline-flex items-center gap-1.5 text-sm text-[#7A8BA8] transition-colors hover:text-[#E8EEF8]"
           >
             <ChevronLeft size={15} />
@@ -661,6 +752,8 @@ export function EnvelopesView() {
               }}
             />
           )}
+
+          <ArchivedToggle checked={showArchived} onChange={handleShowArchivedChange} />
 
           <SortDropdown value={sort} onChange={setSort} />
 
@@ -789,7 +882,9 @@ export function EnvelopesView() {
                       <tr>
                         <td colSpan={7} className="px-4 py-16 text-center text-sm text-[#5A6A85]">
                           {envelopes.length === 0
-                            ? "No envelopes yet. Add your first envelope to get started."
+                            ? statusFilter === "archived"
+                              ? "No archived envelopes."
+                              : "No envelopes yet. Add your first envelope to get started."
                             : "No envelopes match your filters."}
                         </td>
                       </tr>
@@ -812,7 +907,7 @@ export function EnvelopesView() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: i * 0.018 }}
-                            onClick={() => setSelectedId(Number(env.id))}
+                            onClick={() => openEnvelope(Number(env.id))}
                             className="group cursor-pointer transition-colors hover:bg-[#0D1828]"
                           >
                             {/* Envelope */}
@@ -828,9 +923,16 @@ export function EnvelopesView() {
                                   💼
                                 </div>
                                 <div>
-                                  <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
-                                    {env.name}
-                                  </p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
+                                      {env.name}
+                                    </p>
+                                    {env.isArchived && (
+                                      <span className="inline-flex items-center rounded-full bg-[rgba(108,58,237,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#C4B5FD]">
+                                        Archived
+                                      </span>
+                                    )}
+                                  </div>
                                   {env.description && (
                                     <p className="mt-0.5 text-xs leading-tight text-[#5A6A85]">
                                       {env.description}
@@ -876,7 +978,10 @@ export function EnvelopesView() {
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-end">
                                 <RowActions
-                                  onAddTransaction={() => {}}
+                                  onAddTransaction={() => {
+                                    setTxEnvelopeId(Number(env.id));
+                                    setAddTxOpen(true);
+                                  }}
                                   onModify={() => {
                                     setActionEnvelope(
                                       apiEnvelopes.find((e) => String(e.id) === env.id) ?? null,
@@ -976,7 +1081,7 @@ export function EnvelopesView() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.04 }}
-                      onClick={() => setSelectedId(Number(env.id))}
+                      onClick={() => openEnvelope(Number(env.id))}
                       className="cursor-pointer rounded-xl border border-[#1A2640] bg-[#0B1220] p-4 transition-colors hover:border-[#2A3A54]"
                     >
                       <div className="mb-3 flex items-start justify-between">
@@ -988,9 +1093,16 @@ export function EnvelopesView() {
                             💼
                           </div>
                           <div>
-                            <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
-                              {env.name}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
+                                {env.name}
+                              </p>
+                              {env.isArchived && (
+                                <span className="inline-flex items-center rounded-full bg-[rgba(108,58,237,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#C4B5FD]">
+                                  Archived
+                                </span>
+                              )}
+                            </div>
                             {env.description && (
                               <p className="text-[11px] leading-tight text-[#5A6A85]">
                                 {env.description}
@@ -1091,7 +1203,7 @@ export function EnvelopesView() {
 
           {/* Allocation Breakdown */}
           <SideCard title="Allocation Breakdown">
-            <AllocationDonut />
+            <AllocationDonut envelopes={envelopes} />
           </SideCard>
 
           {/* Monthly Progress */}
@@ -1151,6 +1263,19 @@ export function EnvelopesView() {
               onDeleted={refetch}
             />
           )}
+          <AddTransactionModal
+            open={addTxOpen}
+            onClose={() => {
+              setAddTxOpen(false);
+              setTxEnvelopeId(null);
+            }}
+            defaultType="expense"
+            budgetId={activeBudgetId}
+            accounts={txAccounts}
+            envelopes={txEnvelopes}
+            defaultEnvelopeId={txEnvelopeId}
+            onSuccess={refetch}
+          />
         </>
       )}
     </div>

@@ -40,10 +40,11 @@ var ErrForbidden = errors.New("insufficient role")
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.BudgetEnvelope, error)
 	GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
-	List(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error)
+	List(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error)
 	Replace(ctx context.Context, id, budgetID int64, req ReplaceRequest) (models.BudgetEnvelope, error)
 	Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.BudgetEnvelope, error)
 	Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	ForceDelete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 	GetBudgetSummary(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
 	GetDashboardStats(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error)
 }
@@ -123,12 +124,14 @@ func (s *Svc) GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEnv
 	return s.attachSpent(ctx, env)
 }
 
-// List returns all active envelopes within budgetID with their computed spent amounts.
-// Returns an empty (non-nil) slice when the budget has no envelopes.
-func (s *Svc) List(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error) {
+// List returns envelopes within budgetID with their computed spent amounts, filtered
+// by archived state: nil returns all envelopes, true returns only archived envelopes,
+// false returns only active envelopes.
+// Returns an empty (non-nil) slice when the budget has no matching envelopes.
+func (s *Svc) List(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
 	s.log.Debug("listing envelopes", zap.Int64("budget_id", budgetID))
 
-	envelopes, err := s.repo.ListByBudget(ctx, budgetID)
+	envelopes, err := s.repo.ListByBudget(ctx, budgetID, archived)
 	if err != nil {
 		s.log.Error("repo.ListByBudget failed",
 			zap.Int64("budget_id", budgetID),
@@ -355,6 +358,47 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		zap.Int64("envelope_id", id),
 		zap.Int64("budget_id", budgetID),
 		zap.Bool("soft_delete", hasTxns),
+	)
+	return nil
+}
+
+// ForceDelete permanently removes the envelope identified by id within budgetID
+// along with all of its transactions, bypassing the soft-delete-when-has-transactions
+// rule that Delete enforces. This is a deliberate, explicit exception to the
+// "transactions are preserved for audit" invariant and is therefore restricted
+// to the budget OWNER only. The operation is idempotent: force-deleting a
+// non-existent envelope is success.
+//
+//nolint:revive
+func (s *Svc) ForceDelete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
+	if callerRole != models.RoleOwner {
+		return ErrForbidden
+	}
+
+	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		s.log.Error("repo.GetByID failed during ForceDelete",
+			zap.Int64("envelope_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("get envelope: %w", err)
+	}
+
+	if err := s.repo.ForceDelete(ctx, id, budgetID); err != nil {
+		s.log.Error("repo.ForceDelete failed",
+			zap.Int64("envelope_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("force delete envelope: %w", err)
+	}
+
+	s.log.Info("envelope force-deleted",
+		zap.Int64("envelope_id", id),
+		zap.Int64("budget_id", budgetID),
 	)
 	return nil
 }

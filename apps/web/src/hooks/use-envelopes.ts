@@ -20,7 +20,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { listEnvelopes, getBudgetSummary } from "@/lib/api/envelopes";
+import { listEnvelopes, getBudgetSummary, type EnvelopeStatusParam } from "@/lib/api/envelopes";
 import type { BudgetEnvelope, BudgetSummary } from "@/types";
 import type { ApiEnvelope, ApiBudgetSummary } from "@/lib/api/types";
 
@@ -36,6 +36,8 @@ export function apiEnvelopeToUI(e: ApiEnvelope): BudgetEnvelope {
     spent,
     available,
     isOverspent: e.is_overspent,
+    isArchived: e.is_archived,
+    createdAt: e.created_at,
   };
 }
 
@@ -48,7 +50,7 @@ function apiSummaryToUI(s: ApiBudgetSummary): BudgetSummary {
   };
 }
 
-export function useEnvelopes(budgetId: number | null) {
+export function useEnvelopes(budgetId: number | null, status: EnvelopeStatusParam = "active") {
   const [data, setData] = useState<BudgetEnvelope[]>([]);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +62,7 @@ export function useEnvelopes(budgetId: number | null) {
     setError(null);
     try {
       const [rawEnvelopes, rawSummary] = await Promise.all([
-        listEnvelopes(budgetId),
+        listEnvelopes(budgetId, status),
         getBudgetSummary(budgetId),
       ]);
       setData(rawEnvelopes.map(apiEnvelopeToUI));
@@ -70,7 +72,7 @@ export function useEnvelopes(budgetId: number | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [budgetId]);
+  }, [budgetId, status]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

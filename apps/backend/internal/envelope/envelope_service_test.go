@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -158,11 +159,11 @@ func TestSvc_List(t *testing.T) {
 	t.Run("returns envelopes with spent_amt attached", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.EnvelopeRepository{}
-		repo.On("ListByBudget", testBudgetID).Return([]models.BudgetEnvelope{makeEnvelope("Food"), makeEnvelope("Gas")}, nil)
+		repo.On("ListByBudget", testBudgetID, mock.Anything).Return([]models.BudgetEnvelope{makeEnvelope("Food"), makeEnvelope("Gas")}, nil)
 		repo.On("SumSpent", testEnvelopeID, testBudgetID).Return(money.FromMinorUnits(1000), nil)
 
 		svc := envelope.NewSvc(repo, log)
-		es, err := svc.List(context.Background(), testBudgetID)
+		es, err := svc.List(context.Background(), testBudgetID, nil)
 
 		require.NoError(t, err)
 		assert.Len(t, es, 2)
@@ -172,14 +173,27 @@ func TestSvc_List(t *testing.T) {
 	t.Run("returns empty slice (not nil) when no envelopes", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.EnvelopeRepository{}
-		repo.On("ListByBudget", testBudgetID).Return([]models.BudgetEnvelope{}, nil)
+		repo.On("ListByBudget", testBudgetID, mock.Anything).Return([]models.BudgetEnvelope{}, nil)
 
 		svc := envelope.NewSvc(repo, log)
-		es, err := svc.List(context.Background(), testBudgetID)
+		es, err := svc.List(context.Background(), testBudgetID, nil)
 
 		require.NoError(t, err)
 		assert.NotNil(t, es)
 		assert.Empty(t, es)
+	})
+
+	t.Run("passes archived filter through to repository", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		archived := true
+		repo.On("ListByBudget", testBudgetID, &archived).Return([]models.BudgetEnvelope{}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.List(context.Background(), testBudgetID, &archived)
+
+		require.NoError(t, err)
+		repo.AssertCalled(t, "ListByBudget", testBudgetID, &archived)
 	})
 }
 
@@ -363,6 +377,61 @@ func TestSvc_Delete(t *testing.T) {
 		err := svc.Delete(context.Background(), testEnvelopeID, testBudgetID, models.RoleOwner)
 
 		require.NoError(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestSvc_ForceDelete
+// ---------------------------------------------------------------------------
+
+func TestSvc_ForceDelete(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("owner — force deletes envelope and transactions", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(makeEnvelope("Old"), nil)
+		repo.On("ForceDelete", testEnvelopeID, testBudgetID).Return(nil)
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("admin role returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleAdmin)
+
+		assert.ErrorIs(t, err, envelope.ErrForbidden)
+		repo.AssertNotCalled(t, "GetByID")
+	})
+
+	t.Run("viewer role returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleViewer)
+
+		assert.ErrorIs(t, err, envelope.ErrForbidden)
+	})
+
+	t.Run("idempotent — missing envelope returns nil", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(models.BudgetEnvelope{}, envelope.ErrNotFound)
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		repo.AssertNotCalled(t, "ForceDelete")
 	})
 }
 

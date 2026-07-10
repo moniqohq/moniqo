@@ -50,6 +50,7 @@ interface AddTransactionModalProps {
   accounts?: ApiAccount[];
   envelopes?: ApiEnvelope[];
   defaultAccountId?: number | null;
+  defaultEnvelopeId?: number | null;
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
@@ -122,6 +123,7 @@ export function AddTransactionModal({
   accounts = [],
   envelopes = [],
   defaultAccountId,
+  defaultEnvelopeId,
 }: AddTransactionModalProps) {
   /* core state */
   const [txType, setTxType] = useState<TransactionType>(defaultType);
@@ -161,6 +163,10 @@ export function AddTransactionModal({
       setSelectedAccount(acc);
       setFromAccountId(defaultAccountId);
     }
+    if (defaultEnvelopeId != null) {
+      const env = envelopes.find((e) => e.id === defaultEnvelopeId) ?? null;
+      setSelectedEnvelope(env);
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -170,7 +176,7 @@ export function AddTransactionModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose, defaultType, defaultAccountId, accounts]);
+  }, [open, onClose, defaultType, defaultAccountId, accounts, defaultEnvelopeId, envelopes]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* derived */

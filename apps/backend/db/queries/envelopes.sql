@@ -11,7 +11,8 @@ WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 -- name: ListEnvelopesByBudget :many
 SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
 FROM envelopes
-WHERE budget_id = $1 AND deleted_at IS NULL
+WHERE budget_id = $1
+  AND (sqlc.narg(archived)::bool IS NULL OR (deleted_at IS NOT NULL) = sqlc.narg(archived))
 ORDER BY lower(title) ASC;
 
 -- name: UpdateEnvelope :one

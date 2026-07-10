@@ -482,6 +482,21 @@ func (q *Queries) GetTransactionsByGroupID(ctx context.Context, arg GetTransacti
 	return items, nil
 }
 
+const hardDeleteTransactionsByEnvelope = `-- name: HardDeleteTransactionsByEnvelope :exec
+DELETE FROM transactions
+WHERE envelope_id = $1 AND budget_id = $2
+`
+
+type HardDeleteTransactionsByEnvelopeParams struct {
+	EnvelopeID *int64
+	BudgetID   int64
+}
+
+func (q *Queries) HardDeleteTransactionsByEnvelope(ctx context.Context, arg HardDeleteTransactionsByEnvelopeParams) error {
+	_, err := q.db.Exec(ctx, hardDeleteTransactionsByEnvelope, arg.EnvelopeID, arg.BudgetID)
+	return err
+}
+
 const listTransactions = `-- name: ListTransactions :many
 SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions

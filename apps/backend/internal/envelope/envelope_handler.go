@@ -137,6 +137,23 @@ func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
 	return errs
 }
 
+// parseStatusFilter parses the ?status query param into an archived filter:
+// "active" (default) -> false, "archived" -> true, "all" -> nil.
+func parseStatusFilter(c echo.Context) (*bool, *httpx.FieldError) {
+	switch status := c.QueryParam("status"); status {
+	case "", "active":
+		active := false
+		return &active, nil
+	case "archived":
+		archived := true
+		return &archived, nil
+	case "all":
+		return nil, nil
+	default:
+		return nil, &httpx.FieldError{Field: "status", Error: "must be one of active, archived, all"}
+	}
+}
+
 // ListEnvelopes handles GET /api/v1/budgets/:budget_id/envelopes.
 func (h *Handler) ListEnvelopes(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
@@ -144,7 +161,12 @@ func (h *Handler) ListEnvelopes(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
 	}
 
-	envelopes, err := h.svc.List(c.Request().Context(), budgetID)
+	archived, fe := parseStatusFilter(c)
+	if fe != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{*fe})
+	}
+
+	envelopes, err := h.svc.List(c.Request().Context(), budgetID, archived)
 	if err != nil {
 		h.log.Error("List envelopes failed", zap.Int64("budget_id", budgetID), zap.Error(err))
 		return httpx.InternalError(c)
@@ -341,6 +363,38 @@ func (h *Handler) DeleteEnvelope(c echo.Context) error {
 	}
 
 	return httpx.OK(c, nil, "budget envelope deleted successfully")
+}
+
+// ForceDeleteEnvelope handles DELETE /api/v1/budgets/:budget_id/envelopes/:id/force.
+func (h *Handler) ForceDeleteEnvelope(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	id, err := parseEnvelopeID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errInvalidID}})
+	}
+
+	membership, ok := membershipFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, "not authenticated")
+	}
+
+	if err := h.svc.ForceDelete(c.Request().Context(), id, budgetID, membership.Role); err != nil {
+		if errors.Is(err, ErrForbidden) {
+			return httpx.Forbidden(c, "insufficient role")
+		}
+		h.log.Error("Force delete envelope failed",
+			zap.Int64("envelope_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, nil, "budget envelope force deleted successfully")
 }
 
 // GetBudgetSummary handles GET /api/v1/budgets/:budget_id/summary.

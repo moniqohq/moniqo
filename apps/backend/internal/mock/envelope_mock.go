@@ -40,10 +40,11 @@ import (
 type EnvelopeService struct {
 	CreateFn            func(ctx context.Context, budgetID int64, req envelope.CreateRequest) (models.BudgetEnvelope, error)
 	GetByIDFn           func(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
-	ListFn              func(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error)
+	ListFn              func(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error)
 	ReplaceFn           func(ctx context.Context, id, budgetID int64, req envelope.ReplaceRequest) (models.BudgetEnvelope, error)
 	PatchFn             func(ctx context.Context, id, budgetID int64, req envelope.PatchRequest) (models.BudgetEnvelope, error)
 	DeleteFn            func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	ForceDeleteFn       func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 	GetBudgetSummaryFn  func(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
 	GetDashboardStatsFn func(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error)
 }
@@ -59,8 +60,8 @@ func (m *EnvelopeService) GetByID(ctx context.Context, id, budgetID int64) (mode
 }
 
 // List delegates to ListFn.
-func (m *EnvelopeService) List(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error) {
-	return m.ListFn(ctx, budgetID)
+func (m *EnvelopeService) List(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
+	return m.ListFn(ctx, budgetID, archived)
 }
 
 // Replace delegates to ReplaceFn.
@@ -76,6 +77,11 @@ func (m *EnvelopeService) Patch(ctx context.Context, id, budgetID int64, req env
 // Delete delegates to DeleteFn.
 func (m *EnvelopeService) Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
 	return m.DeleteFn(ctx, id, budgetID, callerRole)
+}
+
+// ForceDelete delegates to ForceDeleteFn.
+func (m *EnvelopeService) ForceDelete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
+	return m.ForceDeleteFn(ctx, id, budgetID, callerRole)
 }
 
 // GetBudgetSummary delegates to GetBudgetSummaryFn.
@@ -121,8 +127,8 @@ func (m *EnvelopeRepository) GetByID(_ context.Context, id, budgetID int64) (mod
 }
 
 // ListByBudget records the call and returns the configured stub values.
-func (m *EnvelopeRepository) ListByBudget(_ context.Context, budgetID int64) ([]models.BudgetEnvelope, error) {
-	args := m.Called(budgetID)
+func (m *EnvelopeRepository) ListByBudget(_ context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
+	args := m.Called(budgetID, archived)
 	es, ok := args.Get(0).([]models.BudgetEnvelope)
 	if !ok {
 		return nil, args.Error(1)
@@ -158,6 +164,12 @@ func (m *EnvelopeRepository) SoftDelete(_ context.Context, id, budgetID int64) e
 
 // HardDelete records the call and returns the configured stub error.
 func (m *EnvelopeRepository) HardDelete(_ context.Context, id, budgetID int64) error {
+	args := m.Called(id, budgetID)
+	return args.Error(0)
+}
+
+// ForceDelete records the call and returns the configured stub error.
+func (m *EnvelopeRepository) ForceDelete(_ context.Context, id, budgetID int64) error {
 	args := m.Called(id, budgetID)
 	return args.Error(0)
 }

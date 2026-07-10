@@ -37,6 +37,7 @@ This API supports full CRUD operations for Budget Envelopes.
 | `allocated_amt` | Decimal | Yes | Amount allocated to this envelope |
 | `spent_amt` | Decimal | Yes | System-calculated total spent |
 | `description` | String | No | Optional descriptive text |
+| `is_archived` | Boolean | Yes | `true` when the envelope has been soft-deleted (archived); historical transactions remain intact |
 
 ---
 
@@ -93,7 +94,8 @@ This API supports full CRUD operations for Budget Envelopes.
     "budget_id": 1,
     "allocated_amt": 5000.00,
     "spent_amt": 0.00,
-    "description": "Monthly grocery expenses"
+    "description": "Monthly grocery expenses",
+    "is_archived": false
   },
   "msg": "budget envelope created successfully"
 }
@@ -135,6 +137,12 @@ This API supports full CRUD operations for Budget Envelopes.
 **`GET /api/v1/budgets/{budget_id}/envelopes`**
 **Authentication:** Required
 
+**Query Parameters**
+
+| Param | Values | Default | Description |
+|---|---|---|---|
+| `status` | `active`, `archived`, `all` | `active` | Filters by archived (soft-deleted) state. `active` returns non-archived envelopes only, `archived` returns only archived envelopes, `all` returns both. |
+
 **Response — 200 OK**
 
 ```json
@@ -147,7 +155,8 @@ This API supports full CRUD operations for Budget Envelopes.
       "budget_id": 1,
       "allocated_amt": 5000.00,
       "spent_amt": 1200.00,
-      "description": "Monthly grocery expenses"
+      "description": "Monthly grocery expenses",
+      "is_archived": false
     }
   ],
   "msg": "budget envelopes fetched successfully"
@@ -159,16 +168,18 @@ This API supports full CRUD operations for Budget Envelopes.
 **Business Rules**
 
 - Only envelopes within the specified budget are returned.
-- Soft-deleted envelopes excluded.
+- Default (`status=active` or omitted) excludes soft-deleted (archived) envelopes.
+- `status=archived` returns only soft-deleted (archived) envelopes; `status=all` returns both.
 
 **Error Scenarios**
 
-| HTTP | Code |
-|---|---|
-| 401 | `UNAUTHORIZED` |
-| 403 | `FORBIDDEN` |
-| 404 | `NOT_FOUND` |
-| 500 | `INTERNAL_ERROR` |
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid `status` value |
+| 401 | `UNAUTHORIZED` | |
+| 403 | `FORBIDDEN` | |
+| 404 | `NOT_FOUND` | |
+| 500 | `INTERNAL_ERROR` | |
 
 ---
 
@@ -188,7 +199,8 @@ This API supports full CRUD operations for Budget Envelopes.
     "budget_id": 1,
     "allocated_amt": 5000.00,
     "spent_amt": 1200.00,
-    "description": "Monthly grocery expenses"
+    "description": "Monthly grocery expenses",
+    "is_archived": false
   },
   "msg": "budget envelope fetched successfully"
 }
@@ -244,7 +256,8 @@ Idempotent operation.
     "budget_id": 1,
     "allocated_amt": 6000.00,
     "spent_amt": 1200.00,
-    "description": "Updated description"
+    "description": "Updated description",
+    "is_archived": false
   },
   "msg": "budget envelope updated successfully"
 }
@@ -354,6 +367,56 @@ Idempotent operation.
 - Envelope marked deleted.
 - Excluded from future queries.
 - Historical transactions preserved.
+
+**Error Scenarios**
+
+| HTTP | Code |
+|---|---|
+| 400 | `VALIDATION_ERROR` |
+| 401 | `UNAUTHORIZED` |
+| 403 | `FORBIDDEN` |
+| 404 | `NOT_FOUND` |
+| 500 | `INTERNAL_ERROR` |
+
+---
+
+### Force Delete Budget Envelope (Hard Delete)
+
+Idempotent operation.
+
+**`DELETE /api/v1/budgets/{budget_id}/envelopes/{id}/force`**
+**Authentication:** Required. Role must be `OWNER`.
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "msg": "budget envelope force deleted successfully"
+}
+```
+
+**Business Rules**
+
+- Permanently (hard) deletes the envelope, bypassing the soft-delete-when-has-transactions
+  rule enforced by the plain `DELETE` endpoint above.
+- Permanently deletes all transactions linked to the envelope (including already
+  soft-deleted ones) in the same atomic operation.
+- This is a deliberate, explicit exception to the "transactions are preserved for
+  audit" invariant, and is therefore restricted to `OWNER` only (stricter than the
+  `OWNER`/`ADMIN` gate on the plain delete).
+- Already deleted resource must not cause failure.
+
+**Validation Rules**
+
+- Valid ID required.
+- Budget membership required.
+
+**Side Effects**
+
+- Envelope row permanently removed.
+- All transactions linked to the envelope permanently removed.
+- Not reversible; no audit trail is preserved for the removed transactions.
 
 **Error Scenarios**
 
