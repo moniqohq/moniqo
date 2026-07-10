@@ -88,6 +88,7 @@ export interface Transaction {
   memo?: string;
   status?: TransactionStatus;
   cleared: boolean;
+  runningBalance?: number;
 }
 
 export interface BudgetSummary {

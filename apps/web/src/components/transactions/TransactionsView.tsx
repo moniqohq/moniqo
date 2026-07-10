@@ -56,6 +56,7 @@ import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useRunningBalances } from "@/hooks/useRunningBalances";
 import { apiFetch } from "@/lib/api";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { isFeatureEnabled } from "@/features/feature-flags";
@@ -261,7 +262,7 @@ function TxRow({
 
       {/* Running Balance */}
       <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
-        —
+        {tx.runningBalance != null ? formatCurrency(tx.runningBalance) : "—"}
       </td>
 
       {/* Actions */}
@@ -812,6 +813,24 @@ export function TransactionsView() {
     [transactions, typeFilter],
   );
 
+  // Running balance is only well-defined within a single account's chronological
+  // history, so it's only computed when the view is scoped to exactly one account.
+  const singleAccountId = accountFilter.size === 1 ? Number([...accountFilter][0]) : null;
+  const singleAccountBalance =
+    singleAccountId != null ? accountMap.get(singleAccountId)?.balance : undefined;
+  const { balances: runningBalances } = useRunningBalances(
+    activeBudgetId,
+    singleAccountId,
+    singleAccountBalance,
+  );
+  const rowsWithBalance = useMemo(
+    () =>
+      filteredTransactions.map((t) =>
+        runningBalances.has(t.id) ? { ...t, runningBalance: runningBalances.get(t.id) } : t,
+      ),
+    [filteredTransactions, runningBalances],
+  );
+
   const allSelected =
     selected.size === filteredTransactions.length && filteredTransactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
@@ -1159,7 +1178,7 @@ export function TransactionsView() {
                 </tr>
               )}
               {!txLoading &&
-                filteredTransactions.map((tx, i) => (
+                rowsWithBalance.map((tx, i) => (
                   <TxRow
                     key={tx.id}
                     tx={tx}

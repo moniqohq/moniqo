@@ -312,7 +312,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                             </IconBox>
                           }
                           label="Running Balance After Transaction"
-                          value={false ? formatCurrency(0) : "—"}
+                          value={tx.runningBalance != null ? formatCurrency(tx.runningBalance) : "—"}
                         />
 
                         {/* Notes */}
