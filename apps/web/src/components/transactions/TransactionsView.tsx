@@ -826,7 +826,7 @@ export function TransactionsView() {
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [, setDeleteError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [pageSize, setPageSize] = useState(25);
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
@@ -931,6 +931,7 @@ export function TransactionsView() {
   function closeDeleteModal() {
     if (deleteLoading) return;
     setDeleteOpen(false);
+    setDeleteError(null);
     setTimeout(() => setDeleteTx(null), 200);
   }
 
@@ -1259,10 +1260,7 @@ export function TransactionsView() {
                       setEditTx(tx);
                       setEditOpen(true);
                     }}
-                    onDelete={() => {
-                      if (accountMap.get(tx.accountId)?.is_immutable) return;
-                      openDeleteModal(tx);
-                    }}
+                    onDelete={() => openDeleteModal(tx)}
                     onToggleCleared={async () => {
                       if (!activeBudgetId) return;
                       const nextStatus = tx.status === "cleared" || tx.status === "reconciled"
@@ -1326,8 +1324,6 @@ export function TransactionsView() {
         onClose={() => setDetailOpen(false)}
         onDelete={() => {
           if (!detailTx) return;
-          const acc = accountMap.get(detailTx.accountId);
-          if (acc?.is_immutable) return;
           openDeleteModal(detailTx);
         }}
         onEdit={() => {
@@ -1357,6 +1353,7 @@ export function TransactionsView() {
         onClose={closeDeleteModal}
         onConfirm={confirmDelete}
         loading={deleteLoading}
+        error={deleteError}
       />
     </div>
   );

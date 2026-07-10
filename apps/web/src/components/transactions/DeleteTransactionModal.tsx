@@ -21,7 +21,7 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, AlertTriangle } from "lucide-react";
 import type { Transaction } from "@/types";
 import { formatCurrency, cn } from "@/lib/utils";
 
@@ -36,9 +36,17 @@ interface Props {
   onClose: () => void;
   onConfirm: () => void;
   loading?: boolean;
+  error?: string | null;
 }
 
-export function DeleteTransactionModal({ tx, open, onClose, onConfirm, loading = false }: Props) {
+export function DeleteTransactionModal({
+  tx,
+  open,
+  onClose,
+  onConfirm,
+  loading = false,
+  error = null,
+}: Props) {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -158,6 +166,14 @@ export function DeleteTransactionModal({ tx, open, onClose, onConfirm, loading =
                     {tx.amount >= 0 ? `+${formatCurrency(tx.amount)}` : formatCurrency(tx.amount)}
                   </div>
                 </div>
+
+                {/* ── Error ────────────────────────────── */}
+                {error && (
+                  <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-3 text-sm text-[#FCA5A5]">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
 
                 {/* ── Action buttons ────────────────────── */}
                 <div className="flex items-center justify-end gap-3">
