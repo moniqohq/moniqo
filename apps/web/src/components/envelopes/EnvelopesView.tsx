@@ -42,11 +42,14 @@ import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useUIStore } from "@/stores/ui.store";
 import { useEnvelopes } from "@/hooks/use-envelopes";
+import { useEnvelopes as useApiEnvelopes } from "@/hooks/useEnvelopes";
+import { useAccounts } from "@/hooks/useAccounts";
 import { formatCurrency, cn } from "@/lib/utils";
 import { AddEnvelopeModal } from "./AddEnvelopeModal";
 import { ModifyEnvelopeModal } from "./ModifyEnvelopeModal";
 import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { EnvelopeDetails } from "./EnvelopeDetails";
+import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import type { BudgetEnvelope } from "@/types";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
@@ -550,6 +553,8 @@ function SideCard({
 export function EnvelopesView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { data: apiEnvelopes, isLoading, refetch } = useEnvelopes(activeBudgetId);
+  const { envelopes: txEnvelopes } = useApiEnvelopes(activeBudgetId);
+  const { accounts: txAccounts } = useAccounts(activeBudgetId);
 
   const envelopes: EnvelopeRow[] = apiEnvelopes.map((e) => ({
     id: String(e.id),
@@ -564,6 +569,8 @@ export function EnvelopesView() {
   const [addOpen, setAddOpen] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [addTxOpen, setAddTxOpen] = useState(false);
+  const [txEnvelopeId, setTxEnvelopeId] = useState<number | null>(null);
   const [actionEnvelope, setActionEnvelope] = useState<BudgetEnvelope | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "grid">("list");
@@ -876,7 +883,10 @@ export function EnvelopesView() {
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-end">
                                 <RowActions
-                                  onAddTransaction={() => {}}
+                                  onAddTransaction={() => {
+                                    setTxEnvelopeId(Number(env.id));
+                                    setAddTxOpen(true);
+                                  }}
                                   onModify={() => {
                                     setActionEnvelope(
                                       apiEnvelopes.find((e) => String(e.id) === env.id) ?? null,
@@ -1151,6 +1161,19 @@ export function EnvelopesView() {
               onDeleted={refetch}
             />
           )}
+          <AddTransactionModal
+            open={addTxOpen}
+            onClose={() => {
+              setAddTxOpen(false);
+              setTxEnvelopeId(null);
+            }}
+            defaultType="expense"
+            budgetId={activeBudgetId}
+            accounts={txAccounts}
+            envelopes={txEnvelopes}
+            defaultEnvelopeId={txEnvelopeId}
+            onSuccess={refetch}
+          />
         </>
       )}
     </div>
