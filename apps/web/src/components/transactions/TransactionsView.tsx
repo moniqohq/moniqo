@@ -1322,14 +1322,15 @@ export function TransactionsView() {
         tx={detailTx}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        isLocked={Boolean(detailTx && accountMap.get(detailTx.accountId)?.is_immutable)}
         onDelete={() => {
           if (!detailTx) return;
+          if (accountMap.get(detailTx.accountId)?.is_immutable) return;
           openDeleteModal(detailTx);
         }}
         onEdit={() => {
           if (!detailTx) return;
-          const acc = accountMap.get(detailTx.accountId);
-          if (acc?.is_immutable) return;
+          if (accountMap.get(detailTx.accountId)?.is_immutable) return;
           setEditTx(detailTx);
           setEditOpen(true);
           setDetailOpen(false);

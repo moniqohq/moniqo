@@ -41,6 +41,7 @@ import {
   Copy,
   CheckCircle,
   Trash2,
+  Lock,
 } from "lucide-react";
 import type { Transaction, AccountType } from "@/types";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -72,9 +73,17 @@ interface Props {
   onClose: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  isLocked?: boolean;
 }
 
-export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }: Props) {
+export function TransactionDetailsModal({
+  tx,
+  open,
+  onClose,
+  onDelete,
+  onEdit,
+  isLocked = false,
+}: Props) {
   const currentUser = useAuthStore((s) => s.user);
 
   useEffect(() => {
@@ -422,8 +431,17 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
 
                 {/* ── Action buttons ─────────────────────────── */}
                 <div className="mb-4 h-px bg-[#141F32]" />
+                {isLocked && (
+                  <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-4 py-3 text-sm text-[#FCD34D]">
+                    <Lock size={16} className="mt-0.5 shrink-0" />
+                    <span>
+                      This transaction&apos;s account has transaction locking enabled and cannot
+                      be modified.
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2.5">
-                  <ActionBtn onClick={onEdit}>
+                  <ActionBtn onClick={onEdit} disabled={isLocked}>
                     <Edit2 size={14} /> Edit
                   </ActionBtn>
                   <ActionBtn>
@@ -435,6 +453,7 @@ export function TransactionDetailsModal({ tx, open, onClose, onDelete, onEdit }:
                   <ActionBtn
                     className="ml-auto border-[#EF4444]/30 text-[#F87171] hover:border-[#EF4444]/50 hover:bg-[#EF4444]/10 focus:ring-[#EF4444]/30"
                     onClick={onDelete}
+                    disabled={isLocked}
                   >
                     <Trash2 size={14} /> Delete
                   </ActionBtn>
@@ -491,18 +510,22 @@ function ActionBtn({
   children,
   className,
   onClick,
+  disabled = false,
 }: {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "inline-flex items-center gap-2 rounded-lg border border-[#1E2B42] px-4 py-2 text-sm font-medium text-[#A8B4CC]",
         "hover:border-[#2A3A54] hover:bg-[#1A2640] hover:text-white",
         "transition-all focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
+        "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[#1E2B42] disabled:hover:bg-transparent",
         className,
       )}
     >
