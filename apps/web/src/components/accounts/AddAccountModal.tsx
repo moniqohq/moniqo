@@ -494,9 +494,10 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
 
   const isLiabilityType = accountType === "credit" || accountType === "loan";
 
-  useEffect(() => {
-    if (isLiabilityType) setIncludeInBudget(false);
-  }, [isLiabilityType]);
+  const handleAccountTypeChange = (type: AccountType) => {
+    setAccountType(type);
+    if (type === "credit" || type === "loan") setIncludeInBudget(false);
+  };
 
   useEffect(() => {
     if (!calendarOpen) return;
@@ -686,7 +687,7 @@ export function AddAccountModal({ open, onClose }: AddAccountModalProps) {
                           label={label}
                           icon={icon}
                           selected={accountType === type}
-                          onClick={() => setAccountType(type)}
+                          onClick={() => handleAccountTypeChange(type)}
                         />
                       ))}
                     </div>
