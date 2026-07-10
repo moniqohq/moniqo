@@ -47,6 +47,7 @@ type Repository interface {
 	Patch(ctx context.Context, p PatchParams) (models.BudgetEnvelope, error)
 	SoftDelete(ctx context.Context, id, budgetID int64) error
 	HardDelete(ctx context.Context, id, budgetID int64) error
+	ForceDelete(ctx context.Context, id, budgetID int64) error
 	ExistsByTitle(ctx context.Context, budgetID int64, title string, excludeID *int64) (bool, error)
 	HasTransactions(ctx context.Context, id, budgetID int64) (bool, error)
 	SumSpent(ctx context.Context, id, budgetID int64) (money.Amount, error)
@@ -292,6 +293,57 @@ func (r *Repo) HardDelete(ctx context.Context, id, budgetID int64) error {
 	}
 
 	r.log.Info("envelope hard-deleted",
+		zap.Int64("envelope_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+	return nil
+}
+
+// ForceDelete atomically hard-deletes the envelope and all of its transactions
+// (including already soft-deleted ones), regardless of transaction history.
+func (r *Repo) ForceDelete(ctx context.Context, id, budgetID int64) error {
+	r.log.Debug("beginning ForceDelete transaction",
+		zap.Int64("envelope_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
+	if err := q.HardDeleteTransactionsByEnvelope(ctx, db.HardDeleteTransactionsByEnvelopeParams{
+		EnvelopeID: &id,
+		BudgetID:   budgetID,
+	}); err != nil {
+		r.log.Error("HardDeleteTransactionsByEnvelope query failed",
+			zap.Int64("envelope_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("hard delete envelope transactions: %w", err)
+	}
+
+	if err := q.HardDeleteEnvelope(ctx, db.HardDeleteEnvelopeParams{
+		ID:       id,
+		BudgetID: budgetID,
+	}); err != nil {
+		r.log.Error("HardDeleteEnvelope query failed",
+			zap.Int64("envelope_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("hard delete envelope: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	r.log.Info("envelope force-deleted",
 		zap.Int64("envelope_id", id),
 		zap.Int64("budget_id", budgetID),
 	)

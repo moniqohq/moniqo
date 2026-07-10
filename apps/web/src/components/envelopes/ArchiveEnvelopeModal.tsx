@@ -321,8 +321,8 @@ export function ArchiveEnvelopeModal({
                         Funds move to &ldquo;To Be Budgeted&rdquo;
                       </span>
                       <p className="text-xs text-[#5A6A85]">
-                        Remaining balance is always returned to your available budget when
-                        archiving an envelope.
+                        Remaining balance is always returned to your available budget when archiving
+                        an envelope.
                       </p>
                     </div>
                   </div>

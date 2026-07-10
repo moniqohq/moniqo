@@ -34,6 +34,10 @@ SELECT EXISTS (
     WHERE envelope_id = $1 AND budget_id = $2 AND deleted_at IS NULL
 ) AS exists;
 
+-- name: HardDeleteTransactionsByEnvelope :exec
+DELETE FROM transactions
+WHERE envelope_id = $1 AND budget_id = $2;
+
 -- name: SumOnBudgetAccountBalances :one
 SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS total_balance
 FROM transactions t

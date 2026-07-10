@@ -380,6 +380,56 @@ Idempotent operation.
 
 ---
 
+### Force Delete Budget Envelope (Hard Delete)
+
+Idempotent operation.
+
+**`DELETE /api/v1/budgets/{budget_id}/envelopes/{id}/force`**
+**Authentication:** Required. Role must be `OWNER`.
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "msg": "budget envelope force deleted successfully"
+}
+```
+
+**Business Rules**
+
+- Permanently (hard) deletes the envelope, bypassing the soft-delete-when-has-transactions
+  rule enforced by the plain `DELETE` endpoint above.
+- Permanently deletes all transactions linked to the envelope (including already
+  soft-deleted ones) in the same atomic operation.
+- This is a deliberate, explicit exception to the "transactions are preserved for
+  audit" invariant, and is therefore restricted to `OWNER` only (stricter than the
+  `OWNER`/`ADMIN` gate on the plain delete).
+- Already deleted resource must not cause failure.
+
+**Validation Rules**
+
+- Valid ID required.
+- Budget membership required.
+
+**Side Effects**
+
+- Envelope row permanently removed.
+- All transactions linked to the envelope permanently removed.
+- Not reversible; no audit trail is preserved for the removed transactions.
+
+**Error Scenarios**
+
+| HTTP | Code |
+|---|---|
+| 400 | `VALIDATION_ERROR` |
+| 401 | `UNAUTHORIZED` |
+| 403 | `FORBIDDEN` |
+| 404 | `NOT_FOUND` |
+| 500 | `INTERNAL_ERROR` |
+
+---
+
 ## Deletion Scenarios
 
 ### Case A — Envelope Has Never Been Used

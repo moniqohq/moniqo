@@ -381,6 +381,61 @@ func TestSvc_Delete(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestSvc_ForceDelete
+// ---------------------------------------------------------------------------
+
+func TestSvc_ForceDelete(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("owner — force deletes envelope and transactions", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(makeEnvelope("Old"), nil)
+		repo.On("ForceDelete", testEnvelopeID, testBudgetID).Return(nil)
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("admin role returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleAdmin)
+
+		assert.ErrorIs(t, err, envelope.ErrForbidden)
+		repo.AssertNotCalled(t, "GetByID")
+	})
+
+	t.Run("viewer role returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleViewer)
+
+		assert.ErrorIs(t, err, envelope.ErrForbidden)
+	})
+
+	t.Run("idempotent — missing envelope returns nil", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(models.BudgetEnvelope{}, envelope.ErrNotFound)
+
+		svc := envelope.NewSvc(repo, log)
+		err := svc.ForceDelete(context.Background(), testEnvelopeID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		repo.AssertNotCalled(t, "ForceDelete")
+	})
+}
+
+// ---------------------------------------------------------------------------
 // TestSvc_GetBudgetSummary
 // ---------------------------------------------------------------------------
 

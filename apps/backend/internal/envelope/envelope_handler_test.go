@@ -491,6 +491,89 @@ func TestHandler_DeleteEnvelope(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestHandler_ForceDeleteEnvelope
+// ---------------------------------------------------------------------------
+
+func TestHandler_ForceDeleteEnvelope(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("success returns 200", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ForceDeleteFn: func(_ context.Context, _, _ int64, _ models.Role) error { return nil },
+		}
+		c, rec := newCtx(e, http.MethodDelete, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleOwner))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ForceDeleteEnvelope(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "budget envelope force deleted successfully", parseResp(t, rec.Body.String()).Msg)
+	})
+
+	t.Run("idempotent — already deleted returns 200", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ForceDeleteFn: func(_ context.Context, _, _ int64, _ models.Role) error { return nil },
+		}
+		c, rec := newCtx(e, http.MethodDelete, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleOwner))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ForceDeleteEnvelope(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("admin role returns 403", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ForceDeleteFn: func(_ context.Context, _, _ int64, _ models.Role) error {
+				return envelope.ErrForbidden
+			},
+		}
+		c, rec := newCtx(e, http.MethodDelete, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleAdmin))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ForceDeleteEnvelope(c))
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("viewer role returns 403", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ForceDeleteFn: func(_ context.Context, _, _ int64, _ models.Role) error {
+				return envelope.ErrForbidden
+			},
+		}
+		c, rec := newCtx(e, http.MethodDelete, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleViewer))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ForceDeleteEnvelope(c))
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("no membership in context returns 401", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodDelete, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		// no injectMembership call
+
+		require.NoError(t, envelope.NewHandler(svc, log).ForceDeleteEnvelope(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+}
+
+// ---------------------------------------------------------------------------
 // TestHandler_GetBudgetSummary
 // ---------------------------------------------------------------------------
 

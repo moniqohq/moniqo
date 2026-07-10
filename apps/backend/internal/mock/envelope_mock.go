@@ -44,6 +44,7 @@ type EnvelopeService struct {
 	ReplaceFn           func(ctx context.Context, id, budgetID int64, req envelope.ReplaceRequest) (models.BudgetEnvelope, error)
 	PatchFn             func(ctx context.Context, id, budgetID int64, req envelope.PatchRequest) (models.BudgetEnvelope, error)
 	DeleteFn            func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
+	ForceDeleteFn       func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 	GetBudgetSummaryFn  func(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
 	GetDashboardStatsFn func(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error)
 }
@@ -76,6 +77,11 @@ func (m *EnvelopeService) Patch(ctx context.Context, id, budgetID int64, req env
 // Delete delegates to DeleteFn.
 func (m *EnvelopeService) Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
 	return m.DeleteFn(ctx, id, budgetID, callerRole)
+}
+
+// ForceDelete delegates to ForceDeleteFn.
+func (m *EnvelopeService) ForceDelete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
+	return m.ForceDeleteFn(ctx, id, budgetID, callerRole)
 }
 
 // GetBudgetSummary delegates to GetBudgetSummaryFn.
@@ -158,6 +164,12 @@ func (m *EnvelopeRepository) SoftDelete(_ context.Context, id, budgetID int64) e
 
 // HardDelete records the call and returns the configured stub error.
 func (m *EnvelopeRepository) HardDelete(_ context.Context, id, budgetID int64) error {
+	args := m.Called(id, budgetID)
+	return args.Error(0)
+}
+
+// ForceDelete records the call and returns the configured stub error.
+func (m *EnvelopeRepository) ForceDelete(_ context.Context, id, budgetID int64) error {
 	args := m.Called(id, budgetID)
 	return args.Error(0)
 }
