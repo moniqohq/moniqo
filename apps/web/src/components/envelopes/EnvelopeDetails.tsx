@@ -331,7 +331,7 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { data: accounts } = useAccounts(activeBudgetId);
-  const { data: apiEnvelopes } = useEnvelopes(activeBudgetId);
+  const { data: apiEnvelopes, refetch: refetchEnvelopes } = useEnvelopes(activeBudgetId);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
 
   const envelopeIdNum = Number(envelopeId);
@@ -1039,7 +1039,10 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           onClose={() => setModifyOpen(false)}
           envelope={envelope}
           budgetId={activeBudgetId}
-          onUpdated={() => setModifyOpen(false)}
+          onUpdated={() => {
+            refetchEnvelopes();
+            setModifyOpen(false);
+          }}
         />
       )}
       {archiveOpen && envelope && activeBudgetId !== null && (
