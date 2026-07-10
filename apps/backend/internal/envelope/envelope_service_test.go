@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
@@ -158,11 +159,11 @@ func TestSvc_List(t *testing.T) {
 	t.Run("returns envelopes with spent_amt attached", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.EnvelopeRepository{}
-		repo.On("ListByBudget", testBudgetID).Return([]models.BudgetEnvelope{makeEnvelope("Food"), makeEnvelope("Gas")}, nil)
+		repo.On("ListByBudget", testBudgetID, mock.Anything).Return([]models.BudgetEnvelope{makeEnvelope("Food"), makeEnvelope("Gas")}, nil)
 		repo.On("SumSpent", testEnvelopeID, testBudgetID).Return(money.FromMinorUnits(1000), nil)
 
 		svc := envelope.NewSvc(repo, log)
-		es, err := svc.List(context.Background(), testBudgetID)
+		es, err := svc.List(context.Background(), testBudgetID, nil)
 
 		require.NoError(t, err)
 		assert.Len(t, es, 2)
@@ -172,14 +173,27 @@ func TestSvc_List(t *testing.T) {
 	t.Run("returns empty slice (not nil) when no envelopes", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.EnvelopeRepository{}
-		repo.On("ListByBudget", testBudgetID).Return([]models.BudgetEnvelope{}, nil)
+		repo.On("ListByBudget", testBudgetID, mock.Anything).Return([]models.BudgetEnvelope{}, nil)
 
 		svc := envelope.NewSvc(repo, log)
-		es, err := svc.List(context.Background(), testBudgetID)
+		es, err := svc.List(context.Background(), testBudgetID, nil)
 
 		require.NoError(t, err)
 		assert.NotNil(t, es)
 		assert.Empty(t, es)
+	})
+
+	t.Run("passes archived filter through to repository", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		archived := true
+		repo.On("ListByBudget", testBudgetID, &archived).Return([]models.BudgetEnvelope{}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.List(context.Background(), testBudgetID, &archived)
+
+		require.NoError(t, err)
+		repo.AssertCalled(t, "ListByBudget", testBudgetID, &archived)
 	})
 }
 

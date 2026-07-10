@@ -67,6 +67,7 @@ export interface BudgetEnvelope {
   spent: number;
   available: number;
   isOverspent: boolean;
+  isArchived: boolean;
 }
 
 export type TransactionStatus = "uncleared" | "cleared" | "reconciled";

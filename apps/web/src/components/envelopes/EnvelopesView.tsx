@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Plus,
   Search,
@@ -42,6 +43,7 @@ import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useUIStore } from "@/stores/ui.store";
 import { useEnvelopes } from "@/hooks/use-envelopes";
+import type { EnvelopeStatusParam } from "@/lib/api/envelopes";
 import { useEnvelopes as useApiEnvelopes } from "@/hooks/useEnvelopes";
 import { useAccounts } from "@/hooks/useAccounts";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -56,6 +58,7 @@ import { isFeatureEnabled } from "@/features/feature-flags";
 /* ── Status type ────────────────────────────────────────── */
 type Status = "Healthy" | "Warning" | "Fully Used" | "Overspent";
 type Nature = "Want" | "Should" | "Need" | "Must";
+type ArchivedFilter = "active" | "archived" | "all";
 
 interface EnvelopeRow {
   id: string;
@@ -65,6 +68,7 @@ interface EnvelopeRow {
   nature: Nature;
   allocated: number;
   spent: number;
+  isArchived: boolean;
 }
 
 /* ── Derived computations ───────────────────────────────── */
@@ -143,6 +147,31 @@ function RowActions({
         <Archive size={13} />
       </button>
     </div>
+  );
+}
+
+/* ── Archived toggle ──────────────────────────────────── */
+function ArchivedToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
+        checked
+          ? "border-[rgba(108,58,237,0.5)] bg-[rgba(108,58,237,0.08)] text-[#C4B5FD]"
+          : "border-[#1A2640] text-[#7A8BA8] hover:border-[#2A3A54] hover:text-[#C8D4E8]",
+      )}
+    >
+      <Archive size={13} />
+      Show archived
+    </button>
   );
 }
 
@@ -551,8 +580,20 @@ function SideCard({
 
 /* ── Main view ──────────────────────────────────────────── */
 export function EnvelopesView() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
-  const { data: apiEnvelopes, isLoading, refetch } = useEnvelopes(activeBudgetId);
+
+  const initialStatus = (searchParams.get("status") ?? "active") as ArchivedFilter;
+  const [statusFilter, setStatusFilter] = useState<ArchivedFilter>(initialStatus);
+  const showArchived = statusFilter !== "active";
+
+  const {
+    data: apiEnvelopes,
+    isLoading,
+    refetch,
+  } = useEnvelopes(activeBudgetId, statusFilter as EnvelopeStatusParam);
   const { envelopes: txEnvelopes } = useApiEnvelopes(activeBudgetId);
   const { accounts: txAccounts } = useAccounts(activeBudgetId);
 
@@ -564,6 +605,7 @@ export function EnvelopesView() {
     nature: "Need" as Nature,
     allocated: e.allocated,
     spent: e.spent,
+    isArchived: e.isArchived,
   }));
 
   const [addOpen, setAddOpen] = useState(false);
@@ -579,6 +621,17 @@ export function EnvelopesView() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  function handleShowArchivedChange(v: boolean) {
+    const next: ArchivedFilter = v ? "all" : "active";
+    setStatusFilter(next);
+    setPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "active") params.delete("status");
+    else params.set("status", next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   /* Filtering + sorting */
   const filtered = envelopes
@@ -668,6 +721,8 @@ export function EnvelopesView() {
               }}
             />
           )}
+
+          <ArchivedToggle checked={showArchived} onChange={handleShowArchivedChange} />
 
           <SortDropdown value={sort} onChange={setSort} />
 
@@ -796,7 +851,9 @@ export function EnvelopesView() {
                       <tr>
                         <td colSpan={7} className="px-4 py-16 text-center text-sm text-[#5A6A85]">
                           {envelopes.length === 0
-                            ? "No envelopes yet. Add your first envelope to get started."
+                            ? statusFilter === "archived"
+                              ? "No archived envelopes."
+                              : "No envelopes yet. Add your first envelope to get started."
                             : "No envelopes match your filters."}
                         </td>
                       </tr>
@@ -835,9 +892,16 @@ export function EnvelopesView() {
                                   💼
                                 </div>
                                 <div>
-                                  <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
-                                    {env.name}
-                                  </p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
+                                      {env.name}
+                                    </p>
+                                    {env.isArchived && (
+                                      <span className="inline-flex items-center rounded-full bg-[rgba(108,58,237,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#C4B5FD]">
+                                        Archived
+                                      </span>
+                                    )}
+                                  </div>
                                   {env.description && (
                                     <p className="mt-0.5 text-xs leading-tight text-[#5A6A85]">
                                       {env.description}
@@ -998,9 +1062,16 @@ export function EnvelopesView() {
                             💼
                           </div>
                           <div>
-                            <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
-                              {env.name}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm leading-tight font-medium text-[#E8EEF8]">
+                                {env.name}
+                              </p>
+                              {env.isArchived && (
+                                <span className="inline-flex items-center rounded-full bg-[rgba(108,58,237,0.12)] px-1.5 py-0.5 text-[10px] font-medium text-[#C4B5FD]">
+                                  Archived
+                                </span>
+                              )}
+                            </div>
                             {env.description && (
                               <p className="text-[11px] leading-tight text-[#5A6A85]">
                                 {env.description}

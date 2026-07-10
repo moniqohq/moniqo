@@ -40,7 +40,7 @@ import (
 type EnvelopeService struct {
 	CreateFn            func(ctx context.Context, budgetID int64, req envelope.CreateRequest) (models.BudgetEnvelope, error)
 	GetByIDFn           func(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
-	ListFn              func(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error)
+	ListFn              func(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error)
 	ReplaceFn           func(ctx context.Context, id, budgetID int64, req envelope.ReplaceRequest) (models.BudgetEnvelope, error)
 	PatchFn             func(ctx context.Context, id, budgetID int64, req envelope.PatchRequest) (models.BudgetEnvelope, error)
 	DeleteFn            func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
@@ -59,8 +59,8 @@ func (m *EnvelopeService) GetByID(ctx context.Context, id, budgetID int64) (mode
 }
 
 // List delegates to ListFn.
-func (m *EnvelopeService) List(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error) {
-	return m.ListFn(ctx, budgetID)
+func (m *EnvelopeService) List(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
+	return m.ListFn(ctx, budgetID, archived)
 }
 
 // Replace delegates to ReplaceFn.
@@ -121,8 +121,8 @@ func (m *EnvelopeRepository) GetByID(_ context.Context, id, budgetID int64) (mod
 }
 
 // ListByBudget records the call and returns the configured stub values.
-func (m *EnvelopeRepository) ListByBudget(_ context.Context, budgetID int64) ([]models.BudgetEnvelope, error) {
-	args := m.Called(budgetID)
+func (m *EnvelopeRepository) ListByBudget(_ context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
+	args := m.Called(budgetID, archived)
 	es, ok := args.Get(0).([]models.BudgetEnvelope)
 	if !ok {
 		return nil, args.Error(1)

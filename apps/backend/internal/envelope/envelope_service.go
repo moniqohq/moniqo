@@ -40,7 +40,7 @@ var ErrForbidden = errors.New("insufficient role")
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.BudgetEnvelope, error)
 	GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
-	List(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error)
+	List(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error)
 	Replace(ctx context.Context, id, budgetID int64, req ReplaceRequest) (models.BudgetEnvelope, error)
 	Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.BudgetEnvelope, error)
 	Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
@@ -123,12 +123,14 @@ func (s *Svc) GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEnv
 	return s.attachSpent(ctx, env)
 }
 
-// List returns all active envelopes within budgetID with their computed spent amounts.
-// Returns an empty (non-nil) slice when the budget has no envelopes.
-func (s *Svc) List(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error) {
+// List returns envelopes within budgetID with their computed spent amounts, filtered
+// by archived state: nil returns all envelopes, true returns only archived envelopes,
+// false returns only active envelopes.
+// Returns an empty (non-nil) slice when the budget has no matching envelopes.
+func (s *Svc) List(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
 	s.log.Debug("listing envelopes", zap.Int64("budget_id", budgetID))
 
-	envelopes, err := s.repo.ListByBudget(ctx, budgetID)
+	envelopes, err := s.repo.ListByBudget(ctx, budgetID, archived)
 	if err != nil {
 		s.log.Error("repo.ListByBudget failed",
 			zap.Int64("budget_id", budgetID),

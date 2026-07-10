@@ -59,6 +59,7 @@ export type ApiEnvelope = {
   spent_amt: number;
   is_overspent: boolean;
   description: string | null;
+  is_archived: boolean;
   created_at: string;
 };
 

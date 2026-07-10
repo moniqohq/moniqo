@@ -103,7 +103,7 @@ func TestHandler_ListEnvelopes(t *testing.T) {
 	t.Run("success returns 200 with envelopes", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{
-			ListFn: func(_ context.Context, _ int64) ([]models.BudgetEnvelope, error) {
+			ListFn: func(_ context.Context, _ int64, _ *bool) ([]models.BudgetEnvelope, error) {
 				return []models.BudgetEnvelope{fixedEnvelope()}, nil
 			},
 		}
@@ -121,7 +121,7 @@ func TestHandler_ListEnvelopes(t *testing.T) {
 	t.Run("empty list returns 200 with empty array", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{
-			ListFn: func(_ context.Context, _ int64) ([]models.BudgetEnvelope, error) {
+			ListFn: func(_ context.Context, _ int64, _ *bool) ([]models.BudgetEnvelope, error) {
 				return []models.BudgetEnvelope{}, nil
 			},
 		}
@@ -524,5 +524,86 @@ func TestHandler_GetBudgetSummary(t *testing.T) {
 
 		require.NoError(t, envelope.NewHandler(svc, log).GetBudgetSummary(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestHandler_ListEnvelopes_StatusFilter
+// ---------------------------------------------------------------------------
+
+func TestHandler_ListEnvelopes_StatusFilter(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("invalid status returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodGet, "/?status=bogus", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := envelope.NewHandler(&internalmock.EnvelopeService{}, log)
+
+		require.NoError(t, h.ListEnvelopes(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("status=archived passes true filter", func(t *testing.T) {
+		t.Parallel()
+		var gotArchived *bool
+		svc := &internalmock.EnvelopeService{
+			ListFn: func(_ context.Context, _ int64, archived *bool) ([]models.BudgetEnvelope, error) {
+				gotArchived = archived
+				return []models.BudgetEnvelope{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/?status=archived", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := envelope.NewHandler(svc, log)
+
+		require.NoError(t, h.ListEnvelopes(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		require.NotNil(t, gotArchived)
+		assert.True(t, *gotArchived)
+	})
+
+	t.Run("status=all passes nil filter", func(t *testing.T) {
+		t.Parallel()
+		called := false
+		svc := &internalmock.EnvelopeService{
+			ListFn: func(_ context.Context, _ int64, archived *bool) ([]models.BudgetEnvelope, error) {
+				called = true
+				assert.Nil(t, archived)
+				return []models.BudgetEnvelope{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/?status=all", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := envelope.NewHandler(svc, log)
+
+		require.NoError(t, h.ListEnvelopes(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.True(t, called)
+	})
+
+	t.Run("default status passes false filter", func(t *testing.T) {
+		t.Parallel()
+		var gotArchived *bool
+		svc := &internalmock.EnvelopeService{
+			ListFn: func(_ context.Context, _ int64, archived *bool) ([]models.BudgetEnvelope, error) {
+				gotArchived = archived
+				return []models.BudgetEnvelope{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := envelope.NewHandler(svc, log)
+
+		require.NoError(t, h.ListEnvelopes(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		require.NotNil(t, gotArchived)
+		assert.False(t, *gotArchived)
 	})
 }

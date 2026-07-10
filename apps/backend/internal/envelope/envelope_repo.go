@@ -42,7 +42,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, p CreateParams) (models.BudgetEnvelope, error)
 	GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
-	ListByBudget(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error)
+	ListByBudget(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error)
 	Update(ctx context.Context, p UpdateParams) (models.BudgetEnvelope, error)
 	Patch(ctx context.Context, p PatchParams) (models.BudgetEnvelope, error)
 	SoftDelete(ctx context.Context, id, budgetID int64) error
@@ -77,6 +77,7 @@ func toModel(row db.Envelope) models.BudgetEnvelope {
 		Title:        row.Title,
 		AllocatedAmt: money.FromMinorUnits(row.AllocatedAmt),
 		Description:  row.Description,
+		IsArchived:   row.DeletedAt.Valid,
 		CreatedAt:    row.CreatedAt.Time,
 	}
 }
@@ -139,13 +140,18 @@ func (r *Repo) GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEn
 	return toModel(row), nil
 }
 
-// ListByBudget returns all active envelopes belonging to budgetID.
-// Returns an empty slice (never nil) when the budget has no envelopes.
-func (r *Repo) ListByBudget(ctx context.Context, budgetID int64) ([]models.BudgetEnvelope, error) {
+// ListByBudget returns envelopes belonging to budgetID, filtered by archived
+// state: nil returns all envelopes, true returns only archived envelopes, false
+// returns only active envelopes. Returns an empty slice (never nil) when the
+// budget has no matching envelopes.
+func (r *Repo) ListByBudget(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
 	r.log.Debug("executing ListEnvelopesByBudget query", zap.Int64("budget_id", budgetID))
 
 	q := db.New(r.pool)
-	rows, err := q.ListEnvelopesByBudget(ctx, budgetID)
+	rows, err := q.ListEnvelopesByBudget(ctx, db.ListEnvelopesByBudgetParams{
+		BudgetID: budgetID,
+		Archived: archived,
+	})
 	if err != nil {
 		r.log.Error("ListEnvelopesByBudget query failed",
 			zap.Int64("budget_id", budgetID),

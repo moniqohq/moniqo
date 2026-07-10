@@ -184,12 +184,18 @@ func (q *Queries) HardDeleteEnvelope(ctx context.Context, arg HardDeleteEnvelope
 const listEnvelopesByBudget = `-- name: ListEnvelopesByBudget :many
 SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
 FROM envelopes
-WHERE budget_id = $1 AND deleted_at IS NULL
+WHERE budget_id = $1
+  AND ($2::bool IS NULL OR (deleted_at IS NOT NULL) = $2)
 ORDER BY lower(title) ASC
 `
 
-func (q *Queries) ListEnvelopesByBudget(ctx context.Context, budgetID int64) ([]Envelope, error) {
-	rows, err := q.db.Query(ctx, listEnvelopesByBudget, budgetID)
+type ListEnvelopesByBudgetParams struct {
+	BudgetID int64
+	Archived *bool
+}
+
+func (q *Queries) ListEnvelopesByBudget(ctx context.Context, arg ListEnvelopesByBudgetParams) ([]Envelope, error) {
+	rows, err := q.db.Query(ctx, listEnvelopesByBudget, arg.BudgetID, arg.Archived)
 	if err != nil {
 		return nil, err
 	}
