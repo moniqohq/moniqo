@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Plus,
   Upload,
@@ -40,10 +40,22 @@ import {
   Landmark,
   ArrowUp,
   ArrowDown,
+  Eye,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { AddTransactionModal } from "./AddTransactionModal";
 import { TransactionDetailsModal } from "./TransactionDetailsModal";
 import { DeleteTransactionModal } from "./DeleteTransactionModal";
@@ -56,7 +68,9 @@ import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useRunningBalances } from "@/hooks/useRunningBalances";
 import { apiFetch } from "@/lib/api";
+import { patchTransaction } from "@/lib/api/transactions";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
@@ -144,6 +158,10 @@ function TxRow({
   onSelect,
   onRowClick,
   accounts,
+  isImmutable,
+  onEdit,
+  onDelete,
+  onToggleCleared,
 }: {
   tx: Transaction;
   index: number;
@@ -151,6 +169,10 @@ function TxRow({
   onSelect: () => void;
   onRowClick: () => void;
   accounts: ApiAccount[];
+  isImmutable: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleCleared: () => void;
 }) {
   const amountColor =
     tx.type === "income"
@@ -188,18 +210,11 @@ function TxRow({
         {formatTableDate(tx.date)}
       </td>
 
-      {/* Payee / Note */}
+      {/* Payee */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <PayeeAvatar payee={tx.payee || "?"} />
-          <div>
-            <p className="text-sm leading-tight font-medium text-[#E8EEF8]">{tx.payee}</p>
-            {tx.memo && (
-              <p className="mt-0.5 text-xs leading-tight whitespace-nowrap text-[#5A6A85]">
-                {tx.memo}
-              </p>
-            )}
-          </div>
+          <p className="text-sm leading-tight font-medium text-[#E8EEF8]">{tx.payee}</p>
         </div>
       </td>
 
@@ -261,14 +276,44 @@ function TxRow({
 
       {/* Running Balance */}
       <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
-        —
+        {tx.runningBalance != null ? formatCurrency(tx.runningBalance) : "—"}
       </td>
+
+      {/* Notes */}
+      <td className="max-w-[200px] truncate px-4 py-3 text-sm text-[#5A6A85]">{tx.memo ?? "—"}</td>
 
       {/* Actions */}
       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-        <button className="ml-auto flex rounded-lg p-1.5 text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#E8EEF8] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
-          <MoreVertical size={13} />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="ml-auto flex rounded-lg p-1.5 text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#E8EEF8] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
+            <MoreVertical size={13} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44 border border-[#1A2640] bg-[#0D1B2E]">
+            <DropdownMenuItem onClick={onRowClick}>
+              <Eye size={14} />
+              View details
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onToggleCleared}>
+              {tx.status === "cleared" || tx.status === "reconciled" ? (
+                <Circle size={14} />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
+              {tx.status === "cleared" || tx.status === "reconciled"
+                ? "Mark as uncleared"
+                : "Mark as cleared"}
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={isImmutable} onClick={onEdit}>
+              <Pencil size={14} />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" disabled={isImmutable} onClick={onDelete}>
+              <Trash2 size={14} />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </td>
     </motion.tr>
   );
@@ -718,6 +763,22 @@ function TypeFilter({
   );
 }
 
+/* ── Pagination helpers ─────────────────────────────────── */
+function paginationRange(page: number, totalPages: number): (number | "…")[] {
+  const delta = 1;
+  const range: (number | "…")[] = [];
+  const start = Math.max(2, page - delta);
+  const end = Math.min(totalPages - 1, page + delta);
+
+  range.push(1);
+  if (start > 2) range.push("…");
+  for (let i = start; i <= end; i++) range.push(i);
+  if (end < totalPages - 1) range.push("…");
+  if (totalPages > 1) range.push(totalPages);
+
+  return range;
+}
+
 /* ── Per-page dropdown ──────────────────────────────────── */
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -770,6 +831,7 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 export function TransactionsView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const [modalOpen, setModalOpen] = useState(false);
+  const [duplicateSeed, setDuplicateSeed] = useState<Transaction | null>(null);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
@@ -777,12 +839,14 @@ export function TransactionsView() {
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [, setDeleteError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
   const [accountFilter, setAccountFilter] = useState<Set<number>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<TxTypeId>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const now = new Date();
     return {
@@ -791,7 +855,7 @@ export function TransactionsView() {
     };
   });
 
-  const { accounts, accountMap } = useAccounts(activeBudgetId);
+  const { accounts, accountMap, refetch: refetchAccounts } = useAccounts(activeBudgetId);
   const { envelopes, envelopeMap } = useEnvelopes(activeBudgetId);
   const {
     transactions,
@@ -804,12 +868,81 @@ export function TransactionsView() {
     envelopeId: envelopeFilter.size === 1 ? Number([...envelopeFilter][0]) : undefined,
     dateFrom: dateRange.from?.toISOString(),
     dateTo: dateRange.to?.toISOString(),
+    page,
     pageSize,
   });
-  const filteredTransactions = useMemo(
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Account balances (the anchor for running-balance calculations) are only
+  // refreshed on budget change; any transaction mutation must explicitly
+  // refresh them too, or running balances go stale.
+  const refetchAll = useCallback(() => {
+    refetch();
+    refetchAccounts();
+  }, [refetch, refetchAccounts]);
+
+  // Adjust state during render (React's recommended pattern) rather than in an
+  // effect: reset to page 1 when the active budget changes, since the current
+  // page may no longer exist under the new budget's transaction set.
+  const [prevBudgetId, setPrevBudgetId] = useState(activeBudgetId);
+  if (activeBudgetId !== prevBudgetId) {
+    setPrevBudgetId(activeBudgetId);
+    setPage(1);
+  }
+
+  // Reset to page 1 whenever a server-side filter or page size changes,
+  // since the current page may no longer exist under the new query.
+  const handleAccountFilterChange = useCallback((next: Set<number>) => {
+    setAccountFilter(next);
+    setPage(1);
+  }, []);
+  const handleEnvelopeFilterChange = useCallback((next: Set<number>) => {
+    setEnvelopeFilter(next);
+    setPage(1);
+  }, []);
+  const handleDateRangeChange = useCallback((next: DateRange) => {
+    setDateRange(next);
+    setPage(1);
+  }, []);
+  const handlePageSizeChange = useCallback((next: number) => {
+    setPageSize(next);
+    setPage(1);
+  }, []);
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
+    if (typeFilter.size > 0) {
+      result = result.filter((t) => typeFilter.has(t.type));
+    }
+    const query = searchQuery.trim().toLowerCase();
+    if (query) {
+      result = result.filter(
+        (t) =>
+          t.payee?.toLowerCase().includes(query) ||
+          t.memo?.toLowerCase().includes(query) ||
+          t.accountName?.toLowerCase().includes(query) ||
+          t.envelopeName?.toLowerCase().includes(query),
+      );
+    }
+    return result;
+  }, [transactions, typeFilter, searchQuery]);
+
+  // Running balance is only well-defined within a single account's chronological
+  // history, so it's only computed when the view is scoped to exactly one account.
+  const singleAccountId = accountFilter.size === 1 ? Number([...accountFilter][0]) : null;
+  const singleAccountBalance =
+    singleAccountId != null ? accountMap.get(singleAccountId)?.balance : undefined;
+  const { balances: runningBalances } = useRunningBalances(
+    activeBudgetId,
+    singleAccountId,
+    singleAccountBalance,
+    transactions,
+  );
+  const rowsWithBalance = useMemo(
     () =>
-      typeFilter.size === 0 ? transactions : transactions.filter((t) => typeFilter.has(t.type)),
-    [transactions, typeFilter],
+      filteredTransactions.map((t) =>
+        runningBalances.has(t.id) ? { ...t, runningBalance: runningBalances.get(t.id) } : t,
+      ),
+    [filteredTransactions, runningBalances],
   );
 
   const allSelected =
@@ -851,6 +984,7 @@ export function TransactionsView() {
   function closeDeleteModal() {
     if (deleteLoading) return;
     setDeleteOpen(false);
+    setDeleteError(null);
     setTimeout(() => setDeleteTx(null), 200);
   }
 
@@ -862,7 +996,7 @@ export function TransactionsView() {
       await apiFetch<unknown>(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, {
         method: "DELETE",
       });
-      refetch();
+      refetchAll();
       setDeleteOpen(false);
       setDetailOpen(false);
       setTimeout(() => {
@@ -874,6 +1008,22 @@ export function TransactionsView() {
     } finally {
       setDeleteLoading(false);
     }
+  }
+
+  async function markDetailTxReconciled() {
+    if (!detailTx || !activeBudgetId) return;
+    if (accountMap.get(detailTx.accountId)?.is_immutable) return;
+    await patchTransaction(activeBudgetId, detailTx.id, { status: "reconciled" });
+    setDetailTx((prev) =>
+      prev && prev.id === detailTx.id ? { ...prev, status: "reconciled", cleared: true } : prev,
+    );
+    refetchAll();
+  }
+
+  function duplicateTx(tx: Transaction) {
+    setDuplicateSeed(tx);
+    setDetailOpen(false);
+    setModalOpen(true);
   }
 
   /* Flowbite dropdown trigger style */
@@ -906,6 +1056,8 @@ export function TransactionsView() {
             <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]" />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search transactions…"
               className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
@@ -919,7 +1071,10 @@ export function TransactionsView() {
           )}
 
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setDuplicateSeed(null);
+              setModalOpen(true);
+            }}
             className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none"
           >
             <Plus size={14} />
@@ -934,17 +1089,21 @@ export function TransactionsView() {
         <div className="flex flex-wrap items-center gap-2 border-b border-[#131E30] px-4 py-3">
           <AccountFilter
             value={accountFilter}
-            onChange={setAccountFilter}
+            onChange={handleAccountFilterChange}
             triggerClassName={filterBtn}
             accounts={accounts}
           />
           <EnvelopeFilter
             value={envelopeFilter}
-            onChange={setEnvelopeFilter}
+            onChange={handleEnvelopeFilterChange}
             triggerClassName={filterBtn}
             envelopes={envelopes}
           />
-          <DateRangePicker value={dateRange} onChange={setDateRange} triggerClassName={filterBtn} />
+          <DateRangePicker
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            triggerClassName={filterBtn}
+          />
           <TypeFilter value={typeFilter} onChange={setTypeFilter} triggerClassName={filterBtn} />
           {isFeatureEnabled("transactionFilters") && (
             <button className={cn(filterBtn, "ml-auto")}>
@@ -1116,7 +1275,7 @@ export function TransactionsView() {
                   </button>
                 </th>
                 <th scope="col" className="px-4 py-3 tracking-wider">
-                  Payee / Note
+                  Payee
                 </th>
                 <th scope="col" className="px-4 py-3 tracking-wider">
                   Type
@@ -1133,43 +1292,62 @@ export function TransactionsView() {
                 <th scope="col" className="px-4 py-3 text-right tracking-wider">
                   Running Balance
                 </th>
+                <th scope="col" className="px-4 py-3 tracking-wider">
+                  Notes
+                </th>
                 <th scope="col" className="w-10" />
               </tr>
             </thead>
             <tbody className="divide-y divide-[#0F1A2C]">
               {txLoading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
                     Loading transactions…
                   </td>
                 </tr>
               )}
               {txError && !txLoading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#F87171]">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-[#F87171]">
                     {txError}
                   </td>
                 </tr>
               )}
               {!txLoading && !txError && filteredTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
                     No transactions found.
                   </td>
                 </tr>
               )}
               {!txLoading &&
-                filteredTransactions.map((tx, i) => (
+                rowsWithBalance.map((tx, i) => (
                   <TxRow
                     key={tx.id}
                     tx={tx}
                     index={i}
                     accounts={accounts}
                     selected={selected.has(tx.id)}
+                    isImmutable={Boolean(accountMap.get(tx.accountId)?.is_immutable)}
                     onSelect={() => toggleRow(tx.id)}
                     onRowClick={() => {
                       setDetailTx(tx);
                       setDetailOpen(true);
+                    }}
+                    onEdit={() => {
+                      if (accountMap.get(tx.accountId)?.is_immutable) return;
+                      setEditTx(tx);
+                      setEditOpen(true);
+                    }}
+                    onDelete={() => openDeleteModal(tx)}
+                    onToggleCleared={async () => {
+                      if (!activeBudgetId) return;
+                      const nextStatus =
+                        tx.status === "cleared" || tx.status === "reconciled"
+                          ? "uncleared"
+                          : "cleared";
+                      await patchTransaction(activeBudgetId, tx.id, { status: nextStatus });
+                      refetch();
                     }}
                   />
                 ))}
@@ -1180,63 +1358,98 @@ export function TransactionsView() {
         {/* Pagination — Flowbite pagination pattern */}
         <div className="flex items-center justify-between border-t border-[#131E30] px-4 py-3">
           <span className="text-sm text-[#5A6A85]">
-            Showing <span className="font-medium text-[#A8B4CC]">1</span> to{" "}
-            <span className="font-medium text-[#A8B4CC]">{filteredTransactions.length}</span> of{" "}
-            <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
+            Showing{" "}
+            <span className="font-medium text-[#A8B4CC]">
+              {totalCount === 0 ? 0 : (page - 1) * pageSize + 1}
+            </span>{" "}
+            to{" "}
+            <span className="font-medium text-[#A8B4CC]">
+              {Math.min(page * pageSize, totalCount)}
+            </span>{" "}
+            of <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
           </span>
 
           <div className="inline-flex items-center gap-1" aria-label="Pagination">
-            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#5A6A85]"
+            >
               ‹
             </button>
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                aria-current={n === 1 ? "page" : undefined}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
-                  n === 1
-                    ? "border border-[#6C3AED] bg-[#6C3AED] text-white"
-                    : "border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
-                )}
-              >
-                {n}
-              </button>
-            ))}
-            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
+            {paginationRange(page, totalPages).map((n, i) =>
+              n === "…" ? (
+                <span key={`ellipsis-${i}`} className="px-2 text-sm text-[#5A6A85]">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  aria-current={n === page ? "page" : undefined}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
+                    n === page
+                      ? "border border-[#6C3AED] bg-[#6C3AED] text-white"
+                      : "border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
+                  )}
+                >
+                  {n}
+                </button>
+              ),
+            )}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#5A6A85]"
+            >
               ›
             </button>
 
-            <PageSizeSelect value={pageSize} onChange={setPageSize} />
+            <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
           </div>
         </div>
       </div>
 
       <AddTransactionModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSuccess={refetch}
+        onClose={() => {
+          setModalOpen(false);
+          setDuplicateSeed(null);
+        }}
+        onSuccess={refetchAll}
         budgetId={activeBudgetId}
         accounts={accounts}
         envelopes={envelopes}
+        defaultType={duplicateSeed?.type}
+        defaultAccountId={duplicateSeed?.accountId}
+        defaultEnvelopeId={duplicateSeed?.envelopeId}
+        defaultTransferAccountId={duplicateSeed?.transferAccountId}
+        defaultAmount={duplicateSeed ? Math.abs(duplicateSeed.amount) : undefined}
+        defaultMemo={duplicateSeed?.memo}
       />
       <TransactionDetailsModal
         tx={detailTx}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        isLocked={Boolean(detailTx && accountMap.get(detailTx.accountId)?.is_immutable)}
+        envelope={detailTx?.envelopeId != null ? envelopeMap.get(detailTx.envelopeId) : undefined}
         onDelete={() => {
           if (!detailTx) return;
-          const acc = accountMap.get(detailTx.accountId);
-          if (acc?.is_immutable) return;
+          if (accountMap.get(detailTx.accountId)?.is_immutable) return;
           openDeleteModal(detailTx);
         }}
         onEdit={() => {
           if (!detailTx) return;
-          const acc = accountMap.get(detailTx.accountId);
-          if (acc?.is_immutable) return;
+          if (accountMap.get(detailTx.accountId)?.is_immutable) return;
           setEditTx(detailTx);
           setEditOpen(true);
           setDetailOpen(false);
+        }}
+        onMarkReconciled={markDetailTxReconciled}
+        onDuplicate={() => {
+          if (!detailTx) return;
+          duplicateTx(detailTx);
         }}
       />
       <EditTransactionModal
@@ -1246,7 +1459,7 @@ export function TransactionsView() {
           setEditOpen(false);
           setTimeout(() => setEditTx(null), 200);
         }}
-        onSave={() => refetch()}
+        onSave={() => refetchAll()}
         budgetId={activeBudgetId}
         accounts={accounts}
         envelopes={envelopes}
@@ -1257,6 +1470,7 @@ export function TransactionsView() {
         onClose={closeDeleteModal}
         onConfirm={confirmDelete}
         loading={deleteLoading}
+        error={deleteError}
       />
     </div>
   );

@@ -284,6 +284,24 @@ func (q *Queries) IsAccountArchived(ctx context.Context, arg IsAccountArchivedPa
 	return archived, err
 }
 
+const isAccountImmutable = `-- name: IsAccountImmutable :one
+SELECT is_immutable
+FROM accounts
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+`
+
+type IsAccountImmutableParams struct {
+	ID       int64
+	BudgetID int64
+}
+
+func (q *Queries) IsAccountImmutable(ctx context.Context, arg IsAccountImmutableParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isAccountImmutable, arg.ID, arg.BudgetID)
+	var is_immutable bool
+	err := row.Scan(&is_immutable)
+	return is_immutable, err
+}
+
 const listAccountsByBudget = `-- name: ListAccountsByBudget :many
 SELECT id, budget_id, name, type, requires_recon, is_on_budget, is_immutable, notes, account_number, institution, last_reconciled_at, archived_at, created_at, updated_at, deleted_at
 FROM accounts

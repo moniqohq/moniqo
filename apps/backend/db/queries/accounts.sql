@@ -67,6 +67,11 @@ SELECT (archived_at IS NOT NULL)::bool AS archived
 FROM accounts
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
+-- name: IsAccountImmutable :one
+SELECT is_immutable
+FROM accounts
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+
 -- name: SoftDeleteAccount :exec
 UPDATE accounts
 SET deleted_at = now()

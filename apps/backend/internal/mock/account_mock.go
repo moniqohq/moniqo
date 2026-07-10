@@ -235,6 +235,12 @@ func (m *AccountRepository) IsArchived(_ context.Context, id, budgetID int64) (b
 	return args.Bool(0), args.Error(1)
 }
 
+// IsImmutable records the call and returns the configured stub values.
+func (m *AccountRepository) IsImmutable(_ context.Context, id, budgetID int64) (bool, error) {
+	args := m.Called(id, budgetID)
+	return args.Bool(0), args.Error(1)
+}
+
 // CreateOpeningTransaction records the call and returns the configured stub error.
 func (m *AccountRepository) CreateOpeningTransaction(_ context.Context, budgetID, accountID int64, amount money.Amount) error {
 	args := m.Called(budgetID, accountID, amount)

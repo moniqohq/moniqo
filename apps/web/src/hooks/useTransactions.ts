@@ -18,8 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { apiFetch } from "@/lib/api";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { apiFetchPaginated } from "@/lib/api";
 import { adaptTransaction } from "@/lib/transaction-adapter";
 import type { ApiTransaction, ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import type { Transaction } from "@/types";
@@ -47,7 +47,7 @@ export function useTransactions(
   envelopes: Map<number, ApiEnvelope>,
   filters?: Filters,
 ): UseTransactionsResult {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [rawTransactions, setRawTransactions] = useState<ApiTransaction[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function useTransactions(
     if (filters?.envelopeId != null) params.set("budget_envelope_id", String(filters.envelopeId));
     if (filters?.dateFrom) params.set("date_from", filters.dateFrom);
     if (filters?.dateTo) params.set("date_to", filters.dateTo);
-    if (filters?.page != null) params.set("page", String(filters.page));
+    params.set("page", String(filters?.page ?? 1));
     if (filters?.pageSize != null) params.set("page_size", String(filters.pageSize));
 
     const query = params.toString();
@@ -75,10 +75,10 @@ export function useTransactions(
       setLoading(true);
       setError(null);
       try {
-        const data = await apiFetch<ApiTransaction[]>(url);
+        const { data, meta } = await apiFetchPaginated<ApiTransaction>(url);
         if (cancelled) return;
-        setTransactions((data ?? []).map((raw) => adaptTransaction(raw, accounts, envelopes)));
-        setTotal(data?.length ?? 0);
+        setRawTransactions(data ?? []);
+        setTotal(meta?.total ?? data?.length ?? 0);
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -92,7 +92,6 @@ export function useTransactions(
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     budgetId,
     tick,
@@ -103,6 +102,11 @@ export function useTransactions(
     filters?.page,
     filters?.pageSize,
   ]);
+
+  const transactions = useMemo(
+    () => rawTransactions.map((raw) => adaptTransaction(raw, accounts, envelopes)),
+    [rawTransactions, accounts, envelopes],
+  );
 
   return { transactions, total, loading, error, refetch };
 }

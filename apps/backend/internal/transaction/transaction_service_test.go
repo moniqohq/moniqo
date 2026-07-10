@@ -367,6 +367,43 @@ func TestSvc_Delete(t *testing.T) {
 		err := svc.Delete(context.Background(), testTransactionID, testBudgetID, models.RoleEditor)
 		require.NoError(t, err)
 	})
+
+	t.Run("locked account returns ErrAccountLocked and does not delete", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-100000), nil)
+
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsImmutable", testAccountID, testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		err := svc.Delete(context.Background(), testTransactionID, testBudgetID, models.RoleOwner)
+
+		assert.ErrorIs(t, err, transaction.ErrAccountLocked)
+		repo.AssertNotCalled(t, "SoftDelete")
+		repo.AssertNotCalled(t, "SoftDeleteByGroupID")
+	})
+
+	t.Run("locked account guard also blocks transfer leg deletion", func(t *testing.T) {
+		t.Parallel()
+		groupID := "test-group-id"
+		txnWithGroup := makeTxn(-500000)
+		txnWithGroup.TransferGroupID = &groupID
+
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(txnWithGroup, nil)
+
+		checker := &internalmock.AccountChecker{}
+		checker.On("IsImmutable", testAccountID, testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetAccountChecker(checker)
+		err := svc.Delete(context.Background(), testTransactionID, testBudgetID, models.RoleOwner)
+
+		assert.ErrorIs(t, err, transaction.ErrAccountLocked)
+		repo.AssertNotCalled(t, "SoftDeleteByGroupID")
+	})
 }
 
 // ---------------------------------------------------------------------------

@@ -54,6 +54,7 @@ type Repository interface {
 	Archive(ctx context.Context, id, budgetID int64) (models.Account, error)
 	Unarchive(ctx context.Context, id, budgetID int64) (models.Account, error)
 	IsArchived(ctx context.Context, id, budgetID int64) (bool, error)
+	IsImmutable(ctx context.Context, id, budgetID int64) (bool, error)
 	CreateOpeningTransaction(ctx context.Context, budgetID, accountID int64, amount money.Amount) error
 	BalanceHistory(ctx context.Context, budgetID int64, months int) ([]db.GetAccountTypeBalanceHistoryRow, error)
 }
@@ -621,6 +622,28 @@ func (r *Repo) IsArchived(ctx context.Context, id, budgetID int64) (bool, error)
 		return false, fmt.Errorf("is account archived: %w", err)
 	}
 	return archived, nil
+}
+
+// IsImmutable reports whether the account currently has transaction locking enabled.
+// Returns ErrNotFound if the account does not exist or is soft-deleted.
+func (r *Repo) IsImmutable(ctx context.Context, id, budgetID int64) (bool, error) {
+	q := db.New(r.pool)
+	immutable, err := q.IsAccountImmutable(ctx, db.IsAccountImmutableParams{
+		ID:       id,
+		BudgetID: budgetID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrNotFound
+		}
+		r.log.Error("IsAccountImmutable query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return false, fmt.Errorf("is account immutable: %w", err)
+	}
+	return immutable, nil
 }
 
 // CreateOpeningTransaction inserts the initial balance transaction for a newly

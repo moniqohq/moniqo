@@ -54,6 +54,7 @@ const (
 	fieldAccountID     = "account_id"
 	errInvalidStatus   = "must be one of uncleared, cleared, reconciled"
 	errAccountArchived = "account is archived and cannot accept new transactions"
+	errAccountLocked   = "account has transaction locking enabled; unlock the account to delete this transaction"
 
 	defaultPageSize = 20
 )
@@ -424,16 +425,23 @@ func (h *Handler) DeleteTransaction(c echo.Context) error {
 	}
 
 	if err := h.svc.Delete(c.Request().Context(), id, budgetID, membership.Role); err != nil {
-		if errors.Is(err, ErrForbidden) {
-			return httpx.Forbidden(c, "insufficient role")
-		}
-		h.log.Error("Delete transaction failed",
-			zap.Int64("transaction_id", id),
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return httpx.InternalError(c)
+		return h.handleDeleteTransactionError(c, err, id, budgetID)
 	}
 
 	return httpx.OK(c, nil, "transaction deleted successfully")
+}
+
+func (h *Handler) handleDeleteTransactionError(c echo.Context, err error, id, budgetID int64) error {
+	if errors.Is(err, ErrForbidden) {
+		return httpx.Forbidden(c, "insufficient role")
+	}
+	if errors.Is(err, ErrAccountLocked) {
+		return httpx.Conflict(c, errAccountLocked)
+	}
+	h.log.Error("Delete transaction failed",
+		zap.Int64("transaction_id", id),
+		zap.Int64("budget_id", budgetID),
+		zap.Error(err),
+	)
+	return httpx.InternalError(c)
 }

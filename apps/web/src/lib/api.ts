@@ -19,7 +19,7 @@
  */
 
 import { useAuthStore } from "@/stores/auth.store";
-import type { ApiResponse } from "./api-types";
+import type { ApiListResponse, ApiResponse } from "./api-types";
 
 export class ApiError extends Error {
   constructor(
@@ -54,4 +54,32 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
 
   return body.data;
+}
+
+export async function apiFetchPaginated<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<{ data: T[]; meta?: { page: number; page_size: number; total: number } }> {
+  const token = useAuthStore.getState().accessToken;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(path, { ...init, headers });
+  const body: ApiListResponse<T> = await res.json();
+
+  if (!res.ok) {
+    const fields = (
+      body as unknown as { data?: { fields?: Array<{ field: string; message: string }> } }
+    ).data?.fields;
+    throw new ApiError(res.status, body.msg, fields);
+  }
+
+  return { data: body.data, meta: body.meta };
 }

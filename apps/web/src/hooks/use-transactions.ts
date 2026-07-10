@@ -47,6 +47,7 @@ export function apiTransactionToUI(
     amount: Math.abs(t.amount),
     type,
     date: t.date,
+    createdAt: t.created_at,
     memo: t.memo ?? undefined,
     status: t.status,
     cleared: t.status === "cleared" || t.status === "reconciled",
