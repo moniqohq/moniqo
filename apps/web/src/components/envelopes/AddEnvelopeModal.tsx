@@ -166,6 +166,17 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
     };
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (open) {
+      setTitle("");
+      setAmount("");
+      setNature("");
+      setDescription("");
+      setError(null);
+      setLoading(false);
+    }
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
