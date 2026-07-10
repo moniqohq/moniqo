@@ -784,6 +784,7 @@ export function TransactionsView() {
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
   const [accountFilter, setAccountFilter] = useState<Set<number>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<TxTypeId>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const now = new Date();
     return {
@@ -807,11 +808,23 @@ export function TransactionsView() {
     dateTo: dateRange.to?.toISOString(),
     pageSize,
   });
-  const filteredTransactions = useMemo(
-    () =>
-      typeFilter.size === 0 ? transactions : transactions.filter((t) => typeFilter.has(t.type)),
-    [transactions, typeFilter],
-  );
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
+    if (typeFilter.size > 0) {
+      result = result.filter((t) => typeFilter.has(t.type));
+    }
+    const query = searchQuery.trim().toLowerCase();
+    if (query) {
+      result = result.filter(
+        (t) =>
+          t.payee?.toLowerCase().includes(query) ||
+          t.memo?.toLowerCase().includes(query) ||
+          t.accountName?.toLowerCase().includes(query) ||
+          t.envelopeName?.toLowerCase().includes(query),
+      );
+    }
+    return result;
+  }, [transactions, typeFilter, searchQuery]);
 
   // Running balance is only well-defined within a single account's chronological
   // history, so it's only computed when the view is scoped to exactly one account.
@@ -925,6 +938,8 @@ export function TransactionsView() {
             <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]" />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search transactions…"
               className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
