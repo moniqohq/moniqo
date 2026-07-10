@@ -37,6 +37,7 @@ export function apiEnvelopeToUI(e: ApiEnvelope): BudgetEnvelope {
     available,
     isOverspent: e.is_overspent,
     isArchived: e.is_archived,
+    createdAt: e.created_at,
   };
 }
 

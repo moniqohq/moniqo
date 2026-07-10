@@ -36,7 +36,6 @@ import {
   Filter,
   ArrowUpDown,
   Download,
-  Shield,
   Info,
   Wallet,
   TrendingUp,
@@ -44,8 +43,6 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  Star,
-  Heart,
   Hash,
   ArrowDownRight,
   Landmark,
@@ -61,55 +58,36 @@ import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { ForceDeleteEnvelopeDialog } from "./ForceDeleteEnvelopeDialog";
 
 /* ── Types ───────────────────────────────────────────────── */
-type Nature = "Must" | "Need" | "Should" | "Want";
 type TxStatus = "Cleared" | "Pending" | "Reconciled";
+type TxType = "Expense" | "Income" | "Transfer";
 
 interface EnvelopeTx {
   id: string;
+  sortKey: number;
   date: string;
   title: string;
   account: string;
   accountType: "bank" | "wallet";
   amount: number;
+  type: TxType;
   runningImpact: number;
   status: TxStatus;
 }
 
-/* ── Nature badge ────────────────────────────────────────── */
-function NatureBadge({ nature }: { nature: Nature }) {
-  const cfg: Record<Nature, { icon: React.ReactNode; bg: string; text: string; border: string }> = {
-    Must: {
-      icon: <Shield size={10} strokeWidth={2.5} />,
-      bg: "rgba(108,58,237,0.15)",
-      text: "#A78BFA",
-      border: "rgba(108,58,237,0.3)",
-    },
-    Need: {
-      icon: <Shield size={10} strokeWidth={2.5} />,
-      bg: "rgba(34,197,94,0.12)",
-      text: "#4ADE80",
-      border: "rgba(34,197,94,0.25)",
-    },
-    Should: {
-      icon: <Star size={10} strokeWidth={2.5} />,
-      bg: "rgba(245,158,11,0.12)",
-      text: "#FCD34D",
-      border: "rgba(245,158,11,0.25)",
-    },
-    Want: {
-      icon: <Heart size={10} strokeWidth={2.5} />,
-      bg: "rgba(236,72,153,0.12)",
-      text: "#F472B6",
-      border: "rgba(236,72,153,0.25)",
-    },
+/* ── TX type badge ───────────────────────────────────────── */
+function TxTypeBadge({ type }: { type: TxType }) {
+  const cfg: Record<TxType, { bg: string; text: string; border: string }> = {
+    Expense: { bg: "rgba(239,68,68,0.12)", text: "#F87171", border: "rgba(239,68,68,0.2)" },
+    Income: { bg: "rgba(34,197,94,0.12)", text: "#4ADE80", border: "rgba(34,197,94,0.2)" },
+    Transfer: { bg: "rgba(59,130,246,0.12)", text: "#60A5FA", border: "rgba(59,130,246,0.2)" },
   };
-  const c = cfg[nature];
+  const c = cfg[type];
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
-      style={{ backgroundColor: c.bg, color: c.text, borderColor: c.border }}
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+      style={{ backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}` }}
     >
-      {c.icon} {nature}
+      {type}
     </span>
   );
 }
@@ -359,7 +337,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   const envelopeIdNum = Number(envelopeId);
   const envelope = apiEnvelopes.find((e) => e.id === envelopeIdNum);
 
-  const { data: apiTransactions } = useTransactions(
+  const { data: apiTransactions, isLoading: txLoading } = useTransactions(
     activeBudgetId,
     { budget_envelope_id: envelopeIdNum },
     accountMap,
@@ -379,11 +357,36 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   const spent = envelope?.spent ?? 0;
   const remaining = allocated - spent;
   const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
-  const nature: Nature = "Need";
+
+  const typeLabel: Record<string, TxType> = {
+    expense: "Expense",
+    income: "Income",
+    transfer: "Transfer",
+  };
+  const statusLabel: Record<string, TxStatus> = {
+    cleared: "Cleared",
+    uncleared: "Pending",
+    reconciled: "Reconciled",
+  };
+
+  /* Running impact: cumulative signed effect of transactions on the envelope, in chronological order */
+  const runningImpactById = useMemo(() => {
+    const chronological = [...apiTransactions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+    let running = 0;
+    const map = new Map<number, number>();
+    for (const t of chronological) {
+      running += t.type === "expense" ? -t.amount : t.amount;
+      map.set(t.id, running);
+    }
+    return map;
+  }, [apiTransactions]);
 
   /* Map API transactions to local type */
   const txRows: EnvelopeTx[] = apiTransactions.map((t) => ({
     id: String(t.id),
+    sortKey: new Date(t.date).getTime(),
     date: new Date(t.date).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -393,8 +396,9 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
     account: t.accountName,
     accountType: "bank" as const,
     amount: t.type === "expense" ? -t.amount : t.amount,
-    runningImpact: 0,
-    status: "Cleared" as const,
+    type: typeLabel[t.type] ?? "Expense",
+    runningImpact: runningImpactById.get(t.id) ?? 0,
+    status: statusLabel[t.status ?? "cleared"] ?? "Cleared",
   }));
 
   /* Filter + sort transactions */
@@ -406,14 +410,53 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         tx.account.toLowerCase().includes(search.toLowerCase()),
     )
     .sort((a, b) => {
-      if (sort === "Largest Amount") return a.amount - b.amount;
-      if (sort === "Smallest Amount") return b.amount - a.amount;
-      if (sort === "Oldest") return a.id.localeCompare(b.id);
-      return b.id.localeCompare(a.id);
+      if (sort === "Largest Amount") return Math.abs(b.amount) - Math.abs(a.amount);
+      if (sort === "Smallest Amount") return Math.abs(a.amount) - Math.abs(b.amount);
+      if (sort === "Oldest") return a.sortKey - b.sortKey;
+      return b.sortKey - a.sortKey;
     });
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  /* Analytics derived from real transactions */
+  const now = new Date();
+  const monthlyCount = apiTransactions.filter((t) => {
+    const d = new Date(t.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+
+  const expenseTxs = apiTransactions.filter((t) => t.type === "expense");
+  const avgSpending = expenseTxs.length > 0 ? Math.round(spent / expenseTxs.length) : 0;
+
+  const largestTx = expenseTxs.reduce<(typeof expenseTxs)[number] | null>((max, t) => {
+    if (!max || t.amount > max.amount) return t;
+    return max;
+  }, null);
+
+  const accountCounts = new Map<string, number>();
+  for (const t of apiTransactions) {
+    accountCounts.set(t.accountName, (accountCounts.get(t.accountName) ?? 0) + 1);
+  }
+  let topAccount: { name: string; count: number } | null = null;
+  for (const [name, count] of accountCounts) {
+    if (!topAccount || count > topAccount.count) topAccount = { name, count };
+  }
+
+  let spendingFrequency = 0;
+  if (apiTransactions.length > 1) {
+    const times = apiTransactions.map((t) => new Date(t.date).getTime());
+    const spanWeeks = Math.max((Math.max(...times) - Math.min(...times)) / (7 * 86400 * 1000), 1);
+    spendingFrequency = apiTransactions.length / spanWeeks;
+  }
+
+  const createdAtLabel = envelope
+    ? new Date(envelope.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <div className="min-w-0 space-y-4">
@@ -435,17 +478,14 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           </div>
           <div>
             <h1 className="text-[26px] leading-tight font-bold tracking-tight text-white">
-              Groceries
+              {envelope?.name ?? "Envelope"}
             </h1>
             <p className="mt-0.5 text-[13px] text-[#5A6A85]">
               Track allocation, spending, and activity
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <NatureBadge nature={nature} />
               <HealthBadge pct={pct} />
-              <span className="text-[12px] text-[#3A4A60]">
-                Last updated: May 15, 2026 at 10:30 AM
-              </span>
+              <span className="text-[12px] text-[#3A4A60]">Created: {createdAtLabel}</span>
             </div>
           </div>
         </div>
@@ -533,7 +573,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           iconColor="#4ADE80"
           label="Remaining Balance"
           value={formatCurrency(remaining)}
-          sub="35% remaining"
+          sub={`${Math.max(100 - pct, 0)}% remaining`}
           subColor="#4ADE80"
           barColor="#22C55E"
           barPct={100 - pct}
@@ -543,17 +583,17 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           iconBg="rgba(245,158,11,0.18)"
           iconColor="#FCD34D"
           label="Monthly Activity"
-          value="12"
+          value={String(monthlyCount)}
           sub="Transactions this month"
           barColor="#F59E0B"
-          barPct={60}
+          barPct={Math.min((monthlyCount / Math.max(apiTransactions.length, 1)) * 100, 100)}
         />
         <KpiCard
           icon={<BarChart3 size={18} />}
           iconBg="rgba(139,92,246,0.18)"
           iconColor="#C084FC"
           label="Average Spending"
-          value={formatCurrency(Math.round(spent / 12))}
+          value={formatCurrency(avgSpending)}
           sub="Per transaction"
           barColor="#8B5CF6"
           barPct={45}
@@ -585,23 +625,25 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
                 <ShoppingCart size={32} />
               </div>
               <div>
-                <h2 className="text-[20px] leading-tight font-bold text-white">Groceries</h2>
+                <h2 className="text-[20px] leading-tight font-bold text-white">
+                  {envelope?.name ?? "Envelope"}
+                </h2>
                 <p className="mt-1 text-[13px] leading-relaxed text-[#7A8BA8]">
-                  Food and groceries for the household.
+                  {envelope?.description || "No description provided."}
                 </p>
                 <div className="mt-2">
-                  <NatureBadge nature={nature} />
+                  <HealthBadge pct={pct} />
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 border-t border-[#1A2540] pt-4">
               <div>
                 <p className="mb-1 text-[11px] text-[#5A6A85]">Created</p>
-                <p className="text-sm font-semibold text-[#C8D4E8]">Jan 12, 2026</p>
+                <p className="text-sm font-semibold text-[#C8D4E8]">{createdAtLabel}</p>
               </div>
               <div>
-                <p className="mb-1 text-[11px] text-[#5A6A85]">Last Modified</p>
-                <p className="text-sm font-semibold text-[#C8D4E8]">May 15, 2026</p>
+                <p className="mb-1 text-[11px] text-[#5A6A85]">Total Transactions</p>
+                <p className="text-sm font-semibold text-[#C8D4E8]">{apiTransactions.length}</p>
               </div>
             </div>
           </div>
@@ -678,7 +720,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           iconBg="rgba(108,58,237,0.18)"
           iconColor="#A78BFA"
           label="Total Transactions"
-          value="12"
+          value={String(apiTransactions.length)}
           sub="This envelope"
         />
         <AnalyticsCard
@@ -686,16 +728,22 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           iconBg="rgba(34,197,94,0.18)"
           iconColor="#4ADE80"
           label="Largest Transaction"
-          value={formatCurrency(1450)}
-          sub="Big Basket (May 12)"
+          value={largestTx ? formatCurrency(largestTx.amount) : "—"}
+          sub={
+            largestTx
+              ? `${largestTx.payee || largestTx.accountName} (${new Date(
+                  largestTx.date,
+                ).toLocaleDateString("en-US", { month: "short", day: "numeric" })})`
+              : "No expenses yet"
+          }
         />
         <AnalyticsCard
           icon={<Landmark size={16} />}
           iconBg="rgba(59,130,246,0.18)"
           iconColor="#60A5FA"
           label="Top Account"
-          value="HDFC Checking"
-          sub="8 transactions"
+          value={topAccount?.name ?? "—"}
+          sub={topAccount ? `${topAccount.count} transactions` : "No transactions yet"}
           valueColor="#E8EEF8"
         />
         <AnalyticsCard
@@ -703,7 +751,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           iconBg="rgba(239,68,68,0.18)"
           iconColor="#F87171"
           label="Spending Frequency"
-          value="2.4 / week"
+          value={spendingFrequency > 0 ? `${spendingFrequency.toFixed(1)} / week` : "—"}
           sub="On average"
         />
         <AnalyticsCard
@@ -711,7 +759,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
           iconBg="rgba(139,92,246,0.18)"
           iconColor="#C084FC"
           label="Average Transaction"
-          value={formatCurrency(Math.round(spent / 12))}
+          value={formatCurrency(avgSpending)}
           sub="Per transaction"
         />
       </div>
@@ -799,7 +847,13 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
               </tr>
             </thead>
             <tbody className="divide-y divide-[#0D1525]">
-              {paged.length === 0 ? (
+              {txLoading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-[#3A4A60]">
+                    Loading transactions...
+                  </td>
+                </tr>
+              ) : paged.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-sm text-[#3A4A60]">
                     No transactions found
@@ -844,33 +898,24 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
 
                     {/* Type */}
                     <td className="px-4 py-3.5">
-                      <span
-                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                        style={{
-                          backgroundColor: "rgba(239,68,68,0.12)",
-                          color: "#F87171",
-                          border: "1px solid rgba(239,68,68,0.2)",
-                        }}
-                      >
-                        Expense
-                      </span>
+                      <TxTypeBadge type={tx.type} />
                     </td>
 
                     {/* Amount */}
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-bold text-[#F87171] tabular-nums">
+                      <span
+                        className={cn(
+                          "font-bold tabular-nums",
+                          tx.amount < 0 ? "text-[#F87171]" : "text-[#4ADE80]",
+                        )}
+                      >
                         {formatCurrency(tx.amount)}
                       </span>
                     </td>
 
                     {/* Running impact */}
                     <td className="px-4 py-3.5 text-right">
-                      <span
-                        className={cn(
-                          "font-medium tabular-nums",
-                          tx.runningImpact >= 0 ? "text-[#8A9AB5]" : "text-[#8A9AB5]",
-                        )}
-                      >
+                      <span className="font-medium tabular-nums text-[#8A9AB5]">
                         {formatCurrency(tx.runningImpact)}
                       </span>
                     </td>
