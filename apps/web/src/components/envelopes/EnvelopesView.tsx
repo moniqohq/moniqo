@@ -497,23 +497,40 @@ function HealthRadial({ score }: { score: number }) {
   );
 }
 
-/* ── Allocation donut (static placeholder) ──────────────── */
-const ALLOCATION_SLICES = [
-  { name: "Essentials", value: 40, color: "#6C3AED" },
-  { name: "Lifestyle", value: 25, color: "#22C55E" },
-  { name: "Savings", value: 20, color: "#3B82F6" },
-  { name: "Debt", value: 12, color: "#EF4444" },
-  { name: "Investments", value: 3, color: "#F59E0B" },
-];
+/* ── Allocation donut ───────────────────────────────────── */
+const ALLOCATION_COLORS = ["#6C3AED", "#22C55E", "#3B82F6", "#EF4444", "#F59E0B", "#5A6A85"];
+const ALLOCATION_MAX_SLICES = 5;
 
-function AllocationDonut() {
+function AllocationDonut({ envelopes }: { envelopes: EnvelopeRow[] }) {
+  const totalAllocated = envelopes.reduce((sum, e) => sum + e.allocated, 0);
+
+  const sorted = [...envelopes]
+    .filter((e) => e.allocated > 0)
+    .sort((a, b) => b.allocated - a.allocated);
+  const top = sorted.slice(0, ALLOCATION_MAX_SLICES);
+  const rest = sorted.slice(ALLOCATION_MAX_SLICES);
+  const restTotal = rest.reduce((sum, e) => sum + e.allocated, 0);
+
+  const slices = [
+    ...top.map((e) => ({ name: e.name, allocated: e.allocated })),
+    ...(restTotal > 0 ? [{ name: "Other", allocated: restTotal }] : []),
+  ].map((s, i) => ({
+    ...s,
+    value: totalAllocated > 0 ? Math.round((s.allocated / totalAllocated) * 100) : 0,
+    color: ALLOCATION_COLORS[i % ALLOCATION_COLORS.length],
+  }));
+
+  if (slices.length === 0) {
+    return <p className="text-xs text-[#5A6A85]">No allocations yet.</p>;
+  }
+
   return (
     <div className="flex items-center gap-3">
       <div className="h-[90px] w-[90px] flex-shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={ALLOCATION_SLICES}
+              data={slices}
               cx="50%"
               cy="50%"
               innerRadius={28}
@@ -521,7 +538,7 @@ function AllocationDonut() {
               dataKey="value"
               strokeWidth={0}
             >
-              {ALLOCATION_SLICES.map((s, i) => (
+              {slices.map((s, i) => (
                 <Cell key={i} fill={s.color} />
               ))}
             </Pie>
@@ -540,7 +557,7 @@ function AllocationDonut() {
         </ResponsiveContainer>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        {ALLOCATION_SLICES.map((s) => (
+        {slices.map((s) => (
           <div key={s.name} className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               <div
@@ -1172,7 +1189,7 @@ export function EnvelopesView() {
 
           {/* Allocation Breakdown */}
           <SideCard title="Allocation Breakdown">
-            <AllocationDonut />
+            <AllocationDonut envelopes={envelopes} />
           </SideCard>
 
           {/* Monthly Progress */}
