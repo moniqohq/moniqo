@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -28,14 +28,11 @@ import {
   AlertTriangle,
   Wallet,
   ArrowRight,
-  ArrowLeftRight,
   Clock,
   BarChart2,
   Eye,
   Lock,
   Info,
-  ChevronDown,
-  Search,
   ShieldCheck,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -53,128 +50,14 @@ export interface ArchiveEnvelopeModalProps {
   onDeleted: () => void;
 }
 
-type ReassignOption = "budgeted" | "envelope";
-
-/* ── Envelope search dropdown ─────────────────────────────── */
-function EnvelopeSearchSelect({
-  value,
-  onChange,
-  disabled,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled: boolean;
-  options: string[];
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function h(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  const filtered = options.filter((e) => !query || e.toLowerCase().includes(query.toLowerCase()));
-
-  return (
-    <div ref={ref} className="relative mt-3">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          if (!disabled) setOpen((o) => !o);
-        }}
-        className={cn(
-          "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all",
-          disabled
-            ? "cursor-not-allowed border-[#111B2D] bg-[#080E1A] text-[#2A3A54]"
-            : open
-              ? "border-[#6C3AED]/50 bg-[#0D1525] text-white ring-2 ring-[#6C3AED]/20"
-              : "border-[#1A2540] bg-[#0D1525] text-[#7A8BA8] hover:border-[#2A3A54]",
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <Search size={13} className="flex-shrink-0 text-[#3A4A60]" />
-          <span className={value ? "text-white" : ""}>{value || "Search active envelopes..."}</span>
-        </div>
-        <ChevronDown
-          size={15}
-          className={cn("text-[#5A6A85] transition-transform duration-150", open && "rotate-180")}
-        />
-      </button>
-
-      <AnimatePresence>
-        {open && !disabled && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.12 }}
-            className="absolute top-full right-0 left-0 z-50 mt-1 overflow-hidden rounded-xl border border-[#1A2540] bg-[#0D1B2E] shadow-xl"
-          >
-            <div className="border-b border-[#111B2D] p-2">
-              <div className="relative">
-                <Search
-                  size={12}
-                  className="absolute top-1/2 left-3 -translate-y-1/2 text-[#3A4A60]"
-                />
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full rounded-lg border border-[#1A2540] bg-[#060C18] py-2 pr-3 pl-8 text-xs text-white placeholder:text-[#2A3A54] focus:outline-none"
-                />
-              </div>
-            </div>
-            <div className="max-h-40 overflow-y-auto py-1">
-              {filtered.length === 0 ? (
-                <p className="px-3 py-3 text-center text-xs text-[#3A4A60]">No envelopes found</p>
-              ) : (
-                filtered.map((env) => (
-                  <button
-                    key={env}
-                    type="button"
-                    onClick={() => {
-                      onChange(env);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                    className={cn(
-                      "w-full px-4 py-2.5 text-left text-sm transition-colors",
-                      env === value
-                        ? "bg-[#6C3AED]/20 text-white"
-                        : "text-[#A8B4CC] hover:bg-[#131C2E] hover:text-white",
-                    )}
-                  >
-                    {env}
-                  </button>
-                ))
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 /* ── Main modal ───────────────────────────────────────────── */
 export function ArchiveEnvelopeModal({
   open,
   onClose,
   envelope,
   budgetId,
-  envelopes,
   onDeleted,
 }: ArchiveEnvelopeModalProps) {
-  const [option, setOption] = useState<ReassignOption>("budgeted");
-  const [targetEnv, setTargetEnv] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -195,8 +78,6 @@ export function ArchiveEnvelopeModal({
   const remaining = envelope.allocated - envelope.spent;
   const allocated = envelope.allocated;
   const spent = envelope.spent;
-  const otherEnvelopeTitles = envelopes.filter((e) => e.id !== envelope.id).map((e) => e.name);
-  const toLabel = option === "budgeted" ? "To Be Budgeted" : targetEnv || "—";
 
   const handleDelete = async () => {
     setLoading(true);
@@ -419,128 +300,30 @@ export function ArchiveEnvelopeModal({
                   </div>
                 </div>
 
-                {/* ── Reassignment options ──────────────────── */}
-                <div className="space-y-2.5">
-                  {/* Option 1 — To Be Budgeted */}
-                  <button
-                    type="button"
-                    onClick={() => setOption("budgeted")}
-                    className="w-full rounded-2xl p-4 text-left transition-all"
-                    style={
-                      option === "budgeted"
-                        ? {
-                            background: "rgba(108,58,237,0.08)",
-                            border: "1px solid rgba(108,58,237,0.5)",
-                            boxShadow: "0 0 24px rgba(108,58,237,0.12)",
-                          }
-                        : {
-                            background: "#0B1120",
-                            border: "1px solid #1A2540",
-                          }
-                    }
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Radio */}
-                      <div
-                        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all"
-                        style={
-                          option === "budgeted"
-                            ? { borderColor: "#7C4AFF", background: "#7C4AFF" }
-                            : { borderColor: "#2A3A54", background: "transparent" }
-                        }
-                      >
-                        {option === "budgeted" && <div className="h-2 w-2 rounded-full bg-white" />}
-                      </div>
-
-                      {/* Icon */}
-                      <div
-                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
-                        style={{ background: "rgba(108,58,237,0.15)", color: "#A78BFA" }}
-                      >
-                        <Wallet size={18} />
-                      </div>
-
-                      {/* Text */}
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-0.5 flex flex-wrap items-center gap-2.5">
-                          <span className="text-sm font-semibold text-white">
-                            Move funds to &ldquo;To Be Budgeted&rdquo;
-                          </span>
-                          <span
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
-                            style={{
-                              background: "rgba(34,197,94,0.15)",
-                              color: "#4ADE80",
-                              border: "1px solid rgba(34,197,94,0.25)",
-                            }}
-                          >
-                            Recommended
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#5A6A85]">
-                          Funds will be returned to your available budget.
-                        </p>
-                      </div>
+                {/* ── Reassignment destination ─────────────────── */}
+                <div
+                  className="rounded-2xl p-4"
+                  style={{
+                    background: "rgba(108,58,237,0.08)",
+                    border: "1px solid rgba(108,58,237,0.5)",
+                    boxShadow: "0 0 24px rgba(108,58,237,0.12)",
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+                      style={{ background: "rgba(108,58,237,0.15)", color: "#A78BFA" }}
+                    >
+                      <Wallet size={18} />
                     </div>
-                  </button>
-
-                  {/* Option 2 — Another envelope */}
-                  <div
-                    className="cursor-pointer rounded-2xl p-4 transition-all"
-                    style={
-                      option === "envelope"
-                        ? {
-                            background: "rgba(108,58,237,0.08)",
-                            border: "1px solid rgba(108,58,237,0.5)",
-                            boxShadow: "0 0 24px rgba(108,58,237,0.12)",
-                          }
-                        : {
-                            background: "#0B1120",
-                            border: "1px solid #1A2540",
-                          }
-                    }
-                    onClick={() => setOption("envelope")}
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Radio */}
-                      <div
-                        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all"
-                        style={
-                          option === "envelope"
-                            ? { borderColor: "#7C4AFF", background: "#7C4AFF" }
-                            : { borderColor: "#2A3A54", background: "transparent" }
-                        }
-                      >
-                        {option === "envelope" && <div className="h-2 w-2 rounded-full bg-white" />}
-                      </div>
-
-                      {/* Icon */}
-                      <div
-                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
-                        style={{ background: "rgba(59,130,246,0.12)", color: "#60A5FA" }}
-                      >
-                        <ArrowLeftRight size={18} />
-                      </div>
-
-                      {/* Text */}
-                      <div className="min-w-0 flex-1">
-                        <p className="mb-0.5 text-sm font-semibold text-white">
-                          Move funds to another envelope
-                        </p>
-                        <p className="text-xs text-[#5A6A85]">
-                          Select an active envelope to receive the remaining funds.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Dropdown — only visible, but interaction works regardless */}
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <EnvelopeSearchSelect
-                        value={targetEnv}
-                        onChange={setTargetEnv}
-                        disabled={option !== "envelope"}
-                        options={otherEnvelopeTitles}
-                      />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-semibold text-white">
+                        Funds move to &ldquo;To Be Budgeted&rdquo;
+                      </span>
+                      <p className="text-xs text-[#5A6A85]">
+                        Remaining balance is always returned to your available budget when
+                        archiving an envelope.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -587,7 +370,7 @@ export function ArchiveEnvelopeModal({
                       <div>
                         <p className="mb-0.5 text-[11px] text-[#5A6A85]">To</p>
                         <p className="max-w-[180px] truncate text-base font-bold text-white">
-                          {toLabel}
+                          To Be Budgeted
                         </p>
                       </div>
                     </div>
