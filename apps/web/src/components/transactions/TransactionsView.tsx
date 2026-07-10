@@ -40,10 +40,22 @@ import {
   Landmark,
   ArrowUp,
   ArrowDown,
+  Eye,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency, formatCurrencyCompact, formatTableDate, cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { AddTransactionModal } from "./AddTransactionModal";
 import { TransactionDetailsModal } from "./TransactionDetailsModal";
 import { DeleteTransactionModal } from "./DeleteTransactionModal";
@@ -58,6 +70,7 @@ import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useRunningBalances } from "@/hooks/useRunningBalances";
 import { apiFetch } from "@/lib/api";
+import { patchTransaction } from "@/lib/api/transactions";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
@@ -145,6 +158,10 @@ function TxRow({
   onSelect,
   onRowClick,
   accounts,
+  isImmutable,
+  onEdit,
+  onDelete,
+  onToggleCleared,
 }: {
   tx: Transaction;
   index: number;
@@ -152,6 +169,10 @@ function TxRow({
   onSelect: () => void;
   onRowClick: () => void;
   accounts: ApiAccount[];
+  isImmutable: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggleCleared: () => void;
 }) {
   const amountColor =
     tx.type === "income"
@@ -267,9 +288,36 @@ function TxRow({
 
       {/* Actions */}
       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-        <button className="ml-auto flex rounded-lg p-1.5 text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#E8EEF8] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
-          <MoreVertical size={13} />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="ml-auto flex rounded-lg p-1.5 text-[#5A6A85] transition-all hover:bg-[#1E2B42] hover:text-[#E8EEF8] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
+            <MoreVertical size={13} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44 border border-[#1A2640] bg-[#0D1B2E]">
+            <DropdownMenuItem onClick={onRowClick}>
+              <Eye size={14} />
+              View details
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onToggleCleared}>
+              {tx.status === "cleared" || tx.status === "reconciled" ? (
+                <Circle size={14} />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
+              {tx.status === "cleared" || tx.status === "reconciled"
+                ? "Mark as uncleared"
+                : "Mark as cleared"}
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={isImmutable} onClick={onEdit}>
+              <Pencil size={14} />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" disabled={isImmutable} onClick={onDelete}>
+              <Trash2 size={14} />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </td>
     </motion.tr>
   );
@@ -1200,10 +1248,28 @@ export function TransactionsView() {
                     index={i}
                     accounts={accounts}
                     selected={selected.has(tx.id)}
+                    isImmutable={Boolean(accountMap.get(tx.accountId)?.is_immutable)}
                     onSelect={() => toggleRow(tx.id)}
                     onRowClick={() => {
                       setDetailTx(tx);
                       setDetailOpen(true);
+                    }}
+                    onEdit={() => {
+                      if (accountMap.get(tx.accountId)?.is_immutable) return;
+                      setEditTx(tx);
+                      setEditOpen(true);
+                    }}
+                    onDelete={() => {
+                      if (accountMap.get(tx.accountId)?.is_immutable) return;
+                      openDeleteModal(tx);
+                    }}
+                    onToggleCleared={async () => {
+                      if (!activeBudgetId) return;
+                      const nextStatus = tx.status === "cleared" || tx.status === "reconciled"
+                        ? "uncleared"
+                        : "cleared";
+                      await patchTransaction(activeBudgetId, tx.id, { status: nextStatus });
+                      refetch();
                     }}
                   />
                 ))}
