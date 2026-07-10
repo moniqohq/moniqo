@@ -50,6 +50,7 @@ export function adaptTransaction(
     amount: raw.amount,
     type,
     date: raw.date,
+    createdAt: raw.created_at,
     memo: raw.memo ?? undefined,
     cleared: false,
   };

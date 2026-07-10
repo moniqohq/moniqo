@@ -858,7 +858,7 @@ export function TransactionsView() {
     };
   });
 
-  const { accounts, accountMap } = useAccounts(activeBudgetId);
+  const { accounts, accountMap, refetch: refetchAccounts } = useAccounts(activeBudgetId);
   const { envelopes, envelopeMap } = useEnvelopes(activeBudgetId);
   const {
     transactions,
@@ -875,6 +875,14 @@ export function TransactionsView() {
     pageSize,
   });
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Account balances (the anchor for running-balance calculations) are only
+  // refreshed on budget change; any transaction mutation must explicitly
+  // refresh them too, or running balances go stale.
+  const refetchAll = useCallback(() => {
+    refetch();
+    refetchAccounts();
+  }, [refetch, refetchAccounts]);
 
   // Adjust state during render (React's recommended pattern) rather than in an
   // effect: reset to page 1 when the active budget changes, since the current
@@ -930,6 +938,7 @@ export function TransactionsView() {
     activeBudgetId,
     singleAccountId,
     singleAccountBalance,
+    transactions,
   );
   const rowsWithBalance = useMemo(
     () =>
@@ -990,7 +999,7 @@ export function TransactionsView() {
       await apiFetch<unknown>(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, {
         method: "DELETE",
       });
-      refetch();
+      refetchAll();
       setDeleteOpen(false);
       setDetailOpen(false);
       setTimeout(() => {
@@ -1314,9 +1323,10 @@ export function TransactionsView() {
                     onDelete={() => openDeleteModal(tx)}
                     onToggleCleared={async () => {
                       if (!activeBudgetId) return;
-                      const nextStatus = tx.status === "cleared" || tx.status === "reconciled"
-                        ? "uncleared"
-                        : "cleared";
+                      const nextStatus =
+                        tx.status === "cleared" || tx.status === "reconciled"
+                          ? "uncleared"
+                          : "cleared";
                       await patchTransaction(activeBudgetId, tx.id, { status: nextStatus });
                       refetch();
                     }}
@@ -1385,7 +1395,7 @@ export function TransactionsView() {
       <AddTransactionModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSuccess={refetch}
+        onSuccess={refetchAll}
         budgetId={activeBudgetId}
         accounts={accounts}
         envelopes={envelopes}
@@ -1395,6 +1405,9 @@ export function TransactionsView() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         isLocked={Boolean(detailTx && accountMap.get(detailTx.accountId)?.is_immutable)}
+        envelope={
+          detailTx?.envelopeId != null ? envelopeMap.get(detailTx.envelopeId) : undefined
+        }
         onDelete={() => {
           if (!detailTx) return;
           if (accountMap.get(detailTx.accountId)?.is_immutable) return;
@@ -1415,7 +1428,7 @@ export function TransactionsView() {
           setEditOpen(false);
           setTimeout(() => setEditTx(null), 200);
         }}
-        onSave={() => refetch()}
+        onSave={() => refetchAll()}
         budgetId={activeBudgetId}
         accounts={accounts}
         envelopes={envelopes}

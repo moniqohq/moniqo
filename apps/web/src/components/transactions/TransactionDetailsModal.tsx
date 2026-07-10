@@ -44,11 +44,12 @@ import {
   Lock,
 } from "lucide-react";
 import type { Transaction, AccountType } from "@/types";
+import type { ApiEnvelope } from "@/lib/api-types";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 
 function formatModalDate(dateStr: string): string {
-  const d = new Date(dateStr + "T09:42:00");
+  const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -74,6 +75,7 @@ interface Props {
   onDelete?: () => void;
   onEdit?: () => void;
   isLocked?: boolean;
+  envelope?: ApiEnvelope;
 }
 
 export function TransactionDetailsModal({
@@ -83,6 +85,7 @@ export function TransactionDetailsModal({
   onDelete,
   onEdit,
   isLocked = false,
+  envelope,
 }: Props) {
   const currentUser = useAuthStore((s) => s.user);
 
@@ -114,6 +117,14 @@ export function TransactionDetailsModal({
 
   const formattedDate = formatModalDate(tx.date);
   const txId = `TXN-${tx.id}`;
+
+  // Envelope balance after this transaction = allocated - spent, both of which
+  // already reflect this transaction's effect. Balance before is recovered by
+  // reversing this transaction's signed amount (income/expense both add
+  // directly onto the envelope's balance; transfers never touch an envelope).
+  const envelopeAfter =
+    envelope != null ? envelope.allocated_amt - envelope.spent_amt : null;
+  const envelopeBefore = envelopeAfter != null ? envelopeAfter - tx.amount : null;
 
   return (
     <AnimatePresence>
@@ -321,7 +332,9 @@ export function TransactionDetailsModal({
                             </IconBox>
                           }
                           label="Running Balance After Transaction"
-                          value={tx.runningBalance != null ? formatCurrency(tx.runningBalance) : "—"}
+                          value={
+                            tx.runningBalance != null ? formatCurrency(tx.runningBalance) : "—"
+                          }
                         />
 
                         {/* Notes */}
@@ -343,34 +356,44 @@ export function TransactionDetailsModal({
                       <h3 className="mb-4 text-sm font-semibold text-[#E8EEF8]">Budget Impact</h3>
 
                       <div className="flex items-center gap-3">
-                        <ImpactCard label="Envelope Balance Before">
-                          <span className="text-xl font-bold text-[#E8EEF8] tabular-nums">
-                            {formatCurrency(0)}
-                          </span>
-                        </ImpactCard>
+                        {envelopeAfter != null && envelopeBefore != null ? (
+                          <>
+                            <ImpactCard label="Envelope Balance Before">
+                              <span className="text-xl font-bold text-[#E8EEF8] tabular-nums">
+                                {formatCurrency(envelopeBefore)}
+                              </span>
+                            </ImpactCard>
 
-                        <span className="shrink-0 text-xl font-bold text-[#3A4A60]">−</span>
+                            <span className="shrink-0 text-xl font-bold text-[#3A4A60]">+</span>
 
-                        <ImpactCard label="Transaction Amount">
-                          <span className={cn("text-xl font-bold tabular-nums", amountColor)}>
-                            {tx.amount >= 0
-                              ? `+${formatCurrency(tx.amount)}`
-                              : formatCurrency(tx.amount)}
-                          </span>
-                        </ImpactCard>
+                            <ImpactCard label="Transaction Amount">
+                              <span className={cn("text-xl font-bold tabular-nums", amountColor)}>
+                                {tx.amount >= 0
+                                  ? `+${formatCurrency(tx.amount)}`
+                                  : formatCurrency(tx.amount)}
+                              </span>
+                            </ImpactCard>
 
-                        <span className="shrink-0 text-xl font-bold text-[#3A4A60]">=</span>
+                            <span className="shrink-0 text-xl font-bold text-[#3A4A60]">=</span>
 
-                        <ImpactCard label="Envelope Balance After">
-                          <span
-                            className={cn(
-                              "text-xl font-bold tabular-nums",
-                              0 >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
-                            )}
-                          >
-                            {formatCurrency(0)}
-                          </span>
-                        </ImpactCard>
+                            <ImpactCard label="Envelope Balance After">
+                              <span
+                                className={cn(
+                                  "text-xl font-bold tabular-nums",
+                                  envelopeAfter >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
+                                )}
+                              >
+                                {formatCurrency(envelopeAfter)}
+                              </span>
+                            </ImpactCard>
+                          </>
+                        ) : (
+                          <ImpactCard label="Envelope Balance">
+                            <span className="text-xl font-bold text-[#5A6A85] tabular-nums">
+                              {isTransfer ? "Not applicable to transfers" : "—"}
+                            </span>
+                          </ImpactCard>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -401,18 +424,7 @@ export function TransactionDetailsModal({
                           </IconBox>
                         }
                         label="Created at"
-                        value={formattedDate}
-                      />
-
-                      {/* Updated at */}
-                      <DetailRow
-                        icon={
-                          <IconBox>
-                            <Calendar size={14} />
-                          </IconBox>
-                        }
-                        label="Updated at"
-                        value={formattedDate}
+                        value={formatModalDate(tx.createdAt)}
                       />
 
                       {/* Transaction ID */}
@@ -435,8 +447,8 @@ export function TransactionDetailsModal({
                   <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-4 py-3 text-sm text-[#FCD34D]">
                     <Lock size={16} className="mt-0.5 shrink-0" />
                     <span>
-                      This transaction&apos;s account has transaction locking enabled and cannot
-                      be modified.
+                      This transaction&apos;s account has transaction locking enabled and cannot be
+                      modified.
                     </span>
                   </div>
                 )}

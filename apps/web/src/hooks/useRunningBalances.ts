@@ -56,6 +56,7 @@ export function useRunningBalances(
   budgetId: number | null,
   accountId: number | null,
   accountBalance: number | undefined,
+  refreshKey?: unknown,
 ): UseRunningBalancesResult {
   const [rawTransactions, setRawTransactions] = useState<ApiTransaction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,14 +91,12 @@ export function useRunningBalances(
     return () => {
       cancelled = true;
     };
-  }, [budgetId, accountId]);
+  }, [budgetId, accountId, refreshKey]);
 
   const balances = useMemo(() => {
     if (accountBalance == null) return new Map<number, number>();
 
-    const sorted = [...rawTransactions].sort(
-      (a, b) => a.date.localeCompare(b.date) || a.id - b.id,
-    );
+    const sorted = [...rawTransactions].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
     const opening = accountBalance - sorted.reduce((s, t) => s + t.amount, 0);
 
     const map = new Map<number, number>();

@@ -85,6 +85,7 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   date: string;
+  createdAt: string;
   memo?: string;
   status?: TransactionStatus;
   cleared: boolean;

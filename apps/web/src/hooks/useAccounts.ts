@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import type { ApiAccount } from "@/lib/api-types";
 
@@ -27,12 +27,14 @@ interface UseAccountsResult {
   accountMap: Map<number, ApiAccount>;
   loading: boolean;
   error: string | null;
+  refetch: () => void;
 }
 
 export function useAccounts(budgetId: number | null): UseAccountsResult {
   const [accounts, setAccounts] = useState<ApiAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refetchIndex, setRefetchIndex] = useState(0);
 
   useEffect(() => {
     if (budgetId == null) return;
@@ -58,7 +60,7 @@ export function useAccounts(budgetId: number | null): UseAccountsResult {
     return () => {
       cancelled = true;
     };
-  }, [budgetId]);
+  }, [budgetId, refetchIndex]);
 
   const accountMap = useMemo(() => {
     const m = new Map<number, ApiAccount>();
@@ -66,5 +68,7 @@ export function useAccounts(budgetId: number | null): UseAccountsResult {
     return m;
   }, [accounts]);
 
-  return { accounts, accountMap, loading, error };
+  const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
+
+  return { accounts, accountMap, loading, error, refetch };
 }
