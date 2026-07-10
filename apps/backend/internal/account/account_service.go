@@ -27,8 +27,14 @@ import (
 
 	"go.uber.org/zap"
 
+	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+	"github.com/moniqohq/moniqo/apps/backend/internal/money"
 )
+
+// defaultBalanceHistoryMonths is the window size used when the caller does
+// not specify one, matching the Dashboard's monthly sparkline window.
+const defaultBalanceHistoryMonths = 6
 
 // ErrForbidden is returned when the caller's role is insufficient to perform
 // the requested operation (e.g. only OWNER/ADMIN may delete an account).
@@ -45,6 +51,7 @@ type Service interface {
 	Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error)
 	Archive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
 	Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
+	BalanceHistory(ctx context.Context, budgetID int64, months int) (models.AccountBalanceHistory, error)
 }
 
 // Svc is the concrete implementation of Service.
@@ -563,4 +570,89 @@ func (s *Svc) Unarchive(ctx context.Context, id, budgetID int64, callerRole mode
 		zap.Int64("budget_id", budgetID),
 	)
 	return unarchived, nil
+}
+
+// monthTotals accumulates per-account-type balances for a single month.
+type monthTotals struct {
+	month   string
+	cash    int64
+	credit  int64
+	savings int64
+}
+
+// groupBalanceRowsByMonth buckets balance-history rows by month (in order of
+// first appearance), summing checking+cash, credit card, and savings
+// balances per bucket. Loan balances are ignored: they are not part of the
+// summary cards' cash/credit/savings/net-worth math.
+func groupBalanceRowsByMonth(rows []db.GetAccountTypeBalanceHistoryRow) (order []string, totals map[string]*monthTotals) {
+	totals = make(map[string]*monthTotals, len(rows))
+	for _, row := range rows {
+		if !row.Month.Valid {
+			continue
+		}
+		key := row.Month.Time.Format("2006-01")
+		t, ok := totals[key]
+		if !ok {
+			t = &monthTotals{month: key}
+			totals[key] = t
+			order = append(order, key)
+		}
+		//nolint:exhaustive // Loan is intentionally excluded from the cash/credit/savings math.
+		switch models.AccountType(row.Type) {
+		case models.AccountTypeChecking, models.AccountTypeCash:
+			t.cash += row.Balance
+		case models.AccountTypeCreditCard:
+			t.credit += row.Balance
+		case models.AccountTypeSavings:
+			t.savings += row.Balance
+		default:
+		}
+	}
+	return order, totals
+}
+
+// BalanceHistory returns the monthly closing-balance series for cash
+// (checking + cash), credit card debt, savings, and the derived net worth,
+// over the last months months. Uses defaultBalanceHistoryMonths when months
+// is zero. Mirrors the cash/credit/savings grouping used for the Accounts
+// page summary cards' current-value calculations.
+func (s *Svc) BalanceHistory(ctx context.Context, budgetID int64, months int) (models.AccountBalanceHistory, error) {
+	if months == 0 {
+		months = defaultBalanceHistoryMonths
+	}
+
+	s.log.Debug("fetching account balance history",
+		zap.Int64("budget_id", budgetID),
+		zap.Int("months", months),
+	)
+
+	rows, err := s.repo.BalanceHistory(ctx, budgetID, months)
+	if err != nil {
+		s.log.Error("repo.BalanceHistory failed",
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return models.AccountBalanceHistory{}, fmt.Errorf("get account balance history: %w", err)
+	}
+
+	order, totals := groupBalanceRowsByMonth(rows)
+
+	history := models.AccountBalanceHistory{
+		Cash:     make([]models.BalancePoint, 0, len(order)),
+		Credit:   make([]models.BalancePoint, 0, len(order)),
+		Savings:  make([]models.BalancePoint, 0, len(order)),
+		NetWorth: make([]models.BalancePoint, 0, len(order)),
+	}
+	for _, key := range order {
+		t := totals[key]
+		creditDebt := max(-t.credit, 0)
+		netWorth := t.cash + t.savings - creditDebt
+
+		history.Cash = append(history.Cash, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(t.cash)})
+		history.Credit = append(history.Credit, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(creditDebt)})
+		history.Savings = append(history.Savings, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(t.savings)})
+		history.NetWorth = append(history.NetWorth, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(netWorth)})
+	}
+
+	return history, nil
 }

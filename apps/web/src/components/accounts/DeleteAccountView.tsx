@@ -50,6 +50,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type { AccountType, Transaction } from "@/types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
+import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
 
@@ -409,6 +410,8 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
 
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap } = useEnvelopes(budgetId);
+  const { data: budgets } = useBudgets();
+  const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const { transactions: accountTransactions } = useTransactions(budgetId, accountMap, envelopeMap, {
     accountId,
   });
@@ -561,7 +564,7 @@ export function DeleteAccountView({ budgetId, accountId }: Props) {
                   {meta.label}
                 </span>
               </div>
-              <p className="mt-0.5 text-[11px] text-[#5A6A85]">Budget #{budgetId}</p>
+              <p className="mt-0.5 text-[11px] text-[#5A6A85]">{budgetName ?? "—"}</p>
             </div>
           </div>
 

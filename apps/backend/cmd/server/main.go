@@ -358,6 +358,8 @@ func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 	accountsGroup := e.Group("/api/v1/budgets/:budget_id/accounts")
 	accountsGroup.GET("", accountHandler.ListAccounts,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
+	accountsGroup.GET("/balance-history", accountHandler.GetAccountBalanceHistory,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountView, log))
 	accountsGroup.POST("", accountHandler.CreateAccount,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.AccountEdit, log))
 	accountsGroup.GET("/:id", accountHandler.GetAccount,

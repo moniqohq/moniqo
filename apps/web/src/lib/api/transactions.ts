@@ -19,7 +19,7 @@
  */
 
 import { apiFetch } from "./client";
-import type { ApiTransaction } from "./types";
+import type { ApiTransaction, ApiTransactionStatus } from "./types";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/transactions`;
 
@@ -62,6 +62,7 @@ export function createTransaction(
         amount: number;
         date: string;
         memo?: string;
+        status?: ApiTransactionStatus;
       }
     | {
         account_id: number;
@@ -69,6 +70,7 @@ export function createTransaction(
         amount: number;
         date: string;
         memo?: string;
+        status?: ApiTransactionStatus;
       },
 ): Promise<ApiTransaction> {
   return apiFetch<ApiTransaction>(base(budgetId), {
@@ -87,6 +89,7 @@ export function patchTransaction(
     amount: number;
     date: string;
     memo: string | null;
+    status: ApiTransactionStatus;
   }>,
 ): Promise<ApiTransaction> {
   return apiFetch<ApiTransaction>(`${base(budgetId)}/${id}`, {

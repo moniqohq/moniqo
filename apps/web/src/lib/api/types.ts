@@ -62,6 +62,8 @@ export type ApiEnvelope = {
   created_at: string;
 };
 
+export type ApiTransactionStatus = "uncleared" | "cleared" | "reconciled";
+
 export type ApiTransaction = {
   id: number;
   budget_id: number;
@@ -72,6 +74,7 @@ export type ApiTransaction = {
   amount: number;
   date: string;
   memo: string | null;
+  status: ApiTransactionStatus;
   created_at: string;
 };
 
@@ -94,4 +97,16 @@ export type ApiDashboardStats = {
   monthly_expenses: number;
   monthly_savings: number;
   sparkline: ApiSparklinePoint[];
+};
+
+export type ApiBalancePoint = {
+  month: string;
+  balance: number;
+};
+
+export type ApiAccountBalanceHistory = {
+  cash: ApiBalancePoint[];
+  credit: ApiBalancePoint[];
+  savings: ApiBalancePoint[];
+  net_worth: ApiBalancePoint[];
 };

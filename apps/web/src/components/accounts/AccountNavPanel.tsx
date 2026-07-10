@@ -37,6 +37,7 @@ interface Props {
   accounts: Account[];
   selectedId: number;
   onSelect: (id: number) => void;
+  onCreateAccount: () => void;
 }
 
 const TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string; bg: string }> = {
@@ -48,7 +49,8 @@ const TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string; bg:
 };
 
 const GROUPS: { label: string; types: AccountType[] }[] = [
-  { label: "Cash & Checking", types: ["checking", "cash"] },
+  { label: "Checking", types: ["checking"] },
+  { label: "Cash", types: ["cash"] },
   { label: "Savings", types: ["savings"] },
   { label: "Credit Cards", types: ["credit"] },
   { label: "Loans", types: ["loan"] },
@@ -178,9 +180,9 @@ function AccountGroup({
   );
 }
 
-export function AccountNavPanel({ accounts, selectedId, onSelect }: Props) {
-  const activeAccounts = accounts;
-  const archivedAccounts: typeof accounts = [];
+export function AccountNavPanel({ accounts, selectedId, onSelect, onCreateAccount }: Props) {
+  const activeAccounts = accounts.filter((a) => !a.isArchived);
+  const archivedAccounts = accounts.filter((a) => a.isArchived);
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120]">
@@ -223,7 +225,10 @@ export function AccountNavPanel({ accounts, selectedId, onSelect }: Props) {
       </div>
 
       <div className="border-t border-[#1A2540] p-3">
-        <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[rgba(108,58,237,0.4)] px-3 py-2.5 text-xs font-semibold text-[#7C3AED] transition-all hover:border-[rgba(108,58,237,0.6)] hover:bg-[rgba(108,58,237,0.08)] hover:shadow-[0_0_12px_rgba(108,58,237,0.15)]">
+        <button
+          onClick={onCreateAccount}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[rgba(108,58,237,0.4)] px-3 py-2.5 text-xs font-semibold text-[#7C3AED] transition-all hover:border-[rgba(108,58,237,0.6)] hover:bg-[rgba(108,58,237,0.08)] hover:shadow-[0_0_12px_rgba(108,58,237,0.15)]"
+        >
           <Plus size={13} />
           Create New Account
         </button>

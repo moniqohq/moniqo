@@ -471,6 +471,65 @@ Restores an archived account to active use. Idempotent — unarchiving an alread
 
 ---
 
+### Get Account Balance History
+
+Returns the monthly closing-balance series for the budget's cash (checking + cash), credit card debt, and savings accounts, plus the derived net worth series. Used to drive the trend sparklines on the Accounts page summary cards.
+
+**`GET /api/v1/budgets/{budget_id}/accounts/balance-history`**
+**Authentication:** Required
+
+**Query Parameters**
+
+| Param | Values | Default | Description |
+|---|---|---|---|
+| `months` | Integer, 1–24 | `6` | Number of trailing months to include, ending with the current month |
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "cash": [
+      { "month": "2026-02", "balance": 420000 },
+      { "month": "2026-03", "balance": 450000 }
+    ],
+    "credit": [
+      { "month": "2026-02", "balance": 21000 },
+      { "month": "2026-03", "balance": 18500 }
+    ],
+    "savings": [
+      { "month": "2026-02", "balance": 800000 },
+      { "month": "2026-03", "balance": 840000 }
+    ],
+    "net_worth": [
+      { "month": "2026-02", "balance": 1199000 },
+      { "month": "2026-03", "balance": 1271500 }
+    ]
+  },
+  "msg": "account balance history fetched successfully"
+}
+```
+
+**Business Rules**
+
+- Balances are cumulative (all-time) closing balances as of the end of each month, not monthly deltas.
+- Archived and soft-deleted accounts are excluded.
+- `credit` is expressed as a positive debt figure (i.e. the absolute value of the credit card accounts' negative balance), floored at zero.
+- `net_worth` = `cash` + `savings` − `credit` for the same month.
+- Loan accounts are excluded from all four series (they are not part of the summary cards' cash/credit/savings/net-worth calculations).
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid `budget_id`, or `months` outside 1–24 |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 403 | `FORBIDDEN` | Not a member of the budget |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
 ## Deletion Scenarios
 
 ### Case 1 — Account Has No Transactions

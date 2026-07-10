@@ -20,40 +20,27 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { listAccounts, type AccountStatusParam } from "@/lib/api/accounts";
-import type { Account, AccountType } from "@/types";
-import type { ApiAccount } from "@/lib/api/types";
+import { getAccountBalanceHistory } from "@/lib/api/accounts";
+import type { ApiAccountBalanceHistory, ApiBalancePoint } from "@/lib/api/types";
 
-const TYPE_MAP: Record<string, AccountType> = {
-  CHECKING: "checking",
-  SAVINGS: "savings",
-  CREDIT_CARD: "credit",
-  CASH: "cash",
-  LOAN: "loan",
+export type AccountBalanceHistory = {
+  cash: ApiBalancePoint[];
+  credit: ApiBalancePoint[];
+  savings: ApiBalancePoint[];
+  netWorth: ApiBalancePoint[];
 };
 
-export function apiAccountToUI(a: ApiAccount): Account {
+function toUI(raw: ApiAccountBalanceHistory): AccountBalanceHistory {
   return {
-    id: a.id,
-    budgetId: a.budget_id,
-    name: a.name,
-    type: TYPE_MAP[a.type] ?? "checking",
-    balance: a.balance,
-    clearedBalance: a.cleared_balance,
-    requiresRecon: a.requires_recon,
-    isOnBudget: a.is_on_budget,
-    isImmutable: a.is_immutable,
-    notes: a.notes ?? undefined,
-    accountNumber: a.account_number ?? undefined,
-    institution: a.institution ?? undefined,
-    lastReconciledAt: a.last_reconciled_at ?? undefined,
-    isArchived: a.is_archived,
-    archivedAt: a.archived_at ?? undefined,
+    cash: raw.cash ?? [],
+    credit: raw.credit ?? [],
+    savings: raw.savings ?? [],
+    netWorth: raw.net_worth ?? [],
   };
 }
 
-export function useAccounts(budgetId: number | null, status: AccountStatusParam = "active") {
-  const [data, setData] = useState<Account[]>([]);
+export function useAccountBalanceHistory(budgetId: number | null, months?: number) {
+  const [data, setData] = useState<AccountBalanceHistory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,14 +49,14 @@ export function useAccounts(budgetId: number | null, status: AccountStatusParam 
     setIsLoading(true);
     setError(null);
     try {
-      const raw = await listAccounts(budgetId, status);
-      setData(raw.map(apiAccountToUI));
+      const raw = await getAccountBalanceHistory(budgetId, months);
+      setData(toUI(raw));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load accounts");
+      setError(e instanceof Error ? e.message : "Failed to load account balance history");
     } finally {
       setIsLoading(false);
     }
-  }, [budgetId, status]);
+  }, [budgetId, months]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

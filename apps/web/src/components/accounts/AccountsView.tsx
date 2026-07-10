@@ -33,11 +33,14 @@ import {
   TrendingDown,
   ArrowUpRight,
   Check,
+  Archive,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useAccountBalanceHistory } from "@/hooks/use-account-balance-history";
+import type { ApiBalancePoint } from "@/lib/api/types";
 import { formatCurrency, formatCurrencyCompact, cn } from "@/lib/utils";
 import { AccountNavPanel } from "./AccountNavPanel";
 import { AccountDetails } from "./AccountDetails";
@@ -197,6 +200,32 @@ function FilterDropdown({
   );
 }
 
+/* ── Archived toggle ──────────────────────────────────── */
+
+function ArchivedToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors",
+        checked
+          ? "border-[rgba(108,58,237,0.5)] bg-[rgba(108,58,237,0.08)] text-[#C4B5FD]"
+          : "border-[#1A2540] text-[#A8B4CC] hover:border-[#2A3A54] hover:text-white",
+      )}
+    >
+      <Archive size={15} />
+      Show archived
+    </button>
+  );
+}
+
 /* ── Summary card ────────────────────────────────────── */
 
 function SparkTooltip({
@@ -329,6 +358,25 @@ function EmptyState({ status, hasTypeFilter }: { status: StatusFilter; hasTypeFi
   );
 }
 
+/* ── Trend helpers ───────────────────────────────────── */
+
+/** Percent change from the first to the last point in a balance series, formatted for a card's changeLabel. */
+function pctChange(
+  points: ApiBalancePoint[] | undefined,
+  suffix: string,
+  invert = false,
+): { changeLabel: string; positive: boolean } {
+  if (!points || points.length < 2 || points[0].balance === 0) {
+    return { changeLabel: suffix, positive: true };
+  }
+  const first = points[0].balance;
+  const last = points[points.length - 1].balance;
+  const rawPct = ((last - first) / Math.abs(first)) * 100;
+  const pct = invert ? -rawPct : rawPct;
+  const sign = pct >= 0 ? "+" : "";
+  return { changeLabel: `${sign}${pct.toFixed(1)}% ${suffix}`, positive: pct >= 0 };
+}
+
 /* ── main view ───────────────────────────────────────── */
 
 export function AccountsView() {
@@ -343,7 +391,9 @@ export function AccountsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
+  const showArchived = statusFilter !== "active";
   const {
     data: accounts,
     isLoading,
@@ -351,10 +401,17 @@ export function AccountsView() {
   } = useAccounts(activeBudgetId, statusFilter);
   const isError = !!accountsError;
 
-  /* Status filtering happens server-side; only apply type filter here */
+  const { data: history } = useAccountBalanceHistory(activeBudgetId);
+
+  function handleShowArchivedChange(v: boolean) {
+    handleStatusChange(v ? "all" : "active");
+  }
+
+  /* Status filtering happens server-side; only apply type + search here */
   const filteredAccounts = accounts.filter((account) => {
     const typeMatch = typeFilter === "all" || account.type === typeFilter;
-    return typeMatch;
+    const searchMatch = !search || account.name.toLowerCase().includes(search.toLowerCase());
+    return typeMatch && searchMatch;
   });
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -388,8 +445,8 @@ export function AccountsView() {
     updateFilter("type", v);
   }
 
-  /* Summary calculations — all fetched accounts are active */
-  const allActive = accounts;
+  /* Summary calculations exclude archived accounts */
+  const allActive = accounts.filter((a) => !a.isArchived);
   const cashAndChecking = allActive.filter((a) => a.type === "checking" || a.type === "cash");
   const totalCash = cashAndChecking.reduce((s, a) => s + a.balance, 0);
   const creditAccounts = allActive.filter((a) => a.type === "credit");
@@ -401,6 +458,11 @@ export function AccountsView() {
   const assetPct =
     totalAssets > 0 ? Math.round((totalAssets / (totalAssets + creditDebt)) * 100) : 100;
 
+  const cashTrend = pctChange(history?.cash, "from last month");
+  const creditTrend = pctChange(history?.credit, "vs last month", /* invert */ true);
+  const savingsTrend = pctChange(history?.savings, "growth MTD");
+  const netWorthTrend = pctChange(history?.netWorth, "this month");
+
   const summaryCards: SummaryCardProps[] = [
     {
       icon: <Wallet size={24} />,
@@ -409,20 +471,9 @@ export function AccountsView() {
       accentColor: "#22C55E",
       label: "Total Cash Balance",
       value: formatCurrency(totalCash),
-      changeLabel: "+2.4% from last month",
-      positive: true,
-      sparkData: [
-        { v: 4200 },
-        { v: 4500 },
-        { v: 4100 },
-        { v: 4800 },
-        { v: 4600 },
-        { v: 5000 },
-        { v: 4900 },
-        { v: 5300 },
-        { v: 5100 },
-        { v: 5400 },
-      ],
+      changeLabel: cashTrend.changeLabel,
+      positive: cashTrend.positive,
+      sparkData: history?.cash.map((p) => ({ v: p.balance })),
     },
     {
       icon: <CreditCard size={24} />,
@@ -431,20 +482,9 @@ export function AccountsView() {
       accentColor: "#F87171",
       label: "Credit Card Debt",
       value: formatCurrency(creditDebt),
-      changeLabel: "−5.2% vs last month",
-      positive: true,
-      sparkData: [
-        { v: 2100 },
-        { v: 1950 },
-        { v: 2200 },
-        { v: 1850 },
-        { v: 2050 },
-        { v: 1980 },
-        { v: 1900 },
-        { v: 1820 },
-        { v: 1750 },
-        { v: 1680 },
-      ],
+      changeLabel: creditTrend.changeLabel,
+      positive: creditTrend.positive,
+      sparkData: history?.credit.map((p) => ({ v: p.balance })),
     },
     {
       icon: <PiggyBank size={24} />,
@@ -453,20 +493,9 @@ export function AccountsView() {
       accentColor: "#3B82F6",
       label: "Savings Balance",
       value: formatCurrency(savingsBalance),
-      changeLabel: "+8.1% growth MTD",
-      positive: true,
-      sparkData: [
-        { v: 8000 },
-        { v: 8400 },
-        { v: 8200 },
-        { v: 8900 },
-        { v: 8700 },
-        { v: 9200 },
-        { v: 9000 },
-        { v: 9600 },
-        { v: 9400 },
-        { v: 9800 },
-      ],
+      changeLabel: savingsTrend.changeLabel,
+      positive: savingsTrend.positive,
+      sparkData: history?.savings.map((p) => ({ v: p.balance })),
     },
   ];
 
@@ -519,10 +548,13 @@ export function AccountsView() {
             <Search size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]" />
             <input
               type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search accounts…"
               className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
           </div>
+          <ArchivedToggle checked={showArchived} onChange={handleShowArchivedChange} />
           {isFeatureEnabled("accountFilters") && (
             <FilterDropdown
               statusFilter={statusFilter}
@@ -567,8 +599,19 @@ export function AccountsView() {
                 {formatCurrency(netWorth)}
               </p>
               <div className="mt-1 flex items-center gap-1">
-                <TrendingUp size={11} className="text-[#22C55E]" />
-                <span className="text-[10px] font-medium text-[#4ADE80]">+3.8% this month</span>
+                {netWorthTrend.positive ? (
+                  <TrendingUp size={11} className="text-[#22C55E]" />
+                ) : (
+                  <TrendingDown size={11} className="text-[#F87171]" />
+                )}
+                <span
+                  className={cn(
+                    "text-[10px] font-medium",
+                    netWorthTrend.positive ? "text-[#4ADE80]" : "text-[#F87171]",
+                  )}
+                >
+                  {netWorthTrend.changeLabel}
+                </span>
               </div>
             </div>
             <div
@@ -605,13 +648,14 @@ export function AccountsView() {
 
       {/* 3-column layout */}
       {filteredAccounts.length === 0 ? (
-        <EmptyState status={statusFilter} hasTypeFilter={typeFilter !== "all"} />
+        <EmptyState status={statusFilter} hasTypeFilter={typeFilter !== "all" || !!search} />
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[260px_1fr_256px]">
           <AccountNavPanel
             accounts={filteredAccounts}
             selectedId={selectedAccount?.id ?? 0}
             onSelect={setSelectedId}
+            onCreateAccount={() => setAddModalOpen(true)}
           />
           {selectedAccount != null && (
             <AccountDetails accountId={selectedAccount.id} budgetId={selectedAccount.budgetId} />
@@ -620,6 +664,7 @@ export function AccountsView() {
             <AccountInsightsPanel
               accountId={selectedAccount.id}
               budgetId={selectedAccount.budgetId}
+              isArchived={selectedAccount.isArchived}
             />
           )}
         </div>

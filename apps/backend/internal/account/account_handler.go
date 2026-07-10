@@ -181,6 +181,44 @@ func parseStatusFilter(c echo.Context) (*bool, *httpx.FieldError) {
 	}
 }
 
+// maxBalanceHistoryMonths bounds the ?months= query param.
+const maxBalanceHistoryMonths = 24
+
+// parseMonthsParam parses the optional ?months= query param, defaulting to
+// defaultBalanceHistoryMonths and rejecting values outside [1, maxBalanceHistoryMonths].
+func parseMonthsParam(c echo.Context) (int, *httpx.FieldError) {
+	raw := c.QueryParam("months")
+	if raw == "" {
+		return defaultBalanceHistoryMonths, nil
+	}
+	months, err := strconv.Atoi(raw)
+	if err != nil || months < 1 || months > maxBalanceHistoryMonths {
+		return 0, &httpx.FieldError{Field: "months", Error: "must be an integer between 1 and 24"}
+	}
+	return months, nil
+}
+
+// GetAccountBalanceHistory handles GET /api/v1/budgets/:budget_id/accounts/balance-history.
+func (h *Handler) GetAccountBalanceHistory(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	months, fe := parseMonthsParam(c)
+	if fe != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{*fe})
+	}
+
+	history, err := h.svc.BalanceHistory(c.Request().Context(), budgetID, months)
+	if err != nil {
+		h.log.Error("GetAccountBalanceHistory failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, history, "account balance history fetched successfully")
+}
+
 // ListAccounts handles GET /api/v1/budgets/:budget_id/accounts.
 func (h *Handler) ListAccounts(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)

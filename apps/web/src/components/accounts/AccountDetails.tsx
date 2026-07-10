@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -39,11 +39,13 @@ import {
   Filter,
   Eye,
   EyeOff,
+  ChevronDown,
 } from "lucide-react";
 import { formatCurrency, formatRelativeDate, formatDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useAccounts } from "@/hooks/useAccounts";
+import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
 import { BalanceChart, type ChartPoint } from "./BalanceChart";
@@ -171,6 +173,73 @@ function MetaCard({
   );
 }
 
+type StatusFilterValue = "all" | "cleared" | "uncleared";
+
+const STATUS_FILTER_OPTIONS: { id: StatusFilterValue; label: string }[] = [
+  { id: "all", label: "All Transactions" },
+  { id: "cleared", label: "Cleared" },
+  { id: "uncleared", label: "Uncleared" },
+];
+
+function StatusFilter({
+  value,
+  onChange,
+}: {
+  value: StatusFilterValue;
+  onChange: (value: StatusFilterValue) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  const activeLabel = STATUS_FILTER_OPTIONS.find((o) => o.id === value)!.label;
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-2.5 py-1.5 text-xs text-[#7A8BA8] transition-colors hover:text-white",
+          (open || value !== "all") && "border-[#6C3AED]/60 text-white",
+        )}
+      >
+        <Filter size={12} />
+        {activeLabel}
+        <ChevronDown size={11} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full right-0 z-20 mt-1 w-40 overflow-hidden rounded-lg border border-[#1A2540] bg-[#0D1525] shadow-lg">
+          {STATUS_FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => {
+                onChange(option.id);
+                setOpen(false);
+              }}
+              className={cn(
+                "flex w-full items-center px-3 py-2 text-left text-xs transition-colors",
+                value === option.id
+                  ? "bg-[#6C3AED]/15 text-white"
+                  : "text-[#7A8BA8] hover:bg-[#111B2D] hover:text-white",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── main component ──────────────────────────────────── */
 
 interface Props {
@@ -181,6 +250,7 @@ interface Props {
 export function AccountDetails({ accountId, budgetId }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
   const [showAccNum, setShowAccNum] = useState(false);
   const [modifyOpen, setModifyOpen] = useState(false);
   const [addTxOpen, setAddTxOpen] = useState(false);
@@ -189,6 +259,8 @@ export function AccountDetails({ accountId, budgetId }: Props) {
 
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
+  const { data: budgets } = useBudgets();
+  const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const account = accounts.find((a) => a.id === accountId);
   const typeMeta = account
     ? (TYPE_META[API_TO_UI[account.type as ApiAccountType]] ?? TYPE_META.checking)
@@ -228,12 +300,15 @@ export function AccountDetails({ accountId, budgetId }: Props) {
     balanceHistory: [],
   };
 
-  const filtered = allTxns.filter(
-    (t) =>
+  const filtered = allTxns.filter((t) => {
+    if (statusFilter === "cleared" && !t.cleared) return false;
+    if (statusFilter === "uncleared" && t.cleared) return false;
+    return (
       !search ||
       t.payee.toLowerCase().includes(search.toLowerCase()) ||
-      (t.memo ?? "").toLowerCase().includes(search.toLowerCase()),
-  );
+      (t.memo ?? "").toLowerCase().includes(search.toLowerCase())
+    );
+  });
   const pageTxns = filtered.slice(0, 5);
 
   if (!account) {
@@ -271,7 +346,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                   {typeMeta.label}
                 </span>
               </div>
-              <p className="mt-1 text-xs font-medium text-[#7C4AFF]">Budget #{budgetId}</p>
+              <p className="mt-1 text-xs font-medium text-[#7C4AFF]">{budgetName ?? "—"}</p>
             </div>
           </div>
 
@@ -429,10 +504,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                 className="w-full rounded-lg border border-[#1A2540] bg-[#0D1525] py-1.5 pr-3 pl-8 text-xs text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
               />
             </div>
-            <button className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-2.5 py-1.5 text-xs text-[#7A8BA8] transition-colors hover:text-white">
-              <Filter size={12} />
-              Filter
-            </button>
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} />
           </div>
         </div>
 

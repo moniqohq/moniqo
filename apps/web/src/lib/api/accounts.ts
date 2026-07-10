@@ -19,16 +19,17 @@
  */
 
 import { apiFetch } from "./client";
-import type { ApiAccount } from "./types";
+import type { ApiAccount, ApiAccountBalanceHistory } from "./types";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/accounts`;
 
+export type AccountStatusParam = "active" | "archived" | "all";
+
 export function listAccounts(
   budgetId: number,
-  status?: "active" | "archived" | "all",
+  status: AccountStatusParam = "active",
 ): Promise<ApiAccount[]> {
-  const qs = status && status !== "active" ? `?status=${status}` : "";
-  return apiFetch<ApiAccount[]>(`${base(budgetId)}${qs}`);
+  return apiFetch<ApiAccount[]>(`${base(budgetId)}?status=${status}`);
 }
 
 export function getAccount(budgetId: number, id: number): Promise<ApiAccount> {
@@ -77,4 +78,16 @@ export function patchAccount(
 
 export function deleteAccount(budgetId: number, id: number): Promise<void> {
   return apiFetch<void>(`${base(budgetId)}/${id}`, { method: "DELETE" });
+}
+
+export function reconcileAccount(budgetId: number, id: number): Promise<ApiAccount> {
+  return apiFetch<ApiAccount>(`${base(budgetId)}/${id}/reconcile`, { method: "POST" });
+}
+
+export function getAccountBalanceHistory(
+  budgetId: number,
+  months?: number,
+): Promise<ApiAccountBalanceHistory> {
+  const qs = months ? `?months=${months}` : "";
+  return apiFetch<ApiAccountBalanceHistory>(`${base(budgetId)}/balance-history${qs}`);
 }

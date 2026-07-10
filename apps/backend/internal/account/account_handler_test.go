@@ -747,3 +747,78 @@ func TestHandler_UnarchiveAccount(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// TestHandler_GetAccountBalanceHistory
+// ---------------------------------------------------------------------------
+
+func TestHandler_GetAccountBalanceHistory(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("success returns 200 with default months", func(t *testing.T) {
+		t.Parallel()
+		var gotMonths int
+		svc := &internalmock.AccountService{
+			BalanceHistoryFn: func(_ context.Context, _ int64, months int) (models.AccountBalanceHistory, error) {
+				gotMonths = months
+				return models.AccountBalanceHistory{
+					Cash: []models.BalancePoint{{Month: "2026-01", Balance: 500}},
+				}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.GetAccountBalanceHistory(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, 6, gotMonths)
+		resp := parseResp(t, rec.Body.String())
+		assert.True(t, resp.Success)
+		assert.Equal(t, "account balance history fetched successfully", resp.Msg)
+	})
+
+	t.Run("months param is forwarded to the service", func(t *testing.T) {
+		t.Parallel()
+		var gotMonths int
+		svc := &internalmock.AccountService{
+			BalanceHistoryFn: func(_ context.Context, _ int64, months int) (models.AccountBalanceHistory, error) {
+				gotMonths = months
+				return models.AccountBalanceHistory{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/?months=3", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.GetAccountBalanceHistory(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, 3, gotMonths)
+	})
+
+	t.Run("invalid months returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodGet, "/?months=0", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.GetAccountBalanceHistory(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("invalid budget_id returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("abc")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.GetAccountBalanceHistory(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}

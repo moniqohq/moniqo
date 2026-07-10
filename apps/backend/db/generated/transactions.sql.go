@@ -236,6 +236,59 @@ func (q *Queries) GetAccountBalances(ctx context.Context, arg GetAccountBalances
 	return i, err
 }
 
+const getAccountTypeBalanceHistory = `-- name: GetAccountTypeBalanceHistory :many
+WITH months AS (
+    SELECT generate_series(
+        date_trunc('month', now()) - (interval '1 month' * ($2::int - 1)),
+        date_trunc('month', now()),
+        interval '1 month'
+    )::date AS month
+)
+SELECT
+    m.month,
+    a.type,
+    COALESCE(SUM(t.amount) FILTER (WHERE t.date < m.month + interval '1 month'), 0)::BIGINT AS balance
+FROM months m
+CROSS JOIN accounts a
+LEFT JOIN transactions t ON t.account_id = a.id AND t.deleted_at IS NULL
+WHERE a.budget_id = $1
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
+GROUP BY m.month, a.type
+ORDER BY m.month ASC
+`
+
+type GetAccountTypeBalanceHistoryParams struct {
+	BudgetID int64
+	Months   int32
+}
+
+type GetAccountTypeBalanceHistoryRow struct {
+	Month   pgtype.Date
+	Type    AccountType
+	Balance int64
+}
+
+func (q *Queries) GetAccountTypeBalanceHistory(ctx context.Context, arg GetAccountTypeBalanceHistoryParams) ([]GetAccountTypeBalanceHistoryRow, error) {
+	rows, err := q.db.Query(ctx, getAccountTypeBalanceHistory, arg.BudgetID, arg.Months)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAccountTypeBalanceHistoryRow
+	for rows.Next() {
+		var i GetAccountTypeBalanceHistoryRow
+		if err := rows.Scan(&i.Month, &i.Type, &i.Balance); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMonthlySparkline = `-- name: GetMonthlySparkline :many
 SELECT
     date_trunc('month', date)::date AS month,

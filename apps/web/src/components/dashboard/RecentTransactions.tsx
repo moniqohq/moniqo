@@ -79,13 +79,10 @@ export function RecentTransactions() {
           <thead>
             <tr className="border-b border-[#1E2B42]">
               <th className="px-5 py-2.5 text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
-                Merchant
+                Date
               </th>
               <th className="px-4 py-2.5 text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
                 Envelope
-              </th>
-              <th className="px-4 py-2.5 text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
-                Date
               </th>
               <th className="px-4 py-2.5 text-right text-[11px] font-semibold tracking-wider text-[#5A6A85] uppercase">
                 Amount
@@ -98,14 +95,14 @@ export function RecentTransactions() {
           <tbody className="divide-y divide-[#1E2B42]">
             {loading && (
               <tr>
-                <td colSpan={5} className="px-5 py-6 text-center text-sm text-[#5A6A85]">
+                <td colSpan={4} className="px-5 py-6 text-center text-sm text-[#5A6A85]">
                   Loading…
                 </td>
               </tr>
             )}
             {!loading && recent.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-6 text-center text-sm text-[#3A4A60]">
+                <td colSpan={4} className="px-5 py-6 text-center text-sm text-[#3A4A60]">
                   No transactions yet
                 </td>
               </tr>
@@ -129,26 +126,9 @@ export function RecentTransactions() {
                     transition={{ delay: i * 0.04 }}
                     className="cursor-pointer transition-colors hover:bg-[#0D1828]"
                   >
-                    {/* Merchant */}
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white select-none"
-                          style={{ backgroundColor: "#1E2B42" }}
-                        >
-                          {(tx.payee || tx.accountName || "T")[0]}
-                        </div>
-                        <div>
-                          <p className="max-w-[140px] truncate text-[13px] leading-tight font-medium text-[#E8EEF8]">
-                            {tx.payee}
-                          </p>
-                          {tx.memo && (
-                            <p className="max-w-[140px] truncate text-[11px] leading-tight text-[#5A6A85]">
-                              {tx.memo}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                    {/* Date */}
+                    <td className="px-5 py-3 text-[13px] whitespace-nowrap text-[#A8B4CC]">
+                      {formatTableDate(tx.date)}
                     </td>
 
                     {/* Envelope */}
@@ -168,11 +148,6 @@ export function RecentTransactions() {
                       ) : (
                         <span className="text-sm text-[#2A3A54] select-none">—</span>
                       )}
-                    </td>
-
-                    {/* Date */}
-                    <td className="px-4 py-3 text-[13px] whitespace-nowrap text-[#A8B4CC]">
-                      {formatTableDate(tx.date)}
                     </td>
 
                     {/* Amount */}
