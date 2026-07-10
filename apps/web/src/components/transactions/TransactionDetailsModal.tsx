@@ -128,8 +128,7 @@ export function TransactionDetailsModal({
   // already reflect this transaction's effect. Balance before is recovered by
   // reversing this transaction's signed amount (income/expense both add
   // directly onto the envelope's balance; transfers never touch an envelope).
-  const envelopeAfter =
-    envelope != null ? envelope.allocated_amt - envelope.spent_amt : null;
+  const envelopeAfter = envelope != null ? envelope.allocated_amt - envelope.spent_amt : null;
   const envelopeBefore = envelopeAfter != null ? envelopeAfter - tx.amount : null;
 
   return (
@@ -446,11 +445,7 @@ export function TransactionDetailsModal({
                             color: isReconciled ? "#8B5CF6" : tx.cleared ? "#4ADE80" : "#FCD34D",
                           }}
                         >
-                          {isReconciled ? (
-                            <ShieldCheck size={14} />
-                          ) : (
-                            <CheckCircle size={14} />
-                          )}
+                          {isReconciled ? <ShieldCheck size={14} /> : <CheckCircle size={14} />}
                         </div>
                         <div className="min-w-0">
                           <p className="mb-0.5 text-xs text-[#5A6A85]">Reconciliation Status</p>

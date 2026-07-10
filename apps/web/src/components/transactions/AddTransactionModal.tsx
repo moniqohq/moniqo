@@ -169,12 +169,16 @@ export function AddTransactionModal({
     setPayee(defaultMemo ?? "");
     setDate(new Date().toISOString().slice(0, 10));
 
-    const acc = defaultAccountId != null ? (accounts.find((a) => a.id === defaultAccountId) ?? null) : null;
+    const acc =
+      defaultAccountId != null ? (accounts.find((a) => a.id === defaultAccountId) ?? null) : null;
     setSelectedAccount(acc);
     setFromAccountId(defaultAccountId ?? null);
     setToAccountId(defaultTransferAccountId ?? null);
 
-    const env = defaultEnvelopeId != null ? (envelopes.find((e) => e.id === defaultEnvelopeId) ?? null) : null;
+    const env =
+      defaultEnvelopeId != null
+        ? (envelopes.find((e) => e.id === defaultEnvelopeId) ?? null)
+        : null;
     setSelectedEnvelope(env);
 
     const onKey = (e: KeyboardEvent) => {

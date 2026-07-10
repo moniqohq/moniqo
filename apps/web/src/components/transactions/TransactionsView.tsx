@@ -280,9 +280,7 @@ function TxRow({
       </td>
 
       {/* Notes */}
-      <td className="max-w-[200px] truncate px-4 py-3 text-sm text-[#5A6A85]">
-        {tx.memo ?? "—"}
-      </td>
+      <td className="max-w-[200px] truncate px-4 py-3 text-sm text-[#5A6A85]">{tx.memo ?? "—"}</td>
 
       {/* Actions */}
       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -1435,9 +1433,7 @@ export function TransactionsView() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         isLocked={Boolean(detailTx && accountMap.get(detailTx.accountId)?.is_immutable)}
-        envelope={
-          detailTx?.envelopeId != null ? envelopeMap.get(detailTx.envelopeId) : undefined
-        }
+        envelope={detailTx?.envelopeId != null ? envelopeMap.get(detailTx.envelopeId) : undefined}
         onDelete={() => {
           if (!detailTx) return;
           if (accountMap.get(detailTx.accountId)?.is_immutable) return;
