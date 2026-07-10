@@ -152,6 +152,19 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setTitle("");
+      setAmount("");
+      setNature("");
+      setDescription("");
+      setError(null);
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -165,17 +178,6 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
       document.body.style.overflow = "";
     };
   }, [open, onClose]);
-
-  useEffect(() => {
-    if (open) {
-      setTitle("");
-      setAmount("");
-      setNature("");
-      setDescription("");
-      setError(null);
-      setLoading(false);
-    }
-  }, [open]);
 
   return (
     <AnimatePresence>

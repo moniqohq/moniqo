@@ -638,13 +638,7 @@ export function EnvelopesView() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const selectedIdParam = searchParams.get("envelopeId");
-  const [selectedId, setSelectedId] = useState<number | null>(
-    selectedIdParam ? Number(selectedIdParam) : null,
-  );
-
-  useEffect(() => {
-    setSelectedId(selectedIdParam ? Number(selectedIdParam) : null);
-  }, [selectedIdParam]);
+  const selectedId = selectedIdParam ? Number(selectedIdParam) : null;
 
   function openEnvelope(id: number) {
     const params = new URLSearchParams(searchParams.toString());

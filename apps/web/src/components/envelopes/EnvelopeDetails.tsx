@@ -915,7 +915,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
 
                     {/* Running impact */}
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-medium tabular-nums text-[#8A9AB5]">
+                      <span className="font-medium text-[#8A9AB5] tabular-nums">
                         {formatCurrency(tx.runningImpact)}
                       </span>
                     </td>
