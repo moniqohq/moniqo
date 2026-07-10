@@ -202,7 +202,13 @@ function FilterDropdown({
 
 /* ── Archived toggle ──────────────────────────────────── */
 
-function ArchivedToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function ArchivedToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <button
       onClick={() => onChange(!checked)}

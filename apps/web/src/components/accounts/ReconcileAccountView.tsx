@@ -112,14 +112,12 @@ type ReconTx = {
   type: "income" | "expense" | "transfer";
 };
 
-const TX_TYPE_META: Record<
-  ReconTx["type"],
-  { icon: React.ReactNode; bg: string; color: string }
-> = {
-  income: { icon: <TrendingUp size={14} />, bg: "rgba(34,197,94,0.15)", color: "#22C55E" },
-  expense: { icon: <ShoppingCart size={14} />, bg: "rgba(59,130,246,0.15)", color: "#3B82F6" },
-  transfer: { icon: <ArrowLeftRight size={14} />, bg: "rgba(90,106,133,0.2)", color: "#8899AA" },
-};
+const TX_TYPE_META: Record<ReconTx["type"], { icon: React.ReactNode; bg: string; color: string }> =
+  {
+    income: { icon: <TrendingUp size={14} />, bg: "rgba(34,197,94,0.15)", color: "#22C55E" },
+    expense: { icon: <ShoppingCart size={14} />, bg: "rgba(59,130,246,0.15)", color: "#3B82F6" },
+    transfer: { icon: <ArrowLeftRight size={14} />, bg: "rgba(90,106,133,0.2)", color: "#8899AA" },
+  };
 
 function apiTransactionToRecon(t: ApiTransaction, runningBalance: number): ReconTx {
   const isTransfer = t.transfer_account_id != null;
@@ -459,9 +457,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const clearedBalance = account?.clearedBalance ?? 0;
 
   const transactions = useMemo(() => {
-    const sorted = [...rawTransactions].sort(
-      (a, b) => a.date.localeCompare(b.date) || a.id - b.id,
-    );
+    const sorted = [...rawTransactions].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
     const opening = (account?.balance ?? 0) - sorted.reduce((s, t) => s + t.amount, 0);
     const rows: ReconTx[] = [];
     let running = opening;
@@ -529,9 +525,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
 
   async function patchStatus(ids: number[], status: ApiTransactionStatus) {
     if (ids.length === 0) return;
-    setRawTransactions((prev) =>
-      prev.map((t) => (ids.includes(t.id) ? { ...t, status } : t)),
-    );
+    setRawTransactions((prev) => prev.map((t) => (ids.includes(t.id) ? { ...t, status } : t)));
     try {
       await Promise.all(ids.map((id) => patchTransaction(budgetId, id, { status })));
       setTxError(null);
@@ -1242,7 +1236,10 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <ReconciliationTimeline progress={progress} lastReconciledAt={account?.lastReconciledAt} />
+          <ReconciliationTimeline
+            progress={progress}
+            lastReconciledAt={account?.lastReconciledAt}
+          />
         </motion.div>
       </div>
     </div>

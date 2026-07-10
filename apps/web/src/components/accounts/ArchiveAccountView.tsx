@@ -834,7 +834,8 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                   {
                     icon: <RefreshCw size={18} />,
                     label: "Reconcile\nAccount",
-                    onClick: () => router.push(`/budgets/${budgetId}/accounts/${accountId}/reconcile`),
+                    onClick: () =>
+                      router.push(`/budgets/${budgetId}/accounts/${accountId}/reconcile`),
                   },
                   {
                     icon: <Download size={18} />,
