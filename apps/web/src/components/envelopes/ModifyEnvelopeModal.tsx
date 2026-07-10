@@ -34,6 +34,7 @@ import {
   ChevronUp,
   ChevronDown,
   Save,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { patchEnvelope } from "@/lib/api/envelopes";
@@ -495,6 +496,30 @@ function EnvelopeInfoCard() {
   );
 }
 
+/* ── SaveSuccessToast ────────────────────────────────────── */
+
+function SaveSuccessToast({ show }: { show: boolean }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, y: 12, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8, scale: 0.95 }}
+          className="fixed bottom-6 left-1/2 z-[300] flex -translate-x-1/2 items-center gap-3 rounded-xl border border-[#22C55E]/30 bg-[#0B1A10] px-4 py-3 shadow-xl shadow-black/50"
+        >
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#22C55E]/15">
+            <Check size={12} className="text-[#22C55E]" />
+          </div>
+          <span className="text-[13px] font-medium text-[#4ADE80]">
+            Envelope updated successfully.
+          </span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 /* ── ModifyEnvelopeModal ─────────────────────────────────── */
 
 export function ModifyEnvelopeModal({
@@ -514,6 +539,7 @@ export function ModifyEnvelopeModal({
   const [description, setDescription] = useState(envelope.description ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const allocatedNum = parseAmount(allocatedRaw);
   const MOCK_SPENT = envelope.spent;
@@ -541,7 +567,12 @@ export function ModifyEnvelopeModal({
         description: description.trim() || undefined,
       });
       onUpdated();
-      onClose();
+      setLoading(false);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        onClose();
+      }, 1800);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error.");
       setLoading(false);
@@ -549,182 +580,187 @@ export function ModifyEnvelopeModal({
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-40 bg-black/75 backdrop-blur-md"
-            onClick={onClose}
-          />
-
-          {/* Dialog wrapper */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
+    <>
+      <AnimatePresence>
+        {open && (
+          <>
+            {/* Backdrop */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              transition={{ type: "spring", damping: 30, stiffness: 380 }}
-              className="relative my-auto w-full max-w-[920px] overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120] shadow-[0_0_0_1px_rgba(108,58,237,0.12),0_32px_80px_rgba(0,0,0,0.75),0_0_60px_rgba(108,58,237,0.08)]"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Modify Envelope"
-            >
-              {/* Top accent glow */}
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/40 to-transparent" />
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="fixed inset-0 z-40 bg-black/75 backdrop-blur-md"
+              onClick={onClose}
+            />
 
-              {/* ── Header ── */}
-              <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pt-6 pb-4">
-                <div>
-                  <h2 className="text-[1.4rem] leading-tight font-bold text-white">
-                    Modify Envelope
-                  </h2>
-                  <p className="mt-0.5 text-sm text-[#4A5A75]">
-                    Update allocation settings for this category
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 rounded-full border border-[#3A2A00] bg-[#1A1200] px-3 py-1.5">
-                    <span className="h-1.5 w-1.5 flex-shrink-0 animate-pulse rounded-full bg-amber-400" />
-                    <span className="text-xs font-medium whitespace-nowrap text-amber-400">
-                      Unsaved changes
-                    </span>
-                  </div>
-                  <button
-                    onClick={onClose}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white focus:outline-none"
-                    aria-label="Close"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              </div>
+            {/* Dialog wrapper */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                transition={{ type: "spring", damping: 30, stiffness: 380 }}
+                className="relative my-auto w-full max-w-[920px] overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120] shadow-[0_0_0_1px_rgba(108,58,237,0.12),0_32px_80px_rgba(0,0,0,0.75),0_0_60px_rgba(108,58,237,0.08)]"
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Modify Envelope"
+              >
+                {/* Top accent glow */}
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#6C3AED]/40 to-transparent" />
 
-              {/* ── Body ── */}
-              <div className="flex max-h-[calc(100vh-180px)] gap-6 overflow-y-auto px-6 py-5">
-                {/* Left — form */}
-                <div className="min-w-0 flex-1 space-y-5">
-                  {/* Envelope title */}
+                {/* ── Header ── */}
+                <div className="flex items-start justify-between border-b border-[#111B2D] px-6 pt-6 pb-4">
                   <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-white">
-                      Envelope title <span className="text-[#F87171]">*</span>
-                    </label>
-                    <input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g., Groceries"
-                      className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
-                    />
-                    <p className="mt-1.5 text-xs text-[#7A8BA8]">
-                      A clear name for this spending category.
+                    <h2 className="text-[1.4rem] leading-tight font-bold text-white">
+                      Modify Envelope
+                    </h2>
+                    <p className="mt-0.5 text-sm text-[#4A5A75]">
+                      Update allocation settings for this category
                     </p>
                   </div>
-
-                  {/* Allocated amount */}
-                  <AllocationInput value={allocatedRaw} onChange={setAllocatedRaw} />
-
-                  {/* Nature */}
-                  <div>
-                    <label className="mb-3 block text-sm font-semibold text-white">
-                      Nature <span className="font-normal text-[#5A6A85]">(optional)</span>
-                    </label>
-
-                    {/* Cards */}
-                    <div className="grid grid-cols-4 gap-2">
-                      {NATURE_OPTIONS.map((opt) => (
-                        <NatureCard
-                          key={opt.value}
-                          option={opt}
-                          selected={nature === opt.value}
-                          onClick={() => setNature(nature === opt.value ? "" : opt.value)}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Descriptions row */}
-                    <div className="mt-2 grid grid-cols-4 gap-2">
-                      {NATURE_OPTIONS.map((opt) => (
-                        <p
-                          key={opt.value}
-                          className="px-1 text-center text-[11px] leading-snug text-[#5A6A85]"
-                        >
-                          {opt.description}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-white">
-                      Description <span className="font-normal text-[#5A6A85]">(optional)</span>
-                    </label>
-                    <div className="relative">
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value.slice(0, 140))}
-                        placeholder="Optional notes about this envelope…"
-                        rows={4}
-                        className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
-                      />
-                      <span className="pointer-events-none absolute right-3.5 bottom-3 text-[11px] text-[#5A6A85] tabular-nums">
-                        {description.length} / 140
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 rounded-full border border-[#3A2A00] bg-[#1A1200] px-3 py-1.5">
+                      <span className="h-1.5 w-1.5 flex-shrink-0 animate-pulse rounded-full bg-amber-400" />
+                      <span className="text-xs font-medium whitespace-nowrap text-amber-400">
+                        Unsaved changes
                       </span>
                     </div>
-                    <p className="mt-1.5 text-xs text-[#7A8BA8]">
-                      Visible only inside this budget.
-                    </p>
+                    <button
+                      onClick={onClose}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-[#4A5A75] transition-colors hover:bg-[#1A2540] hover:text-white focus:outline-none"
+                      aria-label="Close"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Body ── */}
+                <div className="flex max-h-[calc(100vh-180px)] gap-6 overflow-y-auto px-6 py-5">
+                  {/* Left — form */}
+                  <div className="min-w-0 flex-1 space-y-5">
+                    {/* Envelope title */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-white">
+                        Envelope title <span className="text-[#F87171]">*</span>
+                      </label>
+                      <input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="e.g., Groceries"
+                        className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
+                      />
+                      <p className="mt-1.5 text-xs text-[#7A8BA8]">
+                        A clear name for this spending category.
+                      </p>
+                    </div>
+
+                    {/* Allocated amount */}
+                    <AllocationInput value={allocatedRaw} onChange={setAllocatedRaw} />
+
+                    {/* Nature */}
+                    <div>
+                      <label className="mb-3 block text-sm font-semibold text-white">
+                        Nature <span className="font-normal text-[#5A6A85]">(optional)</span>
+                      </label>
+
+                      {/* Cards */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {NATURE_OPTIONS.map((opt) => (
+                          <NatureCard
+                            key={opt.value}
+                            option={opt}
+                            selected={nature === opt.value}
+                            onClick={() => setNature(nature === opt.value ? "" : opt.value)}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Descriptions row */}
+                      <div className="mt-2 grid grid-cols-4 gap-2">
+                        {NATURE_OPTIONS.map((opt) => (
+                          <p
+                            key={opt.value}
+                            className="px-1 text-center text-[11px] leading-snug text-[#5A6A85]"
+                          >
+                            {opt.description}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-white">
+                        Description <span className="font-normal text-[#5A6A85]">(optional)</span>
+                      </label>
+                      <div className="relative">
+                        <textarea
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value.slice(0, 140))}
+                          placeholder="Optional notes about this envelope…"
+                          rows={4}
+                          className="w-full resize-none rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
+                        />
+                        <span className="pointer-events-none absolute right-3.5 bottom-3 text-[11px] text-[#5A6A85] tabular-nums">
+                          {description.length} / 140
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-xs text-[#7A8BA8]">
+                        Visible only inside this budget.
+                      </p>
+                    </div>
+
+                    {/* Info panel */}
+                    <EnvelopeInfoCard />
                   </div>
 
-                  {/* Info panel */}
-                  <EnvelopeInfoCard />
+                  {/* Right — preview */}
+                  <div className="sticky top-0 w-72 flex-shrink-0 self-start">
+                    <EnvelopePreviewCard
+                      title={title}
+                      nature={nature}
+                      allocated={allocatedNum}
+                      spent={MOCK_SPENT}
+                    />
+                  </div>
                 </div>
 
-                {/* Right — preview */}
-                <div className="sticky top-0 w-72 flex-shrink-0 self-start">
-                  <EnvelopePreviewCard
-                    title={title}
-                    nature={nature}
-                    allocated={allocatedNum}
-                    spent={MOCK_SPENT}
-                  />
+                {/* ── Footer ── */}
+                <div
+                  className="flex items-center px-6 py-4"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
+                >
+                  <div className="ml-auto flex items-center gap-3">
+                    {error && <p className="text-sm text-[#F87171]">{error}</p>}
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleSave}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Save size={14} />
+                      {loading ? "Saving…" : "Save Changes"}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
 
-              {/* ── Footer ── */}
-              <div
-                className="flex items-center px-6 py-4"
-                style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
-              >
-                <div className="ml-auto flex items-center gap-3">
-                  {error && <p className="text-sm text-[#F87171]">{error}</p>}
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-xl border border-[#1A2540] bg-transparent px-5 py-2.5 text-sm font-semibold text-[#A8B4CC] transition-all hover:bg-[#0D1525] hover:text-white focus:outline-none"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={handleSave}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.4)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_32px_rgba(108,58,237,0.6)] focus:ring-4 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Save size={14} />
-                    {loading ? "Saving…" : "Save Changes"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
+      {/* Success toast */}
+      <SaveSuccessToast show={showSuccess} />
+    </>
   );
 }
