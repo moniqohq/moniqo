@@ -347,6 +347,7 @@ Idempotent operation.
 - Soft delete only.
 - Must reverse financial impact.
 - Already deleted resource must not cause failure.
+- Rejected if the transaction's account has transaction locking enabled (`is_immutable`).
 
 **Side Effects**
 
@@ -362,4 +363,5 @@ Idempotent operation.
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 403 | `FORBIDDEN` | Insufficient role |
 | 404 | `NOT_FOUND` | Transaction not found |
+| 409 | `CONFLICT` | Account has transaction locking enabled |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
