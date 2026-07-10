@@ -19,7 +19,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetchPaginated } from "@/lib/api";
 import { adaptTransaction } from "@/lib/transaction-adapter";
 import type { ApiTransaction, ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import type { Transaction } from "@/types";
@@ -63,7 +63,7 @@ export function useTransactions(
     if (filters?.envelopeId != null) params.set("budget_envelope_id", String(filters.envelopeId));
     if (filters?.dateFrom) params.set("date_from", filters.dateFrom);
     if (filters?.dateTo) params.set("date_to", filters.dateTo);
-    if (filters?.page != null) params.set("page", String(filters.page));
+    params.set("page", String(filters?.page ?? 1));
     if (filters?.pageSize != null) params.set("page_size", String(filters.pageSize));
 
     const query = params.toString();
@@ -75,10 +75,10 @@ export function useTransactions(
       setLoading(true);
       setError(null);
       try {
-        const data = await apiFetch<ApiTransaction[]>(url);
+        const { data, meta } = await apiFetchPaginated<ApiTransaction>(url);
         if (cancelled) return;
         setRawTransactions(data ?? []);
-        setTotal(data?.length ?? 0);
+        setTotal(meta?.total ?? data?.length ?? 0);
       } catch (err: unknown) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -92,7 +92,6 @@ export function useTransactions(
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     budgetId,
     tick,

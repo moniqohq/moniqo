@@ -19,7 +19,7 @@
  */
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Plus,
   Upload,
@@ -767,6 +767,22 @@ function TypeFilter({
   );
 }
 
+/* ── Pagination helpers ─────────────────────────────────── */
+function paginationRange(page: number, totalPages: number): (number | "…")[] {
+  const delta = 1;
+  const range: (number | "…")[] = [];
+  const start = Math.max(2, page - delta);
+  const end = Math.min(totalPages - 1, page + delta);
+
+  range.push(1);
+  if (start > 2) range.push("…");
+  for (let i = start; i <= end; i++) range.push(i);
+  if (end < totalPages - 1) range.push("…");
+  if (totalPages > 1) range.push(totalPages);
+
+  return range;
+}
+
 /* ── Per-page dropdown ──────────────────────────────────── */
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -828,6 +844,7 @@ export function TransactionsView() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
   const [accountFilter, setAccountFilter] = useState<Set<number>>(new Set());
@@ -854,8 +871,38 @@ export function TransactionsView() {
     envelopeId: envelopeFilter.size === 1 ? Number([...envelopeFilter][0]) : undefined,
     dateFrom: dateRange.from?.toISOString(),
     dateTo: dateRange.to?.toISOString(),
+    page,
     pageSize,
   });
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Adjust state during render (React's recommended pattern) rather than in an
+  // effect: reset to page 1 when the active budget changes, since the current
+  // page may no longer exist under the new budget's transaction set.
+  const [prevBudgetId, setPrevBudgetId] = useState(activeBudgetId);
+  if (activeBudgetId !== prevBudgetId) {
+    setPrevBudgetId(activeBudgetId);
+    setPage(1);
+  }
+
+  // Reset to page 1 whenever a server-side filter or page size changes,
+  // since the current page may no longer exist under the new query.
+  const handleAccountFilterChange = useCallback((next: Set<number>) => {
+    setAccountFilter(next);
+    setPage(1);
+  }, []);
+  const handleEnvelopeFilterChange = useCallback((next: Set<number>) => {
+    setEnvelopeFilter(next);
+    setPage(1);
+  }, []);
+  const handleDateRangeChange = useCallback((next: DateRange) => {
+    setDateRange(next);
+    setPage(1);
+  }, []);
+  const handlePageSizeChange = useCallback((next: number) => {
+    setPageSize(next);
+    setPage(1);
+  }, []);
   const filteredTransactions = useMemo(() => {
     let result = transactions;
     if (typeFilter.size > 0) {
@@ -1017,17 +1064,21 @@ export function TransactionsView() {
         <div className="flex flex-wrap items-center gap-2 border-b border-[#131E30] px-4 py-3">
           <AccountFilter
             value={accountFilter}
-            onChange={setAccountFilter}
+            onChange={handleAccountFilterChange}
             triggerClassName={filterBtn}
             accounts={accounts}
           />
           <EnvelopeFilter
             value={envelopeFilter}
-            onChange={setEnvelopeFilter}
+            onChange={handleEnvelopeFilterChange}
             triggerClassName={filterBtn}
             envelopes={envelopes}
           />
-          <DateRangePicker value={dateRange} onChange={setDateRange} triggerClassName={filterBtn} />
+          <DateRangePicker
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            triggerClassName={filterBtn}
+          />
           <TypeFilter value={typeFilter} onChange={setTypeFilter} triggerClassName={filterBtn} />
           {isFeatureEnabled("transactionFilters") && (
             <button className={cn(filterBtn, "ml-auto")}>
@@ -1278,34 +1329,55 @@ export function TransactionsView() {
         {/* Pagination — Flowbite pagination pattern */}
         <div className="flex items-center justify-between border-t border-[#131E30] px-4 py-3">
           <span className="text-sm text-[#5A6A85]">
-            Showing <span className="font-medium text-[#A8B4CC]">1</span> to{" "}
-            <span className="font-medium text-[#A8B4CC]">{filteredTransactions.length}</span> of{" "}
-            <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
+            Showing{" "}
+            <span className="font-medium text-[#A8B4CC]">
+              {totalCount === 0 ? 0 : (page - 1) * pageSize + 1}
+            </span>{" "}
+            to{" "}
+            <span className="font-medium text-[#A8B4CC]">
+              {Math.min(page * pageSize, totalCount)}
+            </span>{" "}
+            of <span className="font-medium text-[#A8B4CC]">{totalCount}</span> transactions
           </span>
 
           <div className="inline-flex items-center gap-1" aria-label="Pagination">
-            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#5A6A85]"
+            >
               ‹
             </button>
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                aria-current={n === 1 ? "page" : undefined}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
-                  n === 1
-                    ? "border border-[#6C3AED] bg-[#6C3AED] text-white"
-                    : "border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
-                )}
-              >
-                {n}
-              </button>
-            ))}
-            <button className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none">
+            {paginationRange(page, totalPages).map((n, i) =>
+              n === "…" ? (
+                <span key={`ellipsis-${i}`} className="px-2 text-sm text-[#5A6A85]">
+                  …
+                </span>
+              ) : (
+                <button
+                  key={n}
+                  onClick={() => setPage(n)}
+                  aria-current={n === page ? "page" : undefined}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
+                    n === page
+                      ? "border border-[#6C3AED] bg-[#6C3AED] text-white"
+                      : "border border-[#1A2640] text-[#5A6A85] hover:bg-[#131C2E] hover:text-white",
+                  )}
+                >
+                  {n}
+                </button>
+              ),
+            )}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#5A6A85]"
+            >
               ›
             </button>
 
-            <PageSizeSelect value={pageSize} onChange={setPageSize} />
+            <PageSizeSelect value={pageSize} onChange={handlePageSizeChange} />
           </div>
         </div>
       </div>
