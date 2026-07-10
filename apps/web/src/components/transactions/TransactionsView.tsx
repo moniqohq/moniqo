@@ -833,6 +833,7 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 export function TransactionsView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const [modalOpen, setModalOpen] = useState(false);
+  const [duplicateSeed, setDuplicateSeed] = useState<Transaction | null>(null);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editTx, setEditTx] = useState<Transaction | null>(null);
@@ -1011,6 +1012,22 @@ export function TransactionsView() {
     }
   }
 
+  async function markDetailTxReconciled() {
+    if (!detailTx || !activeBudgetId) return;
+    if (accountMap.get(detailTx.accountId)?.is_immutable) return;
+    await patchTransaction(activeBudgetId, detailTx.id, { status: "reconciled" });
+    setDetailTx((prev) =>
+      prev && prev.id === detailTx.id ? { ...prev, status: "reconciled", cleared: true } : prev,
+    );
+    refetchAll();
+  }
+
+  function duplicateTx(tx: Transaction) {
+    setDuplicateSeed(tx);
+    setDetailOpen(false);
+    setModalOpen(true);
+  }
+
   /* Flowbite dropdown trigger style */
   const filterBtn = [
     "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#1A2640]",
@@ -1056,7 +1073,10 @@ export function TransactionsView() {
           )}
 
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setDuplicateSeed(null);
+              setModalOpen(true);
+            }}
             className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none"
           >
             <Plus size={14} />
@@ -1395,11 +1415,20 @@ export function TransactionsView() {
 
       <AddTransactionModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setDuplicateSeed(null);
+        }}
         onSuccess={refetchAll}
         budgetId={activeBudgetId}
         accounts={accounts}
         envelopes={envelopes}
+        defaultType={duplicateSeed?.type}
+        defaultAccountId={duplicateSeed?.accountId}
+        defaultEnvelopeId={duplicateSeed?.envelopeId}
+        defaultTransferAccountId={duplicateSeed?.transferAccountId}
+        defaultAmount={duplicateSeed ? Math.abs(duplicateSeed.amount) : undefined}
+        defaultMemo={duplicateSeed?.memo}
       />
       <TransactionDetailsModal
         tx={detailTx}
@@ -1420,6 +1449,11 @@ export function TransactionsView() {
           setEditTx(detailTx);
           setEditOpen(true);
           setDetailOpen(false);
+        }}
+        onMarkReconciled={markDetailTxReconciled}
+        onDuplicate={() => {
+          if (!detailTx) return;
+          duplicateTx(detailTx);
         }}
       />
       <EditTransactionModal

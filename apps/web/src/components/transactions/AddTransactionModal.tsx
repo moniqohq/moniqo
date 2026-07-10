@@ -51,6 +51,9 @@ interface AddTransactionModalProps {
   envelopes?: ApiEnvelope[];
   defaultAccountId?: number | null;
   defaultEnvelopeId?: number | null;
+  defaultTransferAccountId?: number | null;
+  defaultAmount?: number;
+  defaultMemo?: string;
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
@@ -124,6 +127,9 @@ export function AddTransactionModal({
   envelopes = [],
   defaultAccountId,
   defaultEnvelopeId,
+  defaultTransferAccountId,
+  defaultAmount,
+  defaultMemo,
 }: AddTransactionModalProps) {
   /* core state */
   const [txType, setTxType] = useState<TransactionType>(defaultType);
@@ -158,15 +164,19 @@ export function AddTransactionModal({
   useEffect(() => {
     if (!open) return;
     setTxType(defaultType);
-    if (defaultAccountId != null) {
-      const acc = accounts.find((a) => a.id === defaultAccountId) ?? null;
-      setSelectedAccount(acc);
-      setFromAccountId(defaultAccountId);
-    }
-    if (defaultEnvelopeId != null) {
-      const env = envelopes.find((e) => e.id === defaultEnvelopeId) ?? null;
-      setSelectedEnvelope(env);
-    }
+    setAmount(defaultAmount != null ? String(Math.abs(defaultAmount)) : "");
+    setMemo(defaultMemo ?? "");
+    setPayee(defaultMemo ?? "");
+    setDate(new Date().toISOString().slice(0, 10));
+
+    const acc = defaultAccountId != null ? (accounts.find((a) => a.id === defaultAccountId) ?? null) : null;
+    setSelectedAccount(acc);
+    setFromAccountId(defaultAccountId ?? null);
+    setToAccountId(defaultTransferAccountId ?? null);
+
+    const env = defaultEnvelopeId != null ? (envelopes.find((e) => e.id === defaultEnvelopeId) ?? null) : null;
+    setSelectedEnvelope(env);
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -176,7 +186,18 @@ export function AddTransactionModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose, defaultType, defaultAccountId, accounts, defaultEnvelopeId, envelopes]);
+  }, [
+    open,
+    onClose,
+    defaultType,
+    defaultAccountId,
+    defaultTransferAccountId,
+    defaultAmount,
+    defaultMemo,
+    accounts,
+    defaultEnvelopeId,
+    envelopes,
+  ]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* derived */

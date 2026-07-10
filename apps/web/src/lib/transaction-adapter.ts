@@ -44,6 +44,7 @@ export function adaptTransaction(
     budgetId: raw.budget_id,
     accountId: raw.account_id,
     accountName: account?.name ?? "Unknown account",
+    transferAccountId: raw.transfer_account_id ?? undefined,
     envelopeId: raw.budget_envelope_id ?? undefined,
     envelopeName: envelope?.title,
     payee: raw.memo ?? "",

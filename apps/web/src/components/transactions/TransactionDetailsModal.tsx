@@ -42,6 +42,7 @@ import {
   CheckCircle,
   Trash2,
   Lock,
+  ShieldCheck,
 } from "lucide-react";
 import type { Transaction, AccountType } from "@/types";
 import type { ApiEnvelope } from "@/lib/api-types";
@@ -74,6 +75,8 @@ interface Props {
   onClose: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  onMarkReconciled?: () => void;
+  onDuplicate?: () => void;
   isLocked?: boolean;
   envelope?: ApiEnvelope;
 }
@@ -84,6 +87,8 @@ export function TransactionDetailsModal({
   onClose,
   onDelete,
   onEdit,
+  onMarkReconciled,
+  onDuplicate,
   isLocked = false,
   envelope,
 }: Props) {
@@ -110,6 +115,7 @@ export function TransactionDetailsModal({
   const isExpense = tx.type === "expense";
   const isIncome = tx.type === "income";
   const isTransfer = tx.type === "transfer";
+  const isReconciled = tx.status === "reconciled";
 
   const amountColor = isIncome ? "text-[#4ADE80]" : isExpense ? "text-[#F87171]" : "text-[#93C5FD]";
 
@@ -175,11 +181,11 @@ export function TransactionDetailsModal({
                       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
                       style={{ backgroundColor: "#1E2B42" }}
                     >
-                      {tx.payee[0]}
+                      {(tx.payee || "?")[0]}
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-xl leading-tight font-semibold text-[#E8EEF8]">
-                        {tx.payee}
+                        {tx.payee || "Unknown Payee"}
                       </p>
                       {tx.memo && (
                         <p className="mt-0.5 truncate text-sm text-[#5A6A85]">{tx.memo}</p>
@@ -427,6 +433,38 @@ export function TransactionDetailsModal({
                         value={formatModalDate(tx.createdAt)}
                       />
 
+                      {/* Reconciliation status */}
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                          style={{
+                            backgroundColor: isReconciled
+                              ? "rgba(139,92,246,0.15)"
+                              : tx.cleared
+                                ? "rgba(34,197,94,0.12)"
+                                : "rgba(245,158,11,0.12)",
+                            color: isReconciled ? "#8B5CF6" : tx.cleared ? "#4ADE80" : "#FCD34D",
+                          }}
+                        >
+                          {isReconciled ? (
+                            <ShieldCheck size={14} />
+                          ) : (
+                            <CheckCircle size={14} />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="mb-0.5 text-xs text-[#5A6A85]">Reconciliation Status</p>
+                          <p
+                            className="text-sm font-medium"
+                            style={{
+                              color: isReconciled ? "#8B5CF6" : tx.cleared ? "#4ADE80" : "#FCD34D",
+                            }}
+                          >
+                            {isReconciled ? "Reconciled" : tx.cleared ? "Cleared" : "Uncleared"}
+                          </p>
+                        </div>
+                      </div>
+
                       {/* Transaction ID */}
                       <div className="flex items-start gap-3">
                         <IconBox>
@@ -456,11 +494,15 @@ export function TransactionDetailsModal({
                   <ActionBtn onClick={onEdit} disabled={isLocked}>
                     <Edit2 size={14} /> Edit
                   </ActionBtn>
-                  <ActionBtn>
+                  <ActionBtn onClick={onDuplicate}>
                     <Copy size={14} /> Duplicate
                   </ActionBtn>
-                  <ActionBtn className="border-[#22C55E]/30 text-[#4ADE80] hover:border-[#22C55E]/50 hover:bg-[#22C55E]/10 focus:ring-[#22C55E]/30">
-                    <CheckCircle size={14} /> Mark Reconciled
+                  <ActionBtn
+                    className="border-[#22C55E]/30 text-[#4ADE80] hover:border-[#22C55E]/50 hover:bg-[#22C55E]/10 focus:ring-[#22C55E]/30"
+                    onClick={onMarkReconciled}
+                    disabled={isLocked || isReconciled}
+                  >
+                    <CheckCircle size={14} /> {isReconciled ? "Reconciled" : "Mark Reconciled"}
                   </ActionBtn>
                   <ActionBtn
                     className="ml-auto border-[#EF4444]/30 text-[#F87171] hover:border-[#EF4444]/50 hover:bg-[#EF4444]/10 focus:ring-[#EF4444]/30"
