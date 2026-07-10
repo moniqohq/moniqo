@@ -637,7 +637,27 @@ export function EnvelopesView() {
   const [filterStatuses, setFilterStatuses] = useState<Set<Status>>(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selectedIdParam = searchParams.get("envelopeId");
+  const [selectedId, setSelectedId] = useState<number | null>(
+    selectedIdParam ? Number(selectedIdParam) : null,
+  );
+
+  useEffect(() => {
+    setSelectedId(selectedIdParam ? Number(selectedIdParam) : null);
+  }, [selectedIdParam]);
+
+  function openEnvelope(id: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("envelopeId", String(id));
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function closeEnvelope() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("envelopeId");
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   function handleShowArchivedChange(v: boolean) {
     const next: ArchivedFilter = v ? "all" : "active";
@@ -687,7 +707,7 @@ export function EnvelopesView() {
       <div className="layout-page py-6">
         <div className="mb-5">
           <button
-            onClick={() => setSelectedId(null)}
+            onClick={closeEnvelope}
             className="inline-flex items-center gap-1.5 text-sm text-[#7A8BA8] transition-colors hover:text-[#E8EEF8]"
           >
             <ChevronLeft size={15} />
@@ -893,7 +913,7 @@ export function EnvelopesView() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: i * 0.018 }}
-                            onClick={() => setSelectedId(Number(env.id))}
+                            onClick={() => openEnvelope(Number(env.id))}
                             className="group cursor-pointer transition-colors hover:bg-[#0D1828]"
                           >
                             {/* Envelope */}
@@ -1067,7 +1087,7 @@ export function EnvelopesView() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.04 }}
-                      onClick={() => setSelectedId(Number(env.id))}
+                      onClick={() => openEnvelope(Number(env.id))}
                       className="cursor-pointer rounded-xl border border-[#1A2640] bg-[#0B1220] p-4 transition-colors hover:border-[#2A3A54]"
                     >
                       <div className="mb-3 flex items-start justify-between">
