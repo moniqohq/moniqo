@@ -210,18 +210,11 @@ function TxRow({
         {formatTableDate(tx.date)}
       </td>
 
-      {/* Payee / Note */}
+      {/* Payee */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <PayeeAvatar payee={tx.payee || "?"} />
-          <div>
-            <p className="text-sm leading-tight font-medium text-[#E8EEF8]">{tx.payee}</p>
-            {tx.memo && (
-              <p className="mt-0.5 text-xs leading-tight whitespace-nowrap text-[#5A6A85]">
-                {tx.memo}
-              </p>
-            )}
-          </div>
+          <p className="text-sm leading-tight font-medium text-[#E8EEF8]">{tx.payee}</p>
         </div>
       </td>
 
@@ -284,6 +277,11 @@ function TxRow({
       {/* Running Balance */}
       <td className="px-4 py-3 text-right text-sm whitespace-nowrap text-[#A8B4CC] tabular-nums">
         {tx.runningBalance != null ? formatCurrency(tx.runningBalance) : "—"}
+      </td>
+
+      {/* Notes */}
+      <td className="max-w-[200px] truncate px-4 py-3 text-sm text-[#5A6A85]">
+        {tx.memo ?? "—"}
       </td>
 
       {/* Actions */}
@@ -1259,7 +1257,7 @@ export function TransactionsView() {
                   </button>
                 </th>
                 <th scope="col" className="px-4 py-3 tracking-wider">
-                  Payee / Note
+                  Payee
                 </th>
                 <th scope="col" className="px-4 py-3 tracking-wider">
                   Type
@@ -1276,27 +1274,30 @@ export function TransactionsView() {
                 <th scope="col" className="px-4 py-3 text-right tracking-wider">
                   Running Balance
                 </th>
+                <th scope="col" className="px-4 py-3 tracking-wider">
+                  Notes
+                </th>
                 <th scope="col" className="w-10" />
               </tr>
             </thead>
             <tbody className="divide-y divide-[#0F1A2C]">
               {txLoading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
                     Loading transactions…
                   </td>
                 </tr>
               )}
               {txError && !txLoading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#F87171]">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-[#F87171]">
                     {txError}
                   </td>
                 </tr>
               )}
               {!txLoading && !txError && filteredTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-[#5A6A85]">
                     No transactions found.
                   </td>
                 </tr>
