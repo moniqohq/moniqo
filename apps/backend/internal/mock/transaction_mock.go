@@ -189,3 +189,9 @@ func (m *AccountChecker) IsArchived(_ context.Context, id, budgetID int64) (bool
 	args := m.Called(id, budgetID)
 	return args.Bool(0), args.Error(1)
 }
+
+// IsImmutable records the call and returns the configured stub values.
+func (m *AccountChecker) IsImmutable(_ context.Context, id, budgetID int64) (bool, error) {
+	args := m.Called(id, budgetID)
+	return args.Bool(0), args.Error(1)
+}

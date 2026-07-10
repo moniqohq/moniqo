@@ -403,6 +403,25 @@ func TestHandler_DeleteTransaction(t *testing.T) {
 		require.NoError(t, transaction.NewHandler(svc, log).DeleteTransaction(c))
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
+
+	t.Run("locked account returns 409 with message", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			DeleteFn: func(_ context.Context, _, _ int64, _ models.Role) error {
+				return transaction.ErrAccountLocked
+			},
+		}
+		c, rec := newCtx(e, http.MethodDelete, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		injectMembership(c, fixedMembership(models.RoleOwner))
+
+		require.NoError(t, transaction.NewHandler(svc, log).DeleteTransaction(c))
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.False(t, resp.Success)
+		assert.NotEmpty(t, resp.Msg)
+	})
 }
 
 // Compile-time check that money import is used.

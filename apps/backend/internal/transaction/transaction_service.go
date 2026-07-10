@@ -39,11 +39,16 @@ var ErrForbidden = errors.New("insufficient role")
 // Archived accounts are read-only: their transaction history is preserved but no new activity is allowed.
 var ErrAccountArchived = errors.New("account is archived")
 
-// AccountChecker reports whether an account is archived. Satisfied by the
+// ErrAccountLocked is returned when a transaction is modified or deleted on an
+// account with transaction locking ("is_immutable") enabled.
+var ErrAccountLocked = errors.New("account has transaction locking enabled")
+
+// AccountChecker reports whether an account is archived or locked. Satisfied by the
 // account package's Repository; kept as a narrow interface here to avoid an
 // import cycle between the transaction and account packages.
 type AccountChecker interface {
 	IsArchived(ctx context.Context, id, budgetID int64) (bool, error)
+	IsImmutable(ctx context.Context, id, budgetID int64) (bool, error)
 }
 
 // statusOrDefault returns s if set, otherwise the default uncleared status for new transactions.
@@ -474,6 +479,10 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		return fmt.Errorf("get transaction: %w", err)
 	}
 
+	if err := s.checkNotLocked(ctx, txn.AccountID, budgetID); err != nil {
+		return err
+	}
+
 	// For transfers, delete both legs via group ID.
 	if txn.TransferGroupID != nil {
 		if err := s.repo.SoftDeleteByGroupID(ctx, *txn.TransferGroupID, budgetID); err != nil {
@@ -519,6 +528,22 @@ func (s *Svc) checkNotArchived(ctx context.Context, accountID, budgetID int64) e
 	}
 	if archived {
 		return ErrAccountArchived
+	}
+	return nil
+}
+
+// checkNotLocked returns ErrAccountLocked if accountID refers to an account
+// with transaction locking enabled. No-ops when no AccountChecker is wired.
+func (s *Svc) checkNotLocked(ctx context.Context, accountID, budgetID int64) error {
+	if s.accounts == nil {
+		return nil
+	}
+	locked, err := s.accounts.IsImmutable(ctx, accountID, budgetID)
+	if err != nil {
+		return fmt.Errorf("check account locked: %w", err)
+	}
+	if locked {
+		return ErrAccountLocked
 	}
 	return nil
 }
