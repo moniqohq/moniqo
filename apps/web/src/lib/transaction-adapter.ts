@@ -43,7 +43,7 @@ export function adaptTransaction(
     id: raw.id,
     budgetId: raw.budget_id,
     accountId: raw.account_id,
-    accountName: account?.name ?? `Account #${raw.account_id}`,
+    accountName: account?.name ?? "Unknown account",
     envelopeId: raw.budget_envelope_id ?? undefined,
     envelopeName: envelope?.title,
     payee: raw.memo ?? "",

@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { adaptTransaction } from "@/lib/transaction-adapter";
 import type { ApiTransaction, ApiAccount, ApiEnvelope } from "@/lib/api-types";
@@ -47,7 +47,7 @@ export function useTransactions(
   envelopes: Map<number, ApiEnvelope>,
   filters?: Filters,
 ): UseTransactionsResult {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [rawTransactions, setRawTransactions] = useState<ApiTransaction[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export function useTransactions(
       try {
         const data = await apiFetch<ApiTransaction[]>(url);
         if (cancelled) return;
-        setTransactions((data ?? []).map((raw) => adaptTransaction(raw, accounts, envelopes)));
+        setRawTransactions(data ?? []);
         setTotal(data?.length ?? 0);
       } catch (err: unknown) {
         if (cancelled) return;
@@ -103,6 +103,11 @@ export function useTransactions(
     filters?.page,
     filters?.pageSize,
   ]);
+
+  const transactions = useMemo(
+    () => rawTransactions.map((raw) => adaptTransaction(raw, accounts, envelopes)),
+    [rawTransactions, accounts, envelopes],
+  );
 
   return { transactions, total, loading, error, refetch };
 }
