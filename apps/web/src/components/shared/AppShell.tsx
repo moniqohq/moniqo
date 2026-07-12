@@ -23,7 +23,9 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { CommandPalette } from "@/components/search/CommandPalette";
 import { useAuthStore } from "@/stores/auth.store";
+import { useUIStore } from "@/stores/ui.store";
 import { apiFetch, authFetch } from "@/lib/api-client";
 import type { ApiAuthTokens, ApiUser } from "@/lib/api-types";
 
@@ -43,6 +45,19 @@ export function AppShell({ children }: AppShellProps) {
   const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const setUser = useAuthStore((s) => s.setUser);
   const clearAuth = useAuthStore((s) => s.clearAuth);
+  const setSearchOpen = useUIStore((s) => s.setSearchOpen);
+
+  // Global ⌘K / Ctrl+K opens the command palette.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [setSearchOpen]);
 
   useEffect(() => {
     if (accessToken) {
@@ -89,6 +104,7 @@ export function AppShell({ children }: AppShellProps) {
         <Topbar />
         <main className="flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
+      <CommandPalette />
     </div>
   );
 }

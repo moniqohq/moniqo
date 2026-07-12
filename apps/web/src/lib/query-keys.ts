@@ -39,6 +39,7 @@ export const qk = {
   dashboard: (budgetId: number) => ["dashboard", budgetId] as const,
   accountBalanceHistory: (budgetId: number) => ["account-balance-history", budgetId] as const,
   budgets: () => ["budgets"] as const,
+  search: (budgetId: number, query: string) => ["search", budgetId, query] as const,
 };
 
 /**

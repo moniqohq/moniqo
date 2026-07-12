@@ -53,6 +53,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/envelope"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
+	"github.com/moniqohq/moniqo/apps/backend/internal/search"
 	"github.com/moniqohq/moniqo/apps/backend/internal/transaction"
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
@@ -306,6 +307,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	registerAccountRoutes(e, pool, log)
 	registerEnvelopeRoutes(e, pool, log)
 	registerTransactionRoutes(e, pool, log)
+	registerSearchRoutes(e, pool, log)
 }
 
 func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
@@ -432,6 +434,18 @@ func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionEdit, log))
 	txnGroup.DELETE("/:id", txnHandler.DeleteTransaction,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.TransactionView, log))
+}
+
+func registerSearchRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
+	membershipRepo := budget.NewMembershipRepo(pool, log)
+
+	searchRepo := search.NewRepo(pool, log)
+	searchSvc := search.NewSvc(searchRepo, log)
+	searchHandler := search.NewHandler(searchSvc, log)
+
+	searchGroup := e.Group("/api/v1/budgets/:budget_id/search")
+	searchGroup.GET("", searchHandler.Search,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.SearchView, log))
 }
 
 func runMigrations(dsn string) error {

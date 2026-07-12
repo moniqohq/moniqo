@@ -313,6 +313,7 @@ function UserMenu() {
 export function Topbar() {
   const { setMobileSidebar } = useUIStore();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const setSearchOpen = useUIStore((s) => s.setSearchOpen);
   const { data: budgets, isLoading: budgetsLoading, refetch: refetchBudgets } = useBudgets();
   const { data: envelopes, summary } = useEnvelopes(activeBudgetId);
   const overspentAmount = envelopes
@@ -335,27 +336,27 @@ export function Topbar() {
         onBudgetCreated={refetchBudgets}
       />
 
-      {/* Search bar */}
+      {/* Search bar — opens the global command palette */}
       <div className="max-w-md min-w-0 flex-1">
-        <div className="relative">
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="group relative flex w-full items-center rounded-lg border border-[#1E2B42] bg-[#0F1623] py-2 pr-20 pl-9 text-left text-sm text-[#2A3A54] transition-all hover:border-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/25 focus:outline-none"
+        >
           <Search
             size={14}
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#5A6A85]"
           />
-          <input
-            type="text"
-            placeholder="Search transactions, categories, or insights..."
-            className="w-full rounded-lg border border-[#1E2B42] bg-[#0F1623] py-2 pr-20 pl-9 text-sm text-[#A8B4CC] transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/25 focus:outline-none"
-          />
-          <div className="absolute top-1/2 right-2.5 flex -translate-y-1/2 items-center gap-1">
+          <span className="truncate">Search transactions, accounts, envelopes…</span>
+          <span className="absolute top-1/2 right-2.5 flex -translate-y-1/2 items-center gap-1">
             <kbd className="rounded border border-[#1E2B42] bg-[#131C2E] px-1.5 py-0.5 font-mono text-[10px] text-[#2A3A54]">
               ⌘
             </kbd>
             <kbd className="rounded border border-[#1E2B42] bg-[#131C2E] px-1.5 py-0.5 font-mono text-[10px] text-[#2A3A54]">
               K
             </kbd>
-          </div>
-        </div>
+          </span>
+        </button>
       </div>
 
       {/* To Be Budgeted */}

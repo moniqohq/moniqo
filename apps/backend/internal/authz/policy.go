@@ -56,6 +56,8 @@ const (
 	TransactionView
 	// TransactionEdit allows creating, updating, and deleting transactions (EDITOR and above).
 	TransactionEdit
+	// SearchView allows global search over a budget's entities (any member).
+	SearchView
 )
 
 type rolePolicy = map[Action]bool
@@ -80,6 +82,7 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeDelete:    true,
 			TransactionView:   true,
 			TransactionEdit:   true,
+			SearchView:        true,
 		},
 		models.RoleAdmin: {
 			BudgetView:        true,
@@ -95,6 +98,7 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeDelete:    true,
 			TransactionView:   true,
 			TransactionEdit:   true,
+			SearchView:        true,
 		},
 		models.RoleEditor: {
 			BudgetView:        true,
@@ -110,6 +114,7 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeDelete:    false,
 			TransactionView:   true,
 			TransactionEdit:   true,
+			SearchView:        true,
 		},
 		models.RoleViewer: {
 			BudgetView:        true,
@@ -125,6 +130,7 @@ func policyTable() map[models.Role]rolePolicy {
 			EnvelopeDelete:    false,
 			TransactionView:   true,
 			TransactionEdit:   false,
+			SearchView:        true,
 		},
 	}
 }
