@@ -90,3 +90,6 @@ apps/desktop/src-tauri/target/
 apps/landing/public/
 apps/landing/resources/
 apps/landing/.hugo_build.lock
+
+# Claude Code local settings
+.claude/settings.local.json
