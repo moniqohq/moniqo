@@ -105,16 +105,29 @@ function getGreeting() {
   return "Good Evening";
 }
 
+// The dashboard endpoint accepts a single ?month=YYYY-MM. Range options resolve
+// to the first month of their window (e.g. "Last 3 Months" -> the month 2 back);
+// "All Time" has no single month, so it omits the param and the backend defaults
+// to the current month.
 function periodToMonth(period: string): string | undefined {
   const now = new Date();
-  if (period === "this-month") {
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  switch (period) {
+    case "this-month":
+      return fmt(now);
+    case "last-month":
+      return fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+    case "last-3-months":
+      return fmt(new Date(now.getFullYear(), now.getMonth() - 2, 1));
+    case "last-6-months":
+      return fmt(new Date(now.getFullYear(), now.getMonth() - 5, 1));
+    case "this-year":
+      return fmt(new Date(now.getFullYear(), 0, 1));
+    case "all-time":
+    default:
+      return undefined;
   }
-  if (period === "last-month") {
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }
-  return undefined;
 }
 
 export function DashboardView() {
