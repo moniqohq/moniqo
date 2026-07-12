@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
+
+// composeProject is the compose project name (derived from the working
+// directory) that podman-compose uses to prefix container names as
+// <project>_<service>_1.
+const composeProject = "moniqo"
 
 // runCompose runs a docker compose / podman-compose command.
 // Set COMPOSE_TOOL=podman-compose to use Podman; defaults to "docker compose".
@@ -21,9 +27,64 @@ func runCompose(args ...string) error {
 	return sh.RunV("docker", append([]string{"compose"}, args...)...)
 }
 
-// DockerComposeUp starts the Docker Compose stack.
+// composeUp starts the given services detached, idempotently.
+//
+// `docker compose up` already no-ops on running containers, but podman-compose
+// 1.0.6 shells out to `podman run` and aborts with a noisy "name is already in
+// use" error when a container of that name exists. To keep `make dev` quiet on
+// reruns we inspect each service's container first: skip the ones already
+// running, `podman start` the ones that exist but are stopped, and only hand
+// the genuinely-missing services to `up`.
+func composeUp(services ...string) error {
+	if os.Getenv("COMPOSE_TOOL") != "podman-compose" {
+		return runCompose(append([]string{"up", "-d"}, services...)...)
+	}
+
+	var toCreate []string
+	for _, svc := range services {
+		name := composeProject + "_" + svc + "_1"
+		state, err := podmanContainerState(name)
+		if err != nil {
+			return err
+		}
+		switch state {
+		case "running":
+			fmt.Printf("compose service %q already running; skipping\n", svc)
+		case "":
+			toCreate = append(toCreate, svc)
+		default:
+			fmt.Printf("compose service %q exists (%s); starting\n", svc, state)
+			if err := sh.RunV("podman", "start", name); err != nil {
+				return err
+			}
+		}
+	}
+	if len(toCreate) == 0 {
+		return nil
+	}
+	return runCompose(append([]string{"up", "-d"}, toCreate...)...)
+}
+
+// podmanContainerState returns the state ("running", "exited", "created", …) of
+// the container with the exact given name, or "" if no such container exists.
+func podmanContainerState(name string) (string, error) {
+	out, err := sh.Output("podman", "ps", "-a", "--filter", "name=^"+name+"$", "--format", "{{.State}}")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// DockerComposeUp starts the local data services (Postgres + Mailpit).
+//
+// The backend and web services live behind the "app" compose profile and are
+// intentionally excluded: `make dev` runs them natively. We name db and mailpit
+// explicitly rather than relying on profile exclusion so the behaviour is
+// identical under both `docker compose` and podman-compose (podman-compose
+// 1.0.6 does not honour profiles and would otherwise try to build the app
+// images). To run the fully containerised stack, use the "app" profile directly.
 func DockerComposeUp() error {
-	return runCompose("up", "-d")
+	return composeUp("db", "mailpit")
 }
 
 // DockerComposeDown stops the Docker Compose stack.
@@ -33,7 +94,7 @@ func DockerComposeDown() error {
 
 // MailpitUp starts the Mailpit email testing service.
 func MailpitUp() error {
-	return runCompose("up", "mailpit", "-d")
+	return composeUp("mailpit")
 }
 
 // MailpitDown stops the Mailpit email testing service.
