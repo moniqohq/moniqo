@@ -323,7 +323,6 @@ export function SettingsView() {
         method: "PATCH",
         body: JSON.stringify({
           name: draftForm.fullName || null,
-          username: draftForm.username,
           email: draftForm.email,
         }),
       });
@@ -564,23 +563,9 @@ export function SettingsView() {
 
                     <FormField
                       label="Username"
-                      helperText={
-                        isEditing
-                          ? "Username can include letters, numbers, _, -, ^ and must be 3–12 characters long."
-                          : undefined
-                      }
+                      helperText={isEditing ? "Username cannot be changed." : undefined}
                     >
-                      {isEditing ? (
-                        <Input
-                          value={draftForm.username}
-                          onChange={(e) =>
-                            setDraftForm((p) => ({ ...p, username: e.target.value }))
-                          }
-                          className="text-[13px]"
-                        />
-                      ) : (
-                        <ReadField value={profileForm.username} />
-                      )}
+                      <ReadField value={profileForm.username} />
                     </FormField>
 
                     <FormField label="Member since">
