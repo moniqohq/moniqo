@@ -19,8 +19,10 @@
  */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { listEnvelopes, getBudgetSummary, type EnvelopeStatusParam } from "@/lib/api/envelopes";
+import { qk } from "@/lib/query-keys";
 import type { BudgetEnvelope, BudgetSummary } from "@/types";
 import type { ApiEnvelope, ApiBudgetSummary } from "@/lib/api/types";
 
@@ -51,33 +53,31 @@ function apiSummaryToUI(s: ApiBudgetSummary): BudgetSummary {
 }
 
 export function useEnvelopes(budgetId: number | null, status: EnvelopeStatusParam = "active") {
-  const [data, setData] = useState<BudgetEnvelope[]>([]);
-  const [summary, setSummary] = useState<BudgetSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const envelopesQuery = useQuery({
+    queryKey: [...qk.envelopes(budgetId ?? -1), "list", status],
+    queryFn: () =>
+      listEnvelopes(budgetId as number, status).then((raw) => raw.map(apiEnvelopeToUI)),
+    enabled: budgetId != null,
+  });
 
-  const fetch = useCallback(async () => {
-    if (budgetId == null) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [rawEnvelopes, rawSummary] = await Promise.all([
-        listEnvelopes(budgetId, status),
-        getBudgetSummary(budgetId),
-      ]);
-      setData(rawEnvelopes.map(apiEnvelopeToUI));
-      setSummary(apiSummaryToUI(rawSummary));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load envelopes");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [budgetId, status]);
+  const summaryQuery = useQuery({
+    queryKey: qk.budgetSummary(budgetId ?? -1),
+    queryFn: () => getBudgetSummary(budgetId as number).then(apiSummaryToUI),
+    enabled: budgetId != null,
+  });
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetch();
-  }, [fetch]);
+  const refetch = useCallback(() => {
+    void envelopesQuery.refetch();
+    void summaryQuery.refetch();
+  }, [envelopesQuery, summaryQuery]);
 
-  return { data, summary, isLoading, error, refetch: fetch };
+  const error = envelopesQuery.error ?? summaryQuery.error;
+
+  return {
+    data: envelopesQuery.data ?? [],
+    summary: summaryQuery.data ?? null,
+    isLoading: envelopesQuery.isLoading || summaryQuery.isLoading,
+    error: error ? (error as Error).message : null,
+    refetch,
+  };
 }

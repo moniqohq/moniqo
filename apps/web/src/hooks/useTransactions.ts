@@ -18,8 +18,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { apiFetchPaginated } from "@/lib/api";
+import { qk } from "@/lib/query-keys";
 import { adaptTransaction } from "@/lib/transaction-adapter";
 import type { ApiTransaction, ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import type { Transaction } from "@/types";
@@ -47,66 +49,36 @@ export function useTransactions(
   envelopes: Map<number, ApiEnvelope>,
   filters?: Filters,
 ): UseTransactionsResult {
-  const [rawTransactions, setRawTransactions] = useState<ApiTransaction[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
+  const params = new URLSearchParams();
+  if (filters?.accountId != null) params.set("account_id", String(filters.accountId));
+  if (filters?.envelopeId != null) params.set("budget_envelope_id", String(filters.envelopeId));
+  if (filters?.dateFrom) params.set("date_from", filters.dateFrom);
+  if (filters?.dateTo) params.set("date_to", filters.dateTo);
+  params.set("page", String(filters?.page ?? 1));
+  if (filters?.pageSize != null) params.set("page_size", String(filters.pageSize));
+  const queryString = params.toString();
 
-  const refetch = useCallback(() => setTick((t) => t + 1), []);
+  const query = useQuery({
+    queryKey: [...qk.transactions(budgetId ?? -1), "paginated", queryString],
+    queryFn: async () => {
+      const url = `/api/v1/budgets/${budgetId}/transactions${queryString ? `?${queryString}` : ""}`;
+      const { data, meta } = await apiFetchPaginated<ApiTransaction>(url);
+      return { data: data ?? [], total: meta?.total ?? data?.length ?? 0 };
+    },
+    enabled: budgetId != null,
+  });
 
-  useEffect(() => {
-    if (budgetId == null) return;
-
-    const params = new URLSearchParams();
-    if (filters?.accountId != null) params.set("account_id", String(filters.accountId));
-    if (filters?.envelopeId != null) params.set("budget_envelope_id", String(filters.envelopeId));
-    if (filters?.dateFrom) params.set("date_from", filters.dateFrom);
-    if (filters?.dateTo) params.set("date_to", filters.dateTo);
-    params.set("page", String(filters?.page ?? 1));
-    if (filters?.pageSize != null) params.set("page_size", String(filters.pageSize));
-
-    const query = params.toString();
-    const url = `/api/v1/budgets/${budgetId}/transactions${query ? `?${query}` : ""}`;
-
-    let cancelled = false;
-
-    const fetchTransactions = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data, meta } = await apiFetchPaginated<ApiTransaction>(url);
-        if (cancelled) return;
-        setRawTransactions(data ?? []);
-        setTotal(meta?.total ?? data?.length ?? 0);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Unexpected error");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void fetchTransactions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    budgetId,
-    tick,
-    filters?.accountId,
-    filters?.envelopeId,
-    filters?.dateFrom,
-    filters?.dateTo,
-    filters?.page,
-    filters?.pageSize,
-  ]);
-
+  const rawTransactions = query.data?.data;
   const transactions = useMemo(
-    () => rawTransactions.map((raw) => adaptTransaction(raw, accounts, envelopes)),
+    () => (rawTransactions ?? []).map((raw) => adaptTransaction(raw, accounts, envelopes)),
     [rawTransactions, accounts, envelopes],
   );
 
-  return { transactions, total, loading, error, refetch };
+  return {
+    transactions,
+    total: query.data?.total ?? 0,
+    loading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }

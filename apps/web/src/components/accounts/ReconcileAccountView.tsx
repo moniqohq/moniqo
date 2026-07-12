@@ -48,11 +48,13 @@ import {
   AlertCircle,
   Layers,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBudgets } from "@/hooks/use-budgets";
 import { listTransactions, patchTransaction } from "@/lib/api/transactions";
 import { reconcileAccount } from "@/lib/api/accounts";
+import { invalidateBudgetData } from "@/lib/query-keys";
 import { ApiError } from "@/lib/api-client";
 import type { ApiTransaction, ApiTransactionStatus } from "@/lib/api/types";
 import type { AccountType } from "@/types";
@@ -411,7 +413,8 @@ interface Props {
 
 export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
-  const { data: accounts, refetch: refetchAccounts } = useAccounts(budgetId);
+  const queryClient = useQueryClient();
+  const { data: accounts } = useAccounts(budgetId);
   const { data: budgets } = useBudgets();
   const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const account = accounts.find((a) => a.id === accountId);
@@ -529,7 +532,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
     try {
       await Promise.all(ids.map((id) => patchTransaction(budgetId, id, { status })));
       setTxError(null);
-      refetchAccounts();
+      invalidateBudgetData(queryClient, budgetId);
     } catch (e) {
       setTxError(e instanceof Error ? e.message : "Failed to update transaction status");
       loadTransactions();
@@ -561,7 +564,8 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
     setFinishing(true);
     try {
       await reconcileAccount(budgetId, accountId);
-      await Promise.all([loadTransactions(), refetchAccounts()]);
+      await loadTransactions();
+      invalidateBudgetData(queryClient, budgetId);
       setShowSuccess(true);
     } catch (e) {
       setFinishError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");

@@ -19,8 +19,9 @@
  */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { listAccounts, type AccountStatusParam } from "@/lib/api/accounts";
+import { qk } from "@/lib/query-keys";
 import type { Account, AccountType } from "@/types";
 import type { ApiAccount } from "@/lib/api/types";
 
@@ -53,28 +54,16 @@ export function apiAccountToUI(a: ApiAccount): Account {
 }
 
 export function useAccounts(budgetId: number | null, status: AccountStatusParam = "active") {
-  const [data, setData] = useState<Account[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: [...qk.accounts(budgetId ?? -1), "list", status],
+    queryFn: () => listAccounts(budgetId as number, status).then((raw) => raw.map(apiAccountToUI)),
+    enabled: budgetId != null,
+  });
 
-  const fetch = useCallback(async () => {
-    if (budgetId == null) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const raw = await listAccounts(budgetId, status);
-      setData(raw.map(apiAccountToUI));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load accounts");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [budgetId, status]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetch();
-  }, [fetch]);
-
-  return { data, isLoading, error, refetch: fetch };
+  return {
+    data: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }

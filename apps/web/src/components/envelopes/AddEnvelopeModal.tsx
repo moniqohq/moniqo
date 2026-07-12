@@ -20,10 +20,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Heart, Star, Target, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createEnvelope } from "@/lib/api/envelopes";
+import { invalidateBudgetData } from "@/lib/query-keys";
 
 /* ── types ────────────────────────────────────────────── */
 
@@ -146,6 +148,7 @@ function NatureCard({
 /* ── Main modal ───────────────────────────────────────── */
 
 export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnvelopeModalProps) {
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [nature, setNature] = useState<Nature | "">("");
@@ -342,6 +345,7 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                         allocated_amt: allocatedAmt,
                         description: description.trim() || undefined,
                       });
+                      invalidateBudgetData(queryClient, budgetId);
                       onCreated();
                       onClose();
                     } catch (err) {

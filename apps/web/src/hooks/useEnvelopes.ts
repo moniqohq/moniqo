@@ -18,8 +18,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { qk, invalidateBudgetData } from "@/lib/query-keys";
 import type { ApiEnvelope } from "@/lib/api-types";
 
 export interface CreateEnvelopePayload {
@@ -35,49 +37,16 @@ export interface PatchEnvelopePayload {
 }
 
 export function useEnvelopes(budgetId: number | null) {
-  const [envelopes, setEnvelopes] = useState<ApiEnvelope[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchEnvelopes = useCallback(async () => {
-    if (budgetId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiFetch<ApiEnvelope[]>(`/api/v1/budgets/${budgetId}/envelopes`);
-      setEnvelopes(data ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load envelopes");
-    } finally {
-      setLoading(false);
-    }
-  }, [budgetId]);
+  const query = useQuery({
+    queryKey: [...qk.envelopes(budgetId ?? -1), "raw"],
+    queryFn: () =>
+      apiFetch<ApiEnvelope[]>(`/api/v1/budgets/${budgetId}/envelopes`).then((d) => d ?? []),
+    enabled: budgetId != null,
+  });
 
-  useEffect(() => {
-    if (budgetId == null) return;
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await apiFetch<ApiEnvelope[]>(`/api/v1/budgets/${budgetId}/envelopes`);
-        if (cancelled) return;
-        setEnvelopes(data ?? []);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Unexpected error");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [budgetId]);
+  const envelopes = useMemo(() => query.data ?? [], [query.data]);
 
   const envelopeMap = useMemo(() => {
     const m = new Map<number, ApiEnvelope>();
@@ -85,38 +54,47 @@ export function useEnvelopes(budgetId: number | null) {
     return m;
   }, [envelopes]);
 
-  const createEnvelope = async (payload: CreateEnvelopePayload): Promise<ApiEnvelope> => {
-    const envelope = await apiFetch<ApiEnvelope>(`/api/v1/budgets/${budgetId}/envelopes`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    await fetchEnvelopes();
-    return envelope;
-  };
+  const createEnvelope = useCallback(
+    async (payload: CreateEnvelopePayload): Promise<ApiEnvelope> => {
+      const envelope = await apiFetch<ApiEnvelope>(`/api/v1/budgets/${budgetId}/envelopes`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      invalidateBudgetData(queryClient, budgetId);
+      return envelope;
+    },
+    [budgetId, queryClient],
+  );
 
-  const patchEnvelope = async (id: number, payload: PatchEnvelopePayload): Promise<ApiEnvelope> => {
-    const envelope = await apiFetch<ApiEnvelope>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
-    await fetchEnvelopes();
-    return envelope;
-  };
+  const patchEnvelope = useCallback(
+    async (id: number, payload: PatchEnvelopePayload): Promise<ApiEnvelope> => {
+      const envelope = await apiFetch<ApiEnvelope>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      invalidateBudgetData(queryClient, budgetId);
+      return envelope;
+    },
+    [budgetId, queryClient],
+  );
 
-  const deleteEnvelope = async (id: number): Promise<void> => {
-    await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
-      method: "DELETE",
-    });
-    await fetchEnvelopes();
-  };
+  const deleteEnvelope = useCallback(
+    async (id: number): Promise<void> => {
+      await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/envelopes/${id}`, {
+        method: "DELETE",
+      });
+      invalidateBudgetData(queryClient, budgetId);
+    },
+    [budgetId, queryClient],
+  );
 
   return {
     budgetId,
     envelopes,
     envelopeMap,
-    loading,
-    error,
-    refresh: fetchEnvelopes,
+    loading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refresh: query.refetch,
     createEnvelope,
     patchEnvelope,
     deleteEnvelope,

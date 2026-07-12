@@ -18,8 +18,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { qk } from "@/lib/query-keys";
 import type { ApiAccount } from "@/lib/api-types";
 
 interface UseAccountsResult {
@@ -31,36 +33,14 @@ interface UseAccountsResult {
 }
 
 export function useAccounts(budgetId: number | null): UseAccountsResult {
-  const [accounts, setAccounts] = useState<ApiAccount[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [refetchIndex, setRefetchIndex] = useState(0);
+  const query = useQuery({
+    queryKey: [...qk.accounts(budgetId ?? -1), "raw"],
+    queryFn: () =>
+      apiFetch<ApiAccount[]>(`/api/v1/budgets/${budgetId}/accounts`).then((d) => d ?? []),
+    enabled: budgetId != null,
+  });
 
-  useEffect(() => {
-    if (budgetId == null) return;
-    let cancelled = false;
-
-    const fetchAccounts = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await apiFetch<ApiAccount[]>(`/api/v1/budgets/${budgetId}/accounts`);
-        if (cancelled) return;
-        setAccounts(data ?? []);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Unexpected error");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void fetchAccounts();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [budgetId, refetchIndex]);
+  const accounts = useMemo(() => query.data ?? [], [query.data]);
 
   const accountMap = useMemo(() => {
     const m = new Map<number, ApiAccount>();
@@ -68,7 +48,11 @@ export function useAccounts(budgetId: number | null): UseAccountsResult {
     return m;
   }, [accounts]);
 
-  const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
-
-  return { accounts, accountMap, loading, error, refetch };
+  return {
+    accounts,
+    accountMap,
+    loading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
