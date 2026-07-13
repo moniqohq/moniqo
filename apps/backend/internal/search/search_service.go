@@ -22,6 +22,7 @@ package search
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -75,19 +76,19 @@ func (s *Svc) Search(ctx context.Context, budgetID, userID int64, query string, 
 
 	txns, err := s.repo.SearchTransactions(ctx, budgetID, q, lim)
 	if err != nil {
-		return Results{}, err
+		return Results{}, fmt.Errorf("search transactions: %w", err)
 	}
 	accounts, err := s.repo.SearchAccounts(ctx, budgetID, q, lim)
 	if err != nil {
-		return Results{}, err
+		return Results{}, fmt.Errorf("search accounts: %w", err)
 	}
 	envelopes, err := s.repo.SearchEnvelopes(ctx, budgetID, q, lim)
 	if err != nil {
-		return Results{}, err
+		return Results{}, fmt.Errorf("search envelopes: %w", err)
 	}
 	budgets, err := s.repo.SearchBudgets(ctx, userID, q, lim)
 	if err != nil {
-		return Results{}, err
+		return Results{}, fmt.Errorf("search budgets: %w", err)
 	}
 
 	return Results{

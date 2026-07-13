@@ -111,8 +111,7 @@ function getGreeting() {
 // to the current month.
 function periodToMonth(period: string): string | undefined {
   const now = new Date();
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   switch (period) {
     case "this-month":
       return fmt(now);

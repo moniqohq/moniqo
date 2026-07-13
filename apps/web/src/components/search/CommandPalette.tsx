@@ -21,14 +21,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "cmdk";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "cmdk";
 import { Receipt, Wallet, Package, Layers, Search, Loader2 } from "lucide-react";
 
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -74,10 +67,7 @@ export function CommandPalette() {
 
   const { transactions, accounts, envelopes, budgets } = results;
   const hasResults =
-    transactions.length > 0 ||
-    accounts.length > 0 ||
-    envelopes.length > 0 ||
-    budgets.length > 0;
+    transactions.length > 0 || accounts.length > 0 || envelopes.length > 0 || budgets.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -90,11 +80,7 @@ export function CommandPalette() {
           Search transactions, accounts, envelopes and budgets.
         </DialogDescription>
 
-        <Command
-          shouldFilter={false}
-          loop
-          className="flex max-h-[60vh] flex-col overflow-hidden"
-        >
+        <Command shouldFilter={false} loop className="flex max-h-[60vh] flex-col overflow-hidden">
           <div className="flex items-center gap-2 border-b border-[#1E2B42] px-4">
             <Search size={16} className="shrink-0 text-[#5A6A85]" />
             <CommandInput

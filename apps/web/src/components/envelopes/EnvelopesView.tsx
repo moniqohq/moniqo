@@ -445,7 +445,8 @@ function SummaryCard({
 }
 
 /* ── Budget health radial ───────────────────────────────── */
-const healthColor = (score: number) => (score >= 80 ? "#22C55E" : score >= 60 ? "#F59E0B" : "#EF4444");
+const healthColor = (score: number) =>
+  score >= 80 ? "#22C55E" : score >= 60 ? "#F59E0B" : "#EF4444";
 
 function HealthRadial({ score }: { score: number }) {
   const r = 52;
@@ -1207,7 +1208,10 @@ export function EnvelopesView() {
           {/* Monthly Progress */}
           <SideCard title="Monthly Progress">
             <div className="mb-3 text-center">
-              <p className="text-4xl font-bold tabular-nums" style={{ color: healthColor(healthScore) }}>
+              <p
+                className="text-4xl font-bold tabular-nums"
+                style={{ color: healthColor(healthScore) }}
+              >
                 {totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0}%
               </p>
               <p className="mt-1 text-xs text-[#5A6A85]">of budget used</p>

@@ -26,14 +26,8 @@ import type { ApiSearchResults } from "./types";
  * budgets. Financial entities are scoped to `budgetId`; budgets are matched
  * across every budget the caller belongs to (so the palette can switch budgets).
  */
-export function search(
-  budgetId: number,
-  query: string,
-  limit?: number,
-): Promise<ApiSearchResults> {
+export function search(budgetId: number, query: string, limit?: number): Promise<ApiSearchResults> {
   const params = new URLSearchParams({ q: query });
   if (limit != null) params.set("limit", String(limit));
-  return apiFetch<ApiSearchResults>(
-    `/api/v1/budgets/${budgetId}/search?${params.toString()}`,
-  );
+  return apiFetch<ApiSearchResults>(`/api/v1/budgets/${budgetId}/search?${params.toString()}`);
 }
