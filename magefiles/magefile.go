@@ -18,10 +18,24 @@ import (
 // <project>_<service>_1.
 const composeProject = "moniqo"
 
-// runCompose runs a docker compose / podman-compose command.
-// Set COMPOSE_TOOL=podman-compose to use Podman; defaults to "docker compose".
+// usingPodman reports whether compose commands should run through
+// podman-compose. Podman is the preferred tool: it is used whenever
+// podman-compose is on PATH. Set COMPOSE_TOOL=podman-compose to force it, or
+// COMPOSE_TOOL=docker to force "docker compose" instead.
+func usingPodman() bool {
+	switch os.Getenv("COMPOSE_TOOL") {
+	case "podman-compose":
+		return true
+	case "docker":
+		return false
+	}
+	_, err := exec.LookPath("podman-compose")
+	return err == nil
+}
+
+// runCompose runs a podman-compose / docker compose command, preferring Podman.
 func runCompose(args ...string) error {
-	if os.Getenv("COMPOSE_TOOL") == "podman-compose" {
+	if usingPodman() {
 		return sh.RunV("podman-compose", args...)
 	}
 	return sh.RunV("docker", append([]string{"compose"}, args...)...)
@@ -36,7 +50,7 @@ func runCompose(args ...string) error {
 // running, `podman start` the ones that exist but are stopped, and only hand
 // the genuinely-missing services to `up`.
 func composeUp(services ...string) error {
-	if os.Getenv("COMPOSE_TOOL") != "podman-compose" {
+	if !usingPodman() {
 		return runCompose(append([]string{"up", "-d"}, services...)...)
 	}
 
