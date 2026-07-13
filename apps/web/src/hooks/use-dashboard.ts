@@ -19,8 +19,9 @@
  */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getDashboardStats } from "@/lib/api/envelopes";
+import { qk } from "@/lib/query-keys";
 import type { ApiDashboardStats } from "@/lib/api/types";
 
 export type DashboardStats = {
@@ -42,28 +43,16 @@ function toUI(raw: ApiDashboardStats): DashboardStats {
 }
 
 export function useDashboardStats(budgetId: number | null, month?: string) {
-  const [data, setData] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: [...qk.dashboard(budgetId ?? -1), month ?? "current"],
+    queryFn: () => getDashboardStats(budgetId as number, month).then(toUI),
+    enabled: budgetId != null,
+  });
 
-  const fetch = useCallback(async () => {
-    if (budgetId == null) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const raw = await getDashboardStats(budgetId, month);
-      setData(toUI(raw));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load dashboard stats");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [budgetId, month]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetch();
-  }, [fetch]);
-
-  return { data, isLoading, error, refetch: fetch };
+  return {
+    data: query.data ?? null,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }

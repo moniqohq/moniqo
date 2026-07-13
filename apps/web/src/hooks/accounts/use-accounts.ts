@@ -21,6 +21,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "@/stores/ui.store";
+import { qk, invalidateBudgetData } from "@/lib/query-keys";
 import { adaptAccount } from "@/lib/adapters/account.adapter";
 import {
   fetchAccounts,
@@ -34,11 +35,6 @@ import {
 } from "@/services/accounts.service";
 import type { Account } from "@/types";
 
-export const accountKeys = {
-  all: (budgetId: string) => ["accounts", budgetId] as const,
-  detail: (budgetId: string, accountId: string) => ["accounts", budgetId, accountId] as const,
-};
-
 export function useAccounts(): {
   data: Account[];
   isLoading: boolean;
@@ -46,10 +42,9 @@ export function useAccounts(): {
   error: Error | null;
 } {
   const budgetIdNum = useUIStore((s) => s.activeBudgetId);
-  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
   const result = useQuery({
-    queryKey: accountKeys.all(budgetId),
-    queryFn: () => fetchAccounts(budgetId).then((raw) => raw.map(adaptAccount)),
+    queryKey: [...qk.accounts(budgetIdNum ?? -1), "adapted"],
+    queryFn: () => fetchAccounts(String(budgetIdNum)).then((raw) => raw.map(adaptAccount)),
     enabled: budgetIdNum != null,
   });
 
@@ -64,70 +59,57 @@ export function useAccounts(): {
 export function useCreateAccount() {
   const queryClient = useQueryClient();
   const budgetIdNum = useUIStore((s) => s.activeBudgetId);
-  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
     mutationFn: (payload: CreateAccountPayload) => {
       if (budgetIdNum == null) {
         return Promise.reject(new Error("No active budget. Create a budget first."));
       }
-      return createAccount(budgetId, payload);
+      return createAccount(String(budgetIdNum), payload);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
-    },
+    onSuccess: () => invalidateBudgetData(queryClient, budgetIdNum),
   });
 }
 
 export function useUpdateAccount() {
   const queryClient = useQueryClient();
   const budgetIdNum = useUIStore((s) => s.activeBudgetId);
-  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
     mutationFn: ({ accountId, payload }: { accountId: string; payload: UpdateAccountPayload }) =>
-      updateAccount(budgetId, accountId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
-    },
+      updateAccount(String(budgetIdNum), accountId, payload),
+    onSuccess: () => invalidateBudgetData(queryClient, budgetIdNum),
   });
 }
 
 export function useDeleteAccount() {
   const queryClient = useQueryClient();
   const budgetIdNum = useUIStore((s) => s.activeBudgetId);
-  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
-    mutationFn: (accountId: string) => deleteAccount(budgetId, accountId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
-    },
+    mutationFn: (accountId: string) => deleteAccount(String(budgetIdNum), accountId),
+    onSuccess: () => invalidateBudgetData(queryClient, budgetIdNum),
   });
 }
 
 export function useArchiveAccount() {
   const queryClient = useQueryClient();
   const budgetIdNum = useUIStore((s) => s.activeBudgetId);
-  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
-    mutationFn: (accountId: string) => archiveAccount(budgetId, accountId).then(adaptAccount),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
-    },
+    mutationFn: (accountId: string) =>
+      archiveAccount(String(budgetIdNum), accountId).then(adaptAccount),
+    onSuccess: () => invalidateBudgetData(queryClient, budgetIdNum),
   });
 }
 
 export function useUnarchiveAccount() {
   const queryClient = useQueryClient();
   const budgetIdNum = useUIStore((s) => s.activeBudgetId);
-  const budgetId = budgetIdNum != null ? String(budgetIdNum) : "";
 
   return useMutation({
-    mutationFn: (accountId: string) => unarchiveAccount(budgetId, accountId).then(adaptAccount),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountKeys.all(budgetId) });
-    },
+    mutationFn: (accountId: string) =>
+      unarchiveAccount(String(budgetIdNum), accountId).then(adaptAccount),
+    onSuccess: () => invalidateBudgetData(queryClient, budgetIdNum),
   });
 }

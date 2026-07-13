@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import { useAccounts } from "@/hooks/use-accounts";
 import { patchAccount } from "@/lib/api/accounts";
+import { invalidateBudgetData } from "@/lib/query-keys";
 import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
 
@@ -265,7 +267,8 @@ export function ModifyAccountModal({
   accountId,
   budgetId,
 }: ModifyAccountModalProps) {
-  const { data: accounts, refetch } = useAccounts(budgetId);
+  const queryClient = useQueryClient();
+  const { data: accounts } = useAccounts(budgetId);
   const account = accounts.find((a) => a.id === accountId);
 
   const [accountName, setAccountName] = useState(account?.name ?? "");
@@ -337,7 +340,7 @@ export function ModifyAccountModal({
         account_number: accountNumber.trim() || null,
         institution: institution.trim() || null,
       });
-      await refetch();
+      invalidateBudgetData(queryClient, budgetId);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");

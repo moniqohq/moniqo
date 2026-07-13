@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -44,6 +45,7 @@ import type { Transaction, TransactionType, AccountType } from "@/types";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { apiFetch } from "@/lib/api";
+import { invalidateBudgetData } from "@/lib/query-keys";
 
 /* ── helpers ──────────────────────────────────────────────── */
 
@@ -161,6 +163,7 @@ export function EditTransactionModal({
   accounts = [],
   envelopes = [],
 }: Props) {
+  const queryClient = useQueryClient();
   /* form state */
   const [txType, setTxType] = useState<TransactionType>("expense");
   const [date, setDate] = useState("");
@@ -276,6 +279,7 @@ export function EditTransactionModal({
         method: "PATCH",
         body: JSON.stringify(payload),
       });
+      invalidateBudgetData(queryClient, budgetId ?? null);
       onSave?.();
       onClose();
     } catch {

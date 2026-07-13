@@ -71,6 +71,8 @@ import { useTransactions } from "@/hooks/useTransactions";
 import { useRunningBalances } from "@/hooks/useRunningBalances";
 import { apiFetch } from "@/lib/api";
 import { patchTransaction } from "@/lib/api/transactions";
+import { invalidateBudgetData } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
@@ -830,6 +832,7 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [duplicateSeed, setDuplicateSeed] = useState<Transaction | null>(null);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
@@ -855,14 +858,13 @@ export function TransactionsView() {
     };
   });
 
-  const { accounts, accountMap, refetch: refetchAccounts } = useAccounts(activeBudgetId);
+  const { accounts, accountMap } = useAccounts(activeBudgetId);
   const { envelopes, envelopeMap } = useEnvelopes(activeBudgetId);
   const {
     transactions,
     total: totalCount,
     loading: txLoading,
     error: txError,
-    refetch,
   } = useTransactions(activeBudgetId, accountMap, envelopeMap, {
     accountId: accountFilter.size === 1 ? Number([...accountFilter][0]) : undefined,
     envelopeId: envelopeFilter.size === 1 ? Number([...envelopeFilter][0]) : undefined,
@@ -877,9 +879,10 @@ export function TransactionsView() {
   // refreshed on budget change; any transaction mutation must explicitly
   // refresh them too, or running balances go stale.
   const refetchAll = useCallback(() => {
-    refetch();
-    refetchAccounts();
-  }, [refetch, refetchAccounts]);
+    // Invalidate every budget-scoped query so transactions, account balances,
+    // envelope spend and running balances all refresh together.
+    invalidateBudgetData(queryClient, activeBudgetId);
+  }, [queryClient, activeBudgetId]);
 
   // Adjust state during render (React's recommended pattern) rather than in an
   // effect: reset to page 1 when the active budget changes, since the current
@@ -935,7 +938,6 @@ export function TransactionsView() {
     activeBudgetId,
     singleAccountId,
     singleAccountBalance,
-    transactions,
   );
   const rowsWithBalance = useMemo(
     () =>
@@ -1347,7 +1349,7 @@ export function TransactionsView() {
                           ? "uncleared"
                           : "cleared";
                       await patchTransaction(activeBudgetId, tx.id, { status: nextStatus });
-                      refetch();
+                      refetchAll();
                     }}
                   />
                 ))}

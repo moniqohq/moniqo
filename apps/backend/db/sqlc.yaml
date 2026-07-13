@@ -11,6 +11,7 @@ sql:
       - "queries/accounts.sql"
       - "queries/transactions.sql"
       - "queries/envelopes.sql"
+      - "queries/search.sql"
     schema: "migrations"
     gen:
       go:

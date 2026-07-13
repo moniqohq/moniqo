@@ -20,10 +20,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, AlertTriangle, Trash2, FileClock, Receipt, ChartColumn, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { forceDeleteEnvelope } from "@/lib/api/envelopes";
+import { invalidateBudgetData } from "@/lib/query-keys";
 
 /* ── Types ────────────────────────────────────────────────── */
 export interface ForceDeleteEnvelopeDialogProps {
@@ -55,6 +57,7 @@ export function ForceDeleteEnvelopeDialog({
   envelope,
   budgetId,
 }: ForceDeleteEnvelopeDialogProps) {
+  const queryClient = useQueryClient();
   const [understood, setUnderstood] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -95,8 +98,8 @@ export function ForceDeleteEnvelopeDialog({
     setError(null);
     try {
       await forceDeleteEnvelope(budgetId, envelope.id);
+      invalidateBudgetData(queryClient, budgetId);
       onOpenChange(false);
-      /* Caller is responsible for refreshing the envelope list */
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected server error.");
       setLoading(false);

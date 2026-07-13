@@ -445,11 +445,14 @@ function SummaryCard({
 }
 
 /* ── Budget health radial ───────────────────────────────── */
+const healthColor = (score: number) =>
+  score >= 80 ? "#22C55E" : score >= 60 ? "#F59E0B" : "#EF4444";
+
 function HealthRadial({ score }: { score: number }) {
   const r = 52;
   const circ = 2 * Math.PI * r;
   const dashOffset = circ - (score / 100) * circ * 0.75;
-  const color = score >= 80 ? "#22C55E" : score >= 60 ? "#F59E0B" : "#EF4444";
+  const color = healthColor(score);
   const label = score >= 80 ? "Good" : score >= 60 ? "Fair" : "Poor";
   const sublabel = score >= 80 ? "On track" : score >= 60 ? "Watch spending" : "Review budget";
 
@@ -695,6 +698,8 @@ export function EnvelopesView() {
   const totalRemaining = totalAllocated - totalSpent;
   const overspentRows = envelopes.filter((e) => getRemaining(e) < 0);
   const totalOverspent = overspentRows.reduce((s, e) => s + Math.abs(getRemaining(e)), 0);
+  const healthScore =
+    totalAllocated > 0 ? Math.max(0, Math.round(100 - (totalSpent / totalAllocated) * 100)) : 100;
 
   if (selectedId !== null) {
     return (
@@ -1157,13 +1162,7 @@ export function EnvelopesView() {
         <div className="flex flex-shrink-0 flex-col gap-4 xl:w-[260px]">
           {/* Budget Health Score */}
           <SideCard title="Budget Health Score">
-            <HealthRadial
-              score={
-                totalAllocated > 0
-                  ? Math.max(0, Math.round(100 - (totalSpent / totalAllocated) * 100))
-                  : 100
-              }
-            />
+            <HealthRadial score={healthScore} />
           </SideCard>
 
           {/* Top Spend */}
@@ -1178,7 +1177,7 @@ export function EnvelopesView() {
             <div className="flex flex-col gap-2.5">
               {[...envelopes]
                 .sort((a, b) => b.spent - a.spent)
-                .slice(0, 2)
+                .slice(0, 3)
                 .map((env) => (
                   <div key={env.id} className="flex items-center gap-2.5">
                     <div
@@ -1209,7 +1208,10 @@ export function EnvelopesView() {
           {/* Monthly Progress */}
           <SideCard title="Monthly Progress">
             <div className="mb-3 text-center">
-              <p className="text-4xl font-bold text-[#4ADE80] tabular-nums">
+              <p
+                className="text-4xl font-bold tabular-nums"
+                style={{ color: healthColor(healthScore) }}
+              >
                 {totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0}%
               </p>
               <p className="mt-1 text-xs text-[#5A6A85]">of budget used</p>
@@ -1219,7 +1221,7 @@ export function EnvelopesView() {
                 className="h-full rounded-full transition-all"
                 style={{
                   width: `${totalAllocated > 0 ? Math.min((totalSpent / totalAllocated) * 100, 100) : 0}%`,
-                  backgroundColor: "#22C55E",
+                  backgroundColor: healthColor(healthScore),
                 }}
               />
             </div>

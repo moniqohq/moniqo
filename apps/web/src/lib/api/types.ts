@@ -105,6 +105,43 @@ export type ApiBalancePoint = {
   balance: number;
 };
 
+export type ApiSearchTransactionHit = {
+  id: number;
+  account_id: number;
+  account_name: string;
+  budget_envelope_id: number | null;
+  envelope_title: string | null;
+  amount: number;
+  date: string;
+  status: ApiTransactionStatus;
+  memo: string | null;
+};
+
+export type ApiSearchAccountHit = {
+  id: number;
+  name: string;
+  type: string;
+  institution: string | null;
+};
+
+export type ApiSearchEnvelopeHit = {
+  id: number;
+  title: string;
+};
+
+export type ApiSearchBudgetHit = {
+  id: number;
+  title: string;
+  role: string;
+};
+
+export type ApiSearchResults = {
+  transactions: ApiSearchTransactionHit[];
+  accounts: ApiSearchAccountHit[];
+  envelopes: ApiSearchEnvelopeHit[];
+  budgets: ApiSearchBudgetHit[];
+};
+
 export type ApiAccountBalanceHistory = {
   cash: ApiBalancePoint[];
   credit: ApiBalancePoint[];

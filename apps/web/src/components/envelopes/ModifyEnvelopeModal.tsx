@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { patchEnvelope } from "@/lib/api/envelopes";
+import { invalidateBudgetData } from "@/lib/query-keys";
 
 /* ── types ───────────────────────────────────────────────── */
 
@@ -529,6 +531,7 @@ export function ModifyEnvelopeModal({
   budgetId,
   onUpdated,
 }: ModifyEnvelopeModalProps) {
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState(envelope.name);
   const [allocatedRaw, setAllocatedRaw] = useState(
     new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
@@ -566,6 +569,7 @@ export function ModifyEnvelopeModal({
         allocated_amt: allocatedNum,
         description: description.trim() || undefined,
       });
+      invalidateBudgetData(queryClient, budgetId);
       onUpdated();
       setLoading(false);
       setShowSuccess(true);

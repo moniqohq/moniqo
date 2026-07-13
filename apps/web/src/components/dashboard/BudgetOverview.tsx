@@ -110,7 +110,7 @@ export function BudgetOverview() {
           className="w-full rounded-xl py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-80"
           style={{ background: "rgba(108,58,237,0.55)", border: "1px solid rgba(108,58,237,0.3)" }}
         >
-          View Budget
+          View Envelopes
         </button>
       </div>
     </div>

@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -40,6 +41,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import type { TransactionType } from "@/types";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { apiFetch } from "@/lib/api";
+import { invalidateBudgetData } from "@/lib/query-keys";
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -131,6 +133,7 @@ export function AddTransactionModal({
   defaultAmount,
   defaultMemo,
 }: AddTransactionModalProps) {
+  const queryClient = useQueryClient();
   /* core state */
   const [txType, setTxType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState("");
@@ -234,6 +237,7 @@ export function AddTransactionModal({
         method: "POST",
         body: JSON.stringify(payload),
       });
+      invalidateBudgetData(queryClient, budgetId);
       onSuccess?.();
       onClose();
     } catch (err) {

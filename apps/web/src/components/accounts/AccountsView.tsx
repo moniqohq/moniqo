@@ -387,6 +387,8 @@ export function AccountsView() {
 
   const initialStatus = (searchParams.get("status") ?? "active") as StatusFilter;
   const initialType = (searchParams.get("type") ?? "all") as TypeFilter;
+  const initialAccountParam = searchParams.get("account");
+  const initialAccountId = initialAccountParam ? Number(initialAccountParam) : null;
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialStatus);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(initialType);
@@ -414,7 +416,16 @@ export function AccountsView() {
     return typeMatch && searchMatch;
   });
 
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(initialAccountId);
+
+  /* Persist the selected account to the URL so a reload keeps the user on it */
+  function handleSelect(id: number) {
+    setSelectedId(id);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("account", String(id));
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   /* Auto-select first visible account when filters change or accounts load */
   useEffect(() => {
@@ -654,7 +665,7 @@ export function AccountsView() {
           <AccountNavPanel
             accounts={filteredAccounts}
             selectedId={selectedAccount?.id ?? 0}
-            onSelect={setSelectedId}
+            onSelect={handleSelect}
             onCreateAccount={() => setAddModalOpen(true)}
           />
           {selectedAccount != null && (

@@ -18,8 +18,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { qk } from "@/lib/query-keys";
 import type { ApiTransaction } from "@/lib/api-types";
 
 const MAX_PAGE_SIZE = 100;
@@ -56,45 +58,17 @@ export function useRunningBalances(
   budgetId: number | null,
   accountId: number | null,
   accountBalance: number | undefined,
-  refreshKey?: unknown,
 ): UseRunningBalancesResult {
-  const [rawTransactions, setRawTransactions] = useState<ApiTransaction[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: [...qk.transactions(budgetId ?? -1), "running-balances", accountId],
+    queryFn: () => fetchAllTransactionsForAccount(budgetId as number, accountId as number),
+    enabled: budgetId != null && accountId != null,
+  });
 
-  useEffect(() => {
-    if (budgetId == null || accountId == null) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRawTransactions([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const all = await fetchAllTransactionsForAccount(budgetId, accountId);
-        if (cancelled) return;
-        setRawTransactions(all);
-      } catch (err: unknown) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Unexpected error");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [budgetId, accountId, refreshKey]);
+  const rawTransactions = query.data;
 
   const balances = useMemo(() => {
-    if (accountBalance == null) return new Map<number, number>();
+    if (accountBalance == null || !rawTransactions) return new Map<number, number>();
 
     const sorted = [...rawTransactions].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
     const opening = accountBalance - sorted.reduce((s, t) => s + t.amount, 0);
@@ -108,5 +82,9 @@ export function useRunningBalances(
     return map;
   }, [rawTransactions, accountBalance]);
 
-  return { balances, loading, error };
+  return {
+    balances,
+    loading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+  };
 }

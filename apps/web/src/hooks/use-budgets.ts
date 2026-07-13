@@ -19,8 +19,10 @@
  */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { listBudgets } from "@/lib/api/budget";
+import { qk } from "@/lib/query-keys";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
 import type { Budget } from "@/types";
@@ -36,35 +38,29 @@ function apiBudgetToUI(b: ApiBudget): Budget {
 }
 
 export function useBudgets() {
-  const [data, setData] = useState<Budget[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const accessToken = useAuthStore((s) => s.accessToken);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
 
-  const fetch = useCallback(async () => {
-    if (!accessToken) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const raw = await listBudgets();
-      const budgets = raw.map(apiBudgetToUI);
-      setData(budgets);
-      if (activeBudgetId == null && budgets.length > 0) {
-        setActiveBudget(budgets[0].id);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load budgets");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, activeBudgetId, setActiveBudget]);
+  const query = useQuery({
+    queryKey: qk.budgets(),
+    queryFn: () => listBudgets().then((raw) => raw.map(apiBudgetToUI)),
+    enabled: !!accessToken,
+  });
 
+  const budgets = query.data;
+
+  /* Default the active budget to the first one once budgets have loaded */
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetch();
-  }, [fetch]);
+    if (activeBudgetId == null && budgets && budgets.length > 0) {
+      setActiveBudget(budgets[0].id);
+    }
+  }, [activeBudgetId, budgets, setActiveBudget]);
 
-  return { data, isLoading, error, refetch: fetch };
+  return {
+    data: budgets ?? [],
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }

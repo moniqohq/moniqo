@@ -19,30 +19,19 @@
  */
 "use client";
 
-import { create } from "zustand";
+import { useEffect, useState } from "react";
 
-interface UIStore {
-  sidebarCollapsed: boolean;
-  mobileSidebarOpen: boolean;
-  activeBudgetId: number | null;
-  searchOpen: boolean;
-  toggleSidebar: () => void;
-  setMobileSidebar: (open: boolean) => void;
-  setActiveBudget: (id: number) => void;
-  setSearchOpen: (open: boolean) => void;
+/**
+ * Returns a copy of `value` that only updates after `delayMs` has elapsed
+ * without further changes. Used to throttle search-as-you-type requests.
+ */
+export function useDebouncedValue<T>(value: T, delayMs = 250): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+
+  return debounced;
 }
-
-export const useUIStore = create<UIStore>((set) => ({
-  sidebarCollapsed: false,
-  mobileSidebarOpen: false,
-  activeBudgetId: null,
-  searchOpen: false,
-
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-
-  setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
-
-  setActiveBudget: (id) => set({ activeBudgetId: id }),
-
-  setSearchOpen: (open) => set({ searchOpen: open }),
-}));

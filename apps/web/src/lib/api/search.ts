@@ -17,32 +17,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-"use client";
 
-import { create } from "zustand";
+import { apiFetch } from "./client";
+import type { ApiSearchResults } from "./types";
 
-interface UIStore {
-  sidebarCollapsed: boolean;
-  mobileSidebarOpen: boolean;
-  activeBudgetId: number | null;
-  searchOpen: boolean;
-  toggleSidebar: () => void;
-  setMobileSidebar: (open: boolean) => void;
-  setActiveBudget: (id: number) => void;
-  setSearchOpen: (open: boolean) => void;
+/**
+ * Global search across the active budget's financial entities plus the user's
+ * budgets. Financial entities are scoped to `budgetId`; budgets are matched
+ * across every budget the caller belongs to (so the palette can switch budgets).
+ */
+export function search(budgetId: number, query: string, limit?: number): Promise<ApiSearchResults> {
+  const params = new URLSearchParams({ q: query });
+  if (limit != null) params.set("limit", String(limit));
+  return apiFetch<ApiSearchResults>(`/api/v1/budgets/${budgetId}/search?${params.toString()}`);
 }
-
-export const useUIStore = create<UIStore>((set) => ({
-  sidebarCollapsed: false,
-  mobileSidebarOpen: false,
-  activeBudgetId: null,
-  searchOpen: false,
-
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-
-  setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
-
-  setActiveBudget: (id) => set({ activeBudgetId: id }),
-
-  setSearchOpen: (open) => set({ searchOpen: open }),
-}));

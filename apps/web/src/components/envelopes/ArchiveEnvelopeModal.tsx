@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -37,6 +38,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { deleteEnvelope } from "@/lib/api/envelopes";
+import { invalidateBudgetData } from "@/lib/query-keys";
 
 import type { BudgetEnvelope } from "@/types";
 
@@ -58,6 +60,7 @@ export function ArchiveEnvelopeModal({
   budgetId,
   onDeleted,
 }: ArchiveEnvelopeModalProps) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +87,7 @@ export function ArchiveEnvelopeModal({
     setError(null);
     try {
       await deleteEnvelope(budgetId, envelope.id);
+      invalidateBudgetData(queryClient, budgetId);
       onDeleted();
       onClose();
     } catch (err) {

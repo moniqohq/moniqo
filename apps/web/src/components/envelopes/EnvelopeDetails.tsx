@@ -22,7 +22,9 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useAccounts as useApiAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/use-envelopes";
+import { useEnvelopes as useApiEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/use-transactions";
 import { motion } from "framer-motion";
 import {
@@ -331,6 +333,8 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { data: accounts } = useAccounts(activeBudgetId);
+  const { accounts: txAccounts } = useApiAccounts(activeBudgetId);
+  const { envelopes: txEnvelopes } = useApiEnvelopes(activeBudgetId);
   const { data: apiEnvelopes, refetch: refetchEnvelopes } = useEnvelopes(activeBudgetId);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
 
@@ -1032,6 +1036,11 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         open={addTxOpen}
         onClose={() => setAddTxOpen(false)}
         defaultType="expense"
+        budgetId={activeBudgetId}
+        accounts={txAccounts}
+        envelopes={txEnvelopes}
+        defaultEnvelopeId={envelopeIdNum}
+        onSuccess={refetchEnvelopes}
       />
       {modifyOpen && envelope && activeBudgetId !== null && (
         <ModifyEnvelopeModal

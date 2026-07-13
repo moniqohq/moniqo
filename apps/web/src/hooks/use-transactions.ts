@@ -19,8 +19,10 @@
  */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { listTransactions, type TransactionFilters } from "@/lib/api/transactions";
+import { qk } from "@/lib/query-keys";
 import type { Transaction, TransactionType } from "@/types";
 import type { ApiTransaction } from "@/lib/api/types";
 
@@ -60,32 +62,24 @@ export function useTransactions(
   accountMap: Map<number, string> = new Map(),
   envelopeMap: Map<number, string> = new Map(),
 ) {
-  const [data, setData] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const filtersKey = JSON.stringify(filters);
-  const accountMapKey = JSON.stringify(Array.from(accountMap.entries()));
 
-  const fetch = useCallback(async () => {
-    if (budgetId == null) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const raw = await listTransactions(budgetId, filters);
-      setData(raw.map((t) => apiTransactionToUI(t, accountMap, envelopeMap)));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load transactions");
-    } finally {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [budgetId, filtersKey, accountMapKey]);
+  const query = useQuery({
+    queryKey: [...qk.transactions(budgetId ?? -1), "list", filtersKey],
+    queryFn: () => listTransactions(budgetId as number, filters),
+    enabled: budgetId != null,
+  });
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetch();
-  }, [fetch]);
+  const raw = query.data;
+  const data = useMemo(
+    () => (raw ?? []).map((t) => apiTransactionToUI(t, accountMap, envelopeMap)),
+    [raw, accountMap, envelopeMap],
+  );
 
-  return { data, isLoading, error, refetch: fetch };
+  return {
+    data,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error as Error).message : null,
+    refetch: query.refetch,
+  };
 }
