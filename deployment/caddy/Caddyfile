@@ -1,0 +1,41 @@
+{
+	# Behind Cloudflare Tunnel: Cloudflare terminates public TLS at its edge and
+	# cloudflared forwards plain HTTP to this server, so Caddy manages no certs.
+	# Trust the cloudflared hop (private IP) and log the real visitor IP from
+	# Cloudflare's forwarded headers.
+	servers {
+		trusted_proxies static private_ranges
+		client_ip_headers Cf-Connecting-Ip X-Forwarded-For
+	}
+}
+
+# Plain HTTP on :80 for any host — the tunnel is the only thing that reaches it.
+:80 {
+	encode zstd gzip
+
+	# Structured JSON access logs to stdout (captured by podman/docker logs).
+	log {
+		output stdout
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		-X-Powered-By
+		# Content-Security-Policy is app-specific; add once the web app's asset origins are known.
+	}
+
+	# API -> backend. Path is preserved: /api/v1/... is forwarded intact.
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	# Everything else -> Next.js web app.
+	handle {
+		reverse_proxy web:3000
+	}
+}
