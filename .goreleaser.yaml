@@ -18,7 +18,16 @@
 
 version: 2
 
-project_name: moniqo-server
+project_name: moniqo
+
+# goreleaser clears its dist dir on startup, which would wipe out
+# dist/build/web from the make build-web hook below if the two shared a
+# directory.
+dist: .goreleaser-dist
+
+before:
+  hooks:
+    - make build-web
 
 builds:
   - id: moniqo-server
@@ -39,10 +48,19 @@ builds:
 
 archives:
   - id: moniqo-server
+    ids: [moniqo-server]
     formats: [tar.gz]
     format_overrides:
       - goos: windows
         formats: [zip]
+
+  - id: moniqo-web
+    meta: true
+    name_template: "moniqo-web_{{ .Version }}"
+    formats: [tar.gz]
+    files:
+      - src: dist/build/web
+        dst: .
 
 checksum:
   name_template: checksums.txt

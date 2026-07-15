@@ -67,6 +67,7 @@ node_modules/
 
 # Build outputs
 dist/
+.goreleaser-dist/
 out/
 build/
 

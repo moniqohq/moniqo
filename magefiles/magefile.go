@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -134,29 +135,80 @@ func Build() error {
 	return nil
 }
 
-// BuildBackend builds the Go backend.
+// BuildBackend builds a production backend binary for the current platform
+// into dist/build/backend, matching the goreleaser build settings (stripped
+// binary, no cgo).
 func BuildBackend() error {
-	return sh.RunV("go", "build", "-C", "apps/backend", "./...")
+	out, err := filepath.Abs(filepath.Join("dist", "build", "backend", "moniqo-server"))
+	if err != nil {
+		return err
+	}
+	return sh.RunWithV(
+		map[string]string{"CGO_ENABLED": "0"},
+		"go", "build", "-C", "apps/backend", "-ldflags=-s -w", "-o", out, "./cmd/server",
+	)
 }
 
-// ReleaseBackendSnapshot builds multi-platform release binaries for the Go
-// backend via goreleaser without publishing anything (no git tag or remote
-// release required). Artifacts land in dist/.
-func ReleaseBackendSnapshot() error {
+// ReleaseSnapshot builds multi-platform backend binaries and the web
+// standalone bundle via goreleaser without publishing anything (no git tag or
+// remote release required). Artifacts land in dist/.
+func ReleaseSnapshot() error {
 	return sh.RunV("goreleaser", "release", "--snapshot", "--clean")
 }
 
-// ReleaseBackend cuts an actual release: builds multi-platform binaries and
-// publishes them to GitHub Releases via goreleaser. Requires the current
-// commit to be tagged (e.g. `git tag v1.2.3 && git push --tags`) and a
-// GITHUB_TOKEN with repo write access in the environment.
-func ReleaseBackend() error {
+// Release cuts an actual release: builds multi-platform backend binaries and
+// the web standalone bundle, then publishes them to GitHub Releases via
+// goreleaser. Requires the current commit to be tagged (e.g.
+// `git tag v1.2.3 && git push --tags`) and a GITHUB_TOKEN with repo write
+// access in the environment.
+func Release() error {
 	return sh.RunV("goreleaser", "release", "--clean")
 }
 
-// BuildWeb builds the Next.js web app.
+// BuildWeb builds the Next.js web app and assembles a production-ready,
+// self-contained deployable into dist/build/web. Next's standalone output
+// nests the app under apps/web (since apps/web is a pnpm workspace package
+// traced from the monorepo root), so this flattens that nesting away: the
+// app's own node_modules symlinks are re-pointed into the shared
+// dist/build/web/node_modules, and server.js/.next/package.json are copied
+// straight into dist/build/web. Run it as `node dist/build/web/server.js`.
 func BuildWeb() error {
-	return pnpm("--filter", "@moniqo/web", "run", "build")
+	if err := pnpm("--filter", "@moniqo/web", "run", "build"); err != nil {
+		return err
+	}
+
+	standaloneDir := filepath.Join("apps/web", ".next", "standalone")
+	appDir := filepath.Join(standaloneDir, "apps/web")
+	outDir := filepath.Join("dist", "build", "web")
+
+	if err := os.RemoveAll(outDir); err != nil {
+		return fmt.Errorf("removing %s: %w", outDir, err)
+	}
+	sharedSrc := filepath.Join(standaloneDir, "node_modules")
+	sharedDst := filepath.Join(outDir, "node_modules")
+	if err := copyDir(sharedSrc, sharedDst); err != nil {
+		return fmt.Errorf("copying shared node_modules: %w", err)
+	}
+	if err := relinkNodeModules(filepath.Join(appDir, "node_modules"), sharedDst, sharedSrc, sharedDst); err != nil {
+		return fmt.Errorf("relinking app node_modules: %w", err)
+	}
+	if err := copyDir(filepath.Join(appDir, ".next"), filepath.Join(outDir, ".next")); err != nil {
+		return fmt.Errorf("copying .next output: %w", err)
+	}
+	if err := sh.Copy(filepath.Join(outDir, "server.js"), filepath.Join(appDir, "server.js")); err != nil {
+		return fmt.Errorf("copying server.js: %w", err)
+	}
+	if err := sh.Copy(filepath.Join(outDir, "package.json"), filepath.Join(appDir, "package.json")); err != nil {
+		return fmt.Errorf("copying package.json: %w", err)
+	}
+	if err := copyDir(filepath.Join("apps/web", ".next", "static"), filepath.Join(outDir, ".next/static")); err != nil {
+		return fmt.Errorf("copying static assets: %w", err)
+	}
+	if err := copyDir(filepath.Join("apps/web", "public"), filepath.Join(outDir, "public")); err != nil {
+		return fmt.Errorf("copying public assets: %w", err)
+	}
+	fmt.Printf("web deployable ready at %s (run: node server.js)\n", outDir)
+	return nil
 }
 
 // BuildDesktop builds the Tauri desktop app.
@@ -269,6 +321,85 @@ func fmtJS() error {
 
 func pnpm(args ...string) error {
 	return sh.RunV("pnpm", args...)
+}
+
+// relinkNodeModules recreates the symlinks under src (an app-level
+// node_modules directory from Next's standalone output, e.g.
+// apps/web/node_modules) inside dst, pointing into sharedDst (the already
+// self-contained copy of the shared standalone node_modules, e.g.
+// dist/build/web/node_modules) rather than back at the original build tree.
+// It can't reuse copyDir's verbatim symlink copy because src and dst sit at
+// different depths relative to the pnpm store, so the original relative
+// link text would resolve to the wrong place once moved; nor can it just
+// resolve the symlink and re-point at the resolved path, since that would
+// leave the deployable bundle referencing the ephemeral apps/web/.next
+// build output instead of its own copy.
+func relinkNodeModules(src, dst, sharedSrc, sharedDst string) error {
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		switch {
+		case d.Type()&os.ModeSymlink != 0:
+			resolved, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				return err
+			}
+			relToShared, err := filepath.Rel(sharedSrc, resolved)
+			if err != nil {
+				return err
+			}
+			newTarget, err := filepath.Rel(filepath.Dir(target), filepath.Join(sharedDst, relToShared))
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			return os.Symlink(newTarget, target)
+		case d.IsDir():
+			return os.MkdirAll(target, 0o755)
+		default:
+			return sh.Copy(target, path)
+		}
+	})
+}
+
+// copyDir recursively copies src onto dst, creating directories as needed and
+// preserving symlinks (Next's standalone output symlinks pnpm-hoisted deps).
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		switch {
+		case d.Type()&os.ModeSymlink != 0:
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			return os.Symlink(link, target)
+		case d.IsDir():
+			return os.MkdirAll(target, 0o755)
+		default:
+			return sh.Copy(target, path)
+		}
+	})
 }
 
 func runInDir(dir string, name string, args ...string) error {
