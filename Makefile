@@ -27,6 +27,7 @@ MAGE := $(GOPATH)/bin/mage
         mailpit-up mailpit-down \
         lint fmt \
         build build-backend build-web build-desktop build-mobile \
+        release-backend-snapshot release-backend \
         dev dev-backend dev-web \
         test generate \
         migrate-up migrate-down \
@@ -67,6 +68,12 @@ build-desktop: _mage-install  ## Build the Tauri desktop app
 
 build-mobile: _mage-install   ## Build the React Native mobile app
 	@$(MAGE) buildMobile
+
+release-backend-snapshot: _mage-install  ## Build backend release binaries for all platforms (goreleaser, no publish)
+	@$(MAGE) releaseBackendSnapshot
+
+release-backend: _mage-install  ## Build and publish backend release binaries (goreleaser, requires git tag + GITHUB_TOKEN)
+	@$(MAGE) releaseBackend
 
 dev: _mage-install            ## Start all apps in dev/watch mode
 	@$(MAGE) dev

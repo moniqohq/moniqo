@@ -139,6 +139,21 @@ func BuildBackend() error {
 	return sh.RunV("go", "build", "-C", "apps/backend", "./...")
 }
 
+// ReleaseBackendSnapshot builds multi-platform release binaries for the Go
+// backend via goreleaser without publishing anything (no git tag or remote
+// release required). Artifacts land in dist/.
+func ReleaseBackendSnapshot() error {
+	return sh.RunV("goreleaser", "release", "--snapshot", "--clean")
+}
+
+// ReleaseBackend cuts an actual release: builds multi-platform binaries and
+// publishes them to GitHub Releases via goreleaser. Requires the current
+// commit to be tagged (e.g. `git tag v1.2.3 && git push --tags`) and a
+// GITHUB_TOKEN with repo write access in the environment.
+func ReleaseBackend() error {
+	return sh.RunV("goreleaser", "release", "--clean")
+}
+
 // BuildWeb builds the Next.js web app.
 func BuildWeb() error {
 	return pnpm("--filter", "@moniqo/web", "run", "build")
