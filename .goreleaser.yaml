@@ -57,8 +57,10 @@ builds:
 
 # One meta archive per release platform. Each assembles the layout required
 # by our release process: bin/ (backend binary), web/ (Next.js standalone
-# bundle), plus config/, scripts/, LICENSE and README.md shared verbatim
-# across every platform.
+# bundle), plus config/, scripts/, docker-compose.yml, LICENSE and README.md
+# shared verbatim across every platform. docker-compose.yml is an alternative
+# to scripts/start.sh: it runs Postgres plus the published moniqohq/moniqo-*
+# images instead of the bin/ and web/ binaries in this same archive.
 archives:
   - id: linux-amd64
     meta: true
@@ -74,6 +76,8 @@ archives:
         dst: config
       - src: release/scripts
         dst: scripts
+      - src: release/docker-compose.yml
+        dst: docker-compose.yml
       - src: LICENSE
       - src: README.md
 
@@ -91,6 +95,8 @@ archives:
         dst: config
       - src: release/scripts
         dst: scripts
+      - src: release/docker-compose.yml
+        dst: docker-compose.yml
       - src: LICENSE
       - src: README.md
 
@@ -108,6 +114,8 @@ archives:
         dst: config
       - src: release/scripts
         dst: scripts
+      - src: release/docker-compose.yml
+        dst: docker-compose.yml
       - src: LICENSE
       - src: README.md
 
@@ -125,6 +133,8 @@ archives:
         dst: config
       - src: release/scripts
         dst: scripts
+      - src: release/docker-compose.yml
+        dst: docker-compose.yml
       - src: LICENSE
       - src: README.md
 
@@ -142,6 +152,8 @@ archives:
         dst: config
       - src: release/scripts
         dst: scripts
+      - src: release/docker-compose.yml
+        dst: docker-compose.yml
       - src: LICENSE
       - src: README.md
 
