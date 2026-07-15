@@ -176,13 +176,28 @@ func BuildBackend() error {
 	return nil
 }
 
+// releaseHeaderEnv reads release/RELEASE_HEADER.md and returns it as the env
+// map goreleaser expects RELEASE_HEADER in (see the `release.header` comment
+// in .goreleaser.yaml for why it's passed this way instead of inline).
+func releaseHeaderEnv() (map[string]string, error) {
+	header, err := os.ReadFile(filepath.Join("release", "RELEASE_HEADER.md"))
+	if err != nil {
+		return nil, fmt.Errorf("reading release header: %w", err)
+	}
+	return map[string]string{"RELEASE_HEADER": string(header)}, nil
+}
+
 // ReleaseSnapshot builds multi-platform backend binaries and the web
 // standalone bundle (via before-hooks in .goreleaser.yaml, which shell out to
 // `make build-backend` / `make build-web`), then packages them into
 // dist/artifacts without publishing anything (no git tag or remote release
 // required).
 func ReleaseSnapshot() error {
-	return sh.RunV("goreleaser", "release", "--snapshot", "--clean")
+	env, err := releaseHeaderEnv()
+	if err != nil {
+		return err
+	}
+	return sh.RunWithV(env, "goreleaser", "release", "--snapshot", "--clean")
 }
 
 // Release cuts an actual release: builds multi-platform backend binaries and
@@ -191,7 +206,11 @@ func ReleaseSnapshot() error {
 // `git tag v1.2.3 && git push --tags`) and a GITHUB_TOKEN with repo write
 // access in the environment.
 func Release() error {
-	return sh.RunV("goreleaser", "release", "--clean")
+	env, err := releaseHeaderEnv()
+	if err != nil {
+		return err
+	}
+	return sh.RunWithV(env, "goreleaser", "release", "--clean")
 }
 
 // BuildWeb builds the Next.js web app and assembles a production-ready,

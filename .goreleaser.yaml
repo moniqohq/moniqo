@@ -147,3 +147,10 @@ archives:
 
 checksum:
   name_template: checksums.txt
+
+# The header text itself lives in release/RELEASE_HEADER.md, not inline here:
+# goreleaser's `header` field has no file-include support, only inline
+# templated strings, so the magefile Release/ReleaseSnapshot targets read
+# that file and pass it in via RELEASE_HEADER before invoking goreleaser.
+release:
+  header: "{{ .Env.RELEASE_HEADER }}"
