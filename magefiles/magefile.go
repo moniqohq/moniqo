@@ -135,30 +135,59 @@ func Build() error {
 	return nil
 }
 
-// BuildBackend builds a production backend binary for the current platform
-// into dist/build/backend, matching the goreleaser build settings (stripped
-// binary, no cgo).
+// BuildBackend builds a production backend binary (stripped, no cgo) into
+// OUT_DIR (default dist/build/backend), cleaning it first. GOOS/GOARCH are
+// read from the environment so this same target cross-compiles: goreleaser's
+// before-hooks invoke it once per release platform with those variables (and
+// a platform-specific OUT_DIR) set, instead of goreleaser building Go itself.
 func BuildBackend() error {
-	out, err := filepath.Abs(filepath.Join("dist", "build", "backend", "moniqo-server"))
+	outDir := os.Getenv("OUT_DIR")
+	if outDir == "" {
+		outDir = filepath.Join("dist", "build", "backend")
+	}
+	if err := os.RemoveAll(outDir); err != nil {
+		return fmt.Errorf("removing %s: %w", outDir, err)
+	}
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return fmt.Errorf("creating %s: %w", outDir, err)
+	}
+
+	binary := "moniqo"
+	if os.Getenv("GOOS") == "windows" {
+		binary += ".exe"
+	}
+	out, err := filepath.Abs(filepath.Join(outDir, binary))
 	if err != nil {
 		return err
 	}
-	return sh.RunWithV(
-		map[string]string{"CGO_ENABLED": "0"},
-		"go", "build", "-C", "apps/backend", "-ldflags=-s -w", "-o", out, "./cmd/server",
-	)
+
+	env := map[string]string{"CGO_ENABLED": "0"}
+	for _, k := range []string{"GOOS", "GOARCH"} {
+		if v := os.Getenv(k); v != "" {
+			env[k] = v
+		}
+	}
+	if err := sh.RunWithV(
+		env, "go", "build", "-C", "apps/backend", "-ldflags=-s -w", "-o", out, "./cmd/server",
+	); err != nil {
+		return err
+	}
+	fmt.Printf("backend binary ready at %s\n", out)
+	return nil
 }
 
 // ReleaseSnapshot builds multi-platform backend binaries and the web
-// standalone bundle via goreleaser without publishing anything (no git tag or
-// remote release required). Artifacts land in dist/.
+// standalone bundle (via before-hooks in .goreleaser.yaml, which shell out to
+// `make build-backend` / `make build-web`), then packages them into
+// dist/artifacts without publishing anything (no git tag or remote release
+// required).
 func ReleaseSnapshot() error {
 	return sh.RunV("goreleaser", "release", "--snapshot", "--clean")
 }
 
 // Release cuts an actual release: builds multi-platform backend binaries and
-// the web standalone bundle, then publishes them to GitHub Releases via
-// goreleaser. Requires the current commit to be tagged (e.g.
+// the web standalone bundle, then packages and publishes them to GitHub
+// Releases via goreleaser. Requires the current commit to be tagged (e.g.
 // `git tag v1.2.3 && git push --tags`) and a GITHUB_TOKEN with repo write
 // access in the environment.
 func Release() error {

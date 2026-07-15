@@ -20,47 +20,130 @@ version: 2
 
 project_name: moniqo
 
-# goreleaser clears its dist dir on startup, which would wipe out
-# dist/build/web from the make build-web hook below if the two shared a
-# directory.
-dist: .goreleaser-dist
+# GoReleaser wipes and recreates `dist` on every run. All real build output
+# lives under dist/build/{web,backend} (produced by the before-hooks below,
+# via `make`), which sits outside dist/artifacts, so nothing goreleaser owns
+# ever collides with it.
+dist: dist/artifacts
 
+# `make` owns every compile step (backend cross-compiles, web standalone
+# build), not goreleaser: it's the single place build flags/env live, so
+# local dev builds and release builds can't drift apart. The web bundle only
+# needs building once; the backend is built once per release platform (see
+# the builds section below for why goreleaser's own Go builder is disabled).
+# `before.hooks` entries are plain command strings (no cmd/env/dir object
+# form here, unlike per-build hooks), so cross-compile env vars are passed via
+# an explicit `sh -c` rather than a structured `env:` list.
 before:
   hooks:
     - make build-web
+    - sh -c "GOOS=linux GOARCH=amd64 OUT_DIR=dist/build/backend/linux_amd64 make build-backend"
+    - sh -c "GOOS=linux GOARCH=arm64 OUT_DIR=dist/build/backend/linux_arm64 make build-backend"
+    - sh -c "GOOS=darwin GOARCH=amd64 OUT_DIR=dist/build/backend/darwin_amd64 make build-backend"
+    - sh -c "GOOS=darwin GOARCH=arm64 OUT_DIR=dist/build/backend/darwin_arm64 make build-backend"
+    - sh -c "GOOS=windows GOARCH=amd64 OUT_DIR=dist/build/backend/windows_amd64 make build-backend"
 
+# GoReleaser's Go builder always invokes `go build` itself, which would
+# duplicate the build logic that already lives in `make build-backend`
+# (ldflags, CGO_ENABLED, cross-compile env). The prebuilt builder (which lets
+# goreleaser package externally-built binaries without compiling anything)
+# is GoReleaser Pro-only, so instead: skip goreleaser's build entirely and
+# package the already-built binaries as "meta" archives below, which bundle
+# arbitrary files without being tied to a build at all. A build entry is
+# still required by goreleaser's schema, so this one is permanently skipped.
 builds:
   - id: moniqo-server
-    dir: apps/backend
-    main: ./cmd/server
-    binary: moniqo-server
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w
+    skip: true
 
+# One meta archive per release platform. Each assembles the layout required
+# by our release process: bin/ (backend binary), web/ (Next.js standalone
+# bundle), plus config/, scripts/, LICENSE and README.md shared verbatim
+# across every platform.
 archives:
-  - id: moniqo-server
-    ids: [moniqo-server]
-    formats: [tar.gz]
-    format_overrides:
-      - goos: windows
-        formats: [zip]
-
-  - id: moniqo-web
+  - id: linux-amd64
     meta: true
-    name_template: "moniqo-web_{{ .Version }}"
+    name_template: "moniqo-{{ .Tag }}-linux-amd64"
+    wrap_in_directory: true
     formats: [tar.gz]
     files:
+      - src: dist/build/backend/linux_amd64/moniqo
+        dst: bin/moniqo
       - src: dist/build/web
-        dst: .
+        dst: web
+      - src: release/config
+        dst: config
+      - src: release/scripts
+        dst: scripts
+      - src: LICENSE
+      - src: README.md
+
+  - id: linux-arm64
+    meta: true
+    name_template: "moniqo-{{ .Tag }}-linux-arm64"
+    wrap_in_directory: true
+    formats: [tar.gz]
+    files:
+      - src: dist/build/backend/linux_arm64/moniqo
+        dst: bin/moniqo
+      - src: dist/build/web
+        dst: web
+      - src: release/config
+        dst: config
+      - src: release/scripts
+        dst: scripts
+      - src: LICENSE
+      - src: README.md
+
+  - id: darwin-amd64
+    meta: true
+    name_template: "moniqo-{{ .Tag }}-darwin-amd64"
+    wrap_in_directory: true
+    formats: [tar.gz]
+    files:
+      - src: dist/build/backend/darwin_amd64/moniqo
+        dst: bin/moniqo
+      - src: dist/build/web
+        dst: web
+      - src: release/config
+        dst: config
+      - src: release/scripts
+        dst: scripts
+      - src: LICENSE
+      - src: README.md
+
+  - id: darwin-arm64
+    meta: true
+    name_template: "moniqo-{{ .Tag }}-darwin-arm64"
+    wrap_in_directory: true
+    formats: [tar.gz]
+    files:
+      - src: dist/build/backend/darwin_arm64/moniqo
+        dst: bin/moniqo
+      - src: dist/build/web
+        dst: web
+      - src: release/config
+        dst: config
+      - src: release/scripts
+        dst: scripts
+      - src: LICENSE
+      - src: README.md
+
+  - id: windows-amd64
+    meta: true
+    name_template: "moniqo-{{ .Tag }}-windows-amd64"
+    wrap_in_directory: true
+    formats: [zip]
+    files:
+      - src: dist/build/backend/windows_amd64/moniqo.exe
+        dst: bin/moniqo.exe
+      - src: dist/build/web
+        dst: web
+      - src: release/config
+        dst: config
+      - src: release/scripts
+        dst: scripts
+      - src: LICENSE
+      - src: README.md
 
 checksum:
   name_template: checksums.txt
