@@ -15,39 +15,60 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Build context for this Dockerfile is the monorepo root (the pnpm
+# workspace lockfile lives there), e.g.:
+#   docker build -f apps/web/Dockerfile .
 
 FROM node:22-alpine AS deps
 
 WORKDIR /app
 
-# TODO: in the monorepo layout the lockfile lives at the repo root, not here — revisit this COPY when the web app is scaffolded
-COPY package.json package-lock.json ./
-RUN npm ci
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/package.json
+RUN pnpm install --frozen-lockfile --filter=@moniqo/web...
 
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npm run build
+RUN corepack enable
+
+COPY --from=deps /app ./
+COPY apps/web ./apps/web
+RUN pnpm --filter=@moniqo/web run build
 
 FROM node:22-alpine AS runner
 
-RUN adduser -D -u 1001 appuser
+RUN apk add --no-cache wget && \
+    adduser -D -u 1001 appuser
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+# Next's standalone server binds to $HOSTNAME if set, and Docker sets
+# $HOSTNAME to the container ID by default — pin it to all interfaces so
+# the server is reachable on 127.0.0.1 (needed for the in-container healthcheck).
+ENV HOSTNAME=0.0.0.0
 
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# The standalone output's node_modules symlinks are relative and assume the
+# workspace's original depth (apps/web/... alongside root node_modules), so
+# it's copied as-is rather than flattened.
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 
 RUN chown -R appuser:appuser /app
 
 USER appuser
 
+WORKDIR /app/apps/web
+
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:3000/ || exit 1
 
 CMD ["node", "server.js"]
