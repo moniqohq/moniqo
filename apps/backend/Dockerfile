@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-FROM golang:1.24-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -40,5 +40,10 @@ RUN chown appuser:appuser /app/server
 USER appuser
 
 EXPOSE 8080
+
+# No dedicated /health route exists yet; a bare TCP check confirms the
+# server is accepting connections on its listen port.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD nc -z 127.0.0.1 8080 || exit 1
 
 CMD ["./server"]
