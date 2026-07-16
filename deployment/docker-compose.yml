@@ -5,7 +5,9 @@
 # terminates public TLS at its edge, so Caddy serves plain HTTP internally.
 # web and backend use pre-built images published by
 # .github/workflows/docker-publish.yml (docker.io/${DOCKERHUB_USERNAME}/moniqo-{web,backend}),
-# so no local build/context is needed here — just `docker compose ... pull` to update.
+# so no local build/context is needed here. Both set pull_policy: always, so
+# `up -d` (or `podman-compose up -d`) always fetches the newest image for
+# the current IMAGE_TAG before (re)creating the container.
 #
 # Nothing on this stack publishes a host port. Run from the repo root:
 #   podman-compose -f deployment/docker-compose.yml --env-file deployment/.env up -d
@@ -48,6 +50,7 @@ services:
     # NEXT_PUBLIC_API_URL is baked in at image build time, so switching it
     # here requires a new image, not just a container restart.
     image: docker.io/${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/moniqo-web:${IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -60,6 +63,7 @@ services:
   backend:
     # Published by .github/workflows/docker-publish.yml on every push to main.
     image: docker.io/${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/moniqo-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-moniqo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-moniqo}?sslmode=disable
