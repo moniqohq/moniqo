@@ -42,6 +42,7 @@ before:
     - sh -c "GOOS=darwin GOARCH=amd64 OUT_DIR=dist/build/backend/darwin_amd64 make build-backend"
     - sh -c "GOOS=darwin GOARCH=arm64 OUT_DIR=dist/build/backend/darwin_arm64 make build-backend"
     - sh -c "GOOS=windows GOARCH=amd64 OUT_DIR=dist/build/backend/windows_amd64 make build-backend"
+    - sh -c "GOOS=windows GOARCH=arm64 OUT_DIR=dist/build/backend/windows_arm64 make build-backend"
 
 # GoReleaser's Go builder always invokes `go build` itself, which would
 # duplicate the build logic that already lives in `make build-backend`
@@ -145,6 +146,25 @@ archives:
     formats: [zip]
     files:
       - src: dist/build/backend/windows_amd64/moniqo.exe
+        dst: bin/moniqo.exe
+      - src: dist/build/web
+        dst: web
+      - src: release/config
+        dst: config
+      - src: release/scripts
+        dst: scripts
+      - src: release/docker-compose.yml
+        dst: docker-compose.yml
+      - src: LICENSE
+      - src: README.md
+
+  - id: windows-arm64
+    meta: true
+    name_template: "moniqo-{{ .Tag }}-windows-arm64"
+    wrap_in_directory: true
+    formats: [zip]
+    files:
+      - src: dist/build/backend/windows_arm64/moniqo.exe
         dst: bin/moniqo.exe
       - src: dist/build/web
         dst: web
