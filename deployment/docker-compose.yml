@@ -3,9 +3,13 @@
 # cloudflared dials Cloudflare's edge OUTBOUND (no inbound host ports needed) and
 # forwards HTTP to Caddy, which routes / -> web and /api/* -> backend. Cloudflare
 # terminates public TLS at its edge, so Caddy serves plain HTTP internally.
+# web and backend use pre-built images published by
+# .github/workflows/docker-publish.yml (docker.io/${DOCKERHUB_USERNAME}/moniqo-{web,backend}),
+# so no local build/context is needed here — just `docker compose ... pull` to update.
+#
 # Nothing on this stack publishes a host port. Run from the repo root:
-#   podman-compose -f deployment/docker-compose.yml --env-file deployment/.env up -d --build
-#   # or: docker compose -f deployment/docker-compose.yml --env-file deployment/.env up -d --build
+#   podman-compose -f deployment/docker-compose.yml --env-file deployment/.env up -d
+#   # or: docker compose -f deployment/docker-compose.yml --env-file deployment/.env up -d
 #
 # In the Cloudflare Zero Trust dashboard, point the tunnel's public hostname at
 # the origin service: http://caddy:80
@@ -40,14 +44,10 @@ services:
       - edge
 
   web:
-    build:
-      # Context is the repo root: the web Dockerfile installs from the
-      # pnpm workspace lockfile, which lives there.
-      context: ..
-      dockerfile: apps/web/Dockerfile
-      args:
-        # Inlined at build time by Next.js. Relative path => same-origin => Caddy routes /api/*.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+    # Published by .github/workflows/docker-publish.yml on every push to main.
+    # NEXT_PUBLIC_API_URL is baked in at image build time, so switching it
+    # here requires a new image, not just a container restart.
+    image: docker.io/${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/moniqo-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -58,9 +58,8 @@ services:
       - edge
 
   backend:
-    build:
-      context: ../apps/backend
-      dockerfile: Dockerfile
+    # Published by .github/workflows/docker-publish.yml on every push to main.
+    image: docker.io/${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/moniqo-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-moniqo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-moniqo}?sslmode=disable
