@@ -3,16 +3,14 @@ name: Docker Publish
 # Builds and publishes the production backend and web images to Docker Hub.
 #
 # Triggers:
-#   - every push to main (tags images with `latest` + the commit SHA)
-#   - every push of a `v*` tag (also tags images with the git tag)
+#   - every push of a `vX.Y.Z` tag (tags images with the git tag)
 #   - manual dispatch, for re-publishing without a new commit
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
   workflow_dispatch: {}
 
-# Cancel superseded runs on main so we never publish out-of-order images.
+# Cancel superseded runs so we never publish out-of-order images.
 concurrency:
   group: docker-publish-${{ github.ref }}
   cancel-in-progress: true
@@ -48,16 +46,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Derives tags: `latest` on main, the commit SHA always, and the git
-      # tag itself when the workflow was triggered by a tag push.
+      # Derives tags: `latest` + the git tag itself (e.g. v1.0.0).
       - name: Derive image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=long
+            type=raw,value=latest
             type=ref,event=tag
 
       - name: Build and push
