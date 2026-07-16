@@ -191,9 +191,13 @@ jobs:
         working-directory: apps/web
         run: pnpm install
 
+      # continue-on-error: npm registry retired the legacy audit endpoints on 2026-07-15
+      # and pnpm audit (all 10.x) hasn't been updated to the new bulk endpoint yet.
+      # Remove continue-on-error once https://github.com/pnpm/pnpm/issues/11265 is fixed.
       - name: Audit web dependencies
         working-directory: apps/web
         run: pnpm audit --audit-level=high
+        continue-on-error: true
 
       - name: Audit mobile dependencies
         working-directory: apps/mobile

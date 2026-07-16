@@ -74,6 +74,50 @@ Prebuilt binaries are provided for major operating systems.
 > No runtime dependencies are required. Everything is bundled with the app.
 
 ---
+## Running the Server (Self-Hosted)
+
+Each release archive (`moniqo-<tag>-<os>-<arch>.tar.gz` / `.zip` on the
+**Releases** page) bundles everything needed to run the backend and web app
+yourself: `bin/` (backend binary), `web/` (Next.js standalone bundle),
+`config/.env.example`, `scripts/` (`start.sh`, `stop.sh`), and
+`docker-compose.yml`.
+
+Either way, start by extracting the archive and preparing your environment
+file:
+
+```sh
+tar -xzf moniqo-<tag>-<os>-<arch>.tar.gz
+cd moniqo-<tag>-<os>-<arch>
+cp config/.env.example config/.env
+# edit config/.env: set POSTGRES_PASSWORD, JWT_SECRET, EMAIL_SMTP_HOST, etc.
+```
+
+### Option A: Prebuilt Binaries
+
+Runs the bundled `bin/moniqo` backend and `web/server.js` frontend directly
+on the host. Requires Node.js (for the Next.js standalone server) and a
+reachable PostgreSQL instance — neither is bundled with this option.
+
+```sh
+set -a; source config/.env; set +a
+./scripts/start.sh   # starts backend + web, tracks PIDs in moniqo.pid
+./scripts/stop.sh    # stops both
+```
+
+### Option B: Docker Compose
+
+Runs Postgres plus the published `moniqohq/moniqo-backend` and
+`moniqohq/moniqo-web` images — no local Go/Node toolchain or database setup
+required.
+
+```sh
+docker compose --env-file config/.env -f docker-compose.yml up -d
+```
+
+Set `IMAGE_TAG` in `config/.env` to pin a specific release instead of
+floating on `latest` (e.g. `IMAGE_TAG=<tag>`).
+
+---
 ## Architecture Overview
 
 The application follows a **native-desktop, multi-layered architecture**:

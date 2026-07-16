@@ -17,8 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+import { Suspense } from "react";
 import { EnvelopesView } from "@/components/envelopes/EnvelopesView";
 
 export default function EnvelopesPage() {
-  return <EnvelopesView />;
+  return (
+    <Suspense>
+      <EnvelopesView />
+    </Suspense>
+  );
 }

@@ -1,3 +1,25 @@
+# Moniqo is a personal finance management application designed to help users
+# track, manage, and optimize their financial activities.
+#
+# Copyright (C) 2026 Moniqo <support@moniqo.in>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# Deploys moniqo from the prebuilt images published to Docker Hub, as an
+# alternative to running the bin/ + web/ binaries in this archive directly
+# (see scripts/start.sh). Set IMAGE_TAG to pin a specific release instead of
+# floating on latest.
 services:
   db:
     image: docker.io/library/postgres:17-alpine
@@ -19,35 +41,23 @@ services:
     networks:
       - moniqo
 
-  mailpit:
-    image: docker.io/axllent/mailpit:latest
-    restart: unless-stopped
-    ports:
-      - "${MAILPIT_UI_PORT:-8025}:8025"
-      - "${MAILPIT_SMTP_PORT:-1025}:1025"
-    networks:
-      - moniqo
-
   backend:
-    profiles: [app]
-    build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
+    image: docker.io/moniqohq/moniqo-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-moniqo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-moniqo}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRY: ${JWT_EXPIRY:-24h}
       PORT: "8080"
-      EMAIL_PROVIDER: smtp
-      EMAIL_SMTP_HOST: mailpit
-      EMAIL_SMTP_PORT: "1025"
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:?EMAIL_SMTP_HOST is required}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
       # No dedicated /health route exists yet; a bare TCP check confirms
       # the server is accepting connections on its listen port.
-      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080 || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 0"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -55,20 +65,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      mailpit:
-        condition: service_started
     networks:
       - moniqo
 
   # NOTE: NEXT_PUBLIC_API_URL is baked in at image build time by Next.js (NEXT_PUBLIC_* vars are inlined by webpack).
-  # Setting it here only affects server-side code; pass it as a build arg when building the image for different environments.
+  # Setting it here only affects server-side code; it cannot repoint client-side requests without rebuilding the image.
   web:
-    profiles: [app]
-    build:
-      # Context is the repo root: the web Dockerfile installs from the
-      # pnpm workspace lockfile, which lives there.
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: docker.io/moniqohq/moniqo-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api/v1}

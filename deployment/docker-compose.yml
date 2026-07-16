@@ -3,9 +3,15 @@
 # cloudflared dials Cloudflare's edge OUTBOUND (no inbound host ports needed) and
 # forwards HTTP to Caddy, which routes / -> web and /api/* -> backend. Cloudflare
 # terminates public TLS at its edge, so Caddy serves plain HTTP internally.
+# web and backend use pre-built images published by
+# .github/workflows/docker-publish.yml (docker.io/${DOCKERHUB_USERNAME}/moniqo-{web,backend}),
+# so no local build/context is needed here. Both set pull_policy: always, so
+# `up -d` (or `podman-compose up -d`) always fetches the newest image for
+# the current IMAGE_TAG before (re)creating the container.
+#
 # Nothing on this stack publishes a host port. Run from the repo root:
-#   podman-compose -f deployment/docker-compose.yml --env-file deployment/.env up -d --build
-#   # or: docker compose -f deployment/docker-compose.yml --env-file deployment/.env up -d --build
+#   podman-compose -f deployment/docker-compose.yml --env-file deployment/.env up -d
+#   # or: docker compose -f deployment/docker-compose.yml --env-file deployment/.env up -d
 #
 # In the Cloudflare Zero Trust dashboard, point the tunnel's public hostname at
 # the origin service: http://caddy:80
@@ -27,10 +33,10 @@ services:
       - edge
 
   caddy:
-    image: docker.io/library/caddy:latest   # official latest; consider pinning (e.g. caddy:2-alpine)
+    image: docker.io/library/caddy:latest # official latest; consider pinning (e.g. caddy:2-alpine)
     restart: unless-stopped
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro   # config, read-only
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro # config, read-only
     depends_on:
       backend:
         condition: service_healthy
@@ -40,12 +46,11 @@ services:
       - edge
 
   web:
-    build:
-      context: ../apps/web
-      dockerfile: Dockerfile
-      args:
-        # Inlined at build time by Next.js. Relative path => same-origin => Caddy routes /api/*.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+    # Published by .github/workflows/docker-publish.yml on every push to main.
+    # NEXT_PUBLIC_API_URL is baked in at image build time, so switching it
+    # here requires a new image, not just a container restart.
+    image: docker.io/${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/moniqo-web:${IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -56,9 +61,9 @@ services:
       - edge
 
   backend:
-    build:
-      context: ../apps/backend
-      dockerfile: Dockerfile
+    # Published by .github/workflows/docker-publish.yml on every push to main.
+    image: docker.io/${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/moniqo-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-moniqo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-moniqo}?sslmode=disable
@@ -66,12 +71,14 @@ services:
       PORT: "8080"
       APP_BASE_URL: https://${DOMAIN:?DOMAIN is required}
       API_BASE_URL: https://${DOMAIN}
-      CORS_ORIGINS: https://${DOMAIN}          # correct env name (config.go reads CORS_ORIGINS)
+      CORS_ORIGINS: https://${DOMAIN} # correct env name (config.go reads CORS_ORIGINS)
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:?EMAIL_SMTP_HOST is required}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      # No dedicated /health route exists yet; a bare TCP check confirms
+      # the server is accepting connections on its listen port.
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,8 +87,8 @@ services:
       db:
         condition: service_healthy
     networks:
-      - edge        # egress: outbound SMTP
-      - internal    # reach db
+      - edge # egress: outbound SMTP
+      - internal # reach db
 
   db:
     image: docker.io/library/postgres:17-alpine
@@ -99,7 +106,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - internal    # DB never joins edge -> no host ports, no egress
+      - internal # DB never joins edge -> no host ports, no egress
 
 volumes:
   db_data:
@@ -109,4 +116,4 @@ networks:
     driver: bridge
   internal:
     driver: bridge
-    internal: true   # no external connectivity; isolates the database
+    internal: true # no external connectivity; isolates the database

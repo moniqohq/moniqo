@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # Moniqo is a personal finance management application designed to help users
 # track, manage, and optimize their financial activities.
 #
@@ -16,34 +17,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-FROM docker.io/library/golang:1.26-alpine AS builder
+# Stops the backend and web server previously started by start.sh.
+# Must be run from the archive root (the directory containing moniqo.pid).
+set -eu
+cd "$(dirname "$0")/.."
 
-WORKDIR /app
+if [ ! -f moniqo.pid ]; then
+	echo "moniqo.pid not found; nothing to stop"
+	exit 0
+fi
 
-COPY go.mod go.sum ./
-RUN go mod download
+while read -r pid; do
+	[ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+done < moniqo.pid
 
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server
-
-FROM docker.io/library/alpine:3.21
-
-RUN apk add --no-cache wget && \
-    adduser -D -u 1001 appuser
-
-WORKDIR /app
-
-COPY --from=builder /app/server .
-
-RUN chown appuser:appuser /app/server
-
-USER appuser
-
-EXPOSE 8080
-
-# No dedicated /health route exists yet; a bare TCP check confirms the
-# server is accepting connections on its listen port.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD nc -z 127.0.0.1 8080 || exit 1
-
-CMD ["./server"]
+rm -f moniqo.pid
+echo "moniqo stopped"
