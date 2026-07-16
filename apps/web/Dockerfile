@@ -20,7 +20,7 @@
 # workspace lockfile lives there), e.g.:
 #   docker build -f apps/web/Dockerfile .
 
-FROM node:22-alpine AS deps
+FROM docker.io/library/node:22-alpine AS deps
 
 WORKDIR /app
 
@@ -30,7 +30,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/package.json
 RUN pnpm install --frozen-lockfile --filter=@moniqo/web...
 
-FROM node:22-alpine AS builder
+FROM docker.io/library/node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ COPY --from=deps /app ./
 COPY apps/web ./apps/web
 RUN pnpm --filter=@moniqo/web run build
 
-FROM node:22-alpine AS runner
+FROM docker.io/library/node:22-alpine AS runner
 
 RUN apk add --no-cache wget && \
     adduser -D -u 1001 appuser
