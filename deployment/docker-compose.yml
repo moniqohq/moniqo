@@ -27,10 +27,10 @@ services:
       - edge
 
   caddy:
-    image: docker.io/library/caddy:latest   # official latest; consider pinning (e.g. caddy:2-alpine)
+    image: docker.io/library/caddy:latest # official latest; consider pinning (e.g. caddy:2-alpine)
     restart: unless-stopped
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro   # config, read-only
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro # config, read-only
     depends_on:
       backend:
         condition: service_healthy
@@ -68,7 +68,7 @@ services:
       PORT: "8080"
       APP_BASE_URL: https://${DOMAIN:?DOMAIN is required}
       API_BASE_URL: https://${DOMAIN}
-      CORS_ORIGINS: https://${DOMAIN}          # correct env name (config.go reads CORS_ORIGINS)
+      CORS_ORIGINS: https://${DOMAIN} # correct env name (config.go reads CORS_ORIGINS)
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:?EMAIL_SMTP_HOST is required}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
@@ -84,8 +84,8 @@ services:
       db:
         condition: service_healthy
     networks:
-      - edge        # egress: outbound SMTP
-      - internal    # reach db
+      - edge # egress: outbound SMTP
+      - internal # reach db
 
   db:
     image: docker.io/library/postgres:17-alpine
@@ -103,7 +103,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - internal    # DB never joins edge -> no host ports, no egress
+      - internal # DB never joins edge -> no host ports, no egress
 
 volumes:
   db_data:
@@ -113,4 +113,4 @@ networks:
     driver: bridge
   internal:
     driver: bridge
-    internal: true   # no external connectivity; isolates the database
+    internal: true # no external connectivity; isolates the database
