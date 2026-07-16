@@ -41,8 +41,10 @@ services:
 
   web:
     build:
-      context: ../apps/web
-      dockerfile: Dockerfile
+      # Context is the repo root: the web Dockerfile installs from the
+      # pnpm workspace lockfile, which lives there.
+      context: ..
+      dockerfile: apps/web/Dockerfile
       args:
         # Inlined at build time by Next.js. Relative path => same-origin => Caddy routes /api/*.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
@@ -71,7 +73,9 @@ services:
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:?EMAIL_SMTP_HOST is required}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      # No dedicated /health route exists yet; a bare TCP check confirms
+      # the server is accepting connections on its listen port.
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8080 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
