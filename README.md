@@ -1,5 +1,7 @@
 [![CI](https://github.com/moniqohq/moniqo/actions/workflows/ci.yml/badge.svg)](https://github.com/moniqohq/moniqo/actions/workflows/ci.yml)
 
+**Website:** [https://moniqo.in](https://moniqo.in) · **App:** [https://app.moniqo.in](https://app.moniqo.in)
+
 **Moniqo** is a modern financial software project focused on clarity, control, and long-term usability.
 
 The goal is to build tools that help individuals understand, manage, and reason about their money without unnecessary complexity.
@@ -50,18 +52,22 @@ Moniqo is built on a few non-negotiable principles:
 ---
 ## Platform
 
-Moniqo is a **multi-platform application** available on desktop and web.
+Moniqo is a **multi-platform application** available on desktop, web, and mobile.
 - Native desktop app (macOS, Windows, Linux)
 - Web application with cloud sync
+- Mobile app (iOS, Android)
 - Multi-user collaboration with role-based access control
 - Data is securely stored and accessible across devices
 
 This approach prioritizes **privacy, performance, and long-term maintainability** while enabling collaboration and access from anywhere.
 
 ---
-## Installation & Downloads (All Operating Systems)
+## Installation & Downloads (Desktop)
 
-Prebuilt binaries are provided for major operating systems.
+Prefer not to install anything? Just use the web app at
+[https://app.moniqo.in](https://app.moniqo.in) — no download required.
+
+Prebuilt binaries are provided for major desktop operating systems.
 #### Supported Platforms
 - **macOS** (Apple Silicon & Intel)
 - **Windows** (x64)    
@@ -76,14 +82,18 @@ Prebuilt binaries are provided for major operating systems.
 ---
 ## Running the Server (Self-Hosted)
 
+Don't want to self-host? Just use the hosted app at
+[https://app.moniqo.in](https://app.moniqo.in).
+
 Each release archive (`moniqo-<tag>-<os>-<arch>.tar.gz` / `.zip` on the
 **Releases** page) bundles everything needed to run the backend and web app
 yourself: `bin/` (backend binary), `web/` (Next.js standalone bundle),
 `config/.env.example`, `scripts/` (`start.sh`, `stop.sh`), and
-`docker-compose.yml`.
+`docker-compose.yml`. Database migrations run automatically on backend
+startup — no manual migration step is required.
 
-Either way, start by extracting the archive and preparing your environment
-file:
+Both options below start the same way — extract the archive and prepare your
+environment file:
 
 ```sh
 tar -xzf moniqo-<tag>-<os>-<arch>.tar.gz
@@ -104,6 +114,9 @@ set -a; source config/.env; set +a
 ./scripts/stop.sh    # stops both
 ```
 
+Once started, the web app listens on `http://localhost:3000` and the backend
+API on `http://localhost:8080/api/v1` by default.
+
 ### Option B: Docker Compose
 
 Runs Postgres plus the published `moniqohq/moniqo-backend` and
@@ -111,21 +124,26 @@ Runs Postgres plus the published `moniqohq/moniqo-backend` and
 required.
 
 ```sh
-docker compose --env-file config/.env -f docker-compose.yml up -d
+docker compose --env-file config/.env -f docker-compose.yml up -d   # start
+docker compose --env-file config/.env -f docker-compose.yml down    # stop
 ```
 
-Set `IMAGE_TAG` in `config/.env` to pin a specific release instead of
-floating on `latest` (e.g. `IMAGE_TAG=<tag>`).
+Once started, the web app listens on `http://localhost:3000` and the backend
+API on `http://localhost:8080/api/v1` by default — override with `WEB_PORT`,
+`BACKEND_PORT`, and `POSTGRES_PORT` in `config/.env`. Set `IMAGE_TAG` there
+too to pin a specific release instead of floating on `latest` (e.g.
+`IMAGE_TAG=<tag>`).
 
 ---
 ## Architecture Overview
 
-The application follows a **native-desktop, multi-layered architecture**:
+The application follows a **shared-backend, multi-client architecture**:
 #### Core Stack
-- **Tauri** — Desktop shell and secure system bridge    
-- **Go** — Backend logic, data processing, and system-level operations    
-- **Svelte** — Frontend UI and state management
-- SQLite — Database System
+- **Go + Echo** — Backend logic, data processing, and system-level operations, backed by PostgreSQL (via sqlc + pgx) and JWT auth
+- **Tauri** — Desktop shell and secure system bridge
+- **Next.js** — Web frontend
+- **React Native + Expo** — Mobile frontend
+- **PostgreSQL** — Database system
 #### Inter-Layer Communication
 - **Tauri communicates with Go through explicit wrapper handlers**
     - Tauri exposes a minimal set of commands        
@@ -142,7 +160,7 @@ This wrapper-based approach ensures:
 #### Design Principles
 - **Thin UI, strong backend**: Business logic lives in Go
 - **Multi-user ready**: Role-based access control across all budgets
-- **Cross-platform**: Native desktop and web clients share the same backend
+- **Cross-platform**: Desktop, web, and mobile clients share the same backend
 - **Small binary size** compared to Electron-based apps
 
 This architecture allows the application to feel **native, fast, and reliable** across platforms while keeping the codebase clean and understandable.
