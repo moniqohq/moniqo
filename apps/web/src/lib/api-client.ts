@@ -37,8 +37,6 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
-
 // Serialises concurrent 401s into a single refresh attempt.
 let refreshPromise: Promise<string> | null = null;
 
@@ -46,7 +44,7 @@ async function doRefresh(): Promise<string> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+        const res = await fetch(`/api/v1/auth/refresh`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -73,7 +71,7 @@ export async function apiFetch<T>(
   headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(path, {
     ...init,
     headers,
     credentials: "include",

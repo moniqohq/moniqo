@@ -47,8 +47,8 @@ services:
 
   web:
     # Published by .github/workflows/docker-publish.yml on every push to main.
-    # NEXT_PUBLIC_API_URL is baked in at image build time, so switching it
-    # here requires a new image, not just a container restart.
+    # The web app calls the API via relative /api/* paths, proxied by Caddy
+    # to the backend on the same origin, so no API URL needs to be baked in.
     image: docker.io/${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/moniqo-web:${IMAGE_TAG:-latest}
     pull_policy: always
     restart: unless-stopped
