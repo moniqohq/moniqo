@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"mime/quotedprintable"
@@ -31,9 +32,12 @@ import (
 	"strings"
 )
 
-// SMTPConfig holds the credentials and addressing for a standard SMTP submission
-// endpoint (port 587 STARTTLS).  For implicit-TLS (port 465) use a dedicated
-// provider implementation.
+// implicitTLSPort is the standard port for SMTPS (TLS from the first byte,
+// no STARTTLS upgrade) — e.g. Titan Mail's smtp.titan.email:465.
+const implicitTLSPort = 465
+
+// SMTPConfig holds the credentials and addressing for an SMTP submission
+// endpoint. Port 587 is sent via STARTTLS; port 465 is sent via implicit TLS.
 type SMTPConfig struct {
 	Host     string
 	Port     int
@@ -58,6 +62,10 @@ func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	type result struct{ err error }
 	ch := make(chan result, 1)
 	go func() {
+		if s.cfg.Port == implicitTLSPort {
+			ch <- result{s.sendImplicitTLS(msg)}
+			return
+		}
 		var auth smtp.Auth
 		if s.cfg.Username != "" {
 			auth = smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
@@ -72,6 +80,49 @@ func (s *SMTPProvider) Send(ctx context.Context, msg Message) error {
 	case r := <-ch:
 		return r.err
 	}
+}
+
+// sendImplicitTLS delivers msg over a connection that is TLS-encrypted from
+// the first byte (SMTPS), as required by servers such as Titan Mail on 465
+// that never advertise or accept a plaintext STARTTLS upgrade.
+func (s *SMTPProvider) sendImplicitTLS(msg Message) error {
+	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
+	conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: s.cfg.Host, MinVersion: tls.VersionTLS12})
+	if err != nil {
+		return fmt.Errorf("smtp tls dial: %w", err)
+	}
+	defer conn.Close()
+
+	client, err := smtp.NewClient(conn, s.cfg.Host)
+	if err != nil {
+		return fmt.Errorf("smtp client: %w", err)
+	}
+	defer client.Close()
+
+	if s.cfg.Username != "" {
+		auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("smtp auth: %w", err)
+		}
+	}
+	if err := client.Mail(s.cfg.From); err != nil {
+		return fmt.Errorf("smtp mail from: %w", err)
+	}
+	if err := client.Rcpt(msg.To); err != nil {
+		return fmt.Errorf("smtp rcpt to: %w", err)
+	}
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("smtp data: %w", err)
+	}
+	if _, err := w.Write(buildMIMEMessage(s.cfg.From, s.cfg.FromName, msg)); err != nil {
+		_ = w.Close()
+		return fmt.Errorf("smtp write body: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("smtp close body: %w", err)
+	}
+	return client.Quit()
 }
 
 // sanitizeHeader strips CR and LF from a value to prevent header injection.
