@@ -99,13 +99,27 @@ func (s *SMTPProvider) sendImplicitTLS(msg Message) error {
 	}
 	defer client.Close()
 
-	if s.cfg.Username != "" {
-		auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
-		if err := client.Auth(auth); err != nil {
-			return fmt.Errorf("smtp auth: %w", err)
-		}
+	if err := s.authenticate(client); err != nil {
+		return err
 	}
-	if err := client.Mail(s.cfg.From); err != nil {
+	return deliver(client, s.cfg.From, s.cfg.FromName, msg)
+}
+
+// authenticate performs SMTP AUTH on client if credentials are configured.
+func (s *SMTPProvider) authenticate(client *smtp.Client) error {
+	if s.cfg.Username == "" {
+		return nil
+	}
+	auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
+	if err := client.Auth(auth); err != nil {
+		return fmt.Errorf("smtp auth: %w", err)
+	}
+	return nil
+}
+
+// deliver runs the MAIL/RCPT/DATA/QUIT sequence to hand msg to client.
+func deliver(client *smtp.Client, from, fromName string, msg Message) error {
+	if err := client.Mail(from); err != nil {
 		return fmt.Errorf("smtp mail from: %w", err)
 	}
 	if err := client.Rcpt(msg.To); err != nil {
@@ -115,14 +129,17 @@ func (s *SMTPProvider) sendImplicitTLS(msg Message) error {
 	if err != nil {
 		return fmt.Errorf("smtp data: %w", err)
 	}
-	if _, err := w.Write(buildMIMEMessage(s.cfg.From, s.cfg.FromName, msg)); err != nil {
+	if _, err := w.Write(buildMIMEMessage(from, fromName, msg)); err != nil {
 		_ = w.Close()
 		return fmt.Errorf("smtp write body: %w", err)
 	}
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("smtp close body: %w", err)
 	}
-	return client.Quit()
+	if err := client.Quit(); err != nil {
+		return fmt.Errorf("smtp quit: %w", err)
+	}
+	return nil
 }
 
 // sanitizeHeader strips CR and LF from a value to prevent header injection.
