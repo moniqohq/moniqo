@@ -36,7 +36,7 @@ services:
     image: docker.io/library/caddy:latest # official latest; consider pinning (e.g. caddy:2-alpine)
     restart: unless-stopped
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro # config, read-only
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z # config, read-only; Z relabels for SELinux (rootless podman)
     depends_on:
       backend:
         condition: service_healthy
@@ -75,6 +75,10 @@ services:
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:?EMAIL_SMTP_HOST is required}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USER: ${EMAIL_SMTP_USER:?EMAIL_SMTP_USER is required}
+      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:?EMAIL_SMTP_PASSWORD is required}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:?EMAIL_FROM_ADDRESS is required}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Moniqo}
     healthcheck:
       # No dedicated /health route exists yet; a bare TCP check confirms
       # the server is accepting connections on its listen port.
