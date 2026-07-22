@@ -146,6 +146,22 @@ func (r *OIDCRepo) LinkIdentity(ctx context.Context, userID int64, provider, sub
 	return nil
 }
 
+// ListIdentities returns every identity linked to userID, ordered by
+// created_at (oldest first, matching link order).
+func (r *OIDCRepo) ListIdentities(ctx context.Context, userID int64) ([]UserIdentity, error) {
+	q := db.New(r.pool)
+	rows, err := q.ListUserIdentitiesByUserID(ctx, userID)
+	if err != nil {
+		r.log.Error("ListUserIdentitiesByUserID query failed", zap.Error(err))
+		return nil, fmt.Errorf("list user identities: %w", err)
+	}
+	identities := make([]UserIdentity, 0, len(rows))
+	for _, row := range rows {
+		identities = append(identities, rowToIdentity(row))
+	}
+	return identities, nil
+}
+
 // UnlinkIdentity removes a linked identity. Idempotent: removing an identity
 // that is already gone matches zero rows and returns no error.
 func (r *OIDCRepo) UnlinkIdentity(ctx context.Context, userID int64, provider string) error {

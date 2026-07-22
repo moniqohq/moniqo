@@ -211,6 +211,62 @@ func TestOIDCHandler_Callback(t *testing.T) {
 	})
 }
 
+func TestOIDCHandler_ListIdentities(t *testing.T) {
+	t.Parallel()
+	e := echo.New()
+
+	newListCtx := func(user *models.User) (echo.Context, *httptest.ResponseRecorder) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/identities", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		if user != nil {
+			auth.SetUserInContext(c, user)
+		}
+		return c, rec
+	}
+
+	t.Run("requires authentication", func(t *testing.T) {
+		t.Parallel()
+		h := auth.NewOIDCHandler(&mock.OIDCService{}, zap.NewNop(), true, "https://app.moniqo.in")
+		c, rec := newListCtx(nil)
+		require.NoError(t, h.ListIdentities(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("returns the linked identities", func(t *testing.T) {
+		t.Parallel()
+		linkedAt := time.Now()
+		svc := &mock.OIDCService{
+			ListIdentitiesFn: func(context.Context, int64) ([]auth.UserIdentity, error) {
+				return []auth.UserIdentity{{Provider: "google", CreatedAt: linkedAt}}, nil
+			},
+		}
+		h := auth.NewOIDCHandler(svc, zap.NewNop(), true, "https://app.moniqo.in")
+
+		c, rec := newListCtx(&models.User{ID: 1})
+		require.NoError(t, h.ListIdentities(c))
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"provider":"google"`)
+	})
+
+	t.Run("empty list is 200 with an empty array, never 404", func(t *testing.T) {
+		t.Parallel()
+		svc := &mock.OIDCService{
+			ListIdentitiesFn: func(context.Context, int64) ([]auth.UserIdentity, error) {
+				return nil, nil
+			},
+		}
+		h := auth.NewOIDCHandler(svc, zap.NewNop(), true, "https://app.moniqo.in")
+
+		c, rec := newListCtx(&models.User{ID: 1})
+		require.NoError(t, h.ListIdentities(c))
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"data":[]`)
+	})
+}
+
 func TestOIDCHandler_Unlink(t *testing.T) {
 	t.Parallel()
 	e := echo.New()

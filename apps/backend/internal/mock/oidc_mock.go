@@ -71,6 +71,16 @@ func (m *OIDCRepository) LinkIdentity(_ context.Context, userID int64, provider,
 	return args.Error(0)
 }
 
+// ListIdentities records the call and returns the stubbed identities.
+func (m *OIDCRepository) ListIdentities(_ context.Context, userID int64) ([]auth.UserIdentity, error) {
+	args := m.Called(userID)
+	identities, ok := args.Get(0).([]auth.UserIdentity)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return identities, args.Error(1)
+}
+
 // UnlinkIdentity records the call and returns the stubbed error.
 func (m *OIDCRepository) UnlinkIdentity(_ context.Context, userID int64, provider string) error {
 	args := m.Called(userID, provider)
@@ -100,10 +110,11 @@ func (m *OIDCRepository) ActivateUser(_ context.Context, userID int64) error {
 
 // OIDCService is a test double for auth.OIDCService.
 type OIDCService struct {
-	InitiateLoginFn func(providerName string) (redirectURL, flowToken string, err error)
-	InitiateLinkFn  func(providerName string, userID int64) (redirectURL, flowToken string, err error)
-	CallbackFn      func(ctx context.Context, providerName, code, stateParam, flowCookieRaw string) (auth.OIDCCallbackResult, error)
-	UnlinkFn        func(ctx context.Context, userID int64, providerName string) error
+	InitiateLoginFn  func(providerName string) (redirectURL, flowToken string, err error)
+	InitiateLinkFn   func(providerName string, userID int64) (redirectURL, flowToken string, err error)
+	CallbackFn       func(ctx context.Context, providerName, code, stateParam, flowCookieRaw string) (auth.OIDCCallbackResult, error)
+	ListIdentitiesFn func(ctx context.Context, userID int64) ([]auth.UserIdentity, error)
+	UnlinkFn         func(ctx context.Context, userID int64, providerName string) error
 }
 
 // InitiateLogin delegates to InitiateLoginFn.
@@ -119,6 +130,11 @@ func (m *OIDCService) InitiateLink(providerName string, userID int64) (redirectU
 // Callback delegates to CallbackFn.
 func (m *OIDCService) Callback(ctx context.Context, providerName, code, stateParam, flowCookieRaw string) (auth.OIDCCallbackResult, error) {
 	return m.CallbackFn(ctx, providerName, code, stateParam, flowCookieRaw)
+}
+
+// ListIdentities delegates to ListIdentitiesFn.
+func (m *OIDCService) ListIdentities(ctx context.Context, userID int64) ([]auth.UserIdentity, error) {
+	return m.ListIdentitiesFn(ctx, userID)
 }
 
 // Unlink delegates to UnlinkFn.
