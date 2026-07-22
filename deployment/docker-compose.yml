@@ -75,6 +75,9 @@ services:
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
       EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:?EMAIL_SMTP_HOST is required}
       EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
+      OIDC_GOOGLE_CLIENT_ID: ${OIDC_GOOGLE_CLIENT_ID:?OIDC_GOOGLE_CLIENT_ID is required}
+      OIDC_GOOGLE_CLIENT_SECRET: ${OIDC_GOOGLE_CLIENT_SECRET:?OIDC_GOOGLE_CLIENT_SECRET is required}
+      OIDC_GOOGLE_REDIRECT_URL: https://${DOMAIN}/api/v1/auth/callback/google
     healthcheck:
       # No dedicated /health route exists yet; a bare TCP check confirms
       # the server is accepting connections on its listen port.
