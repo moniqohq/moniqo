@@ -39,7 +39,7 @@ Represents an authenticated identity in the system.
 | `id` | Integer | Yes | Auto-generated serial numeric ID |
 | `name` | String | No | Real name of the user (max 100 chars) |
 | `username` | String | Yes | Unique username (8–12 chars, see constraints) |
-| `hash` | String | Yes | bcrypt password hash — **never returned in any response** |
+| `hash` | String | No | bcrypt password hash — absent for accounts created via third-party (OIDC) sign-in with no password set; **never returned in any response regardless** |
 | `email` | String | Yes | Unique email address (RFC 5321, required at registration) |
 | `picture` | String | Yes | Avatar reference; empty string `""` when not set, never `null` |
 | `status` | Enum | Yes | Account lifecycle state: `pending_verification` or `active` |

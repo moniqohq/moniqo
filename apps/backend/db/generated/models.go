@@ -362,7 +362,7 @@ type User struct {
 	ID                  int64
 	Username            string
 	Email               string
-	Hash                string
+	Hash                *string
 	Name                *string
 	Picture             string
 	Status              UserStatus
@@ -371,4 +371,14 @@ type User struct {
 	UpdatedAt           pgtype.Timestamptz
 	DeletedAt           pgtype.Timestamptz
 	TokensInvalidBefore pgtype.Timestamptz
+}
+
+type UserIdentity struct {
+	ID              int64
+	UserID          int64
+	Provider        string
+	ProviderSubject string
+	ProviderEmail   *string
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
