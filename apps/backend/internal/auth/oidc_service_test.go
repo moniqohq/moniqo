@@ -434,3 +434,33 @@ func TestOIDCSvc_Unlink(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestOIDCSvc_ListIdentities(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns the repo's identities", func(t *testing.T) {
+		t.Parallel()
+		registry := stubRegistry("google", nil)
+		want := []auth.UserIdentity{{ID: 1, UserID: 1, Provider: "google"}}
+
+		oidcRepo := &internalmock.OIDCRepository{}
+		oidcRepo.On("ListIdentities", int64(1)).Return(want, nil)
+
+		svc := newTestOIDCSvc(t, oidcRepo, registry, &internalmock.AuthRepository{})
+		got, err := svc.ListIdentities(context.Background(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("propagates repo errors", func(t *testing.T) {
+		t.Parallel()
+		registry := stubRegistry("google", nil)
+
+		oidcRepo := &internalmock.OIDCRepository{}
+		oidcRepo.On("ListIdentities", int64(1)).Return(nil, assert.AnError)
+
+		svc := newTestOIDCSvc(t, oidcRepo, registry, &internalmock.AuthRepository{})
+		_, err := svc.ListIdentities(context.Background(), 1)
+		assert.Error(t, err)
+	})
+}

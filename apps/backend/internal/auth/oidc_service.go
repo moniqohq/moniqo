@@ -47,6 +47,7 @@ type OIDCRepository interface {
 	CreateUserFromIdentity(ctx context.Context, p CreateOIDCUserParams) (models.User, error)
 	GetIdentityByProviderSubject(ctx context.Context, provider, subject string) (UserIdentity, error)
 	LinkIdentity(ctx context.Context, userID int64, provider, subject, email string) error
+	ListIdentities(ctx context.Context, userID int64) ([]UserIdentity, error)
 	UnlinkIdentity(ctx context.Context, userID int64, provider string) error
 	CountIdentitiesAndHash(ctx context.Context, userID int64) (identityCount int, hasPassword bool, err error)
 	ActivateUser(ctx context.Context, userID int64) error
@@ -111,6 +112,15 @@ func (s *OIDCSvc) Callback(ctx context.Context, providerName, code, stateParam, 
 	identity.Provider = providerName
 
 	return s.completeCallback(ctx, st, *identity)
+}
+
+// ListIdentities returns every provider linked to userID.
+func (s *OIDCSvc) ListIdentities(ctx context.Context, userID int64) ([]UserIdentity, error) {
+	identities, err := s.repo.ListIdentities(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list identities: %w", err)
+	}
+	return identities, nil
 }
 
 // Unlink removes a linked identity. It blocks removing a user's only

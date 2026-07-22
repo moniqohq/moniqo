@@ -344,6 +344,9 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 	oidcLinkGroup := e.Group("/api/v1/auth/link") // requires JWT — not in newAuthSkipper
 	oidcLinkGroup.POST("/:provider", oidcHandler.Link)
 	oidcLinkGroup.DELETE("/:provider", oidcHandler.Unlink)
+
+	oidcAuthedGroup := e.Group("/api/v1/auth") // requires JWT — not in newAuthSkipper
+	oidcAuthedGroup.GET("/identities", oidcHandler.ListIdentities)
 }
 
 // anyOIDCProviderConfigured reports whether at least one OIDC provider has a

@@ -24,3 +24,37 @@ export async function logout(): Promise<void> {
   // Sends the Bearer access token; the server clears the HttpOnly refresh cookie.
   await authFetch<null>("/api/v1/auth/logout", { method: "POST" });
 }
+
+export interface ApiIdentity {
+  provider: "google" | "apple" | "facebook";
+  linked_at: string;
+}
+
+export function listIdentities(): Promise<ApiIdentity[]> {
+  return authFetch<ApiIdentity[]>("/api/v1/auth/identities");
+}
+
+// Begins the link flow. `POST /api/v1/auth/link/:provider` requires a Bearer
+// JWT, which a plain navigation can't send — so this submits a same-origin
+// form POST to our own /api/oidc/link/:provider route, which attaches the
+// token server-side and turns the backend's redirect into a real top-level
+// navigation to the identity provider.
+export function linkProvider(provider: string, accessToken: string): void {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = `/api/oidc/link/${encodeURIComponent(provider)}`;
+  form.style.display = "none";
+
+  const tokenInput = document.createElement("input");
+  tokenInput.type = "hidden";
+  tokenInput.name = "token";
+  tokenInput.value = accessToken;
+  form.appendChild(tokenInput);
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
+export async function unlinkProvider(provider: string): Promise<void> {
+  await authFetch<null>(`/api/v1/auth/link/${provider}`, { method: "DELETE" });
+}

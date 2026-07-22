@@ -40,6 +40,7 @@ Related change to the `users` table: `hash` is nullable. An account created pure
 |---|---|---|---|
 | `GET` | `/api/v1/auth/login/:provider` | None | Begins the login flow: redirects to the provider |
 | `GET`, `POST` | `/api/v1/auth/callback/:provider` | None | The provider's redirect back to Moniqo — see note below |
+| `GET` | `/api/v1/auth/identities` | Required | Lists the providers linked to the authenticated account |
 | `POST` | `/api/v1/auth/link/:provider` | Required | Begins linking `:provider` to the authenticated account |
 | `DELETE` | `/api/v1/auth/link/:provider` | Required | Unlinks `:provider` from the authenticated account |
 
@@ -62,6 +63,13 @@ Redirects (`302`) the browser to the identity provider's authorization page, hav
 Both `GET` (Google, Facebook) and `POST` (Apple, which uses `response_mode=form_post`) are handled by the same logic — the callback parameters (`code`, `state`) are read the same way regardless of HTTP method.
 
 The flow cookie is read and cleared **unconditionally**, before any other processing — a callback can never be replayed with the same cookie value.
+
+### `GET /api/v1/auth/identities`
+
+Requires an existing valid JWT. Returns the providers linked to the authenticated account.
+
+- Response: `200`, `{"success": true, "data": [{"provider": "google", "linked_at": "2026-01-15T10:00:00Z"}], "msg": "identities retrieved"}`. `data` is `[]` (never `404`) when nothing is linked.
+- Deliberately omits `provider_subject` and `provider_email` — the frontend only needs to know *which* providers are linked to render a Link/Unlink control per provider.
 
 ### `POST /api/v1/auth/link/:provider`
 
