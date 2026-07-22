@@ -63,10 +63,9 @@ export default function OAuthCallbackPage() {
       }
 
       try {
-        const user = await apiFetch<ApiUser>(
-          `/api/v1/users/${parseUserIdFromToken(accessToken)}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } },
-        );
+        const user = await apiFetch<ApiUser>(`/api/v1/users/${parseUserIdFromToken(accessToken)}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
         setAuth(user, accessToken);
 
         try {
