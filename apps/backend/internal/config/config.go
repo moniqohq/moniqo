@@ -59,6 +59,41 @@ type Config struct {
 	APIBaseURL            string   // backend self URL for building API links (API_BASE_URL)
 	CORSOrigins           []string // CORS_ORIGINS comma-separated; defaults to AppBaseURL
 	Email                 EmailConfig
+	OIDC                  OIDCConfig
+}
+
+// OIDCConfig groups OpenID Connect third-party login settings. Each provider
+// sub-struct is independent; a provider with an empty ClientID is simply not
+// registered at startup, so shipping Google first and adding Apple/Facebook
+// later requires only setting their env vars — no code changes.
+type OIDCConfig struct {
+	StateSecret string // OIDC_STATE_SECRET — HMAC key signing the OIDC flow cookie
+	Google      GoogleOIDCConfig
+	Apple       AppleOIDCConfig
+	Facebook    FacebookOIDCConfig
+}
+
+// GoogleOIDCConfig holds Google OAuth client settings.
+type GoogleOIDCConfig struct {
+	ClientID     string // OIDC_GOOGLE_CLIENT_ID
+	ClientSecret string // OIDC_GOOGLE_CLIENT_SECRET
+	RedirectURL  string // OIDC_GOOGLE_REDIRECT_URL
+}
+
+// AppleOIDCConfig holds Sign in with Apple client settings.
+type AppleOIDCConfig struct {
+	ClientID    string // OIDC_APPLE_CLIENT_ID — the Services ID
+	TeamID      string // OIDC_APPLE_TEAM_ID
+	KeyID       string // OIDC_APPLE_KEY_ID
+	PrivateKey  string // OIDC_APPLE_PRIVATE_KEY — PEM-encoded EC private key content
+	RedirectURL string // OIDC_APPLE_REDIRECT_URL
+}
+
+// FacebookOIDCConfig holds Facebook OAuth client settings.
+type FacebookOIDCConfig struct {
+	ClientID     string // OIDC_FACEBOOK_CLIENT_ID
+	ClientSecret string // OIDC_FACEBOOK_CLIENT_SECRET
+	RedirectURL  string // OIDC_FACEBOOK_REDIRECT_URL
 }
 
 // EmailConfig groups all email-related settings.
@@ -105,6 +140,34 @@ func Load() Config {
 		APIBaseURL:            envOrDefault("API_BASE_URL", "http://localhost:8080"),
 		CORSOrigins:           corsOrigins(envOrDefault("APP_BASE_URL", "http://localhost:3000")),
 		Email:                 loadEmailConfig(env),
+		OIDC:                  loadOIDCConfig(),
+	}
+}
+
+// loadOIDCConfig reads OIDC provider settings from the environment. A
+// provider whose ClientID is empty is left unconfigured — the caller must
+// not register it, which is how partial rollout works (see buildOIDCRegistry
+// in cmd/server).
+func loadOIDCConfig() OIDCConfig {
+	return OIDCConfig{
+		StateSecret: os.Getenv("OIDC_STATE_SECRET"),
+		Google: GoogleOIDCConfig{
+			ClientID:     os.Getenv("OIDC_GOOGLE_CLIENT_ID"),
+			ClientSecret: os.Getenv("OIDC_GOOGLE_CLIENT_SECRET"),
+			RedirectURL:  os.Getenv("OIDC_GOOGLE_REDIRECT_URL"),
+		},
+		Apple: AppleOIDCConfig{
+			ClientID:    os.Getenv("OIDC_APPLE_CLIENT_ID"),
+			TeamID:      os.Getenv("OIDC_APPLE_TEAM_ID"),
+			KeyID:       os.Getenv("OIDC_APPLE_KEY_ID"),
+			PrivateKey:  os.Getenv("OIDC_APPLE_PRIVATE_KEY"),
+			RedirectURL: os.Getenv("OIDC_APPLE_REDIRECT_URL"),
+		},
+		Facebook: FacebookOIDCConfig{
+			ClientID:     os.Getenv("OIDC_FACEBOOK_CLIENT_ID"),
+			ClientSecret: os.Getenv("OIDC_FACEBOOK_CLIENT_SECRET"),
+			RedirectURL:  os.Getenv("OIDC_FACEBOOK_REDIRECT_URL"),
+		},
 	}
 }
 

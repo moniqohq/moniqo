@@ -45,6 +45,10 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/db/migrations"
 	"github.com/moniqohq/moniqo/apps/backend/internal/account"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/apple"
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/facebook"
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/google"
 	"github.com/moniqohq/moniqo/apps/backend/internal/authz"
 	"github.com/moniqohq/moniqo/apps/backend/internal/budget"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
@@ -58,12 +62,14 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
 
+const envDevelopment = "development"
+
 func main() {
 	cfg := config.Load()
 
 	log, err := logger.New(logger.Config{
 		Level:       cfg.LogLevel,
-		Development: cfg.Env == "development",
+		Development: cfg.Env == envDevelopment,
 		ServiceName: "moniqo-api",
 		Env:         cfg.Env,
 	})
@@ -87,6 +93,10 @@ func start(cfg config.Config, log *zap.Logger) error {
 
 	if cfg.JWTSecret == "" {
 		return errors.New("JWT_SECRET is required")
+	}
+
+	if cfg.OIDC.StateSecret == "" && anyOIDCProviderConfigured(cfg.OIDC) {
+		return errors.New("OIDC_STATE_SECRET is required when any OIDC provider is configured")
 	}
 
 	if err := runMigrations(cfg.DatabaseURL); err != nil {
@@ -238,6 +248,9 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                // request reset
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // confirm reset + subpaths
 		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
+		{method: http.MethodGet, path: "/api/v1/auth/login/", prefix: true},           // oidc login redirect
+		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/facebook)
+		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (apple form_post)
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -262,7 +275,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 
 	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
-	authHandler := auth.NewHandler(authSvc, log, cfg.Env != "development")
+	authHandler := auth.NewHandler(authSvc, log, cfg.Env != envDevelopment)
 
 	passwordResetSvc := auth.NewPasswordResetSvc(
 		authRepo,
@@ -297,6 +310,8 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	verifyGroup := e.Group("/api/v1/users")
 	verifyGroup.GET("/verify", userHandler.VerifyEmail)
 
+	registerOIDCRoutes(e, cfg, pool, authSvc, log)
+
 	usersGroup := e.Group("/api/v1/users")
 	usersGroup.GET("/:id", userHandler.GetProfile)
 	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
@@ -308,6 +323,84 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	registerEnvelopeRoutes(e, pool, log)
 	registerTransactionRoutes(e, pool, log)
 	registerSearchRoutes(e, pool, log)
+}
+
+// registerOIDCRoutes wires the OIDC registry/repo/service/handler and
+// registers the login/callback/link/unlink routes. Login and callback are
+// public (see newAuthSkipper); link and unlink require the global JWT
+// middleware, same as any other authenticated endpoint.
+func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, authSvc *auth.Svc, log *zap.Logger) {
+	oidcRegistry := buildOIDCRegistry(cfg, log)
+	oidcRepo := auth.NewOIDCRepo(pool, log)
+	oidcSvc := auth.NewOIDCSvc(oidcRepo, oidcRegistry, authSvc, []byte(cfg.OIDC.StateSecret), log)
+	oidcHandler := auth.NewOIDCHandler(oidcSvc, log, cfg.Env != envDevelopment, cfg.AppBaseURL)
+
+	oidcPublicGroup := e.Group("/api/v1/auth")
+	oidcPublicGroup.Use(appmw.LoginRateLimiter())
+	oidcPublicGroup.GET("/login/:provider", oidcHandler.LoginRedirect)
+	oidcPublicGroup.GET("/callback/:provider", oidcHandler.Callback)
+	oidcPublicGroup.POST("/callback/:provider", oidcHandler.Callback) // Apple's response_mode=form_post
+
+	oidcLinkGroup := e.Group("/api/v1/auth/link") // requires JWT — not in newAuthSkipper
+	oidcLinkGroup.POST("/:provider", oidcHandler.Link)
+	oidcLinkGroup.DELETE("/:provider", oidcHandler.Unlink)
+}
+
+// anyOIDCProviderConfigured reports whether at least one OIDC provider has a
+// ClientID set, in which case OIDC_STATE_SECRET becomes a required setting.
+func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
+	return cfg.Google.ClientID != "" || cfg.Apple.ClientID != "" || cfg.Facebook.ClientID != ""
+}
+
+// buildOIDCRegistry constructs the OIDC provider registry, registering only
+// providers whose ClientID is configured. A provider left unconfigured is
+// simply absent from the registry — registry.Provider(name) then returns
+// ErrUnknownProvider at request time — which is how shipping one provider
+// (e.g. Google) first and adding Apple/Facebook later works: env vars only,
+// no code changes. A provider whose discovery call fails at startup is
+// logged and skipped rather than treated as fatal — OIDC being unavailable
+// must never take down password login.
+func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
+	ctx := context.Background()
+	reg := oidc.NewRegistry()
+
+	if cfg.OIDC.Google.ClientID != "" {
+		p, err := google.New(ctx, google.Config{
+			ClientID:     cfg.OIDC.Google.ClientID,
+			ClientSecret: cfg.OIDC.Google.ClientSecret,
+			RedirectURL:  cfg.OIDC.Google.RedirectURL,
+		})
+		if err != nil {
+			log.Error("google oidc provider init failed; google login disabled", zap.Error(err))
+		} else {
+			reg.Register(p)
+		}
+	}
+
+	if cfg.OIDC.Apple.ClientID != "" {
+		p, err := apple.New(ctx, apple.Config{
+			ClientID:    cfg.OIDC.Apple.ClientID,
+			TeamID:      cfg.OIDC.Apple.TeamID,
+			KeyID:       cfg.OIDC.Apple.KeyID,
+			PrivateKey:  cfg.OIDC.Apple.PrivateKey,
+			RedirectURL: cfg.OIDC.Apple.RedirectURL,
+		})
+		if err != nil {
+			log.Error("apple oidc provider init failed; apple login disabled", zap.Error(err))
+		} else {
+			reg.Register(p)
+		}
+	}
+
+	if cfg.OIDC.Facebook.ClientID != "" {
+		reg.Register(facebook.New(facebook.Config{
+			ClientID:     cfg.OIDC.Facebook.ClientID,
+			ClientSecret: cfg.OIDC.Facebook.ClientSecret,
+			RedirectURL:  cfg.OIDC.Facebook.RedirectURL,
+		}))
+	}
+
+	return reg
 }
 
 func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {

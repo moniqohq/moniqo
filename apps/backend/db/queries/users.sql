@@ -44,3 +44,10 @@ WHERE lower(email) = lower($1)
 UPDATE users
 SET status = 'active', updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: CreateUserWithoutPassword :one
+-- Used for OIDC-only signups: no password credential, email already verified
+-- by the identity provider so the account is created active, not pending.
+INSERT INTO users (username, email, hash, name, picture, status)
+VALUES ($1, $2, NULL, $3, $4, 'active')
+RETURNING id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at;

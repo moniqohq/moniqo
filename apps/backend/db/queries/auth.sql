@@ -4,6 +4,14 @@ FROM users
 WHERE lower(email) = lower($1)
   AND deleted_at IS NULL;
 
+-- name: GetUserByEmailForLinking :one
+-- Lighter than GetUserByEmail: never touches hash, since OIDC linking is not
+-- password-aware.
+SELECT id, username, email, status
+FROM users
+WHERE lower(email) = lower($1)
+  AND deleted_at IS NULL;
+
 -- name: UpdateLastLogin :exec
 UPDATE users
 SET last_login = now(),

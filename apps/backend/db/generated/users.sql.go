@@ -51,7 +51,7 @@ RETURNING id, username, email, name, picture, status, last_login, created_at, up
 type CreateUserParams struct {
 	Username string
 	Email    string
-	Hash     string
+	Hash     *string
 	Name     *string
 }
 
@@ -76,6 +76,57 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		arg.Name,
 	)
 	var i CreateUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Picture,
+		&i.Status,
+		&i.LastLogin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const createUserWithoutPassword = `-- name: CreateUserWithoutPassword :one
+INSERT INTO users (username, email, hash, name, picture, status)
+VALUES ($1, $2, NULL, $3, $4, 'active')
+RETURNING id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at
+`
+
+type CreateUserWithoutPasswordParams struct {
+	Username string
+	Email    string
+	Name     *string
+	Picture  string
+}
+
+type CreateUserWithoutPasswordRow struct {
+	ID        int64
+	Username  string
+	Email     string
+	Name      *string
+	Picture   string
+	Status    UserStatus
+	LastLogin pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+}
+
+// Used for OIDC-only signups: no password credential, email already verified
+// by the identity provider so the account is created active, not pending.
+func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserWithoutPasswordParams) (CreateUserWithoutPasswordRow, error) {
+	row := q.db.QueryRow(ctx, createUserWithoutPassword,
+		arg.Username,
+		arg.Email,
+		arg.Name,
+		arg.Picture,
+	)
+	var i CreateUserWithoutPasswordRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
@@ -162,9 +213,9 @@ FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
 
-func (q *Queries) GetUserHashByID(ctx context.Context, id int64) (string, error) {
+func (q *Queries) GetUserHashByID(ctx context.Context, id int64) (*string, error) {
 	row := q.db.QueryRow(ctx, getUserHashByID, id)
-	var hash string
+	var hash *string
 	err := row.Scan(&hash)
 	return hash, err
 }
@@ -204,7 +255,7 @@ WHERE id = $1 AND deleted_at IS NULL
 
 type UpdateUserPasswordParams struct {
 	ID   int64
-	Hash string
+	Hash *string
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {

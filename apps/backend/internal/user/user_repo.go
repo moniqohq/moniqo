@@ -152,7 +152,7 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error {
 	r.log.Debug("executing UpdateUserPassword query", zap.Int64("user_id", id))
 	q := db.New(r.pool)
-	if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{ID: id, Hash: hash}); err != nil {
+	if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{ID: id, Hash: &hash}); err != nil {
 		return fmt.Errorf("update user password: %w", err)
 	}
 	return nil
@@ -192,7 +192,9 @@ func (r *Repo) SoftDelete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// GetHashByID returns the bcrypt hash for the given user.
+// GetHashByID returns the bcrypt hash for the given user, or "" if the account
+// has no password credential (e.g. an OIDC-only signup) — bcrypt comparison
+// against "" fails generically, which is the desired behavior here.
 // Returns ErrNotFound if the user is gone or soft-deleted.
 func (r *Repo) GetHashByID(ctx context.Context, id int64) (string, error) {
 	r.log.Debug("executing GetUserHashByID query", zap.Int64("user_id", id))
@@ -205,7 +207,10 @@ func (r *Repo) GetHashByID(ctx context.Context, id int64) (string, error) {
 		r.log.Error("GetUserHashByID query failed", zap.Int64("user_id", id), zap.Error(err))
 		return "", fmt.Errorf("get user hash by id: %w", err)
 	}
-	return hash, nil
+	if hash == nil {
+		return "", nil
+	}
+	return *hash, nil
 }
 
 // Activate sets the user's status to active.
@@ -228,7 +233,7 @@ func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (mod
 	row, err := q.CreateUser(ctx, db.CreateUserParams{
 		Username: p.Username,
 		Email:    p.Email,
-		Hash:     p.Hash,
+		Hash:     &p.Hash,
 		Name:     p.Name,
 	})
 	if err != nil {

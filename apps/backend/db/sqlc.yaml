@@ -12,6 +12,7 @@ sql:
       - "queries/transactions.sql"
       - "queries/envelopes.sql"
       - "queries/search.sql"
+      - "queries/oidc.sql"
     schema: "migrations"
     gen:
       go:

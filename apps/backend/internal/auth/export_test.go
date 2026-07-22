@@ -20,7 +20,63 @@
 
 package auth
 
+import "time"
+
 // Exported for use in package auth_test only.
 var SetClaimsInContext = setClaimsInContext
+var SetUserInContext = setUserInContext
 
 const Issuer = issuer
+
+// -----------------------------------------------------------------------------
+// OIDC test helpers — exported for use in package auth_test only.
+// -----------------------------------------------------------------------------
+
+const (
+	OIDCFlowCookieName = oidcFlowCookieName
+	OIDCPurposeLogin   = oidcPurposeLogin
+	OIDCPurposeLink    = oidcPurposeLink
+)
+
+var (
+	OIDCFlowStateTTL     = oidcFlowStateTTL
+	GenerateState        = generateState
+	GenerateNonce        = generateNonce
+	GeneratePKCEVerifier = generatePKCEVerifier
+	PKCEChallengeS256    = pkceChallengeS256
+)
+
+// FlowStateFields mirrors the unexported flowState struct for assertions in
+// package auth_test, which cannot name that type directly.
+type FlowStateFields struct {
+	State, Nonce, Verifier, Provider, Purpose string
+	UserID                                    int64
+	ExpiresAt                                 int64
+}
+
+// SignFlowStateForTest builds and signs a flow-state token with the given
+// fields and TTL, mirroring what OIDCSvc.initiate produces.
+func SignFlowStateForTest(secret []byte, f FlowStateFields, ttl time.Duration) (string, error) {
+	return signFlowState(flowState{
+		State:     f.State,
+		Nonce:     f.Nonce,
+		Verifier:  f.Verifier,
+		Provider:  f.Provider,
+		Purpose:   f.Purpose,
+		UserID:    f.UserID,
+		ExpiresAt: time.Now().Add(ttl).Unix(),
+	}, secret)
+}
+
+// DecodeFlowStateForTest decodes a flow-state token, returning its fields as
+// the exported FlowStateFields mirror.
+func DecodeFlowStateForTest(token string, secret []byte) (FlowStateFields, error) {
+	st, err := decodeFlowState(token, secret)
+	if err != nil {
+		return FlowStateFields{}, err
+	}
+	return FlowStateFields{
+		State: st.State, Nonce: st.Nonce, Verifier: st.Verifier,
+		Provider: st.Provider, Purpose: st.Purpose, UserID: st.UserID, ExpiresAt: st.ExpiresAt,
+	}, nil
+}

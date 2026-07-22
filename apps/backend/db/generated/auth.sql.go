@@ -76,7 +76,7 @@ type GetUserByEmailRow struct {
 	ID        int64
 	Username  string
 	Email     string
-	Hash      string
+	Hash      *string
 	Name      *string
 	Picture   string
 	Status    UserStatus
@@ -97,6 +97,34 @@ func (q *Queries) GetUserByEmail(ctx context.Context, lower string) (GetUserByEm
 		&i.Status,
 		&i.LastLogin,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByEmailForLinking = `-- name: GetUserByEmailForLinking :one
+SELECT id, username, email, status
+FROM users
+WHERE lower(email) = lower($1)
+  AND deleted_at IS NULL
+`
+
+type GetUserByEmailForLinkingRow struct {
+	ID       int64
+	Username string
+	Email    string
+	Status   UserStatus
+}
+
+// Lighter than GetUserByEmail: never touches hash, since OIDC linking is not
+// password-aware.
+func (q *Queries) GetUserByEmailForLinking(ctx context.Context, lower string) (GetUserByEmailForLinkingRow, error) {
+	row := q.db.QueryRow(ctx, getUserByEmailForLinking, lower)
+	var i GetUserByEmailForLinkingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Status,
 	)
 	return i, err
 }

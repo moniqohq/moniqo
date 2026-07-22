@@ -57,9 +57,13 @@ func (r *Repo) GetUserByEmail(ctx context.Context, email string) (UserCredential
 		r.log.Error("GetUserByEmail query failed", zap.String("email", email), zap.Error(err))
 		return UserCredentials{}, fmt.Errorf("get user by email: %w", err)
 	}
+	var hash string
+	if row.Hash != nil {
+		hash = *row.Hash
+	}
 	return UserCredentials{
 		User: rowToPublic(row),
-		Hash: row.Hash,
+		Hash: hash,
 	}, nil
 }
 
@@ -315,7 +319,7 @@ func (r *Repo) ConfirmResetTransaction(ctx context.Context, p ConfirmResetTxPara
 
 	if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
 		ID:   p.UserID,
-		Hash: p.NewHash,
+		Hash: &p.NewHash,
 	}); err != nil {
 		r.log.Error("ConfirmResetTransaction: update password failed", zap.Int64("user_id", p.UserID), zap.Error(err))
 		return fmt.Errorf("update password: %w", err)
