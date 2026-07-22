@@ -82,6 +82,7 @@ services:
       OIDC_GOOGLE_CLIENT_ID: ${OIDC_GOOGLE_CLIENT_ID:?OIDC_GOOGLE_CLIENT_ID is required}
       OIDC_GOOGLE_CLIENT_SECRET: ${OIDC_GOOGLE_CLIENT_SECRET:?OIDC_GOOGLE_CLIENT_SECRET is required}
       OIDC_GOOGLE_REDIRECT_URL: https://${DOMAIN}/api/v1/auth/callback/google
+      OIDC_STATE_SECRET: ${OIDC_STATE_SECRET:?OIDC_STATE_SECRET is required}
     healthcheck:
       # No dedicated /health route exists yet; a bare TCP check confirms
       # the server is accepting connections on its listen port.
