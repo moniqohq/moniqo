@@ -38,7 +38,16 @@ type OIDCService interface {
 	InitiateLogin(providerName string) (redirectURL, flowToken string, err error)
 	InitiateLink(providerName string, userID int64) (redirectURL, flowToken string, err error)
 	Callback(ctx context.Context, providerName, code, stateParam, flowCookieRaw string) (OIDCCallbackResult, error)
+	ListIdentities(ctx context.Context, userID int64) ([]UserIdentity, error)
 	Unlink(ctx context.Context, userID int64, providerName string) error
+}
+
+// IdentityResponse is the public representation of a linked identity —
+// deliberately omits provider_subject and provider_email, neither of which
+// the frontend needs to render a linked-accounts list.
+type IdentityResponse struct {
+	Provider string    `json:"provider"`
+	LinkedAt time.Time `json:"linked_at"`
 }
 
 // OIDCHandler holds HTTP handlers for the OIDC login/link/unlink endpoints.
@@ -119,6 +128,26 @@ func (h *OIDCHandler) Callback(c echo.Context) error {
 
 	h.setRefreshCookie(c, result.RefreshToken, result.RefreshTokenExpiresAt)
 	return c.Redirect(http.StatusFound, h.appBaseURL+"/oauth/callback#access_token="+url.QueryEscape(result.AccessToken))
+}
+
+// ListIdentities handles GET /api/v1/auth/identities. Requires JWT auth.
+func (h *OIDCHandler) ListIdentities(c echo.Context) error {
+	user, ok := UserFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, unauthorizedMsg)
+	}
+
+	identities, err := h.svc.ListIdentities(c.Request().Context(), user.ID)
+	if err != nil {
+		h.log.Error("oidc list identities failed", zap.Int64("user_id", user.ID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	resp := make([]IdentityResponse, 0, len(identities))
+	for _, id := range identities {
+		resp = append(resp, IdentityResponse{Provider: id.Provider, LinkedAt: id.CreatedAt})
+	}
+	return httpx.OK(c, resp, "identities retrieved")
 }
 
 // Unlink handles DELETE /api/v1/auth/link/:provider. Requires JWT auth.

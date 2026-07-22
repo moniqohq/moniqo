@@ -21,6 +21,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   User,
   Settings2,
@@ -28,6 +29,7 @@ import {
   Shield,
   Database,
   Users,
+  Link2,
   ChevronRight,
   Search,
   Camera,
@@ -64,6 +66,10 @@ type NavItem = {
   iconColor: string;
   iconBg: string;
   flag?: Parameters<typeof isFeatureEnabled>[0];
+  // When set, this item navigates to a real route instead of switching the
+  // in-page tab — used for pages that must resolve as a URL on their own
+  // (e.g. the OIDC link/callback redirect target).
+  href?: string;
 };
 
 type NavGroup = {
@@ -125,6 +131,15 @@ const NAV_GROUPS: NavGroup[] = [
         iconColor: "#C084FC",
         iconBg: "rgba(168,85,247,0.12)",
         flag: "settingsDataPrivacy" as const,
+      },
+      {
+        id: "connections",
+        label: "Connected accounts",
+        description: "Google, Apple, and Facebook sign-in",
+        icon: Link2,
+        iconColor: "#60A5FA",
+        iconBg: "rgba(59,130,246,0.12)",
+        href: "/settings/connections",
       },
     ],
   },
@@ -189,16 +204,14 @@ function NavItemButton({
   onClick: () => void;
 }) {
   const Icon = item.icon;
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
-        active
-          ? "border border-[rgba(108,58,237,0.3)] bg-[rgba(108,58,237,0.15)]"
-          : "border border-transparent hover:bg-[#131C2E]",
-      )}
-    >
+  const className = cn(
+    "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
+    active
+      ? "border border-[rgba(108,58,237,0.3)] bg-[rgba(108,58,237,0.15)]"
+      : "border border-transparent hover:bg-[#131C2E]",
+  );
+  const content = (
+    <>
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
         style={{ background: item.iconBg }}
@@ -225,6 +238,20 @@ function NavItemButton({
           active ? "text-[#A78BFA]" : "text-[#3A4A60] group-hover:text-[#5A6A85]",
         )}
       />
+    </>
+  );
+
+  if (item.href) {
+    return (
+      <Link href={item.href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button onClick={onClick} className={className}>
+      {content}
     </button>
   );
 }
