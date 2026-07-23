@@ -25,6 +25,9 @@ export interface ApiUser {
   email: string;
   picture: string;
   status: "pending_verification" | "active";
+  currency: string | null;
+  timezone: string | null;
+  onboarding_completed_at: string | null;
   last_login: string | null;
   created_at: string;
 }

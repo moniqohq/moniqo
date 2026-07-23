@@ -57,6 +57,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/envelope"
 	"github.com/moniqohq/moniqo/apps/backend/internal/logger"
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
+	"github.com/moniqohq/moniqo/apps/backend/internal/onboarding"
 	"github.com/moniqohq/moniqo/apps/backend/internal/search"
 	"github.com/moniqohq/moniqo/apps/backend/internal/transaction"
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
@@ -323,6 +324,24 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	registerEnvelopeRoutes(e, pool, log)
 	registerTransactionRoutes(e, pool, log)
 	registerSearchRoutes(e, pool, log)
+	registerOnboardingRoutes(e, pool, log)
+}
+
+// registerOnboardingRoutes wires the onboarding domain (first-time setup
+// wizard progress tracking). All routes are JWT-authenticated and scoped to
+// the calling user — no budget_id guard, since step 1 runs before any budget
+// exists.
+func registerOnboardingRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
+	onboardingRepo := onboarding.NewRepo(pool, log)
+	onboardingSvc := onboarding.NewSvc(onboardingRepo, log)
+	onboardingHandler := onboarding.NewHandler(onboardingSvc, log)
+
+	onboardingGroup := e.Group("/api/v1/onboarding")
+	onboardingGroup.GET("/progress", onboardingHandler.GetProgress)
+	onboardingGroup.PATCH("/profile", onboardingHandler.UpdateProfile)
+	onboardingGroup.PUT("/income-sources", onboardingHandler.SaveIncomeSources)
+	onboardingGroup.POST("/steps/:step/complete", onboardingHandler.CompleteStep)
+	onboardingGroup.POST("/complete", onboardingHandler.Complete)
 }
 
 // registerOIDCRoutes wires the OIDC registry/repo/service/handler and

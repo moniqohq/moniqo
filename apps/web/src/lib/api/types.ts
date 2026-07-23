@@ -148,3 +148,19 @@ export type ApiAccountBalanceHistory = {
   savings: ApiBalancePoint[];
   net_worth: ApiBalancePoint[];
 };
+
+export type ApiIncomeSource = {
+  name: string;
+  amount_amt: number;
+  frequency: string;
+};
+
+export type ApiOnboardingProgress = {
+  current_step: number;
+  completed_steps: number[];
+  budget_id: number | null;
+  income_sources: ApiIncomeSource[] | null;
+  status: "in_progress" | "completed";
+  started_at: string;
+  completed_at: string | null;
+};

@@ -1,5 +1,5 @@
 -- name: GetUserByEmail :one
-SELECT id, username, email, hash, name, picture, status, last_login, created_at
+SELECT id, username, email, hash, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at
 FROM users
 WHERE lower(email) = lower($1)
   AND deleted_at IS NULL;
