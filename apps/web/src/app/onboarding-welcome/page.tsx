@@ -46,7 +46,7 @@ export default function OnboardingWelcomePage() {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const timezones = useMemo(supportedTimezones, []);
+  const timezones = useMemo(() => supportedTimezones(), []);
   const detectedTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
   const {
@@ -118,9 +118,7 @@ export default function OnboardingWelcomePage() {
                 </option>
               ))}
             </select>
-            {errors.currency && (
-              <p className="text-xs text-[#FCA5A5]">{errors.currency.message}</p>
-            )}
+            {errors.currency && <p className="text-xs text-[#FCA5A5]">{errors.currency.message}</p>}
           </div>
 
           <div className="space-y-1.5">
@@ -135,9 +133,7 @@ export default function OnboardingWelcomePage() {
                 </option>
               ))}
             </select>
-            {errors.timezone && (
-              <p className="text-xs text-[#FCA5A5]">{errors.timezone.message}</p>
-            )}
+            {errors.timezone && <p className="text-xs text-[#FCA5A5]">{errors.timezone.message}</p>}
           </div>
         </StepCard>
       </div>

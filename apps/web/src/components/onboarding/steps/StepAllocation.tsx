@@ -96,8 +96,7 @@ export function StepAllocation() {
         className="rounded-xl border px-4 py-3"
         style={{
           borderColor: remaining < 0 ? "rgba(248,113,113,0.4)" : "rgba(108,58,237,0.35)",
-          background:
-            remaining < 0 ? "rgba(248,113,113,0.08)" : "rgba(108,58,237,0.08)",
+          background: remaining < 0 ? "rgba(248,113,113,0.08)" : "rgba(108,58,237,0.08)",
         }}
       >
         <p className="text-xs text-[#A8B4CC]">To be budgeted</p>

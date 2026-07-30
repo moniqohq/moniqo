@@ -47,7 +47,8 @@ export default function OnboardingStepPage() {
   const currentStep = useOnboardingStore((s) => s.currentStep);
 
   const requestedStep = Number(params.step);
-  const isValid = Number.isInteger(requestedStep) && requestedStep >= 1 && requestedStep <= TOTAL_STEPS;
+  const isValid =
+    Number.isInteger(requestedStep) && requestedStep >= 1 && requestedStep <= TOTAL_STEPS;
   // Allow navigating back to any completed step, or forward only up to the
   // furthest step the server says is unlocked — typing a later URL redirects
   // back rather than letting the user skip ahead.

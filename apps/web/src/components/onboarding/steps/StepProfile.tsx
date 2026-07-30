@@ -44,7 +44,7 @@ export function StepProfile() {
   const markStepComplete = useOnboardingStore((s) => s.markStepComplete);
   const setUser = useAuthStore((s) => s.setUser);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const timezones = useMemo(supportedTimezones, []);
+  const timezones = useMemo(() => supportedTimezones(), []);
   const detectedTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
 
   const {

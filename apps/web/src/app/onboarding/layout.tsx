@@ -43,13 +43,13 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
   const hydrated = useOnboardingStore((s) => s.hydrated);
   const currentStep = useOnboardingStore((s) => s.currentStep);
   const hydrate = useOnboardingStore((s) => s.hydrate);
-  const [authReady, setAuthReady] = useState(false);
+  const [refreshedAuthReady, setRefreshedAuthReady] = useState(false);
+  const authReady = Boolean(accessToken) || refreshedAuthReady;
 
   // Mirrors AppShell's silent-refresh-or-redirect gate — this route group is
   // a sibling of (app), not nested under it, so it needs its own auth check.
   useEffect(() => {
     if (accessToken) {
-      setAuthReady(true);
       if (!user) {
         try {
           const id = parseUserIdFromToken(accessToken);
@@ -66,7 +66,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
     apiFetch<ApiAuthTokens>("/api/v1/auth/refresh", { method: "POST", _retry: true })
       .then(({ access_token }) => {
         setAccessToken(access_token);
-        setAuthReady(true);
+        setRefreshedAuthReady(true);
         if (!user) {
           const id = parseUserIdFromToken(access_token);
           authFetch<ApiUser>(`/api/v1/users/${id}`)

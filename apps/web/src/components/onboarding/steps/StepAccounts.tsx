@@ -33,7 +33,13 @@ interface DraftAccount {
   initial_balance: number;
 }
 
-const ACCOUNT_TYPES: DraftAccount["type"][] = ["CHECKING", "SAVINGS", "CREDIT_CARD", "CASH", "LOAN"];
+const ACCOUNT_TYPES: DraftAccount["type"][] = [
+  "CHECKING",
+  "SAVINGS",
+  "CREDIT_CARD",
+  "CASH",
+  "LOAN",
+];
 
 export function StepAccounts() {
   const router = useRouter();
@@ -151,7 +157,8 @@ export function StepAccounts() {
       </button>
 
       <p className="flex items-center gap-1.5 text-xs text-[#5A6A85]">
-        <Check size={12} /> An opening balance transaction is created automatically for each account.
+        <Check size={12} /> An opening balance transaction is created automatically for each
+        account.
       </p>
     </StepCard>
   );

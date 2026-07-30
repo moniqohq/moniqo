@@ -30,14 +30,30 @@ export interface DefaultCategory {
 }
 
 export const DEFAULT_CATEGORIES: DefaultCategory[] = [
-  { group: "Immediate Obligations", title: "Rent/Mortgage", description: "Monthly housing payment" },
+  {
+    group: "Immediate Obligations",
+    title: "Rent/Mortgage",
+    description: "Monthly housing payment",
+  },
   { group: "Immediate Obligations", title: "Electricity", description: "Power bill" },
   { group: "Immediate Obligations", title: "Water", description: "Water and sewage" },
   { group: "Immediate Obligations", title: "Internet", description: "Home internet service" },
   { group: "Immediate Obligations", title: "Phone", description: "Mobile and landline" },
-  { group: "Immediate Obligations", title: "Groceries", description: "Food and household supplies" },
-  { group: "Immediate Obligations", title: "Transportation", description: "Fuel, transit, rideshare" },
-  { group: "Immediate Obligations", title: "Insurance", description: "Health, auto, home insurance" },
+  {
+    group: "Immediate Obligations",
+    title: "Groceries",
+    description: "Food and household supplies",
+  },
+  {
+    group: "Immediate Obligations",
+    title: "Transportation",
+    description: "Fuel, transit, rideshare",
+  },
+  {
+    group: "Immediate Obligations",
+    title: "Insurance",
+    description: "Health, auto, home insurance",
+  },
   { group: "True Expenses", title: "Car Maintenance", description: "Repairs and servicing" },
   { group: "True Expenses", title: "Home Maintenance", description: "Repairs and upkeep" },
   { group: "True Expenses", title: "Medical", description: "Doctor visits and prescriptions" },
