@@ -389,14 +389,22 @@ func rowToPublic(row db.GetUserByEmailRow) models.User {
 		t := row.LastLogin.Time
 		lastLogin = &t
 	}
+	var onboardingCompletedAt *time.Time
+	if row.OnboardingCompletedAt.Valid {
+		t := row.OnboardingCompletedAt.Time
+		onboardingCompletedAt = &t
+	}
 	return models.User{
-		ID:        row.ID,
-		Name:      row.Name,
-		Username:  row.Username,
-		Email:     row.Email,
-		Picture:   row.Picture,
-		Status:    models.UserStatus(row.Status),
-		LastLogin: lastLogin,
-		CreatedAt: row.CreatedAt.Time,
+		ID:                    row.ID,
+		Name:                  row.Name,
+		Username:              row.Username,
+		Email:                 row.Email,
+		Picture:               row.Picture,
+		Status:                models.UserStatus(row.Status),
+		Currency:              row.Currency,
+		Timezone:              row.Timezone,
+		OnboardingCompletedAt: onboardingCompletedAt,
+		LastLogin:             lastLogin,
+		CreatedAt:             row.CreatedAt.Time,
 	}
 }

@@ -45,7 +45,7 @@ func (q *Queries) ActivateUser(ctx context.Context, id int64) error {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, hash, name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
 `
 
 type CreateUserParams struct {
@@ -56,16 +56,19 @@ type CreateUserParams struct {
 }
 
 type CreateUserRow struct {
-	ID        int64
-	Username  string
-	Email     string
-	Name      *string
-	Picture   string
-	Status    UserStatus
-	LastLogin pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -83,6 +86,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Name,
 		&i.Picture,
 		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -94,7 +100,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 const createUserWithoutPassword = `-- name: CreateUserWithoutPassword :one
 INSERT INTO users (username, email, hash, name, picture, status)
 VALUES ($1, $2, NULL, $3, $4, 'active')
-RETURNING id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
 `
 
 type CreateUserWithoutPasswordParams struct {
@@ -105,16 +111,19 @@ type CreateUserWithoutPasswordParams struct {
 }
 
 type CreateUserWithoutPasswordRow struct {
-	ID        int64
-	Username  string
-	Email     string
-	Name      *string
-	Picture   string
-	Status    UserStatus
-	LastLogin pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
 }
 
 // Used for OIDC-only signups: no password credential, email already verified
@@ -134,6 +143,9 @@ func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserW
 		&i.Name,
 		&i.Picture,
 		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -143,23 +155,26 @@ func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserW
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
+SELECT id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
 
 type GetUserByIDRow struct {
-	ID                  int64
-	Username            string
-	Email               string
-	Name                *string
-	Picture             string
-	Status              UserStatus
-	LastLogin           pgtype.Timestamptz
-	CreatedAt           pgtype.Timestamptz
-	UpdatedAt           pgtype.Timestamptz
-	DeletedAt           pgtype.Timestamptz
-	TokensInvalidBefore pgtype.Timestamptz
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TokensInvalidBefore   pgtype.Timestamptz
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error) {
@@ -172,6 +187,9 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, er
 		&i.Name,
 		&i.Picture,
 		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -220,6 +238,17 @@ func (q *Queries) GetUserHashByID(ctx context.Context, id int64) (*string, error
 	return hash, err
 }
 
+const markUserOnboardingComplete = `-- name: MarkUserOnboardingComplete :exec
+UPDATE users
+SET onboarding_completed_at = now(), updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) MarkUserOnboardingComplete(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, markUserOnboardingComplete, id)
+	return err
+}
+
 const setTokensInvalidBefore = `-- name: SetTokensInvalidBefore :exec
 UPDATE users
 SET tokens_invalid_before = $2, updated_at = now()
@@ -247,6 +276,65 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id int64) error {
 	return err
 }
 
+const updateUserOnboardingProfile = `-- name: UpdateUserOnboardingProfile :one
+UPDATE users
+SET name = COALESCE($4, name),
+    currency = $2,
+    timezone = $3,
+    updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+`
+
+type UpdateUserOnboardingProfileParams struct {
+	ID       int64
+	Currency *string
+	Timezone *string
+	Name     *string
+}
+
+type UpdateUserOnboardingProfileRow struct {
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateUserOnboardingProfile(ctx context.Context, arg UpdateUserOnboardingProfileParams) (UpdateUserOnboardingProfileRow, error) {
+	row := q.db.QueryRow(ctx, updateUserOnboardingProfile,
+		arg.ID,
+		arg.Currency,
+		arg.Timezone,
+		arg.Name,
+	)
+	var i UpdateUserOnboardingProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Picture,
+		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.OnboardingCompletedAt,
+		&i.LastLogin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users
 SET hash = $2, updated_at = now()
@@ -267,7 +355,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET name = $2, username = $3, email = $4, picture = $5, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
 `
 
 type UpdateUserProfileParams struct {
@@ -279,16 +367,19 @@ type UpdateUserProfileParams struct {
 }
 
 type UpdateUserProfileRow struct {
-	ID        int64
-	Username  string
-	Email     string
-	Name      *string
-	Picture   string
-	Status    UserStatus
-	LastLogin pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error) {
@@ -307,6 +398,9 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Name,
 		&i.Picture,
 		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
 		&i.UpdatedAt,

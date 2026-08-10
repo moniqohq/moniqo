@@ -314,6 +314,18 @@ type Envelope struct {
 	DeletedAt    pgtype.Timestamptz
 }
 
+type OnboardingProgress struct {
+	UserID         int64
+	CurrentStep    int16
+	CompletedSteps []int16
+	BudgetID       *int64
+	DraftPayload   []byte
+	Status         string
+	StartedAt      pgtype.Timestamptz
+	CompletedAt    pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type PasswordResetToken struct {
 	ID        pgtype.UUID
 	UserID    int64
@@ -359,18 +371,21 @@ type Transaction struct {
 }
 
 type User struct {
-	ID                  int64
-	Username            string
-	Email               string
-	Hash                *string
-	Name                *string
-	Picture             string
-	Status              UserStatus
-	LastLogin           pgtype.Timestamptz
-	CreatedAt           pgtype.Timestamptz
-	UpdatedAt           pgtype.Timestamptz
-	DeletedAt           pgtype.Timestamptz
-	TokensInvalidBefore pgtype.Timestamptz
+	ID                    int64
+	Username              string
+	Email                 string
+	Hash                  *string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TokensInvalidBefore   pgtype.Timestamptz
+	OnboardingCompletedAt pgtype.Timestamptz
+	Currency              *string
+	Timezone              *string
 }
 
 type UserIdentity struct {

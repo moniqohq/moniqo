@@ -39,13 +39,16 @@ const (
 // TokensInvalidBefore is internal-only (never serialized); the middleware uses it to
 // reject access tokens issued before a password reset.
 type User struct {
-	ID                  int64      `json:"id"`
-	Name                *string    `json:"name"`
-	Username            string     `json:"username"`
-	Email               string     `json:"email"`
-	Picture             string     `json:"picture"`
-	Status              UserStatus `json:"status"`
-	LastLogin           *time.Time `json:"last_login"`
-	CreatedAt           time.Time  `json:"created_at"`
-	TokensInvalidBefore *time.Time `json:"-"`
+	ID                    int64      `json:"id"`
+	Name                  *string    `json:"name"`
+	Username              string     `json:"username"`
+	Email                 string     `json:"email"`
+	Picture               string     `json:"picture"`
+	Status                UserStatus `json:"status"`
+	Currency              *string    `json:"currency"`
+	Timezone              *string    `json:"timezone"`
+	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at"`
+	LastLogin             *time.Time `json:"last_login"`
+	CreatedAt             time.Time  `json:"created_at"`
+	TokensInvalidBefore   *time.Time `json:"-"`
 }
