@@ -47,30 +47,47 @@ func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
 	return &Repo{pool: pool, log: log}
 }
 
-// toPublicUser converts the common set of scanned columns into a public-safe model.
-// It accepts individual fields rather than a specific generated row type so it can
-// be reused across CreateUserRow, GetUserByIDRow, and UpdateUserProfileRow.
-func toPublicUser(
-	id int64,
-	name *string,
-	username, email, picture string,
-	status db.UserStatus,
-	lastLogin, createdAt pgtype.Timestamptz,
-) models.User {
+// publicUserRow holds the common set of scanned columns shared by
+// CreateUserRow, GetUserByIDRow, and UpdateUserProfileRow, so toPublicUser can
+// be reused across all three without an unwieldy positional-argument list.
+type publicUserRow struct {
+	ID                    int64
+	Name                  *string
+	Username              string
+	Email                 string
+	Picture               string
+	Status                db.UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+}
+
+// toPublicUser converts a scanned row into a public-safe model.
+func toPublicUser(row publicUserRow) models.User {
 	var ll *time.Time
-	if lastLogin.Valid {
-		t := lastLogin.Time
+	if row.LastLogin.Valid {
+		t := row.LastLogin.Time
 		ll = &t
 	}
+	var oc *time.Time
+	if row.OnboardingCompletedAt.Valid {
+		t := row.OnboardingCompletedAt.Time
+		oc = &t
+	}
 	return models.User{
-		ID:        id,
-		Name:      name,
-		Username:  username,
-		Email:     email,
-		Picture:   picture,
-		Status:    models.UserStatus(status),
-		LastLogin: ll,
-		CreatedAt: createdAt.Time,
+		ID:                    row.ID,
+		Name:                  row.Name,
+		Username:              row.Username,
+		Email:                 row.Email,
+		Picture:               row.Picture,
+		Status:                models.UserStatus(row.Status),
+		Currency:              row.Currency,
+		Timezone:              row.Timezone,
+		OnboardingCompletedAt: oc,
+		LastLogin:             ll,
+		CreatedAt:             row.CreatedAt.Time,
 	}
 }
 
@@ -102,7 +119,11 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.User, error) 
 }
 
 func rowToPublic(row db.CreateUserRow) models.User {
-	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt)
+	return toPublicUser(publicUserRow{
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+	})
 }
 
 // GetByID returns the public-safe user model for the given id.
@@ -118,7 +139,11 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (models.User, error) {
 		r.log.Error("GetUserByID query failed", zap.Int64("user_id", id), zap.Error(err))
 		return models.User{}, fmt.Errorf("get user by id: %w", err)
 	}
-	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt), nil
+	return toPublicUser(publicUserRow{
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+	}), nil
 }
 
 // UpdateProfile updates name, username, email and picture for the given user.
@@ -145,7 +170,11 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 		r.log.Error("UpdateUserProfile query failed", zap.Int64("user_id", p.ID), zap.Error(err))
 		return models.User{}, fmt.Errorf("update user profile: %w", err)
 	}
-	return toPublicUser(row.ID, row.Name, row.Username, row.Email, row.Picture, row.Status, row.LastLogin, row.CreatedAt), nil
+	return toPublicUser(publicUserRow{
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+	}), nil
 }
 
 // UpdatePassword replaces the bcrypt hash for the given user.

@@ -28,6 +28,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
 import { apiFetch, authFetch } from "@/lib/api-client";
 import type { ApiAuthTokens, ApiUser } from "@/lib/api-types";
+import { listBudgets } from "@/lib/api/budget";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -96,6 +97,19 @@ export function AppShell({ children }: AppShellProps) {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally runs once on mount
+
+  // Gate: redirect a user who hasn't finished setup into the onboarding
+  // wizard. A user who already belongs to a budget (added as a collaborator)
+  // gets the short one-screen welcome instead of the full wizard, since
+  // steps 2-6 (create budget/accounts/categories) don't apply to them.
+  useEffect(() => {
+    if (!user || user.onboarding_completed_at) return;
+    listBudgets()
+      .then((budgets) => {
+        router.push(budgets.length > 0 ? "/onboarding-welcome" : "/onboarding");
+      })
+      .catch(() => {});
+  }, [user, router]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#080C14]">
