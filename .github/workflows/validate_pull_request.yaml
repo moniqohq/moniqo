@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate commit messages against Conventional Commits spec
-        uses: commit-check/commit-check-action@562a184b2b8e583e757b17eb385bc48370f44547 # v2
+        uses: commit-check/commit-check-action@f803083a5bf0867b60d77189bc3810fce2f0e314 # v2
         with:
           message: true
           branch: false
