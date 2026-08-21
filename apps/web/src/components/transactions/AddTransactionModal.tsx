@@ -42,6 +42,7 @@ import type { TransactionType } from "@/types";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { apiFetch } from "@/lib/api";
 import { invalidateBudgetData } from "@/lib/query-keys";
+import { useEnvelopes } from "@/hooks/use-envelopes";
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -212,6 +213,9 @@ export function AddTransactionModal({
   const isExpense = txType === "expense";
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
+
+  const { summary: envelopeSummary } = useEnvelopes(budgetId ?? null);
+  const toBeBudgetedAfterIncome = (envelopeSummary?.toBeBudgeted ?? 0) + numericAmount;
 
   async function handleSave() {
     if (!budgetId || saving) return;
@@ -936,13 +940,13 @@ export function AddTransactionModal({
                                 <span className="text-xs text-[#4A5A75]">To Be Budgeted</span>
                               </div>
                               <motion.span
-                                key={numericAmount}
+                                key={toBeBudgetedAfterIncome}
                                 initial={{ opacity: 0.6, y: -2 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.15 }}
                                 className="text-xs font-semibold text-[#4ADE80] tabular-nums"
                               >
-                                {numericAmount > 0 ? `+${formatCurrency(numericAmount)}` : "—"}
+                                {formatCurrency(toBeBudgetedAfterIncome)}
                               </motion.span>
                             </div>
                           </dl>
