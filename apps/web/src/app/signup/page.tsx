@@ -899,12 +899,14 @@ export default function SignupPage() {
                         Terms of Service
                       </button>{" "}
                       and{" "}
-                      <button
-                        type="button"
+                      <a
+                        href="https://moniqo.in/privacy/"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-[#8B5CF6] underline-offset-2 transition-colors duration-150 hover:text-[#A78BFA] hover:underline"
                       >
                         Privacy Policy
-                      </button>
+                      </a>
                     </p>
                   </div>
                   {agreedError && (
