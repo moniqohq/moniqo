@@ -659,7 +659,8 @@ export function AddTransactionModal({
                       {/* Payee */}
                       <div>
                         <label className={fieldLabel}>
-                          {isIncome ? "Income Source / Payee" : "Payee"}
+                          {isIncome ? "Income Source / Payee" : "Payee"}{" "}
+                          <span className="font-normal text-[#2A3A54]">(optional)</span>
                         </label>
                         <div className="relative">
                           <Search
