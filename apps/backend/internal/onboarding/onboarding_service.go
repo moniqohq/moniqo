@@ -43,6 +43,7 @@ type Service interface {
 	UpdateProfile(ctx context.Context, userID int64, req ProfileRequest) (models.User, error)
 	SaveIncomeSources(ctx context.Context, userID int64, sources []IncomeSource) (models.OnboardingProgress, error)
 	CompleteStep(ctx context.Context, userID int64, step int16, budgetID *int64) (models.OnboardingProgress, error)
+	RewindStep(ctx context.Context, userID int64, step int16) (models.OnboardingProgress, error)
 	Complete(ctx context.Context, userID int64) error
 }
 
@@ -113,6 +114,23 @@ func (s *Svc) CompleteStep(ctx context.Context, userID int64, step int16, budget
 	p, err := s.repo.CompleteStep(ctx, userID, step, budgetID)
 	if err != nil {
 		return models.OnboardingProgress{}, fmt.Errorf("complete onboarding step %d: %w", step, err)
+	}
+	return p, nil
+}
+
+// RewindStep moves the wizard back to step, dropping completion state for
+// step and everything after it. Used by the frontend's Back button so a step
+// revisited and resubmitted doesn't re-run against stale server-side state.
+func (s *Svc) RewindStep(ctx context.Context, userID int64, step int16) (models.OnboardingProgress, error) {
+	if step < MinStep || step > MaxStep {
+		return models.OnboardingProgress{}, ErrInvalidStep
+	}
+	if _, err := s.repo.GetOrCreate(ctx, userID); err != nil {
+		return models.OnboardingProgress{}, fmt.Errorf("get or create onboarding progress: %w", err)
+	}
+	p, err := s.repo.RewindStep(ctx, userID, step)
+	if err != nil {
+		return models.OnboardingProgress{}, fmt.Errorf("rewind onboarding step %d: %w", step, err)
 	}
 	return p, nil
 }
