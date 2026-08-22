@@ -19,12 +19,13 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { StepCard } from "@/components/onboarding/StepCard";
-import { saveOnboardingIncomeSources } from "@/lib/api/onboarding";
+import { getOnboardingProgress, saveOnboardingIncomeSources } from "@/lib/api/onboarding";
 import { useOnboardingStore } from "@/stores/onboarding.store";
+import { goToOnboardingStep } from "@/lib/onboarding/navigation";
 import type { ApiIncomeSource } from "@/lib/api/types";
 
 const FREQUENCIES: { value: ApiIncomeSource["frequency"]; label: string }[] = [
@@ -42,6 +43,16 @@ export function StepIncome() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getOnboardingProgress()
+      .then((progress) => {
+        if (progress.income_sources && progress.income_sources.length > 0) {
+          setSources(progress.income_sources);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function updateSource(index: number, patch: Partial<ApiIncomeSource>) {
     setSources((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
@@ -88,7 +99,7 @@ export function StepIncome() {
     <StepCard
       title="What income do you expect?"
       description="This is just a guide for allocating money later — it isn't tracked as a transaction. You can skip this."
-      onBack={() => router.push("/onboarding/2")}
+      onBack={() => goToOnboardingStep(router, 2)}
       onNext={handleNext}
       submitting={submitting}
       error={submitError}

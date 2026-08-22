@@ -19,15 +19,17 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Check } from "lucide-react";
 import { StepCard } from "@/components/onboarding/StepCard";
-import { createAccount } from "@/lib/api/accounts";
+import { createAccount, deleteAccount, listAccounts, patchAccount } from "@/lib/api/accounts";
 import { completeOnboardingStep } from "@/lib/api/onboarding";
 import { useOnboardingStore } from "@/stores/onboarding.store";
+import { goToOnboardingStep } from "@/lib/onboarding/navigation";
 
 interface DraftAccount {
+  id?: number;
   name: string;
   type: "CHECKING" | "SAVINGS" | "CREDIT_CARD" | "CASH" | "LOAN";
   initial_balance: number;
@@ -48,8 +50,37 @@ export function StepAccounts() {
   const [drafts, setDrafts] = useState<DraftAccount[]>([
     { name: "", type: "CHECKING", initial_balance: 0 },
   ]);
+  const [existingIds, setExistingIds] = useState<Set<number>>(new Set());
+  const [loaded, setLoaded] = useState(() => !budgetId);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!budgetId) return;
+    let cancelled = false;
+    listAccounts(budgetId, "active")
+      .then((accounts) => {
+        if (cancelled) return;
+        if (accounts.length > 0) {
+          setDrafts(
+            accounts.map((a) => ({
+              id: a.id,
+              name: a.name,
+              type: a.type as DraftAccount["type"],
+              initial_balance: a.balance,
+            })),
+          );
+          setExistingIds(new Set(accounts.map((a) => a.id)));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [budgetId]);
 
   function update(index: number, patch: Partial<DraftAccount>) {
     setDrafts((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
@@ -72,13 +103,24 @@ export function StepAccounts() {
     setSubmitting(true);
     try {
       const pending = drafts.filter((d) => d.name.trim().length > 0);
+      const keptIds = new Set(pending.map((d) => d.id).filter((id): id is number => id != null));
+
       for (const draft of pending) {
-        await createAccount(budgetId, {
-          name: draft.name.trim(),
-          type: draft.type,
-          requires_recon: true,
-          initial_balance: draft.initial_balance,
-        });
+        if (draft.id != null) {
+          await patchAccount(budgetId, draft.id, { name: draft.name.trim(), type: draft.type });
+        } else {
+          await createAccount(budgetId, {
+            name: draft.name.trim(),
+            type: draft.type,
+            requires_recon: true,
+            initial_balance: draft.initial_balance,
+          });
+        }
+      }
+      for (const id of existingIds) {
+        if (!keptIds.has(id)) {
+          await deleteAccount(budgetId, id);
+        }
       }
       await completeOnboardingStep(4);
       markStepComplete(4);
@@ -94,11 +136,11 @@ export function StepAccounts() {
     <StepCard
       title="Set up your accounts"
       description="Add the bank, cash, or credit card accounts you want to track. You need at least one."
-      onBack={() => router.push("/onboarding/3")}
+      onBack={() => goToOnboardingStep(router, 3)}
       onNext={handleNext}
       submitting={submitting}
       error={submitError}
-      nextDisabled={!drafts.some((d) => d.name.trim().length > 0)}
+      nextDisabled={!loaded || !drafts.some((d) => d.name.trim().length > 0)}
     >
       <div className="space-y-3">
         {drafts.map((draft, i) => (
