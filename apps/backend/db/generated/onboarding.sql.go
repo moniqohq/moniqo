@@ -124,6 +124,41 @@ func (q *Queries) GetOnboardingProgress(ctx context.Context, userID int64) (Onbo
 	return i, err
 }
 
+const rewindOnboardingStep = `-- name: RewindOnboardingStep :one
+UPDATE onboarding_progress
+SET completed_steps = ARRAY(
+        SELECT s FROM unnest(completed_steps) AS s WHERE s < $2::SMALLINT
+    ),
+    current_step = LEAST(current_step, $2::SMALLINT),
+    updated_at   = now()
+WHERE user_id = $1
+RETURNING user_id, current_step, completed_steps, budget_id, draft_payload, status, started_at, completed_at, updated_at
+`
+
+type RewindOnboardingStepParams struct {
+	UserID int64
+	Step   int16
+}
+
+// Moves current_step back to step (never forward) and drops any completed
+// step >= step, since the user is about to redo that part of the wizard.
+func (q *Queries) RewindOnboardingStep(ctx context.Context, arg RewindOnboardingStepParams) (OnboardingProgress, error) {
+	row := q.db.QueryRow(ctx, rewindOnboardingStep, arg.UserID, arg.Step)
+	var i OnboardingProgress
+	err := row.Scan(
+		&i.UserID,
+		&i.CurrentStep,
+		&i.CompletedSteps,
+		&i.BudgetID,
+		&i.DraftPayload,
+		&i.Status,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateOnboardingDraftPayload = `-- name: UpdateOnboardingDraftPayload :one
 UPDATE onboarding_progress
 SET draft_payload = $2, updated_at = now()

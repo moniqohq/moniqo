@@ -58,6 +58,10 @@ export function completeOnboardingStep(
   });
 }
 
+export function rewindOnboardingStep(step: number): Promise<ApiOnboardingProgress> {
+  return apiFetch<ApiOnboardingProgress>(`${base}/steps/${step}/back`, { method: "POST" });
+}
+
 export function completeOnboarding(): Promise<void> {
   return apiFetch<void>(`${base}/complete`, { method: "POST" });
 }

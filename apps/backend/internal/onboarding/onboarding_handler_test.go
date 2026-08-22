@@ -146,6 +146,37 @@ func TestHandler_CompleteStep_InvalidStepReturns400(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
+func TestHandler_RewindStep_Success(t *testing.T) {
+	t.Parallel()
+	e := echo.New()
+
+	svc := &internalmock.OnboardingService{
+		RewindStepFn: func(_ context.Context, userID int64, step int16) (models.OnboardingProgress, error) {
+			assert.Equal(t, testUserID, userID)
+			assert.Equal(t, int16(3), step)
+			return models.OnboardingProgress{UserID: userID, CurrentStep: 3, CompletedSteps: []int16{1, 2}}, nil
+		},
+	}
+
+	c, rec := newOnboardingCtx(e, http.MethodPost, "/", "", true)
+	c.SetParamNames("step")
+	c.SetParamValues("3")
+	require.NoError(t, onboarding.NewHandler(svc, zap.NewNop()).RewindStep(c))
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestHandler_RewindStep_InvalidStepReturns400(t *testing.T) {
+	t.Parallel()
+	e := echo.New()
+
+	svc := &internalmock.OnboardingService{}
+	c, rec := newOnboardingCtx(e, http.MethodPost, "/", "", true)
+	c.SetParamNames("step")
+	c.SetParamValues("not-a-number")
+	require.NoError(t, onboarding.NewHandler(svc, zap.NewNop()).RewindStep(c))
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
 func TestHandler_GetProgress_Success(t *testing.T) {
 	t.Parallel()
 	e := echo.New()

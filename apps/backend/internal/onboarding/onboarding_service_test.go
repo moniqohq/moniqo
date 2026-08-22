@@ -87,6 +87,37 @@ func TestSvc_CompleteStep_PropagatesBudgetID(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
+func TestSvc_RewindStep_RejectsOutOfRangeStep(t *testing.T) {
+	t.Parallel()
+
+	repo := &internalmock.OnboardingRepository{}
+	svc := onboarding.NewSvc(repo, zap.NewNop())
+
+	_, err := svc.RewindStep(context.Background(), testUserID, 0)
+	require.ErrorIs(t, err, onboarding.ErrInvalidStep)
+
+	_, err = svc.RewindStep(context.Background(), testUserID, 8)
+	require.ErrorIs(t, err, onboarding.ErrInvalidStep)
+
+	repo.AssertNotCalled(t, "RewindStep")
+}
+
+func TestSvc_RewindStep_MovesCurrentStepBack(t *testing.T) {
+	t.Parallel()
+
+	repo := &internalmock.OnboardingRepository{}
+	repo.On("GetOrCreate", testUserID).Return(models.OnboardingProgress{UserID: testUserID}, nil)
+	repo.On("RewindStep", testUserID, int16(3)).
+		Return(models.OnboardingProgress{UserID: testUserID, CurrentStep: 3, CompletedSteps: []int16{1, 2}}, nil)
+
+	svc := onboarding.NewSvc(repo, zap.NewNop())
+	p, err := svc.RewindStep(context.Background(), testUserID, 3)
+	require.NoError(t, err)
+	assert.Equal(t, int16(3), p.CurrentStep)
+	assert.Equal(t, []int16{1, 2}, p.CompletedSteps)
+	repo.AssertExpectations(t)
+}
+
 func TestSvc_Complete_PropagatesRepoError(t *testing.T) {
 	t.Parallel()
 

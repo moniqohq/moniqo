@@ -133,7 +133,8 @@ Allowed values: `uncleared`, `cleared`, `reconciled`
 
 - Amount cannot be zero.
 - If `transfer_account_id` provided: `budget_envelope_id` must be `null`.
-- If not a transfer: `budget_envelope_id` required.
+- If not a transfer and `amount` is negative (expense): `budget_envelope_id` required.
+- If not a transfer and `amount` is positive (income): `budget_envelope_id` is optional; income with no envelope flows to "To Be Budgeted".
 
 **Validation Rules**
 

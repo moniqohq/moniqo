@@ -341,6 +341,7 @@ func registerOnboardingRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger)
 	onboardingGroup.PATCH("/profile", onboardingHandler.UpdateProfile)
 	onboardingGroup.PUT("/income-sources", onboardingHandler.SaveIncomeSources)
 	onboardingGroup.POST("/steps/:step/complete", onboardingHandler.CompleteStep)
+	onboardingGroup.POST("/steps/:step/back", onboardingHandler.RewindStep)
 	onboardingGroup.POST("/complete", onboardingHandler.Complete)
 }
 
