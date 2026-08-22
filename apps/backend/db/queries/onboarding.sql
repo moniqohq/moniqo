@@ -22,6 +22,18 @@ SET completed_steps = CASE
 WHERE user_id = $1
 RETURNING user_id, current_step, completed_steps, budget_id, draft_payload, status, started_at, completed_at, updated_at;
 
+-- name: RewindOnboardingStep :one
+-- Moves current_step back to step (never forward) and drops any completed
+-- step >= step, since the user is about to redo that part of the wizard.
+UPDATE onboarding_progress
+SET completed_steps = ARRAY(
+        SELECT s FROM unnest(completed_steps) AS s WHERE s < sqlc.arg(step)::SMALLINT
+    ),
+    current_step = LEAST(current_step, sqlc.arg(step)::SMALLINT),
+    updated_at   = now()
+WHERE user_id = $1
+RETURNING user_id, current_step, completed_steps, budget_id, draft_payload, status, started_at, completed_at, updated_at;
+
 -- name: UpdateOnboardingDraftPayload :one
 UPDATE onboarding_progress
 SET draft_payload = $2, updated_at = now()

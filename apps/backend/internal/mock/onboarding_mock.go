@@ -39,6 +39,7 @@ type OnboardingService struct {
 	UpdateProfileFn     func(ctx context.Context, userID int64, req onboarding.ProfileRequest) (models.User, error)
 	SaveIncomeSourcesFn func(ctx context.Context, userID int64, sources []onboarding.IncomeSource) (models.OnboardingProgress, error)
 	CompleteStepFn      func(ctx context.Context, userID int64, step int16, budgetID *int64) (models.OnboardingProgress, error)
+	RewindStepFn        func(ctx context.Context, userID int64, step int16) (models.OnboardingProgress, error)
 	CompleteFn          func(ctx context.Context, userID int64) error
 }
 
@@ -66,6 +67,13 @@ func (m *OnboardingService) CompleteStep(
 	ctx context.Context, userID int64, step int16, budgetID *int64,
 ) (models.OnboardingProgress, error) {
 	return m.CompleteStepFn(ctx, userID, step, budgetID)
+}
+
+// RewindStep delegates to the RewindStepFn stub.
+func (m *OnboardingService) RewindStep(
+	ctx context.Context, userID int64, step int16,
+) (models.OnboardingProgress, error) {
+	return m.RewindStepFn(ctx, userID, step)
 }
 
 // Complete delegates to the CompleteFn stub.
@@ -97,6 +105,18 @@ func (m *OnboardingRepository) CompleteStep(
 	_ context.Context, userID int64, step int16, budgetID *int64,
 ) (models.OnboardingProgress, error) {
 	args := m.Called(userID, step, budgetID)
+	p, ok := args.Get(0).(models.OnboardingProgress)
+	if !ok {
+		return models.OnboardingProgress{}, args.Error(1)
+	}
+	return p, args.Error(1)
+}
+
+// RewindStep records the call and returns the configured stub values.
+func (m *OnboardingRepository) RewindStep(
+	_ context.Context, userID int64, step int16,
+) (models.OnboardingProgress, error) {
+	args := m.Called(userID, step)
 	p, ok := args.Get(0).(models.OnboardingProgress)
 	if !ok {
 		return models.OnboardingProgress{}, args.Error(1)
