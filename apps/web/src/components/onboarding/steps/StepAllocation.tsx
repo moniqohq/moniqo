@@ -25,6 +25,7 @@ import { StepCard } from "@/components/onboarding/StepCard";
 import { listEnvelopes, getBudgetSummary, patchEnvelope } from "@/lib/api/envelopes";
 import { completeOnboardingStep } from "@/lib/api/onboarding";
 import { useOnboardingStore } from "@/stores/onboarding.store";
+import { goToOnboardingStep } from "@/lib/onboarding/navigation";
 import type { ApiEnvelope } from "@/lib/api/types";
 
 export function StepAllocation() {
@@ -87,7 +88,7 @@ export function StepAllocation() {
     <StepCard
       title="Give every dollar a job"
       description="Assign the money currently in your accounts to your categories until nothing is left unassigned."
-      onBack={() => router.push("/onboarding/5")}
+      onBack={() => goToOnboardingStep(router, 5)}
       onNext={handleNext}
       submitting={submitting}
       error={submitError}
