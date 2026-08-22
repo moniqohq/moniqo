@@ -1079,15 +1079,7 @@ export function AddTransactionModal({
               </div>
 
               {/* ── Footer ──────────────────────────────── */}
-              <div className="mt-5 flex items-center justify-between border-t border-[#111B2D] px-6 py-4">
-                {/* Keyboard hint */}
-                <div className="flex items-center gap-2 text-xs text-[#4A5A75]">
-                  <span>Press Enter to save</span>
-                  <kbd className="inline-flex items-center rounded-md border border-[#1A2540] bg-[#0D1525] px-2 py-0.5 font-mono text-xs text-[#7A8BA8] shadow-sm">
-                    Enter
-                  </kbd>
-                </div>
-
+              <div className="mt-5 flex items-center justify-end border-t border-[#111B2D] px-6 py-4">
                 {/* Action buttons */}
                 {saveError && <p className="mb-2 text-xs text-[#F87171]">{saveError}</p>}
                 <div className="flex items-center gap-3">
