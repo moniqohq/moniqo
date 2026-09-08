@@ -97,7 +97,7 @@ func (h *Handler) Login(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
-	h.setRefreshCookie(c, result.RefreshToken, result.RefreshTokenExpiresAt)
+	h.setRefreshCookie(c, result.RefreshToken, result.RefreshTokenExpiresAt, result.RememberMe)
 
 	h.log.Info("login request completed", zap.String("email", req.Email))
 	return httpx.OK(c, LoginResponseData{
@@ -129,7 +129,7 @@ func (h *Handler) Refresh(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
-	h.setRefreshCookie(c, result.Refresh.RawToken, result.Refresh.ExpiresAt)
+	h.setRefreshCookie(c, result.Refresh.RawToken, result.Refresh.ExpiresAt, result.Refresh.RememberMe)
 
 	h.log.Debug("token refresh completed")
 	return httpx.OK(c, RefreshResponseData{
@@ -246,7 +246,15 @@ func (h *Handler) Logout(c echo.Context) error {
 	return httpx.OK(c, nil, "logged out successfully")
 }
 
-func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time) {
+// setRefreshCookie sets the refresh cookie. When rememberMe is false, the
+// cookie is issued without Max-Age so browsers treat it as a session cookie
+// and discard it on close, even though the underlying token still carries its
+// normal server-side expiry.
+func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time, rememberMe bool) {
+	maxAge := 0
+	if rememberMe {
+		maxAge = int(time.Until(expiresAt).Seconds())
+	}
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is configurable; HttpOnly and SameSite are always set
 		Name:     refreshCookieName,
 		Value:    raw,
@@ -254,7 +262,7 @@ func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Ti
 		Secure:   h.secureCookie,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
+		MaxAge:   maxAge,
 	})
 }
 

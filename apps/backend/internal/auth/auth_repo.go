@@ -160,6 +160,7 @@ func (r *Repo) InsertRefreshToken(ctx context.Context, p InsertRefreshTokenRepoP
 		TokenHash:         p.TokenHash,
 		ExpiresAt:         pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
 		AbsoluteExpiresAt: pgtype.Timestamptz{Time: p.AbsoluteExpiresAt, Valid: true},
+		RememberMe:        p.RememberMe,
 	})
 	if err != nil {
 		r.log.Error("InsertRefreshToken query failed", zap.Error(err))
@@ -225,6 +226,7 @@ func (r *Repo) RotateRefreshToken(ctx context.Context, oldID [16]byte, p InsertR
 		TokenHash:         p.TokenHash,
 		ExpiresAt:         pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
 		AbsoluteExpiresAt: pgtype.Timestamptz{Time: p.AbsoluteExpiresAt, Valid: true},
+		RememberMe:        p.RememberMe,
 	})
 	if err != nil {
 		return [16]byte{}, fmt.Errorf("insert refresh token: %w", err)
