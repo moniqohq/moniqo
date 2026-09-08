@@ -42,7 +42,7 @@ func (q *Queries) DeleteExpiredRevokedAccessTokens(ctx context.Context) error {
 }
 
 const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
-SELECT id, family_id, user_id, token_hash, issued_at, expires_at, absolute_expires_at, used_at, revoked_at, revoked_reason
+SELECT id, family_id, user_id, token_hash, issued_at, expires_at, absolute_expires_at, used_at, revoked_at, revoked_reason, remember_me
 FROM refresh_tokens
 WHERE token_hash = $1
 `
@@ -61,6 +61,7 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 		&i.UsedAt,
 		&i.RevokedAt,
 		&i.RevokedReason,
+		&i.RememberMe,
 	)
 	return i, err
 }
@@ -136,8 +137,8 @@ func (q *Queries) GetUserByEmailForLinking(ctx context.Context, lower string) (G
 }
 
 const insertRefreshToken = `-- name: InsertRefreshToken :one
-INSERT INTO refresh_tokens (family_id, user_id, token_hash, expires_at, absolute_expires_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO refresh_tokens (family_id, user_id, token_hash, expires_at, absolute_expires_at, remember_me)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id
 `
 
@@ -147,6 +148,7 @@ type InsertRefreshTokenParams struct {
 	TokenHash         string
 	ExpiresAt         pgtype.Timestamptz
 	AbsoluteExpiresAt pgtype.Timestamptz
+	RememberMe        bool
 }
 
 func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) (pgtype.UUID, error) {
@@ -156,6 +158,7 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 		arg.TokenHash,
 		arg.ExpiresAt,
 		arg.AbsoluteExpiresAt,
+		arg.RememberMe,
 	)
 	var id pgtype.UUID
 	err := row.Scan(&id)

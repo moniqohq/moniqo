@@ -229,7 +229,7 @@ func (s *OIDCSvc) issueTokens(ctx context.Context, user models.User) (OIDCCallba
 		return OIDCCallbackResult{}, err
 	}
 
-	refreshIssue, err := s.authSvc.IssueRefreshToken(ctx, user.ID)
+	refreshIssue, err := s.authSvc.IssueRefreshToken(ctx, user.ID, true)
 	if err != nil {
 		return OIDCCallbackResult{}, err
 	}

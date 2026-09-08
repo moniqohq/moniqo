@@ -346,6 +346,7 @@ type RefreshToken struct {
 	UsedAt            pgtype.Timestamptz
 	RevokedAt         pgtype.Timestamptz
 	RevokedReason     *string
+	RememberMe        bool
 }
 
 type RevokedAccessToken struct {

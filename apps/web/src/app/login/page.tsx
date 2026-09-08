@@ -406,7 +406,11 @@ function LoginPageInner() {
     try {
       const tokens = await apiFetch<ApiAuthTokens>("/api/v1/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email: data.email, password: data.password }),
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          remember_me: rememberMe,
+        }),
       });
       const user = await apiFetch<ApiUser>(
         `/api/v1/users/${parseUserIdFromToken(tokens.access_token)}`,

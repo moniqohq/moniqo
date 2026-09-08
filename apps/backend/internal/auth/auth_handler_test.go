@@ -251,6 +251,63 @@ func TestHandler_Login_InputForwarding(t *testing.T) {
 	assert.Equal(t, "SecurePass1", captured.Password)
 }
 
+// TestHandler_Login_RefreshCookiePersistence verifies that the refresh cookie's
+// Max-Age reflects RememberMe: a session cookie (no Max-Age) when false, a
+// persistent cookie when true.
+func TestHandler_Login_RefreshCookiePersistence(t *testing.T) {
+	t.Parallel()
+
+	log := zap.NewNop()
+	e := echo.New()
+
+	tests := []struct {
+		name           string
+		rememberMe     bool
+		wantMaxAgeZero bool
+	}{
+		{name: "remember me true sets persistent cookie", rememberMe: true, wantMaxAgeZero: false},
+		{name: "remember me false sets session cookie", rememberMe: false, wantMaxAgeZero: true},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc := &mock.AuthService{
+				LoginFn: func(_ context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
+					return auth.LoginResult{
+						AccessToken:           "t",
+						TokenType:             "Bearer",
+						RefreshToken:          "raw-refresh-token",
+						RefreshTokenExpiresAt: time.Now().Add(30 * 24 * time.Hour),
+						RememberMe:            req.RememberMe,
+					}, nil
+				},
+			}
+
+			body := `{"email":"user@example.com","password":"SecurePass1","remember_me":false}`
+			if tc.rememberMe {
+				body = `{"email":"user@example.com","password":"SecurePass1","remember_me":true}`
+			}
+
+			c, rec := newLoginCtx(e, body)
+			h := auth.NewHandler(svc, log, false)
+			require.NoError(t, h.Login(c))
+
+			var cookie *http.Cookie
+			for _, ck := range rec.Result().Cookies() {
+				if ck.Name == "moniqo_refresh" {
+					cookie = ck
+					break
+				}
+			}
+			require.NotNil(t, cookie, "expected refresh cookie to be set")
+			assert.Equal(t, tc.wantMaxAgeZero, cookie.MaxAge == 0)
+		})
+	}
+}
+
 func TestHandler_Logout(t *testing.T) {
 	t.Parallel()
 

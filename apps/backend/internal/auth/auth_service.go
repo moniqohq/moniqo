@@ -111,7 +111,7 @@ func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) 
 		return LoginResult{}, err
 	}
 
-	refreshIssue, err := s.IssueRefreshToken(ctx, creds.User.ID)
+	refreshIssue, err := s.IssueRefreshToken(ctx, creds.User.ID, req.RememberMe)
 	if err != nil {
 		s.log.Error("login: refresh token issuance failed", zap.String("email", req.Email), zap.Error(err))
 		return LoginResult{}, err
@@ -128,12 +128,15 @@ func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) 
 		TokenType:             "Bearer",
 		RefreshToken:          refreshIssue.RawToken,
 		RefreshTokenExpiresAt: refreshIssue.ExpiresAt,
+		RememberMe:            refreshIssue.RememberMe,
 	}, nil
 }
 
 // IssueRefreshToken creates a new token family and inserts the first refresh
 // token row. Returns the raw token (sent to the client) and its expiry.
-func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue, error) {
+// rememberMe controls whether the handler persists the refresh cookie across
+// browser restarts or scopes it to the current browser session only.
+func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64, rememberMe bool) (RefreshIssue, error) {
 	raw, hash, err := GenerateRefreshToken()
 	if err != nil {
 		return RefreshIssue{}, err
@@ -150,11 +153,12 @@ func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue
 		TokenHash:         hash,
 		ExpiresAt:         expiresAt,
 		AbsoluteExpiresAt: absoluteExpiresAt,
+		RememberMe:        rememberMe,
 	}); err != nil {
 		return RefreshIssue{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 
-	return RefreshIssue{RawToken: raw, ExpiresAt: expiresAt}, nil
+	return RefreshIssue{RawToken: raw, ExpiresAt: expiresAt, RememberMe: rememberMe}, nil
 }
 
 // RefreshAccessToken validates rawToken, detects reuse, rotates the token, and
@@ -190,6 +194,7 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 		TokenHash:         newHash,
 		ExpiresAt:         newExpiresAt,
 		AbsoluteExpiresAt: row.AbsoluteExpiresAt.Time,
+		RememberMe:        row.RememberMe,
 	}); err != nil {
 		return RefreshResult{}, fmt.Errorf("rotate refresh token: %w", err)
 	}
@@ -202,7 +207,7 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 	return RefreshResult{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		Refresh:     RefreshIssue{RawToken: newRaw, ExpiresAt: newExpiresAt},
+		Refresh:     RefreshIssue{RawToken: newRaw, ExpiresAt: newExpiresAt, RememberMe: row.RememberMe},
 	}, nil
 }
 
