@@ -310,6 +310,11 @@ func DevWeb() error {
 	return pnpm("--filter", "@moniqo/web", "run", "dev")
 }
 
+// DevMobile starts the Expo dev server for the mobile app.
+func DevMobile() error {
+	return pnpm("--filter", "@moniqo/mobile", "run", "dev")
+}
+
 // Test runs all tests across the monorepo.
 func Test() error {
 	return sh.RunV("go", "test", "-C", "apps/backend", "./...")

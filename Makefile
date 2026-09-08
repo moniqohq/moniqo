@@ -28,7 +28,7 @@ MAGE := $(GOPATH)/bin/mage
         lint fmt \
         build build-backend build-web build-desktop build-mobile \
         release-snapshot release \
-        dev dev-backend dev-web \
+        dev dev-backend dev-web dev-mobile \
         test generate \
         migrate-up migrate-down \
         clean help
@@ -83,6 +83,9 @@ dev-backend: _mage-install    ## Start the backend in dev mode
 
 dev-web: _mage-install        ## Start the Next.js web app in dev mode
 	@$(MAGE) devWeb
+
+dev-mobile: _mage-install     ## Start the Expo dev server for the mobile app
+	@$(MAGE) devMobile
 
 test: _mage-install           ## Run all tests
 	@$(MAGE) test
