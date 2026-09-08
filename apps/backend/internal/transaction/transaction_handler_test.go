@@ -247,6 +247,22 @@ func TestHandler_CreateTransaction(t *testing.T) {
 		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
+
+	t.Run("income without envelope returns 201", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return makeTxn(150000), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"amount":1500.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusCreated, rec.Code)
+	})
 }
 
 // ---------------------------------------------------------------------------

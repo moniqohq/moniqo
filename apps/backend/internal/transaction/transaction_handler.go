@@ -43,7 +43,7 @@ const (
 	errInvalidJSON       = "invalid JSON"
 	errInvalidID         = "must be a positive integer"
 	errAmountNonZero     = "amount must be non-zero"
-	errEnvelopeRequired  = "budget_envelope_id is required for non-transfer transactions"
+	errEnvelopeRequired  = "budget_envelope_id is required for non-transfer expense transactions"
 	errTransferConflict  = "transfer_account_id and budget_envelope_id are mutually exclusive"
 	errSelfTransfer      = "transfer_account_id must differ from account_id"
 	errValidationFailed  = "validation failed"
@@ -147,8 +147,9 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 		if *req.TransferAccountID == req.AccountID {
 			errs = append(errs, httpx.FieldError{Field: "transfer_account_id", Error: errSelfTransfer})
 		}
-	} else if req.EnvelopeID == nil {
-		// Standard: envelope required
+	} else if req.EnvelopeID == nil && req.Amount.Int64() < 0 {
+		// Standard expense: envelope required. Income flows to "To Be Budgeted"
+		// and is not required to reference an envelope.
 		errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeRequired})
 	}
 	return appendStatusError(errs, req.Status)

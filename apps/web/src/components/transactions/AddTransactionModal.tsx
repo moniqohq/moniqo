@@ -42,6 +42,7 @@ import type { TransactionType } from "@/types";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { apiFetch } from "@/lib/api";
 import { invalidateBudgetData } from "@/lib/query-keys";
+import { useEnvelopes } from "@/hooks/use-envelopes";
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -213,6 +214,9 @@ export function AddTransactionModal({
   const isIncome = txType === "income";
   const isTransfer = txType === "transfer";
 
+  const { summary: envelopeSummary } = useEnvelopes(budgetId ?? null);
+  const toBeBudgetedAfterIncome = (envelopeSummary?.toBeBudgeted ?? 0) + numericAmount;
+
   async function handleSave() {
     if (!budgetId || saving) return;
     const absAmount = Math.abs(numericAmount);
@@ -247,7 +251,9 @@ export function AddTransactionModal({
     }
   }
 
-  const availableBefore = Number(selectedEnvelope?.spent_amt ?? 0);
+  const availableBefore = selectedEnvelope
+    ? Number(selectedEnvelope.allocated_amt) + Number(selectedEnvelope.spent_amt)
+    : 0;
   const availableAfter = availableBefore - numericAmount;
   const acctAfterExpense = (selectedAccount?.balance ?? 0) - numericAmount;
   const acctAfterIncome = (selectedAccount?.balance ?? 0) + numericAmount;
@@ -653,7 +659,8 @@ export function AddTransactionModal({
                       {/* Payee */}
                       <div>
                         <label className={fieldLabel}>
-                          {isIncome ? "Income Source / Payee" : "Payee"}
+                          {isIncome ? "Income Source / Payee" : "Payee"}{" "}
+                          <span className="font-normal text-[#2A3A54]">(optional)</span>
                         </label>
                         <div className="relative">
                           <Search
@@ -731,7 +738,7 @@ export function AddTransactionModal({
                                     <div className="text-left">
                                       <p className="text-sm text-white">{env.title}</p>
                                       <p className="text-xs text-[#5A6A85]">
-                                        Available: {formatCurrency(Number(env.spent_amt))}
+                                        Available: {formatCurrency(Number(env.allocated_amt) + Number(env.spent_amt))}
                                       </p>
                                     </div>
                                   </button>
@@ -936,13 +943,13 @@ export function AddTransactionModal({
                                 <span className="text-xs text-[#4A5A75]">To Be Budgeted</span>
                               </div>
                               <motion.span
-                                key={numericAmount}
+                                key={toBeBudgetedAfterIncome}
                                 initial={{ opacity: 0.6, y: -2 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.15 }}
                                 className="text-xs font-semibold text-[#4ADE80] tabular-nums"
                               >
-                                {numericAmount > 0 ? `+${formatCurrency(numericAmount)}` : "—"}
+                                {formatCurrency(toBeBudgetedAfterIncome)}
                               </motion.span>
                             </div>
                           </dl>
@@ -1072,15 +1079,7 @@ export function AddTransactionModal({
               </div>
 
               {/* ── Footer ──────────────────────────────── */}
-              <div className="mt-5 flex items-center justify-between border-t border-[#111B2D] px-6 py-4">
-                {/* Keyboard hint */}
-                <div className="flex items-center gap-2 text-xs text-[#4A5A75]">
-                  <span>Press Enter to save</span>
-                  <kbd className="inline-flex items-center rounded-md border border-[#1A2540] bg-[#0D1525] px-2 py-0.5 font-mono text-xs text-[#7A8BA8] shadow-sm">
-                    Enter
-                  </kbd>
-                </div>
-
+              <div className="mt-5 flex items-center justify-end border-t border-[#111B2D] px-6 py-4">
                 {/* Action buttons */}
                 {saveError && <p className="mb-2 text-xs text-[#F87171]">{saveError}</p>}
                 <div className="flex items-center gap-3">

@@ -89,7 +89,8 @@ func (s *Svc) SetAccountChecker(accounts AccountChecker) {
 }
 
 // Create persists a standard (non-transfer) transaction.
-// Requires budget_envelope_id for non-transfer transactions.
+// Requires budget_envelope_id for non-transfer expense transactions; income
+// flows to "To Be Budgeted" and does not need one.
 func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Transaction, error) {
 	s.log.Debug("creating transaction",
 		zap.Int64("budget_id", budgetID),
@@ -99,7 +100,7 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	if req.Amount.Int64() == 0 {
 		return models.Transaction{}, ErrValidation
 	}
-	if req.EnvelopeID == nil {
+	if req.EnvelopeID == nil && req.Amount.Int64() < 0 {
 		return models.Transaction{}, ErrValidation
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {

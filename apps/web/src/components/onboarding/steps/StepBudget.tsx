@@ -19,19 +19,21 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { StepCard } from "@/components/onboarding/StepCard";
 import { budgetSchema, type BudgetFields } from "@/lib/onboarding/schemas";
-import { createBudget } from "@/lib/api/budget";
+import { createBudget, getBudget, patchBudget } from "@/lib/api/budget";
 import { completeOnboardingStep } from "@/lib/api/onboarding";
 import { useOnboardingStore } from "@/stores/onboarding.store";
 import { useUIStore } from "@/stores/ui.store";
+import { goToOnboardingStep } from "@/lib/onboarding/navigation";
 
 export function StepBudget() {
   const router = useRouter();
+  const budgetId = useOnboardingStore((s) => s.budgetId);
   const markStepComplete = useOnboardingStore((s) => s.markStepComplete);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -39,13 +41,23 @@ export function StepBudget() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<BudgetFields>({ resolver: zodResolver(budgetSchema) });
+
+  useEffect(() => {
+    if (!budgetId) return;
+    getBudget(budgetId)
+      .then((budget) => reset({ title: budget.title, notes: budget.notes ?? "" }))
+      .catch(() => {});
+  }, [budgetId, reset]);
 
   async function onSubmit(data: BudgetFields) {
     setSubmitError(null);
     try {
-      const budget = await createBudget({ title: data.title, notes: data.notes });
+      const budget = budgetId
+        ? await patchBudget(budgetId, { title: data.title, notes: data.notes ?? null })
+        : await createBudget({ title: data.title, notes: data.notes });
       setActiveBudget(budget.id);
       await completeOnboardingStep(2, budget.id);
       markStepComplete(2, budget.id);
@@ -59,7 +71,7 @@ export function StepBudget() {
     <StepCard
       title="Create your first budget"
       description="This is the financial universe you'll allocate money into. You can create more budgets later."
-      onBack={() => router.push("/onboarding/1")}
+      onBack={() => goToOnboardingStep(router, 1)}
       onNext={handleSubmit(onSubmit)}
       submitting={isSubmitting}
       error={submitError}

@@ -124,6 +124,29 @@ func TestSvc_Create(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, transaction.ErrValidation)
 	})
+
+	t.Run("income without envelope succeeds", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", transaction.CreateParams{
+			BudgetID:  testBudgetID,
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+			Status:    models.TransactionStatusUncleared,
+		}).Return(makeTxn(150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(150000), txn.Amount)
+		repo.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------

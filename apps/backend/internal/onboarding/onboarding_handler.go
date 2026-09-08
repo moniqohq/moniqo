@@ -165,6 +165,30 @@ func (h *Handler) CompleteStep(c echo.Context) error {
 	return httpx.OK(c, toProgressResponse(p), "onboarding step completed successfully")
 }
 
+// RewindStep handles POST /api/v1/onboarding/steps/:step/back.
+func (h *Handler) RewindStep(c echo.Context) error {
+	user, ok := auth.UserFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, "not authenticated")
+	}
+
+	step, err := strconv.ParseInt(c.Param("step"), 10, 16)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldStep, Error: errInvalidStep}})
+	}
+
+	p, err := h.svc.RewindStep(c.Request().Context(), user.ID, int16(step))
+	if err != nil {
+		if errors.Is(err, ErrInvalidStep) {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldStep, Error: errInvalidStep}})
+		}
+		h.log.Error("RewindStep failed", zap.Int64("user_id", user.ID), zap.Int64("step", step), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, toProgressResponse(p), "onboarding step rewound successfully")
+}
+
 // Complete handles POST /api/v1/onboarding/complete.
 func (h *Handler) Complete(c echo.Context) error {
 	user, ok := auth.UserFromContext(c)

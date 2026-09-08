@@ -42,6 +42,7 @@ function supportedTimezones(): string[] {
 export function StepProfile() {
   const router = useRouter();
   const markStepComplete = useOnboardingStore((s) => s.markStepComplete);
+  const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const timezones = useMemo(() => supportedTimezones(), []);
@@ -53,14 +54,21 @@ export function StepProfile() {
     formState: { errors, isSubmitting },
   } = useForm<ProfileFields>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { currency: "USD", timezone: detectedTz },
+    defaultValues: {
+      currency: user?.currency ?? "USD",
+      timezone: user?.timezone ?? detectedTz,
+    },
   });
 
   async function onSubmit(data: ProfileFields) {
     setSubmitError(null);
     try {
-      const user = await updateOnboardingProfile(data);
-      setUser(user);
+      // Name was already captured at signup — only currency/timezone are new here.
+      const updated = await updateOnboardingProfile({
+        currency: data.currency,
+        timezone: data.timezone,
+      });
+      setUser(updated);
       markStepComplete(1);
       router.push("/onboarding/2");
     } catch (err) {
@@ -76,15 +84,6 @@ export function StepProfile() {
       submitting={isSubmitting}
       error={submitError}
     >
-      <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-[#A8B4CC]">Name (optional)</label>
-        <input
-          {...register("name")}
-          placeholder="Your name"
-          className="h-11 w-full rounded-xl border border-[#1E2B42] bg-[#0F1623] px-3.5 text-sm text-white placeholder-[#5A6A85] outline-none focus:border-[#6C3AED]"
-        />
-      </div>
-
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-[#A8B4CC]">Currency</label>
         <select
