@@ -87,6 +87,21 @@ pnpm-debug.log*
 # Tauri
 apps/desktop/src-tauri/target/
 
+# Expo / React Native
+apps/mobile/.expo/
+apps/mobile/expo-env.d.ts
+apps/mobile/web-build/
+apps/mobile/.kotlin/
+apps/mobile/*.orig.*
+apps/mobile/*.jks
+apps/mobile/*.p8
+apps/mobile/*.p12
+apps/mobile/*.key
+apps/mobile/*.mobileprovision
+apps/mobile/.metro-health-check*
+apps/mobile/ios/
+apps/mobile/android/
+
 # Hugo
 apps/landing/public/
 apps/landing/resources/
