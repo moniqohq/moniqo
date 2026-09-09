@@ -41,6 +41,17 @@ export function GoogleIcon() {
   );
 }
 
+export function MicrosoftIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden>
+      <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+      <rect x="13" y="1" width="10" height="10" fill="#7FBA00" />
+      <rect x="1" y="13" width="10" height="10" fill="#00A4EF" />
+      <rect x="13" y="13" width="10" height="10" fill="#FFB900" />
+    </svg>
+  );
+}
+
 export function FacebookIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="#1877F2" aria-hidden>
@@ -49,7 +60,7 @@ export function FacebookIcon() {
   );
 }
 
-export type OidcProvider = "google" | "facebook";
+export type OidcProvider = "google" | "microsoft" | "facebook";
 
 // "redirect" providers navigate to /api/v1/auth/login/:provider and log in
 // via the backend's OIDC redirect flow. "facebook" is "sdk": there is no
@@ -68,6 +79,7 @@ interface OidcProviderMeta {
 
 const ALL_OIDC_PROVIDERS: OidcProviderMeta[] = [
   { id: "google", label: "Google", icon: <GoogleIcon />, kind: "redirect" },
+  { id: "microsoft", label: "Microsoft", icon: <MicrosoftIcon />, kind: "redirect" },
   { id: "facebook", label: "Facebook", icon: <FacebookIcon />, kind: "sdk" },
 ];
 

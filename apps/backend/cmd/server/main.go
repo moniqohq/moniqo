@@ -49,6 +49,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/facebook"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/google"
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/microsoft"
 	"github.com/moniqohq/moniqo/apps/backend/internal/authz"
 	"github.com/moniqohq/moniqo/apps/backend/internal/budget"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
@@ -268,7 +269,7 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodGet, path: "/api/v1/auth/password-reset/", prefix: true},  // validate reset token
 		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
 		{method: http.MethodGet, path: "/api/v1/auth/login/", prefix: true},           // oidc login redirect
-		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google)
+		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/microsoft)
 		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (response_mode=form_post providers)
 		{method: http.MethodPost, path: "/api/v1/auth/facebook/login"},                // facebook token login, no redirect
 		{method: http.MethodGet, re: avatarPathRe},                                    // profile picture: <img> can't send Authorization
@@ -463,7 +464,7 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 // required setting. Facebook is excluded: its token flow has no redirect
 // and never touches the state-cookie machinery OIDC_STATE_SECRET signs.
 func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
-	return cfg.Google.ClientID != ""
+	return cfg.Google.ClientID != "" || cfg.Microsoft.ClientID != ""
 }
 
 // buildOIDCRegistry constructs the redirect OIDC provider registry,
@@ -487,6 +488,20 @@ func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
 		})
 		if err != nil {
 			log.Error("google oidc provider init failed; google login disabled", zap.Error(err))
+		} else {
+			reg.Register(p)
+		}
+	}
+
+	if cfg.OIDC.Microsoft.ClientID != "" {
+		p, err := microsoft.New(ctx, microsoft.Config{
+			ClientID:     cfg.OIDC.Microsoft.ClientID,
+			ClientSecret: cfg.OIDC.Microsoft.ClientSecret,
+			RedirectURL:  cfg.OIDC.Microsoft.RedirectURL,
+			Tenant:       cfg.OIDC.Microsoft.Tenant,
+		})
+		if err != nil {
+			log.Error("microsoft oidc provider init failed; microsoft login disabled", zap.Error(err))
 		} else {
 			reg.Register(p)
 		}
