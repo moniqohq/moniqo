@@ -71,16 +71,18 @@ func NewOIDCSvc(repo OIDCRepository, registry oidc.ProviderRegistry, authSvc *Sv
 
 // InitiateLogin resolves the provider and returns its authorization URL
 // alongside a signed flow-state token for the handler to place in the OIDC
-// flow cookie.
-func (s *OIDCSvc) InitiateLogin(providerName string) (redirectURL, flowToken string, err error) {
-	return s.initiate(providerName, oidcPurposeLogin, 0)
+// flow cookie. intent distinguishes the login page (oidcIntentLogin — never
+// creates an account) from the signup page (oidcIntentSignup — may create or
+// link one); callers should default to oidcIntentLogin.
+func (s *OIDCSvc) InitiateLogin(providerName, intent string) (redirectURL, flowToken string, err error) {
+	return s.initiate(providerName, oidcPurposeLogin, intent, 0)
 }
 
 // InitiateLink is InitiateLogin for the authenticated account-linking flow;
 // userID is carried in the signed flow state so Callback knows which account
 // to link the identity to.
 func (s *OIDCSvc) InitiateLink(providerName string, userID int64) (redirectURL, flowToken string, err error) {
-	return s.initiate(providerName, oidcPurposeLink, userID)
+	return s.initiate(providerName, oidcPurposeLink, "", userID)
 }
 
 // OIDCCallbackResult is returned by Callback on success.
@@ -153,14 +155,14 @@ func (s *OIDCSvc) completeCallback(ctx context.Context, st flowState, identity o
 		return OIDCCallbackResult{Purpose: oidcPurposeLink}, nil
 	}
 
-	user, err := s.findOrCreateForLogin(ctx, identity)
+	user, err := s.findOrCreateForLogin(ctx, identity, st.Intent)
 	if err != nil {
 		return OIDCCallbackResult{}, err
 	}
 	return s.issueTokens(ctx, user)
 }
 
-func (s *OIDCSvc) initiate(providerName, purpose string, userID int64) (redirectURL, flowToken string, err error) {
+func (s *OIDCSvc) initiate(providerName, purpose, intent string, userID int64) (redirectURL, flowToken string, err error) {
 	p, err := s.registry.Provider(providerName)
 	if err != nil {
 		return "", "", ErrUnknownProvider
@@ -190,6 +192,7 @@ func (s *OIDCSvc) initiate(providerName, purpose string, userID int64) (redirect
 		Verifier:  verifier,
 		Provider:  providerName,
 		Purpose:   purpose,
+		Intent:    intent,
 		UserID:    userID,
 		ExpiresAt: time.Now().Add(oidcFlowStateTTL).Unix(),
 	}, s.stateSecret)
@@ -250,12 +253,14 @@ func (s *OIDCSvc) issueTokens(ctx context.Context, user models.User) (OIDCCallba
 //  1. an existing identity for (provider, subject) always wins;
 //  2. otherwise, a verified email that matches an existing account auto-links
 //     to it (promoting a dormant pending_verification account to active);
-//  3. otherwise a brand-new account is created.
+//  3. otherwise, for signup intent, a brand-new account is created; for
+//     login intent, ErrAccountNotFound is returned — the login page never
+//     creates an account on the user's behalf.
 //
 // An unverified provider email is rejected outright — there is no pending/
 // partial path for OIDC signups, since Moniqo has no channel to verify an
 // email the identity provider itself won't vouch for.
-func (s *OIDCSvc) findOrCreateForLogin(ctx context.Context, identity oidc.Identity) (models.User, error) {
+func (s *OIDCSvc) findOrCreateForLogin(ctx context.Context, identity oidc.Identity, intent string) (models.User, error) {
 	existing, err := s.repo.GetIdentityByProviderSubject(ctx, identity.Provider, identity.Subject)
 	switch {
 	case err == nil:
@@ -272,15 +277,18 @@ func (s *OIDCSvc) findOrCreateForLogin(ctx context.Context, identity oidc.Identi
 		return models.User{}, ErrIdentityNotVerified
 	}
 
-	return s.linkOrCreateByEmail(ctx, identity)
+	return s.linkOrCreateByEmail(ctx, identity, intent)
 }
 
-func (s *OIDCSvc) linkOrCreateByEmail(ctx context.Context, identity oidc.Identity) (models.User, error) {
+func (s *OIDCSvc) linkOrCreateByEmail(ctx context.Context, identity oidc.Identity, intent string) (models.User, error) {
 	linkable, err := s.repo.GetUserByEmailForLinking(ctx, identity.Email)
 	switch {
 	case err == nil:
 		return s.linkExistingAndActivate(ctx, linkable, identity)
 	case errors.Is(err, ErrUserNotFound):
+		if intent != oidcIntentSignup {
+			return models.User{}, ErrAccountNotFound
+		}
 		return s.createUserForIdentity(ctx, identity)
 	default:
 		return models.User{}, fmt.Errorf("get user by email for linking: %w", err)

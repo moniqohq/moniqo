@@ -62,6 +62,11 @@ var (
 	// ErrIdentityNotFound is returned when no user_identities row matches a
 	// (provider, subject) lookup.
 	ErrIdentityNotFound = errors.New("identity not found")
+	// ErrAccountNotFound is returned when a login-intent OIDC callback (the
+	// user started from the login page) matches no existing account by
+	// provider identity or verified email. Unlike a signup-intent callback,
+	// login intent never creates an account on the user's behalf.
+	ErrAccountNotFound = errors.New("no account found for this identity")
 	// ErrConflict is returned when a derived username collides on insert;
 	// CreateUserFromIdentity retries internally before ever surfacing this.
 	ErrConflict = errors.New("username already exists")

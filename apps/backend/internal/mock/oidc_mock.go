@@ -110,7 +110,7 @@ func (m *OIDCRepository) ActivateUser(_ context.Context, userID int64) error {
 
 // OIDCService is a test double for auth.OIDCService.
 type OIDCService struct {
-	InitiateLoginFn  func(providerName string) (redirectURL, flowToken string, err error)
+	InitiateLoginFn  func(providerName, intent string) (redirectURL, flowToken string, err error)
 	InitiateLinkFn   func(providerName string, userID int64) (redirectURL, flowToken string, err error)
 	CallbackFn       func(ctx context.Context, providerName, code, stateParam, flowCookieRaw string) (auth.OIDCCallbackResult, error)
 	ListIdentitiesFn func(ctx context.Context, userID int64) ([]auth.UserIdentity, error)
@@ -118,8 +118,8 @@ type OIDCService struct {
 }
 
 // InitiateLogin delegates to InitiateLoginFn.
-func (m *OIDCService) InitiateLogin(providerName string) (redirectURL, flowToken string, err error) {
-	return m.InitiateLoginFn(providerName)
+func (m *OIDCService) InitiateLogin(providerName, intent string) (redirectURL, flowToken string, err error) {
+	return m.InitiateLoginFn(providerName, intent)
 }
 
 // InitiateLink delegates to InitiateLinkFn.
