@@ -64,7 +64,7 @@ type Identity struct {
 // TokenSet is the provider-agnostic result of an authorization code exchange.
 type TokenSet struct {
 	AccessToken  string
-	RefreshToken string // usually empty for Microsoft/Facebook; Moniqo never persists this
+	RefreshToken string // usually empty for Microsoft; Moniqo never persists this
 	IDToken      string
 	Expiry       time.Time
 }

@@ -84,11 +84,10 @@ type UploadConfig struct {
 
 // OIDCConfig groups OpenID Connect third-party login settings. Each provider
 // sub-struct is independent; a provider with an empty ClientID is simply not
-// registered at startup, so shipping Google first and adding another
-// provider later requires only setting their env vars — no code changes.
-// Facebook is not an OIDC redirect provider (see internal/auth/oidc/facebook)
-// but its app credentials live here too since they're still "third-party
-// login config".
+// registered at startup, so shipping Google first and adding Microsoft later
+// requires only setting their env vars — no code changes. Facebook is not an
+// OIDC redirect provider (see internal/auth/oidc/facebook) but its app
+// credentials live here too since they're still "third-party login config".
 type OIDCConfig struct {
 	StateSecret string // OIDC_STATE_SECRET — HMAC key signing the OIDC flow cookie
 	Google      GoogleOIDCConfig

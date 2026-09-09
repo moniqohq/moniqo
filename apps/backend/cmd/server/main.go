@@ -471,7 +471,7 @@ func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
 // registering only providers whose ClientID is configured. A provider left
 // unconfigured is simply absent from the registry — registry.Provider(name)
 // then returns ErrUnknownProvider at request time — which is how shipping
-// one provider (e.g. Google) first and adding another later works: env
+// one provider (e.g. Google) first and adding Microsoft later works: env
 // vars only, no code changes. A provider whose discovery call fails at
 // startup is logged and skipped rather than treated as fatal — OIDC being
 // unavailable must never take down password login. Facebook is not a

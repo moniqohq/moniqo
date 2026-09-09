@@ -22,16 +22,16 @@
 //
 // Facebook has no web-compatible signed id_token: its only such mechanism,
 // Limited Login, is iOS-only (the web JS SDK's authResponse never contains
-// an id_token, only a classic opaque access token). So unlike Google,
-// Facebook is not an authorization-code redirect provider here — the
-// browser obtains a user access token directly via FB.login() and hands it
-// to us, and this package verifies that token against Facebook's Graph API
-// rather than verifying a signed JWT.
+// an id_token, only a classic opaque access token). So unlike Google and
+// Microsoft, Facebook is not an authorization-code redirect provider here —
+// the browser obtains a user access token directly via FB.login() and hands
+// it to us, and this package verifies that token against Facebook's Graph
+// API rather than verifying a signed JWT.
 //
-// The email-verification signal is correspondingly weaker than Google's
-// cryptographic id_token claim: Graph's /me omits the email field entirely
-// unless Meta considers the address confirmed (documented behavior, not
-// something this package can independently verify), so
+// The email-verification signal is correspondingly weaker than Google/
+// Microsoft's cryptographic id_token claim: Graph's /me omits the email
+// field entirely unless Meta considers the address confirmed (documented
+// behavior, not something this package can independently verify), so
 // Identity.EmailVerified here is policy-based trust in Meta, not a proof
 // this package checked itself.
 package facebook
@@ -112,6 +112,7 @@ type debugTokenResponse struct {
 	Error *graphError    `json:"error"`
 }
 
+
 // graphError is Graph API's shared error shape, returned at top level (not
 // under "data") on a non-200 response.
 type graphError struct {
@@ -136,6 +137,7 @@ type pictureURLData struct {
 type pictureData struct {
 	Data pictureURLData `json:"data"`
 }
+
 
 // VerifyAccessToken validates accessToken via Graph's debug_token endpoint
 // (asserting it is valid, of type USER, and was issued for this app — the
