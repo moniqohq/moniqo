@@ -519,6 +519,69 @@ func TestPasswordResetSvc_RequestReset_PendingVerificationUserAllowed(t *testing
 	repo.AssertExpectations(t)
 }
 
+func TestPasswordResetSvc_ValidateResetToken_Success(t *testing.T) {
+	t.Parallel()
+
+	repo := &internalmock.PasswordResetRepository{}
+	mailer := &internalmock.EmailEnqueuer{}
+
+	tokenRow := makeValidResetToken(time.Now().Add(time.Hour))
+	repo.On("GetPasswordResetTokenByHash", mock.AnythingOfType("string")).Return(tokenRow, nil)
+
+	svc := newPasswordResetSvc(repo, mailer)
+	err := svc.ValidateResetToken(context.Background(), strings.Repeat("a", 64))
+
+	require.NoError(t, err)
+	repo.AssertNotCalled(t, "ConfirmResetTransaction")
+}
+
+func TestPasswordResetSvc_ValidateResetToken_TokenNotFound(t *testing.T) {
+	t.Parallel()
+
+	repo := &internalmock.PasswordResetRepository{}
+	mailer := &internalmock.EmailEnqueuer{}
+
+	repo.On("GetPasswordResetTokenByHash", mock.AnythingOfType("string")).
+		Return(auth.PasswordResetTokenRow{}, auth.ErrInvalidResetToken)
+
+	svc := newPasswordResetSvc(repo, mailer)
+	err := svc.ValidateResetToken(context.Background(), strings.Repeat("b", 64))
+
+	assert.ErrorIs(t, err, auth.ErrInvalidResetToken)
+}
+
+func TestPasswordResetSvc_ValidateResetToken_TokenExpired(t *testing.T) {
+	t.Parallel()
+
+	repo := &internalmock.PasswordResetRepository{}
+	mailer := &internalmock.EmailEnqueuer{}
+
+	expired := makeValidResetToken(time.Now().Add(-time.Minute))
+	repo.On("GetPasswordResetTokenByHash", mock.AnythingOfType("string")).Return(expired, nil)
+
+	svc := newPasswordResetSvc(repo, mailer)
+	err := svc.ValidateResetToken(context.Background(), strings.Repeat("c", 64))
+
+	assert.ErrorIs(t, err, auth.ErrInvalidResetToken)
+}
+
+func TestPasswordResetSvc_ValidateResetToken_TokenAlreadyUsed(t *testing.T) {
+	t.Parallel()
+
+	repo := &internalmock.PasswordResetRepository{}
+	mailer := &internalmock.EmailEnqueuer{}
+
+	usedAt := time.Now().Add(-5 * time.Minute)
+	row := makeValidResetToken(time.Now().Add(time.Hour))
+	row.UsedAt = &usedAt
+	repo.On("GetPasswordResetTokenByHash", mock.AnythingOfType("string")).Return(row, nil)
+
+	svc := newPasswordResetSvc(repo, mailer)
+	err := svc.ValidateResetToken(context.Background(), strings.Repeat("d", 64))
+
+	assert.ErrorIs(t, err, auth.ErrInvalidResetToken)
+}
+
 func TestPasswordResetSvc_ConfirmReset_Success(t *testing.T) {
 	t.Parallel()
 

@@ -141,6 +141,7 @@ func (h *Handler) Refresh(c echo.Context) error {
 // PasswordResetService is the service contract required by PasswordResetHandler.
 type PasswordResetService interface {
 	RequestReset(ctx context.Context, req RequestResetRequest) error
+	ValidateResetToken(ctx context.Context, token string) error
 	ConfirmReset(ctx context.Context, req ConfirmResetRequest) error
 }
 
@@ -175,6 +176,30 @@ func (h *PasswordResetHandler) RequestReset(c echo.Context) error {
 	}
 
 	return httpx.OK(c, nil, "if an account with that email exists, a reset link has been sent")
+}
+
+// ValidateToken handles GET /api/v1/auth/password-reset/validate.
+// It reports whether the token in the query string currently resolves to an
+// active reset token, without consuming it. Intended to be called when the
+// reset-password form loads, before the user submits a new password.
+func (h *PasswordResetHandler) ValidateToken(c echo.Context) error {
+	h.log.Debug("received password reset token validation request")
+
+	token := c.QueryParam("token")
+	if errs := validator.ValidateResetTokenParam(token); len(errs) > 0 {
+		return httpx.ValidationError(c, errs)
+	}
+
+	err := h.svc.ValidateResetToken(c.Request().Context(), token)
+	if errors.Is(err, ErrInvalidResetToken) {
+		return httpx.Unauthorized(c, "unauthorized")
+	}
+	if err != nil {
+		h.log.Error("password reset token validation failed", zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, nil, "reset token is valid")
 }
 
 // ConfirmReset handles POST /api/v1/auth/password-reset/confirm.
