@@ -42,6 +42,13 @@ const (
 	oidcPurposeLogin = "login"
 	oidcPurposeLink  = "link"
 
+	// oidcIntentLogin and oidcIntentSignup distinguish, within an
+	// oidcPurposeLogin flow, whether the user started from the login page
+	// (no account should be created) or the signup page (an account may be
+	// created or linked). Carried in flowState.Intent.
+	oidcIntentLogin  = "login"
+	oidcIntentSignup = "signup"
+
 	stateNonceSize    = 32 // random bytes
 	pkceVerifierSize  = 64 // random bytes, base64url-encoded -> ~86 chars, within RFC 7636's 43-128
 	flowTokenPartsLen = 2
@@ -56,6 +63,7 @@ type flowState struct {
 	Verifier  string `json:"v"`
 	Provider  string `json:"p"`
 	Purpose   string `json:"pu"`
+	Intent    string `json:"i,omitempty"`
 	UserID    int64  `json:"u,omitempty"`
 	ExpiresAt int64  `json:"e"`
 }

@@ -385,9 +385,11 @@ function LoginPageInner() {
   } | null>(
     searchParams.get("verified") === "true"
       ? { type: "success", text: "Your account has been verified — you can now log in." }
-      : searchParams.get("error") === "oauth_failed"
-        ? { type: "error", text: "Sign-in with that provider failed. Please try again." }
-        : null,
+      : searchParams.get("error") === "account_not_found"
+        ? { type: "error", text: "No account found for that sign-in. Please sign up first." }
+        : searchParams.get("error") === "oauth_failed"
+          ? { type: "error", text: "Sign-in with that provider failed. Please try again." }
+          : null,
   );
 
   function loginWithProvider(provider: string) {

@@ -78,6 +78,21 @@ func signedLoginCookie(t *testing.T, state string) string {
 		Verifier: "verifier",
 		Provider: "google",
 		Purpose:  auth.OIDCPurposeLogin,
+		Intent:   auth.OIDCIntentLogin,
+	}, auth.OIDCFlowStateTTL)
+	require.NoError(t, err)
+	return token
+}
+
+func signedSignupCookie(t *testing.T, state string) string {
+	t.Helper()
+	token, err := auth.SignFlowStateForTest([]byte("oidc-state-secret"), auth.FlowStateFields{
+		State:    state,
+		Nonce:    "nonce",
+		Verifier: "verifier",
+		Provider: "google",
+		Purpose:  auth.OIDCPurposeLogin,
+		Intent:   auth.OIDCIntentSignup,
 	}, auth.OIDCFlowStateTTL)
 	require.NoError(t, err)
 	return token
@@ -105,7 +120,7 @@ func TestOIDCSvc_InitiateLogin(t *testing.T) {
 		registry := stubRegistry("google", nil)
 		svc := newTestOIDCSvc(t, &internalmock.OIDCRepository{}, registry, &internalmock.AuthRepository{})
 
-		_, _, err := svc.InitiateLogin("facebook")
+		_, _, err := svc.InitiateLogin("facebook", "login")
 		assert.ErrorIs(t, err, auth.ErrUnknownProvider)
 	})
 
@@ -115,7 +130,7 @@ func TestOIDCSvc_InitiateLogin(t *testing.T) {
 		registry := stubRegistry("google", p)
 		svc := newTestOIDCSvc(t, &internalmock.OIDCRepository{}, registry, &internalmock.AuthRepository{})
 
-		redirectURL, flowToken, err := svc.InitiateLogin("google")
+		redirectURL, flowToken, err := svc.InitiateLogin("google", "login")
 		require.NoError(t, err)
 		assert.Contains(t, redirectURL, "accounts.google.com")
 		assert.NotEmpty(t, flowToken)
@@ -246,7 +261,7 @@ func TestOIDCSvc_Callback_Login(t *testing.T) {
 		oidcRepo.AssertCalled(t, "ActivateUser", int64(11))
 	})
 
-	t.Run("no existing identity or email creates a new user", func(t *testing.T) {
+	t.Run("no existing identity or email creates a new user on signup intent", func(t *testing.T) {
 		t.Parallel()
 		identity := oidc.Identity{Subject: "sub-5", Email: "newuser@example.com", EmailVerified: true, Name: "New User"}
 		p := stubGoogleProvider(identity)
@@ -265,11 +280,31 @@ func TestOIDCSvc_Callback_Login(t *testing.T) {
 		authRepo.On("UpdateLastLogin", int64(20)).Return(nil)
 
 		svc := newTestOIDCSvc(t, oidcRepo, registry, authRepo)
-		cookie := signedLoginCookie(t, "state5")
+		cookie := signedSignupCookie(t, "state5")
 
 		result, err := svc.Callback(context.Background(), "google", "code", "state5", cookie)
 		require.NoError(t, err)
 		assert.NotEmpty(t, result.AccessToken)
+	})
+
+	t.Run("no existing identity or email on login intent returns account not found", func(t *testing.T) {
+		t.Parallel()
+		identity := oidc.Identity{Subject: "sub-6", Email: "noaccount@example.com", EmailVerified: true}
+		p := stubGoogleProvider(identity)
+		registry := stubRegistry("google", p)
+
+		oidcRepo := &internalmock.OIDCRepository{}
+		oidcRepo.On("GetIdentityByProviderSubject", "google", "sub-6").
+			Return(auth.UserIdentity{}, auth.ErrIdentityNotFound)
+		oidcRepo.On("GetUserByEmailForLinking", "noaccount@example.com").
+			Return(auth.LinkableUser{}, auth.ErrUserNotFound)
+
+		svc := newTestOIDCSvc(t, oidcRepo, registry, &internalmock.AuthRepository{})
+		cookie := signedLoginCookie(t, "state6")
+
+		_, err := svc.Callback(context.Background(), "google", "code", "state6", cookie)
+		assert.ErrorIs(t, err, auth.ErrAccountNotFound)
+		oidcRepo.AssertNotCalled(t, "CreateUserFromIdentity", mock.Anything)
 	})
 }
 

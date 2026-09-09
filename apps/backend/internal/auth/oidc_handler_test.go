@@ -93,7 +93,7 @@ func TestOIDCHandler_LoginRedirect(t *testing.T) {
 	t.Run("success sets the flow cookie and redirects to the provider", func(t *testing.T) {
 		t.Parallel()
 		svc := &mock.OIDCService{
-			InitiateLoginFn: func(providerName string) (string, string, error) {
+			InitiateLoginFn: func(providerName, intent string) (string, string, error) {
 				return "https://accounts.google.com/auth?x=1", "signed-flow-token", nil
 			},
 		}
@@ -115,7 +115,7 @@ func TestOIDCHandler_LoginRedirect(t *testing.T) {
 	t.Run("unknown provider redirects to the generic failure page, not JSON", func(t *testing.T) {
 		t.Parallel()
 		svc := &mock.OIDCService{
-			InitiateLoginFn: func(providerName string) (string, string, error) {
+			InitiateLoginFn: func(providerName, intent string) (string, string, error) {
 				return "", "", auth.ErrUnknownProvider
 			},
 		}

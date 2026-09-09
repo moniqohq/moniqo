@@ -451,7 +451,7 @@ export default function SignupPage() {
   const password = watch("password", "");
 
   function signupWithProvider(provider: string) {
-    window.location.assign(`/api/v1/auth/login/${provider}`);
+    window.location.assign(`/api/v1/auth/login/${provider}?intent=signup`);
   }
 
   async function onSubmit(data: SignupFields) {

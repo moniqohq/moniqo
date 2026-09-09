@@ -36,6 +36,8 @@ const (
 	OIDCFlowCookieName = oidcFlowCookieName
 	OIDCPurposeLogin   = oidcPurposeLogin
 	OIDCPurposeLink    = oidcPurposeLink
+	OIDCIntentLogin    = oidcIntentLogin
+	OIDCIntentSignup   = oidcIntentSignup
 )
 
 var (
@@ -49,9 +51,9 @@ var (
 // FlowStateFields mirrors the unexported flowState struct for assertions in
 // package auth_test, which cannot name that type directly.
 type FlowStateFields struct {
-	State, Nonce, Verifier, Provider, Purpose string
-	UserID                                    int64
-	ExpiresAt                                 int64
+	State, Nonce, Verifier, Provider, Purpose, Intent string
+	UserID                                            int64
+	ExpiresAt                                         int64
 }
 
 // SignFlowStateForTest builds and signs a flow-state token with the given
@@ -63,6 +65,7 @@ func SignFlowStateForTest(secret []byte, f FlowStateFields, ttl time.Duration) (
 		Verifier:  f.Verifier,
 		Provider:  f.Provider,
 		Purpose:   f.Purpose,
+		Intent:    f.Intent,
 		UserID:    f.UserID,
 		ExpiresAt: time.Now().Add(ttl).Unix(),
 	}, secret)
@@ -77,6 +80,6 @@ func DecodeFlowStateForTest(token string, secret []byte) (FlowStateFields, error
 	}
 	return FlowStateFields{
 		State: st.State, Nonce: st.Nonce, Verifier: st.Verifier,
-		Provider: st.Provider, Purpose: st.Purpose, UserID: st.UserID, ExpiresAt: st.ExpiresAt,
+		Provider: st.Provider, Purpose: st.Purpose, Intent: st.Intent, UserID: st.UserID, ExpiresAt: st.ExpiresAt,
 	}, nil
 }

@@ -35,7 +35,7 @@ import (
 
 // OIDCService is the service contract required by OIDCHandler.
 type OIDCService interface {
-	InitiateLogin(providerName string) (redirectURL, flowToken string, err error)
+	InitiateLogin(providerName, intent string) (redirectURL, flowToken string, err error)
 	InitiateLink(providerName string, userID int64) (redirectURL, flowToken string, err error)
 	Callback(ctx context.Context, providerName, code, stateParam, flowCookieRaw string) (OIDCCallbackResult, error)
 	ListIdentities(ctx context.Context, userID int64) ([]UserIdentity, error)
@@ -65,11 +65,19 @@ func NewOIDCHandler(svc OIDCService, log *zap.Logger, secureCookie bool, appBase
 
 // LoginRedirect handles GET /api/v1/auth/login/:provider. It always
 // redirects, either to the identity provider (success) or to the frontend
-// login page with a generic error (unknown/unconfigured provider).
+// login page with a generic error (unknown/unconfigured provider). The
+// optional ?intent=signup query param marks the flow as originating from the
+// signup page, permitting account creation on callback; any other value
+// (including absent) defaults to login intent, which never creates an
+// account.
 func (h *OIDCHandler) LoginRedirect(c echo.Context) error {
 	provider := c.Param("provider")
+	intent := oidcIntentLogin
+	if c.QueryParam("intent") == oidcIntentSignup {
+		intent = oidcIntentSignup
+	}
 
-	redirectURL, flowToken, err := h.svc.InitiateLogin(provider)
+	redirectURL, flowToken, err := h.svc.InitiateLogin(provider, intent)
 	if err != nil {
 		h.log.Debug("oidc login initiation failed", zap.String("provider", provider), zap.Error(err))
 		return c.Redirect(http.StatusFound, h.failureRedirect())
@@ -119,6 +127,9 @@ func (h *OIDCHandler) Callback(c echo.Context) error {
 	result, err := h.svc.Callback(c.Request().Context(), provider, code, state, flowCookieRaw)
 	if err != nil {
 		h.log.Debug("oidc callback failed", zap.String("provider", provider), zap.Error(err))
+		if errors.Is(err, ErrAccountNotFound) {
+			return c.Redirect(http.StatusFound, h.appBaseURL+"/login?error=account_not_found")
+		}
 		return c.Redirect(http.StatusFound, h.failureRedirect())
 	}
 

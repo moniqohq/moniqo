@@ -99,7 +99,7 @@ func fakeIdentityProviderForFlow(name string, identity oidc.Identity) *internalm
 	}
 }
 
-func TestOIDCFlow_Login_EndToEnd(t *testing.T) {
+func TestOIDCFlow_Signup_EndToEnd(t *testing.T) {
 	t.Parallel()
 
 	identity := oidc.Identity{Subject: "flow-sub-1", Email: "flowuser@example.com", EmailVerified: true, Name: "Flow User"}
@@ -119,9 +119,9 @@ func TestOIDCFlow_Login_EndToEnd(t *testing.T) {
 
 	e := buildOIDCTestServer(t, provider, oidcRepo, authRepo)
 
-	// Step 1: GET /login/google — expect a redirect to the (fake) IdP and a
-	// signed flow-state cookie.
-	loginReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/login/google", nil)
+	// Step 1: GET /login/google?intent=signup — expect a redirect to the
+	// (fake) IdP and a signed flow-state cookie carrying the signup intent.
+	loginReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/login/google?intent=signup", nil)
 	loginRec := httptest.NewRecorder()
 	e.ServeHTTP(loginRec, loginReq)
 
@@ -156,6 +156,48 @@ func TestOIDCFlow_Login_EndToEnd(t *testing.T) {
 		}
 	}
 	assert.True(t, clearedFlow, "flow cookie must be cleared on callback")
+}
+
+func TestOIDCFlow_Login_NoAccount_EndToEnd(t *testing.T) {
+	t.Parallel()
+
+	identity := oidc.Identity{Subject: "flow-sub-2", Email: "noaccount@example.com", EmailVerified: true, Name: "No Account"}
+	provider := fakeIdentityProviderForFlow("google", identity)
+
+	oidcRepo := &internalmock.OIDCRepository{}
+	oidcRepo.On("GetIdentityByProviderSubject", "google", "flow-sub-2").
+		Return(auth.UserIdentity{}, auth.ErrIdentityNotFound)
+	oidcRepo.On("GetUserByEmailForLinking", "noaccount@example.com").
+		Return(auth.LinkableUser{}, auth.ErrUserNotFound)
+
+	e := buildOIDCTestServer(t, provider, oidcRepo, &internalmock.AuthRepository{})
+
+	// Step 1: GET /login/google with no intent query param — defaults to
+	// login intent, which must never create an account.
+	loginReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/login/google", nil)
+	loginRec := httptest.NewRecorder()
+	e.ServeHTTP(loginRec, loginReq)
+
+	require.Equal(t, http.StatusFound, loginRec.Code)
+	location, err := url.Parse(loginRec.Header().Get("Location"))
+	require.NoError(t, err)
+	state := location.Query().Get("state")
+	require.NotEmpty(t, state)
+
+	flowCookies := loginRec.Result().Cookies()
+	require.Len(t, flowCookies, 1)
+
+	// Step 2: simulate the IdP's redirect back for an identity with no
+	// matching account — the callback must redirect to the login page with
+	// an account-not-found error, never create an account.
+	callbackReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/callback/google?code=fake-code&state="+state, nil)
+	callbackReq.AddCookie(flowCookies[0])
+	callbackRec := httptest.NewRecorder()
+	e.ServeHTTP(callbackRec, callbackReq)
+
+	assert.Equal(t, http.StatusFound, callbackRec.Code)
+	assert.Equal(t, "https://app.moniqo.in/login?error=account_not_found", callbackRec.Header().Get("Location"))
+	oidcRepo.AssertNotCalled(t, "CreateUserFromIdentity", mock.Anything)
 }
 
 func TestOIDCFlow_Link_EndToEnd(t *testing.T) {
