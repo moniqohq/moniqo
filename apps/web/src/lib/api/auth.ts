@@ -18,7 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { authFetch } from "@/lib/api-client";
+import { apiFetch, authFetch } from "@/lib/api-client";
+import type { ApiAuthTokens } from "@/lib/api-types";
 
 export async function logout(): Promise<void> {
   // Sends the Bearer access token; the server clears the HttpOnly refresh cookie.
@@ -57,4 +58,24 @@ export function linkProvider(provider: string, accessToken: string): void {
 
 export async function unlinkProvider(provider: string): Promise<void> {
   await authFetch<null>(`/api/v1/auth/link/${provider}`, { method: "DELETE" });
+}
+
+// Facebook has no redirect flow (see @/lib/facebook-sdk) — the caller
+// already has an access token from FB.login() and POSTs it directly; the
+// backend verifies it server-side before trusting anything about it.
+export function loginWithFacebookToken(
+  accessToken: string,
+  intent: "login" | "signup",
+): Promise<ApiAuthTokens> {
+  return apiFetch<ApiAuthTokens>("/api/v1/auth/facebook/login", {
+    method: "POST",
+    body: JSON.stringify({ access_token: accessToken, intent }),
+  });
+}
+
+export async function linkFacebookToken(accessToken: string): Promise<void> {
+  await authFetch<null>("/api/v1/auth/facebook/link", {
+    method: "POST",
+    body: JSON.stringify({ access_token: accessToken }),
+  });
 }

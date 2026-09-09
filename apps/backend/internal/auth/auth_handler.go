@@ -43,6 +43,11 @@ const (
 	invalidJSONMsg   = "invalid json"
 )
 
+// bearerTokenType is the "token_type" value returned alongside every access
+// token, regardless of how the session was established (password, OIDC
+// redirect, or Facebook token login).
+const bearerTokenType = "Bearer"
+
 // Service is the service contract required by Handler.
 type Service interface {
 	Login(ctx context.Context, req LoginRequest) (LoginResult, error)

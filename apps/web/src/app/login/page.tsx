@@ -42,7 +42,10 @@ import {
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
-import { OIDC_PROVIDERS } from "@/components/icons/ProviderIcons";
+import { OIDC_PROVIDERS, type OidcProvider } from "@/components/icons/ProviderIcons";
+import { loginWithFacebookToken } from "@/lib/api/auth";
+import { facebookLogin } from "@/lib/facebook-sdk";
+import { parseUserIdFromToken } from "@/lib/jwt";
 import type { ApiAuthTokens, ApiUser, ApiListResponse, ApiBudget } from "@/lib/api-types";
 
 // ── Vault SVG illustration ───────────────────────────────────────────────────
@@ -379,6 +382,7 @@ function LoginPageInner() {
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [oauthPending, setOauthPending] = useState<OidcProvider | null>(null);
   const [bannerMsg, setBannerMsg] = useState<{
     type: "error" | "info" | "success";
     text: string;
@@ -403,6 +407,26 @@ function LoginPageInner() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFields>({ resolver: zodResolver(loginSchema) });
 
+  async function completeLogin(accessToken: string) {
+    const user = await apiFetch<ApiUser>(`/api/v1/users/${parseUserIdFromToken(accessToken)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    setAuth(user, accessToken);
+
+    try {
+      const budgetsBody = await apiFetch<ApiListResponse<ApiBudget>>("/api/v1/budgets", {
+        token: accessToken,
+      });
+      if (budgetsBody.data.length > 0) {
+        setActiveBudget(budgetsBody.data[0].id);
+      }
+    } catch {
+      // non-fatal: proceed to dashboard even if budget fetch fails
+    }
+
+    router.push("/dashboard");
+  }
+
   async function onSubmit(data: LoginFields) {
     setBannerMsg(null);
     try {
@@ -414,24 +438,7 @@ function LoginPageInner() {
           remember_me: rememberMe,
         }),
       });
-      const user = await apiFetch<ApiUser>(
-        `/api/v1/users/${parseUserIdFromToken(tokens.access_token)}`,
-        { headers: { Authorization: `Bearer ${tokens.access_token}` } },
-      );
-      setAuth(user, tokens.access_token);
-
-      try {
-        const budgetsBody = await apiFetch<ApiListResponse<ApiBudget>>("/api/v1/budgets", {
-          token: tokens.access_token,
-        });
-        if (budgetsBody.data.length > 0) {
-          setActiveBudget(budgetsBody.data[0].id);
-        }
-      } catch {
-        // non-fatal: proceed to dashboard even if budget fetch fails
-      }
-
-      router.push("/dashboard");
+      await completeLogin(tokens.access_token);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 403) {
@@ -450,12 +457,22 @@ function LoginPageInner() {
     }
   }
 
-  function parseUserIdFromToken(token: string): number {
+  async function handleFacebookLogin() {
+    setBannerMsg(null);
+    setOauthPending("facebook");
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return Number(payload.sub);
-    } catch {
-      throw new Error("invalid token");
+      const accessToken = await facebookLogin();
+      if (!accessToken) return; // visitor dismissed the popup — silent no-op
+      const tokens = await loginWithFacebookToken(accessToken, "login");
+      await completeLogin(tokens.access_token);
+    } catch (err) {
+      const text =
+        err instanceof ApiError && err.status === 401
+          ? "No account found for that sign-in. Please sign up first."
+          : "Sign-in with Facebook failed. Please try again.";
+      setBannerMsg({ type: "error", text });
+    } finally {
+      setOauthPending(null);
     }
   }
 
@@ -790,18 +807,23 @@ function LoginPageInner() {
 
               {/* Social buttons */}
               <div className="grid grid-cols-3 gap-3">
-                {OIDC_PROVIDERS.map(({ id, label, icon }) => (
+                {OIDC_PROVIDERS.map(({ id, label, icon, kind }) => (
                   <button
                     key={id}
                     type="button"
-                    onClick={() => loginWithProvider(id)}
-                    className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98]"
+                    disabled={oauthPending === id}
+                    onClick={() => (kind === "sdk" ? handleFacebookLogin() : loginWithProvider(id))}
+                    className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                     style={{
                       background: "#0A0E1A",
                       border: "1px solid #1E2B42",
                     }}
                   >
-                    {icon}
+                    {oauthPending === id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      icon
+                    )}
                     <span>{label}</span>
                   </button>
                 ))}

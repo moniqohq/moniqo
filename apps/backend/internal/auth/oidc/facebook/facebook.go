@@ -18,15 +18,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package facebook implements oidc.IdentityProvider for Facebook Login,
-// using Facebook's "Limited Login" OIDC-shaped ID token. Facebook has no
-// standards-compliant /.well-known/openid-configuration discovery document,
-// so unlike Google and Microsoft, its endpoints are hardcoded constants and the
-// verifier is built from a remote JWKS directly rather than via discovery.
+// Package facebook implements oidc.TokenVerifier for Facebook Login.
 //
-// This requires the Facebook App to have Limited Login enabled; if it is not,
-// the token endpoint returns no id_token and VerifyIDToken has nothing to
-// check. That configuration is a Facebook App Dashboard setting, not code.
+// Facebook has no web-compatible signed id_token: its only such mechanism,
+// Limited Login, is iOS-only (the web JS SDK's authResponse never contains
+// an id_token, only a classic opaque access token). So unlike Google and
+// Microsoft, Facebook is not an authorization-code redirect provider here —
+// the browser obtains a user access token directly via FB.login() and hands
+// it to us, and this package verifies that token against Facebook's Graph
+// API rather than verifying a signed JWT.
+//
+// The email-verification signal is correspondingly weaker than Google/
+// Microsoft's cryptographic id_token claim: Graph's /me omits the email
+// field entirely unless Meta considers the address confirmed (documented
+// behavior, not something this package can independently verify), so
+// Identity.EmailVerified here is policy-based trust in Meta, not a proof
+// this package checked itself.
 package facebook
 
 import (
@@ -38,160 +45,187 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/coreos/go-oidc/v3/oidc"
-
 	moniqooidc "github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
 )
 
-const (
-	fbAuthURL  = "https://www.facebook.com/v19.0/dialog/oauth"
-	fbTokenURL = "https://graph.facebook.com/v19.0/oauth/access_token" //nolint:gosec // an endpoint URL, not a credential
-	fbJWKSURL  = "https://www.facebook.com/.well-known/oauth/openid/jwks/"
-	fbIssuer   = "https://www.facebook.com"
+// defaultGraphBaseURL is pinned to a specific Graph API version deliberately
+// — the unversioned graph.facebook.com host resolves to the oldest still-live
+// version, which Meta periodically retires out from under callers that never
+// pin one.
+const defaultGraphBaseURL = "https://graph.facebook.com/v21.0"
 
-	httpClientTimeout = 10 * time.Second
+const httpClientTimeout = 5 * time.Second
+
+// tokenTypeUser is the only debug_token "type" this package accepts. An app
+// access token or a Page/system-user token can also be "is_valid" and carry
+// our own app_id, so type must be checked too, not just app_id.
+const tokenTypeUser = "USER"
+
+// sentinel errors. Deliberately generic and never wrap a Graph HTTP error
+// verbatim: a failed request's *url.Error embeds the full request URL, which
+// for the debug_token call contains "access_token=<app_id>|<app_secret>" —
+// wrapping it would put the app secret in logs.
+var (
+	ErrGraphRequestFailed = errors.New("facebook graph api request failed")
+	ErrTokenInvalid       = errors.New("facebook access token invalid or not issued for this app")
+	ErrProfileMismatch    = errors.New("facebook profile did not match the verified token")
 )
 
-// Config holds Facebook-specific OAuth client configuration.
+// Config holds Facebook app credentials.
 type Config struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
+	ClientID     string // the Facebook App ID
+	ClientSecret string // the Facebook App Secret
 }
 
-// Provider implements oidc.IdentityProvider for Facebook.
-type Provider struct {
-	cfg        Config
-	verifier   *oidc.IDTokenVerifier
-	httpClient *http.Client
+// Verifier implements oidc.TokenVerifier for Facebook.
+type Verifier struct {
+	cfg          Config
+	graphBaseURL string
+	httpClient   *http.Client
 }
 
-// New builds a Provider using a remote JWKS key set rather than discovery,
-// since Facebook does not publish a discovery document.
-func New(cfg Config) *Provider {
-	keySet := oidc.NewRemoteKeySet(context.Background(), fbJWKSURL)
-	return &Provider{
-		cfg:        cfg,
-		verifier:   oidc.NewVerifier(fbIssuer, keySet, &oidc.Config{ClientID: cfg.ClientID}),
-		httpClient: &http.Client{Timeout: httpClientTimeout},
+// New builds a Verifier using the real Graph API.
+func New(cfg Config) *Verifier {
+	return &Verifier{
+		cfg:          cfg,
+		graphBaseURL: defaultGraphBaseURL,
+		httpClient:   &http.Client{Timeout: httpClientTimeout},
 	}
 }
 
 // Name returns the registry key "facebook".
-func (*Provider) Name() string { return "facebook" }
+func (*Verifier) Name() string { return "facebook" }
 
-// AuthURL builds Facebook's authorization dialog URL with PKCE.
-func (p *Provider) AuthURL(state, nonce, codeChallenge string) (string, error) {
-	q := url.Values{
-		"response_type":         {"code"},
-		"client_id":             {p.cfg.ClientID},
-		"redirect_uri":          {p.cfg.RedirectURL},
-		"scope":                 {"openid email"},
-		"state":                 {state},
-		"nonce":                 {nonce},
-		"code_challenge":        {codeChallenge},
-		"code_challenge_method": {"S256"},
-	}
-	return fbAuthURL + "?" + q.Encode(), nil
+// debugTokenResponse is the shape of a successful GET /debug_token response.
+type debugTokenResponse struct {
+	Data struct {
+		AppID     string   `json:"app_id"`
+		Type      string   `json:"type"`
+		IsValid   bool     `json:"is_valid"`
+		UserID    string   `json:"user_id"`
+		ExpiresAt int64    `json:"expires_at"`
+		Scopes    []string `json:"scopes"`
+	} `json:"data"`
+	Error *graphError `json:"error"`
 }
 
-// fbTokenError is Facebook's token-endpoint error shape.
-type fbTokenError struct {
+// graphError is Graph API's shared error shape, returned at top level (not
+// under "data") on a non-200 response.
+type graphError struct {
 	Message string `json:"message"`
+	Type    string `json:"type"`
+	Code    int    `json:"code"`
 }
 
-// fbTokenResponse is the token endpoint's JSON response shape.
-type fbTokenResponse struct {
-	AccessToken string        `json:"access_token"`
-	TokenType   string        `json:"token_type"`
-	ExpiresIn   int64         `json:"expires_in"`
-	IDToken     string        `json:"id_token"`
-	Error       *fbTokenError `json:"error"`
+// meResponse is the subset of GET /me Moniqo needs.
+type meResponse struct {
+	ID      string      `json:"id"`
+	Name    string      `json:"name"`
+	Email   string      `json:"email"`
+	Picture pictureData `json:"picture"`
+	Error   *graphError `json:"error"`
 }
 
-// Exchange trades an authorization code and PKCE verifier for a TokenSet.
-func (p *Provider) Exchange(ctx context.Context, code, codeVerifier string) (*moniqooidc.TokenSet, error) {
-	q := url.Values{
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"redirect_uri":  {p.cfg.RedirectURL},
-		"client_id":     {p.cfg.ClientID},
-		"client_secret": {p.cfg.ClientSecret},
-		"code_verifier": {codeVerifier},
-	}
+type pictureData struct {
+	Data struct {
+		URL string `json:"url"`
+	} `json:"data"`
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fbTokenURL+"?"+q.Encode(), nil)
+// VerifyAccessToken validates accessToken via Graph's debug_token endpoint
+// (asserting it is valid, of type USER, and was issued for this app — the
+// check that stops a token minted for a different Facebook app from being
+// replayed to us) and then fetches the profile it authorizes. Subject comes
+// from debug_token's user_id, never from the profile call, and the two are
+// cross-checked against each other.
+func (v *Verifier) VerifyAccessToken(ctx context.Context, accessToken string) (*moniqooidc.Identity, error) {
+	debug, err := v.debugToken(ctx, accessToken)
 	if err != nil {
-		return nil, fmt.Errorf("build token request: %w", err)
+		return nil, err
+	}
+	if err := v.validateDebugToken(debug); err != nil {
+		return nil, err
 	}
 
-	resp, err := p.httpClient.Do(req)
+	profile, err := v.fetchProfile(ctx, accessToken)
 	if err != nil {
-		return nil, fmt.Errorf("token request: %w", err)
+		return nil, err
 	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	var tr fbTokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
-		return nil, fmt.Errorf("decode token response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK || tr.Error != nil {
-		msg := ""
-		if tr.Error != nil {
-			msg = tr.Error.Message
-		}
-		return nil, fmt.Errorf("token exchange rejected: status=%d error=%q", resp.StatusCode, msg)
-	}
-
-	// A classic (non-Limited-Login) app returns no id_token; VerifyIDToken
-	// then has nothing to check and the caller's unverified-email rule
-	// rejects the login rather than trusting an unverifiable identity.
-	return &moniqooidc.TokenSet{
-		AccessToken: tr.AccessToken,
-		IDToken:     tr.IDToken,
-		Expiry:      time.Now().Add(time.Duration(tr.ExpiresIn) * time.Second),
-	}, nil
-}
-
-// fbClaims mirrors the subset of Facebook's Limited Login ID token claims
-// Moniqo needs.
-type fbClaims struct {
-	Sub           string `json:"sub"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-}
-
-// VerifyIDToken validates the ID token's signature, issuer, audience,
-// expiry, and nonce, then maps its verified claims to an Identity. If ts has
-// no IDToken (Limited Login not enabled on the Facebook App), the email
-// cannot be verified at all — this returns an error so the caller's
-// unverified-email rule applies rather than silently trusting Graph data.
-func (p *Provider) VerifyIDToken(ctx context.Context, ts *moniqooidc.TokenSet, expectedNonce string) (*moniqooidc.Identity, error) {
-	if ts.IDToken == "" {
-		return nil, errors.New("no id_token in token response (Limited Login not enabled?)")
-	}
-
-	idToken, err := p.verifier.Verify(ctx, ts.IDToken)
-	if err != nil {
-		return nil, fmt.Errorf("verify id token: %w", err)
-	}
-	if idToken.Nonce != expectedNonce {
-		return nil, errors.New("id token nonce mismatch")
-	}
-
-	var claims fbClaims
-	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("decode id token claims: %w", err)
+	if profile.ID != debug.Data.UserID {
+		return nil, ErrProfileMismatch
 	}
 
 	return &moniqooidc.Identity{
-		Provider:      p.Name(),
-		Subject:       claims.Sub,
-		Email:         claims.Email,
-		EmailVerified: claims.EmailVerified,
-		Name:          claims.Name,
-		Picture:       claims.Picture,
+		Provider:      "facebook",
+		Subject:       debug.Data.UserID,
+		Email:         profile.Email,
+		EmailVerified: profile.Email != "",
+		Name:          profile.Name,
+		Picture:       profile.Picture.Data.URL,
 	}, nil
+}
+
+func (v *Verifier) validateDebugToken(debug *debugTokenResponse) error {
+	d := debug.Data
+	switch {
+	case !d.IsValid, d.AppID != v.cfg.ClientID, d.Type != tokenTypeUser, d.UserID == "", d.ExpiresAt == 0:
+		return ErrTokenInvalid
+	default:
+		return nil
+	}
+}
+
+func (v *Verifier) debugToken(ctx context.Context, accessToken string) (*debugTokenResponse, error) {
+	appToken := v.cfg.ClientID + "|" + v.cfg.ClientSecret
+	q := url.Values{
+		"input_token":  {accessToken},
+		"access_token": {appToken},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.graphBaseURL+"/debug_token?"+q.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("build debug_token request: %w", err)
+	}
+
+	resp, err := v.httpClient.Do(req)
+	if err != nil {
+		// Deliberately not %w-wrapped: err's message may embed the request
+		// URL, which contains the app secret.
+		return nil, ErrGraphRequestFailed
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	var body debugTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("decode debug_token response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK || body.Error != nil {
+		return nil, ErrTokenInvalid
+	}
+	return &body, nil
+}
+
+func (v *Verifier) fetchProfile(ctx context.Context, accessToken string) (*meResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.graphBaseURL+"/me?fields=id,name,email,picture", nil)
+	if err != nil {
+		return nil, fmt.Errorf("build me request: %w", err)
+	}
+	// The user access token travels in a header, never a query param, so it
+	// never lands in a URL, an access log, or an *url.Error message.
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := v.httpClient.Do(req)
+	if err != nil {
+		return nil, ErrGraphRequestFailed
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	var body meResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("decode me response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK || body.Error != nil {
+		return nil, ErrTokenInvalid
+	}
+	return &body, nil
 }

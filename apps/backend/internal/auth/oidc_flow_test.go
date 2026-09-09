@@ -58,7 +58,7 @@ func buildOIDCTestServer(t *testing.T, provider oidc.IdentityProvider, oidcRepo 
 	registry.Register(provider)
 
 	authSvc := auth.NewSvc(authRepo, testSecret, oidcTestAccessTTL, oidcTestRefreshTTL, oidcTestRefreshMaxAge, log)
-	oidcSvc := auth.NewOIDCSvc(oidcRepo, registry, authSvc, []byte("flow-test-state-secret"), log)
+	oidcSvc := auth.NewOIDCSvc(oidcRepo, registry, authSvc, []byte("flow-test-state-secret"), nil, log)
 	oidcHandler := auth.NewOIDCHandler(oidcSvc, log, false, "https://app.moniqo.in")
 
 	e := echo.New()

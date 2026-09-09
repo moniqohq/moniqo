@@ -125,7 +125,7 @@ func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) 
 	s.log.Info("login successful", zap.Int64("user_id", creds.User.ID))
 	return LoginResult{
 		AccessToken:           tokenString,
-		TokenType:             "Bearer",
+		TokenType:             bearerTokenType,
 		RefreshToken:          refreshIssue.RawToken,
 		RefreshTokenExpiresAt: refreshIssue.ExpiresAt,
 		RememberMe:            refreshIssue.RememberMe,
@@ -206,7 +206,7 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 
 	return RefreshResult{
 		AccessToken: accessToken,
-		TokenType:   "Bearer",
+		TokenType:   bearerTokenType,
 		Refresh:     RefreshIssue{RawToken: newRaw, ExpiresAt: newExpiresAt, RememberMe: row.RememberMe},
 	}, nil
 }

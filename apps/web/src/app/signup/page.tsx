@@ -21,6 +21,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
@@ -44,7 +45,13 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { OIDC_PROVIDERS } from "@/components/icons/ProviderIcons";
+import { OIDC_PROVIDERS, type OidcProvider } from "@/components/icons/ProviderIcons";
+import { loginWithFacebookToken } from "@/lib/api/auth";
+import { facebookLogin } from "@/lib/facebook-sdk";
+import { parseUserIdFromToken } from "@/lib/jwt";
+import { useAuthStore } from "@/stores/auth.store";
+import { useUIStore } from "@/stores/ui.store";
+import type { ApiUser, ApiListResponse, ApiBudget } from "@/lib/api-types";
 
 // ── Wallet / card device illustration ────────────────────────────────────────
 
@@ -433,11 +440,15 @@ type SignupFields = z.infer<typeof signupSchema>;
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function SignupPage() {
+  const router = useRouter();
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [agreedError, setAgreedError] = useState(false);
   const [success, setSuccess] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [oauthPending, setOauthPending] = useState<OidcProvider | null>(null);
 
   const {
     register,
@@ -452,6 +463,41 @@ export default function SignupPage() {
 
   function signupWithProvider(provider: string) {
     window.location.assign(`/api/v1/auth/login/${provider}?intent=signup`);
+  }
+
+  // Unlike password signup, a Facebook signup logs the user straight in:
+  // Facebook already vouches for the email (see docs/apis/06-auth-oidc-api.md),
+  // so the resulting account is created active, with nothing left to verify.
+  async function handleFacebookSignup() {
+    setBannerError(null);
+    setOauthPending("facebook");
+    try {
+      const accessToken = await facebookLogin();
+      if (!accessToken) return; // visitor dismissed the popup — silent no-op
+      const tokens = await loginWithFacebookToken(accessToken, "signup");
+
+      const user = await apiFetch<ApiUser>(`/api/v1/users/${parseUserIdFromToken(tokens.access_token)}`, {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      setAuth(user, tokens.access_token);
+
+      try {
+        const budgetsBody = await apiFetch<ApiListResponse<ApiBudget>>("/api/v1/budgets", {
+          token: tokens.access_token,
+        });
+        if (budgetsBody.data.length > 0) {
+          setActiveBudget(budgetsBody.data[0].id);
+        }
+      } catch {
+        // non-fatal: proceed to dashboard even if budget fetch fails
+      }
+
+      router.push("/dashboard");
+    } catch {
+      setBannerError("Sign-up with Facebook failed. Please try again.");
+    } finally {
+      setOauthPending(null);
+    }
   }
 
   async function onSubmit(data: SignupFields) {
@@ -945,15 +991,22 @@ export default function SignupPage() {
 
                 {/* Social buttons */}
                 <div className="grid grid-cols-3 gap-3">
-                  {OIDC_PROVIDERS.map(({ id, label, icon }) => (
+                  {OIDC_PROVIDERS.map(({ id, label, icon, kind }) => (
                     <button
                       key={id}
                       type="button"
-                      onClick={() => signupWithProvider(id)}
-                      className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98]"
+                      disabled={oauthPending === id}
+                      onClick={() =>
+                        kind === "sdk" ? handleFacebookSignup() : signupWithProvider(id)
+                      }
+                      className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                       style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
                     >
-                      {icon}
+                      {oauthPending === id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        icon
+                      )}
                       <span>{label}</span>
                     </button>
                   ))}

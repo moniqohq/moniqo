@@ -19,11 +19,16 @@
  */
 
 // Package oidc defines the provider-agnostic Strategy contract for OpenID
-// Connect identity providers (Google, Microsoft, Facebook, ...). Nothing in this
+// Connect identity providers (Google, Microsoft, ...). Nothing in this
 // package or its concrete provider subpackages knows about Moniqo users,
 // budgets, or JWTs — that glue lives in internal/auth. Adding a new provider
 // means adding a new subpackage that implements IdentityProvider and
 // registering one instance; no other code in this tree changes.
+//
+// Facebook is not an IdentityProvider: it has no web-compatible signed
+// id_token (Facebook's only such mechanism, Limited Login, is iOS-only), so
+// it instead implements TokenVerifier against a client-obtained access
+// token. See internal/auth/oidc/facebook.
 package oidc
 
 import (
@@ -59,7 +64,7 @@ type Identity struct {
 // TokenSet is the provider-agnostic result of an authorization code exchange.
 type TokenSet struct {
 	AccessToken  string
-	RefreshToken string // usually empty for Microsoft/Facebook; Moniqo never persists this
+	RefreshToken string // usually empty for Microsoft; Moniqo never persists this
 	IDToken      string
 	Expiry       time.Time
 }
@@ -90,4 +95,23 @@ type IdentityProvider interface {
 // interface, never on concrete provider types.
 type ProviderRegistry interface {
 	Provider(name string) (IdentityProvider, error)
+}
+
+// TokenVerifier is the Strategy contract for a provider whose only signal is
+// a client-obtained access token rather than an authorization code — no
+// AuthURL/Exchange, since there is no server-driven redirect. Name() exists
+// only so callers can recognize a linked identity's provider as known (e.g.
+// for unlink eligibility); it is never used for dispatch, since there is
+// exactly one such provider (Facebook) and its caller addresses it directly.
+type TokenVerifier interface {
+	// Name returns the registry key for this provider, e.g. "facebook".
+	Name() string
+
+	// VerifyAccessToken validates a client-obtained access token against the
+	// provider and returns the Identity it resolves to. This is the trust
+	// boundary for Email/EmailVerified/Subject, exactly as VerifyIDToken is
+	// for IdentityProvider — implementations must reject a token that isn't
+	// verifiably theirs (e.g. minted for a different application) before
+	// trusting anything it resolves to.
+	VerifyAccessToken(ctx context.Context, accessToken string) (*Identity, error)
 }
