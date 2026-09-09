@@ -751,12 +751,12 @@ function LoginPageInner() {
                     <p className="mt-1 text-xs text-[#5A6A85]">Not recommended on shared devices</p>
                   </div>
                 </div>
-                <button
-                  type="button"
+                <Link
+                  href="/forgot-password"
                   className="flex-shrink-0 text-sm font-medium whitespace-nowrap text-[#8B5CF6] transition-colors duration-150 hover:text-[#A78BFA]"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
 
               {/* Login button */}
