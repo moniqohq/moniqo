@@ -251,8 +251,9 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodGet, path: "/api/v1/auth/password-reset/", prefix: true},  // validate reset token
 		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
 		{method: http.MethodGet, path: "/api/v1/auth/login/", prefix: true},           // oidc login redirect
-		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/microsoft/facebook)
+		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/microsoft)
 		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (response_mode=form_post providers)
+		{method: http.MethodPost, path: "/api/v1/auth/facebook/login"},                // facebook token login, no redirect
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -354,8 +355,18 @@ func registerOnboardingRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger)
 func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, authSvc *auth.Svc, log *zap.Logger) {
 	oidcRegistry := buildOIDCRegistry(cfg, log)
 	oidcRepo := auth.NewOIDCRepo(pool, log)
-	oidcSvc := auth.NewOIDCSvc(oidcRepo, oidcRegistry, authSvc, []byte(cfg.OIDC.StateSecret), log)
+
+	var fbVerifier oidc.TokenVerifier
+	if cfg.OIDC.Facebook.ClientID != "" {
+		fbVerifier = facebook.New(facebook.Config{
+			ClientID:     cfg.OIDC.Facebook.ClientID,
+			ClientSecret: cfg.OIDC.Facebook.ClientSecret,
+		})
+	}
+
+	oidcSvc := auth.NewOIDCSvc(oidcRepo, oidcRegistry, authSvc, []byte(cfg.OIDC.StateSecret), fbVerifier, log)
 	oidcHandler := auth.NewOIDCHandler(oidcSvc, log, cfg.Env != envDevelopment, cfg.AppBaseURL)
+	facebookHandler := auth.NewFacebookHandler(oidcSvc, log, cfg.Env != envDevelopment)
 
 	oidcPublicGroup := e.Group("/api/v1/auth")
 	oidcPublicGroup.Use(appmw.LoginRateLimiter())
@@ -369,22 +380,35 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 
 	oidcAuthedGroup := e.Group("/api/v1/auth") // requires JWT — not in newAuthSkipper
 	oidcAuthedGroup.GET("/identities", oidcHandler.ListIdentities)
+
+	// Facebook has no redirect flow (see internal/auth/oidc/facebook) — the
+	// browser obtains an access token via the JS SDK and POSTs it here.
+	// Login is public (added to newAuthSkipper) and rate-limited like any
+	// other public auth endpoint; Link requires JWT and is rate-limited too,
+	// since it drives an outbound Graph API call per request.
+	facebookGroup := e.Group("/api/v1/auth/facebook")
+	facebookGroup.Use(appmw.LoginRateLimiter())
+	facebookGroup.POST("/login", facebookHandler.Login)
+	facebookGroup.POST("/link", facebookHandler.Link) // requires JWT — not in newAuthSkipper
 }
 
-// anyOIDCProviderConfigured reports whether at least one OIDC provider has a
-// ClientID set, in which case OIDC_STATE_SECRET becomes a required setting.
+// anyOIDCProviderConfigured reports whether at least one redirect OIDC
+// provider has a ClientID set, in which case OIDC_STATE_SECRET becomes a
+// required setting. Facebook is excluded: its token flow has no redirect
+// and never touches the state-cookie machinery OIDC_STATE_SECRET signs.
 func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
-	return cfg.Google.ClientID != "" || cfg.Microsoft.ClientID != "" || cfg.Facebook.ClientID != ""
+	return cfg.Google.ClientID != "" || cfg.Microsoft.ClientID != ""
 }
 
-// buildOIDCRegistry constructs the OIDC provider registry, registering only
-// providers whose ClientID is configured. A provider left unconfigured is
-// simply absent from the registry — registry.Provider(name) then returns
-// ErrUnknownProvider at request time — which is how shipping one provider
-// (e.g. Google) first and adding Microsoft/Facebook later works: env vars only,
-// no code changes. A provider whose discovery call fails at startup is
-// logged and skipped rather than treated as fatal — OIDC being unavailable
-// must never take down password login.
+// buildOIDCRegistry constructs the redirect OIDC provider registry,
+// registering only providers whose ClientID is configured. A provider left
+// unconfigured is simply absent from the registry — registry.Provider(name)
+// then returns ErrUnknownProvider at request time — which is how shipping
+// one provider (e.g. Google) first and adding Microsoft later works: env
+// vars only, no code changes. A provider whose discovery call fails at
+// startup is logged and skipped rather than treated as fatal — OIDC being
+// unavailable must never take down password login. Facebook is not a
+// redirect provider and is never registered here — see registerOIDCRoutes.
 func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
 	ctx := context.Background()
 	reg := oidc.NewRegistry()
@@ -414,14 +438,6 @@ func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
 		} else {
 			reg.Register(p)
 		}
-	}
-
-	if cfg.OIDC.Facebook.ClientID != "" {
-		reg.Register(facebook.New(facebook.Config{
-			ClientID:     cfg.OIDC.Facebook.ClientID,
-			ClientSecret: cfg.OIDC.Facebook.ClientSecret,
-			RedirectURL:  cfg.OIDC.Facebook.RedirectURL,
-		}))
 	}
 
 	return reg

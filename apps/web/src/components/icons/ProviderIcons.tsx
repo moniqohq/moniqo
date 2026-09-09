@@ -62,8 +62,31 @@ export function FacebookIcon() {
 
 export type OidcProvider = "google" | "microsoft" | "facebook";
 
-export const OIDC_PROVIDERS: { id: OidcProvider; label: string; icon: React.ReactNode }[] = [
-  { id: "google", label: "Google", icon: <GoogleIcon /> },
-  { id: "microsoft", label: "Microsoft", icon: <MicrosoftIcon /> },
-  { id: "facebook", label: "Facebook", icon: <FacebookIcon /> },
+// "redirect" providers navigate to /api/v1/auth/login/:provider and log in
+// via the backend's OIDC redirect flow. "facebook" is "sdk": there is no
+// redirect endpoint for it at all — the caller must use the Facebook JS SDK
+// (see @/lib/facebook-sdk) and POST the resulting access token to
+// /api/v1/auth/facebook/login or /link instead. See
+// docs/apis/06-auth-oidc-api.md for why.
+export type OidcProviderKind = "redirect" | "sdk";
+
+interface OidcProviderMeta {
+  id: OidcProvider;
+  label: string;
+  icon: React.ReactNode;
+  kind: OidcProviderKind;
+}
+
+const ALL_OIDC_PROVIDERS: OidcProviderMeta[] = [
+  { id: "google", label: "Google", icon: <GoogleIcon />, kind: "redirect" },
+  { id: "microsoft", label: "Microsoft", icon: <MicrosoftIcon />, kind: "redirect" },
+  { id: "facebook", label: "Facebook", icon: <FacebookIcon />, kind: "sdk" },
 ];
+
+// Facebook is omitted entirely when NEXT_PUBLIC_FACEBOOK_APP_ID is unset,
+// mirroring the backend's "unconfigured provider is simply absent" rule
+// (internal/config/config.go) rather than showing a button that would fail
+// at click time.
+export const OIDC_PROVIDERS: OidcProviderMeta[] = ALL_OIDC_PROVIDERS.filter(
+  (p) => p.id !== "facebook" || Boolean(process.env.NEXT_PUBLIC_FACEBOOK_APP_ID),
+);

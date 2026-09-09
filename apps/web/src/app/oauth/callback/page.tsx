@@ -26,16 +26,8 @@ import { Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
+import { parseUserIdFromToken } from "@/lib/jwt";
 import type { ApiUser, ApiListResponse, ApiBudget } from "@/lib/api-types";
-
-function parseUserIdFromToken(token: string): number {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return Number(payload.sub);
-  } catch {
-    throw new Error("invalid token");
-  }
-}
 
 export default function OAuthCallbackPage() {
   const router = useRouter();

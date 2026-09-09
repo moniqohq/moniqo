@@ -179,3 +179,33 @@ type ProviderRegistry struct {
 func (m *ProviderRegistry) Provider(name string) (oidc.IdentityProvider, error) {
 	return m.ProviderFn(name)
 }
+
+// TokenVerifier is a test double for oidc.TokenVerifier.
+type TokenVerifier struct {
+	NameFn              func() string
+	VerifyAccessTokenFn func(ctx context.Context, accessToken string) (*oidc.Identity, error)
+}
+
+// Name delegates to NameFn.
+func (m *TokenVerifier) Name() string { return m.NameFn() }
+
+// VerifyAccessToken delegates to VerifyAccessTokenFn.
+func (m *TokenVerifier) VerifyAccessToken(ctx context.Context, accessToken string) (*oidc.Identity, error) {
+	return m.VerifyAccessTokenFn(ctx, accessToken)
+}
+
+// FacebookService is a test double for auth.FacebookService.
+type FacebookService struct {
+	LoginWithFacebookTokenFn func(ctx context.Context, accessToken, intent string) (auth.OIDCCallbackResult, error)
+	LinkFacebookTokenFn      func(ctx context.Context, userID int64, accessToken string) error
+}
+
+// LoginWithFacebookToken delegates to LoginWithFacebookTokenFn.
+func (m *FacebookService) LoginWithFacebookToken(ctx context.Context, accessToken, intent string) (auth.OIDCCallbackResult, error) {
+	return m.LoginWithFacebookTokenFn(ctx, accessToken, intent)
+}
+
+// LinkFacebookToken delegates to LinkFacebookTokenFn.
+func (m *FacebookService) LinkFacebookToken(ctx context.Context, userID int64, accessToken string) error {
+	return m.LinkFacebookTokenFn(ctx, userID, accessToken)
+}
