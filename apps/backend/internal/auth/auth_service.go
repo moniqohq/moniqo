@@ -318,6 +318,26 @@ func (s *PasswordResetSvc) RequestReset(ctx context.Context, req RequestResetReq
 	return nil
 }
 
+// ValidateResetToken reports whether token currently resolves to an active
+// (found, unused, unexpired) password reset token, without consuming it or
+// otherwise mutating state. Returns ErrInvalidResetToken for any validation
+// failure (not found, used, expired) — the caller must not reveal which
+// condition triggered the error.
+func (s *PasswordResetSvc) ValidateResetToken(ctx context.Context, token string) error {
+	hash := HashRefreshToken(token)
+
+	row, err := s.repo.GetPasswordResetTokenByHash(ctx, hash)
+	if errors.Is(err, ErrInvalidResetToken) {
+		return ErrInvalidResetToken
+	}
+	if err != nil {
+		s.log.Error("password reset validate: repo error", zap.Error(err))
+		return fmt.Errorf("get reset token: %w", err)
+	}
+
+	return checkResetTokenRow(row, time.Now())
+}
+
 // ConfirmReset validates the reset token, updates the password, and invalidates
 // all active tokens for the user. Returns ErrInvalidResetToken for any token
 // validation failure (not found, used, expired) — the caller must not reveal
@@ -336,13 +356,8 @@ func (s *PasswordResetSvc) ConfirmReset(ctx context.Context, req ConfirmResetReq
 
 	now := time.Now()
 
-	if row.UsedAt != nil {
-		s.log.Debug("password reset confirm: token already used", zap.Int64("user_id", row.UserID))
-		return ErrInvalidResetToken
-	}
-	if now.After(row.ExpiresAt) {
-		s.log.Debug("password reset confirm: token expired", zap.Int64("user_id", row.UserID))
-		return ErrInvalidResetToken
+	if err := checkResetTokenRow(row, now); err != nil {
+		return err
 	}
 
 	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), s.bcryptCost)
@@ -362,6 +377,18 @@ func (s *PasswordResetSvc) ConfirmReset(ctx context.Context, req ConfirmResetReq
 	}
 
 	s.log.Info("password reset confirmed", zap.Int64("user_id", row.UserID))
+	return nil
+}
+
+// checkResetTokenRow reports whether row is still active (unused, unexpired)
+// as of now. Returns ErrInvalidResetToken otherwise.
+func checkResetTokenRow(row PasswordResetTokenRow, now time.Time) error {
+	if row.UsedAt != nil {
+		return ErrInvalidResetToken
+	}
+	if now.After(row.ExpiresAt) {
+		return ErrInvalidResetToken
+	}
 	return nil
 }
 

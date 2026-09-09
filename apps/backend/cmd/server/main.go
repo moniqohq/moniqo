@@ -248,6 +248,7 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                       // cookie-based refresh
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                // request reset
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // confirm reset + subpaths
+		{method: http.MethodGet, path: "/api/v1/auth/password-reset/", prefix: true},  // validate reset token
 		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
 		{method: http.MethodGet, path: "/api/v1/auth/login/", prefix: true},           // oidc login redirect
 		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/facebook)
@@ -306,6 +307,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	passwordResetGroup := e.Group("/api/v1/auth/password-reset")
 	passwordResetGroup.Use(appmw.PasswordResetRateLimiter())
 	passwordResetGroup.POST("", passwordResetHandler.RequestReset)
+	passwordResetGroup.GET("/validate", passwordResetHandler.ValidateToken)
 	passwordResetGroup.POST("/confirm", passwordResetHandler.ConfirmReset)
 
 	verifyGroup := e.Group("/api/v1/users")
