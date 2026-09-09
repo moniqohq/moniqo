@@ -33,9 +33,9 @@ const (
 	authRatePerMin         = 10.0
 	authBurst              = 10
 	secondsPerMin          = 60
-	passwordResetRate15Min = 5.0
+	passwordResetRate15Min = 15.0
 	passwordReset15Min     = 15 * 60.0 // 15 minutes in seconds
-	passwordResetBurst     = 5
+	passwordResetBurst     = 15
 )
 
 // RegisterRateLimiter returns a rate limiter middleware scoped to the registration
@@ -51,7 +51,7 @@ func LoginRateLimiter() echo.MiddlewareFunc {
 }
 
 // PasswordResetRateLimiter returns a rate limiter middleware scoped to the
-// password reset endpoints: 5 requests per IP per 15 minutes.
+// password reset endpoints: 15 requests per IP per 15 minutes.
 func PasswordResetRateLimiter() echo.MiddlewareFunc {
 	return newIPRateLimiter(passwordResetRate15Min/passwordReset15Min, passwordResetBurst)
 }
