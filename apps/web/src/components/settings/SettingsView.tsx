@@ -135,7 +135,7 @@ const NAV_GROUPS: NavGroup[] = [
       {
         id: "connections",
         label: "Connected accounts",
-        description: "Google, Apple, and Facebook sign-in",
+        description: "Google, Microsoft, and Facebook sign-in",
         icon: Link2,
         iconColor: "#60A5FA",
         iconBg: "rgba(59,130,246,0.12)",

@@ -21,7 +21,7 @@
 // Package facebook implements oidc.IdentityProvider for Facebook Login,
 // using Facebook's "Limited Login" OIDC-shaped ID token. Facebook has no
 // standards-compliant /.well-known/openid-configuration discovery document,
-// so unlike Google and Apple, its endpoints are hardcoded constants and the
+// so unlike Google and Microsoft, its endpoints are hardcoded constants and the
 // verifier is built from a remote JWKS directly rather than via discovery.
 //
 // This requires the Facebook App to have Limited Login enabled; if it is not,
