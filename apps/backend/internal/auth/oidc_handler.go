@@ -194,7 +194,7 @@ func (h *OIDCHandler) setFlowCookie(c echo.Context, token string) {
 		Value:    token,
 		HttpOnly: true,
 		Secure:   h.secureCookie,
-		SameSite: http.SameSiteLaxMode, // required: Apple's callback is a cross-site POST (form_post)
+		SameSite: http.SameSiteLaxMode, // required: some providers' callback is a cross-site POST (form_post)
 		Path:     oidcFlowCookiePath,
 		MaxAge:   int(oidcFlowStateTTL.Seconds()),
 	})

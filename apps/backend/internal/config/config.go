@@ -64,12 +64,12 @@ type Config struct {
 
 // OIDCConfig groups OpenID Connect third-party login settings. Each provider
 // sub-struct is independent; a provider with an empty ClientID is simply not
-// registered at startup, so shipping Google first and adding Apple/Facebook
+// registered at startup, so shipping Google first and adding Microsoft/Facebook
 // later requires only setting their env vars — no code changes.
 type OIDCConfig struct {
 	StateSecret string // OIDC_STATE_SECRET — HMAC key signing the OIDC flow cookie
 	Google      GoogleOIDCConfig
-	Apple       AppleOIDCConfig
+	Microsoft   MicrosoftOIDCConfig
 	Facebook    FacebookOIDCConfig
 }
 
@@ -80,13 +80,12 @@ type GoogleOIDCConfig struct {
 	RedirectURL  string // OIDC_GOOGLE_REDIRECT_URL
 }
 
-// AppleOIDCConfig holds Sign in with Apple client settings.
-type AppleOIDCConfig struct {
-	ClientID    string // OIDC_APPLE_CLIENT_ID — the Services ID
-	TeamID      string // OIDC_APPLE_TEAM_ID
-	KeyID       string // OIDC_APPLE_KEY_ID
-	PrivateKey  string // OIDC_APPLE_PRIVATE_KEY — PEM-encoded EC private key content
-	RedirectURL string // OIDC_APPLE_REDIRECT_URL
+// MicrosoftOIDCConfig holds Sign in with Microsoft client settings.
+type MicrosoftOIDCConfig struct {
+	ClientID     string // OIDC_MICROSOFT_CLIENT_ID
+	ClientSecret string // OIDC_MICROSOFT_CLIENT_SECRET
+	RedirectURL  string // OIDC_MICROSOFT_REDIRECT_URL
+	Tenant       string // OIDC_MICROSOFT_TENANT — "common" (default), "organizations", "consumers", or a tenant ID/verified domain
 }
 
 // FacebookOIDCConfig holds Facebook OAuth client settings.
@@ -156,12 +155,11 @@ func loadOIDCConfig() OIDCConfig {
 			ClientSecret: os.Getenv("OIDC_GOOGLE_CLIENT_SECRET"),
 			RedirectURL:  os.Getenv("OIDC_GOOGLE_REDIRECT_URL"),
 		},
-		Apple: AppleOIDCConfig{
-			ClientID:    os.Getenv("OIDC_APPLE_CLIENT_ID"),
-			TeamID:      os.Getenv("OIDC_APPLE_TEAM_ID"),
-			KeyID:       os.Getenv("OIDC_APPLE_KEY_ID"),
-			PrivateKey:  os.Getenv("OIDC_APPLE_PRIVATE_KEY"),
-			RedirectURL: os.Getenv("OIDC_APPLE_REDIRECT_URL"),
+		Microsoft: MicrosoftOIDCConfig{
+			ClientID:     os.Getenv("OIDC_MICROSOFT_CLIENT_ID"),
+			ClientSecret: os.Getenv("OIDC_MICROSOFT_CLIENT_SECRET"),
+			RedirectURL:  os.Getenv("OIDC_MICROSOFT_REDIRECT_URL"),
+			Tenant:       os.Getenv("OIDC_MICROSOFT_TENANT"),
 		},
 		Facebook: FacebookOIDCConfig{
 			ClientID:     os.Getenv("OIDC_FACEBOOK_CLIENT_ID"),

@@ -154,7 +154,7 @@ func TestOIDCHandler_Callback(t *testing.T) {
 		assert.Contains(t, rec.Header().Get("Location"), "#access_token=at")
 	})
 
-	t.Run("POST form body (Apple form_post) reaches the service identically", func(t *testing.T) {
+	t.Run("POST form body (response_mode=form_post) reaches the service identically", func(t *testing.T) {
 		t.Parallel()
 		var gotCode, gotState string
 		svc := &mock.OIDCService{
@@ -165,11 +165,11 @@ func TestOIDCHandler_Callback(t *testing.T) {
 		}
 		h := auth.NewOIDCHandler(svc, zap.NewNop(), true, "https://app.moniqo.in")
 
-		c, rec := newOIDCCallbackPostCtx(e, "apple", "apple-code", "apple-state", "apple-cookie")
+		c, rec := newOIDCCallbackPostCtx(e, "test-provider", "test-code", "test-state", "test-cookie")
 		require.NoError(t, h.Callback(c))
 
-		assert.Equal(t, "apple-code", gotCode)
-		assert.Equal(t, "apple-state", gotState)
+		assert.Equal(t, "test-code", gotCode)
+		assert.Equal(t, "test-state", gotState)
 		assert.Equal(t, http.StatusFound, rec.Code)
 		assert.Contains(t, rec.Header().Get("Location"), "#access_token=at2")
 	})

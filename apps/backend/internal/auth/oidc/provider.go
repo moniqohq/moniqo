@@ -19,7 +19,7 @@
  */
 
 // Package oidc defines the provider-agnostic Strategy contract for OpenID
-// Connect identity providers (Google, Apple, Facebook, ...). Nothing in this
+// Connect identity providers (Google, Microsoft, Facebook, ...). Nothing in this
 // package or its concrete provider subpackages knows about Moniqo users,
 // budgets, or JWTs — that glue lives in internal/auth. Adding a new provider
 // means adding a new subpackage that implements IdentityProvider and
@@ -59,7 +59,7 @@ type Identity struct {
 // TokenSet is the provider-agnostic result of an authorization code exchange.
 type TokenSet struct {
 	AccessToken  string
-	RefreshToken string // usually empty for Apple/Facebook; Moniqo never persists this
+	RefreshToken string // usually empty for Microsoft/Facebook; Moniqo never persists this
 	IDToken      string
 	Expiry       time.Time
 }

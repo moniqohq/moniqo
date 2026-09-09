@@ -46,9 +46,9 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/account"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
-	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/apple"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/facebook"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/google"
+	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/microsoft"
 	"github.com/moniqohq/moniqo/apps/backend/internal/authz"
 	"github.com/moniqohq/moniqo/apps/backend/internal/budget"
 	"github.com/moniqohq/moniqo/apps/backend/internal/config"
@@ -251,8 +251,8 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodGet, path: "/api/v1/auth/password-reset/", prefix: true},  // validate reset token
 		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
 		{method: http.MethodGet, path: "/api/v1/auth/login/", prefix: true},           // oidc login redirect
-		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/facebook)
-		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (apple form_post)
+		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/microsoft/facebook)
+		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (response_mode=form_post providers)
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -361,7 +361,7 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 	oidcPublicGroup.Use(appmw.LoginRateLimiter())
 	oidcPublicGroup.GET("/login/:provider", oidcHandler.LoginRedirect)
 	oidcPublicGroup.GET("/callback/:provider", oidcHandler.Callback)
-	oidcPublicGroup.POST("/callback/:provider", oidcHandler.Callback) // Apple's response_mode=form_post
+	oidcPublicGroup.POST("/callback/:provider", oidcHandler.Callback) // for providers using response_mode=form_post
 
 	oidcLinkGroup := e.Group("/api/v1/auth/link") // requires JWT — not in newAuthSkipper
 	oidcLinkGroup.POST("/:provider", oidcHandler.Link)
@@ -374,14 +374,14 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 // anyOIDCProviderConfigured reports whether at least one OIDC provider has a
 // ClientID set, in which case OIDC_STATE_SECRET becomes a required setting.
 func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
-	return cfg.Google.ClientID != "" || cfg.Apple.ClientID != "" || cfg.Facebook.ClientID != ""
+	return cfg.Google.ClientID != "" || cfg.Microsoft.ClientID != "" || cfg.Facebook.ClientID != ""
 }
 
 // buildOIDCRegistry constructs the OIDC provider registry, registering only
 // providers whose ClientID is configured. A provider left unconfigured is
 // simply absent from the registry — registry.Provider(name) then returns
 // ErrUnknownProvider at request time — which is how shipping one provider
-// (e.g. Google) first and adding Apple/Facebook later works: env vars only,
+// (e.g. Google) first and adding Microsoft/Facebook later works: env vars only,
 // no code changes. A provider whose discovery call fails at startup is
 // logged and skipped rather than treated as fatal — OIDC being unavailable
 // must never take down password login.
@@ -402,16 +402,15 @@ func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
 		}
 	}
 
-	if cfg.OIDC.Apple.ClientID != "" {
-		p, err := apple.New(ctx, apple.Config{
-			ClientID:    cfg.OIDC.Apple.ClientID,
-			TeamID:      cfg.OIDC.Apple.TeamID,
-			KeyID:       cfg.OIDC.Apple.KeyID,
-			PrivateKey:  cfg.OIDC.Apple.PrivateKey,
-			RedirectURL: cfg.OIDC.Apple.RedirectURL,
+	if cfg.OIDC.Microsoft.ClientID != "" {
+		p, err := microsoft.New(ctx, microsoft.Config{
+			ClientID:     cfg.OIDC.Microsoft.ClientID,
+			ClientSecret: cfg.OIDC.Microsoft.ClientSecret,
+			RedirectURL:  cfg.OIDC.Microsoft.RedirectURL,
+			Tenant:       cfg.OIDC.Microsoft.Tenant,
 		})
 		if err != nil {
-			log.Error("apple oidc provider init failed; apple login disabled", zap.Error(err))
+			log.Error("microsoft oidc provider init failed; microsoft login disabled", zap.Error(err))
 		} else {
 			reg.Register(p)
 		}
