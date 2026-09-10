@@ -441,6 +441,9 @@ func (h *Handler) CreateEnvelope(c echo.Context) error {
 		if ok, resp := mapEnvelopeServiceError(c, err); ok {
 			return resp
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Create envelope failed",
 			zap.Int64("budget_id", budgetID),
 			zap.String("title", req.Title),
@@ -487,6 +490,9 @@ func (h *Handler) ReplaceEnvelope(c echo.Context) error {
 	if err != nil {
 		if ok, resp := mapEnvelopeServiceError(c, err); ok {
 			return resp
+		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
 		}
 		h.log.Error("Replace envelope failed",
 			zap.Int64("envelope_id", id),
@@ -535,6 +541,9 @@ func (h *Handler) PatchEnvelope(c echo.Context) error {
 		if ok, resp := mapEnvelopeServiceError(c, err); ok {
 			return resp
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Patch envelope failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -567,6 +576,9 @@ func (h *Handler) DeleteEnvelope(c echo.Context) error {
 		if ok, resp := mapEnvelopeServiceError(c, err); ok {
 			return resp
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Delete envelope failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -598,6 +610,9 @@ func (h *Handler) ForceDeleteEnvelope(c echo.Context) error {
 	if err := h.svc.ForceDelete(c.Request().Context(), id, budgetID, membership.Role); err != nil {
 		if ok, resp := mapEnvelopeServiceError(c, err); ok {
 			return resp
+		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
 		}
 		h.log.Error("Force delete envelope failed",
 			zap.Int64("envelope_id", id),
