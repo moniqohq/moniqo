@@ -27,7 +27,7 @@ export async function logout(): Promise<void> {
 }
 
 export interface ApiIdentity {
-  provider: "google" | "microsoft" | "facebook";
+  provider: "google" | "facebook";
   linked_at: string;
 }
 

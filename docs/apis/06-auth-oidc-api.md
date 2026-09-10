@@ -4,7 +4,7 @@
 
 Moniqo supports signing in with a third-party identity provider as an alternative and complement to password-based login. A user may link multiple providers to a single Moniqo account. There are two distinct integration models, depending on what each provider can offer on the web:
 
-- **OpenID Connect (OIDC) redirect flow** — Google and Microsoft. The implementation is provider-agnostic (Strategy pattern): the auth service and HTTP handlers depend only on an `IdentityProvider` interface resolved from a `ProviderRegistry`, never on provider-specific logic. Adding a future redirect provider requires only a new provider package and one `Register()` call at startup — no handler, service, or router changes.
+- **OpenID Connect (OIDC) redirect flow** — Google. The implementation is provider-agnostic (Strategy pattern): the auth service and HTTP handlers depend only on an `IdentityProvider` interface resolved from a `ProviderRegistry`, never on provider-specific logic. Adding a future redirect provider requires only a new provider package and one `Register()` call at startup — no handler, service, or router changes.
 - **Facebook token flow** — Facebook has no web-compatible signed ID token. Its only such mechanism, Limited Login, is iOS-only; the web JS SDK's `FB.login()` yields only a classic opaque access token. Facebook therefore does not implement `IdentityProvider` and has no redirect endpoints. Instead, the browser obtains an access token via the Facebook JS SDK and POSTs it to a dedicated endpoint, which verifies it server-side against Facebook's Graph API. See [Facebook Token Flow](#facebook-token-flow) below.
 
 **Base URL:** `/api/v1/auth`
@@ -21,7 +21,7 @@ A linked third-party identity, one row per (provider, Moniqo user) pair. A user 
 |---|---|---|---|
 | `id` | Integer | Yes | Auto-generated serial numeric ID |
 | `user_id` | Integer | Yes | The Moniqo user this identity is linked to |
-| `provider` | String | Yes | `google`, `microsoft`, or `facebook` |
+| `provider` | String | Yes | `google` or `facebook` |
 | `provider_subject` | String | Yes | The provider's stable, unique subject identifier (OIDC `sub` claim, or Facebook's Graph `id`) |
 | `provider_email` | String | No | The email the provider asserted at link time (informational only) |
 | `created_at` | Timestamp | Yes | When the identity was linked |
@@ -47,7 +47,7 @@ Related change to the `users` table: `hash` is nullable. An account created pure
 | `POST` | `/api/v1/auth/link/:provider` | Required | **Redirect flow only.** Begins linking `:provider` to the authenticated account |
 | `DELETE` | `/api/v1/auth/link/:provider` | Required | Unlinks `:provider` from the authenticated account (both models, including `facebook`) |
 
-`:provider` in the redirect endpoints is `google` or `microsoft`, resolved dynamically from the provider registry, never hardcoded in a handler. `facebook` is never in that registry — it is recognized separately for `DELETE /link/:provider` eligibility (so a linked Facebook identity can always be unlinked even though it was never linked via `POST /link/:provider`). A provider that is not registered/recognized (unconfigured, e.g. missing credentials) behaves identically to an unknown one.
+`:provider` in the redirect endpoints is `google`, resolved dynamically from the provider registry, never hardcoded in a handler. `facebook` is never in that registry — it is recognized separately for `DELETE /link/:provider` eligibility (so a linked Facebook identity can always be unlinked even though it was never linked via `POST /link/:provider`). A provider that is not registered/recognized (unconfigured, e.g. missing credentials) behaves identically to an unknown one.
 
 ### `GET /api/v1/auth/login/:provider`
 
@@ -63,7 +63,7 @@ Redirects (`302`) the browser to the identity provider's authorization page, hav
 - **Success (link):** `302` to `{APP_BASE_URL}/settings/connections?linked=<provider>`. No new tokens are issued — the user was already authenticated to reach the link flow.
 - **Any failure** (invalid/expired state, failed code exchange, failed ID token verification, unverified email, identity conflict): `302` to `{APP_BASE_URL}/login?error=oauth_failed`. The specific cause is logged server-side and never exposed to the client.
 
-Both Google and Microsoft use `GET` here; the same handler also accepts `POST` for any future provider using `response_mode=form_post`.
+Google uses `GET` here; the same handler also accepts `POST` for any future provider using `response_mode=form_post`.
 
 The flow cookie is read and cleared **unconditionally**, before any other processing — a callback can never be replayed with the same cookie value.
 
@@ -124,7 +124,7 @@ Moniqo verifies a Facebook access token via two Graph API calls before trusting 
 1. `GET /debug_token?input_token=<token>&access_token=<app_id>|<app_secret>` — asserts the token is valid, is of type `USER` (not an app or Page token), and critically **was issued for Moniqo's own Facebook App** (`app_id` matches). Skipping this check would let a token minted for a different, attacker-controlled Facebook app be replayed to Moniqo.
 2. `GET /me?fields=id,name,email,picture`, with the user token sent as an `Authorization: Bearer` header (never a query parameter, so it never reaches a URL or access log) — fetches the profile the token authorizes. Its `id` is cross-checked against `debug_token`'s `user_id`.
 
-**Email verification signal is weaker than the redirect flow's.** Google and Microsoft assert `email_verified` in a cryptographically signed ID token. Facebook's Graph API has no equivalent claim; instead, Meta's documented behavior is that `/me` omits the `email` field entirely unless the address is confirmed. Moniqo therefore treats `EmailVerified := (email present)` — policy-based trust in Meta's platform behavior, not a signature Moniqo itself checked. This is a deliberate, accepted trade-off, not an oversight.
+**Email verification signal is weaker than the redirect flow's.** Google asserts `email_verified` in a cryptographically signed ID token. Facebook's Graph API has no equivalent claim; instead, Meta's documented behavior is that `/me` omits the `email` field entirely unless the address is confirmed. Moniqo therefore treats `EmailVerified := (email present)` — policy-based trust in Meta's platform behavior, not a signature Moniqo itself checked. This is a deliberate, accepted trade-off, not an oversight.
 
 Once verified, the resulting identity is subject to the exact same [Account Linking Priority](#account-linking-priority-login) and [Account Linking](#account-linking-explicit-postlinkprovider) rules as the redirect flow — there is no separate policy for Facebook past the verification step.
 
@@ -158,7 +158,7 @@ When a login flow completes — the redirect callback or `POST /api/v1/auth/face
 
 ## Security Constraints
 
-### Redirect flow (Google, Microsoft)
+### Redirect flow (Google)
 
 - **Authorization Code Flow with PKCE** (S256).
 - **State** is generated per flow, embedded in a signed cookie, and compared against the callback's `state` parameter — the standard OAuth2 CSRF mitigation (RFC 6749 §10.12).
