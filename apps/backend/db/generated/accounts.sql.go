@@ -519,6 +519,17 @@ func (q *Queries) SoftDeleteAccount(ctx context.Context, arg SoftDeleteAccountPa
 	return err
 }
 
+const softDeleteAccountsByBudget = `-- name: SoftDeleteAccountsByBudget :exec
+UPDATE accounts
+SET deleted_at = now()
+WHERE budget_id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteAccountsByBudget(ctx context.Context, budgetID int64) error {
+	_, err := q.db.Exec(ctx, softDeleteAccountsByBudget, budgetID)
+	return err
+}
+
 const unarchiveAccount = `-- name: UnarchiveAccount :one
 UPDATE accounts
 SET archived_at = NULL, updated_at = now()
