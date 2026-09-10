@@ -1,15 +1,15 @@
 -- name: CreateBudget :one
 INSERT INTO budgets (title, notes)
 VALUES ($1, $2)
-RETURNING id, title, notes, created_at, updated_at, deleted_at;
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at;
 
 -- name: GetBudgetByID :one
-SELECT id, title, notes, created_at, updated_at, deleted_at
+SELECT id, title, notes, created_at, updated_at, deleted_at, archived_at
 FROM budgets
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListBudgetsForUser :many
-SELECT b.id, b.title, b.notes, b.created_at, b.updated_at, b.deleted_at
+SELECT b.id, b.title, b.notes, b.created_at, b.updated_at, b.deleted_at, b.archived_at
 FROM budgets b
 JOIN budget_users bu ON bu.budget_id = b.id
 WHERE bu.user_id    = $1
@@ -21,7 +21,7 @@ ORDER BY b.created_at DESC;
 UPDATE budgets
 SET title = $2, notes = $3, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, title, notes, created_at, updated_at, deleted_at;
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at;
 
 -- name: PatchBudget :one
 UPDATE budgets
@@ -29,11 +29,22 @@ SET title      = COALESCE(sqlc.narg(title), title),
     notes      = COALESCE(sqlc.narg(notes), notes),
     updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, title, notes, created_at, updated_at, deleted_at;
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at;
 
 -- name: SoftDeleteBudget :exec
 UPDATE budgets
 SET deleted_at = now()
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: ArchiveBudget :one
+UPDATE budgets
+SET archived_at = now(), updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL AND archived_at IS NULL
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at;
+
+-- name: IsBudgetArchived :one
+SELECT (archived_at IS NOT NULL)::bool AS archived
+FROM budgets
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: CountActiveBudgetsForUser :one

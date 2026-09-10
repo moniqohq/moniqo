@@ -72,6 +72,7 @@ export function EditBudgetDialog({ open, onOpenChange, budget, onSaved }: EditBu
         name: updated.title,
         notes: updated.notes ?? undefined,
         createdAt: updated.created_at,
+        isArchived: updated.is_archived,
       });
       onOpenChange(false);
     } catch (err) {

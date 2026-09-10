@@ -65,6 +65,7 @@ import type { DateRange } from "./DateRangePicker";
 import type { Transaction, AccountType } from "@/types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { useUIStore } from "@/stores/ui.store";
+import { useActiveBudget } from "@/hooks/use-budgets";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -832,6 +833,7 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 /* ── Main view ──────────────────────────────────────────── */
 export function TransactionsView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const isBudgetArchived = !!useActiveBudget()?.isArchived;
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [duplicateSeed, setDuplicateSeed] = useState<Transaction | null>(null);
@@ -1014,7 +1016,7 @@ export function TransactionsView() {
 
   async function markDetailTxReconciled() {
     if (!detailTx || !activeBudgetId) return;
-    if (accountMap.get(detailTx.accountId)?.is_immutable) return;
+    if (accountMap.get(detailTx.accountId)?.is_immutable || isBudgetArchived) return;
     await patchTransaction(activeBudgetId, detailTx.id, { status: "reconciled" });
     setDetailTx((prev) =>
       prev && prev.id === detailTx.id ? { ...prev, status: "reconciled", cleared: true } : prev,
@@ -1077,7 +1079,9 @@ export function TransactionsView() {
               setDuplicateSeed(null);
               setModalOpen(true);
             }}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none"
+            disabled={isBudgetArchived}
+            title={isBudgetArchived ? "This budget is archived and cannot be modified" : undefined}
+            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#6C3AED]"
           >
             <Plus size={14} />
             Add Transaction
@@ -1330,20 +1334,23 @@ export function TransactionsView() {
                     index={i}
                     accounts={accounts}
                     selected={selected.has(tx.id)}
-                    isImmutable={Boolean(accountMap.get(tx.accountId)?.is_immutable)}
+                    isImmutable={Boolean(accountMap.get(tx.accountId)?.is_immutable) || isBudgetArchived}
                     onSelect={() => toggleRow(tx.id)}
                     onRowClick={() => {
                       setDetailTx(tx);
                       setDetailOpen(true);
                     }}
                     onEdit={() => {
-                      if (accountMap.get(tx.accountId)?.is_immutable) return;
+                      if (accountMap.get(tx.accountId)?.is_immutable || isBudgetArchived) return;
                       setEditTx(tx);
                       setEditOpen(true);
                     }}
-                    onDelete={() => openDeleteModal(tx)}
+                    onDelete={() => {
+                      if (isBudgetArchived) return;
+                      openDeleteModal(tx);
+                    }}
                     onToggleCleared={async () => {
-                      if (!activeBudgetId) return;
+                      if (!activeBudgetId || isBudgetArchived) return;
                       const nextStatus =
                         tx.status === "cleared" || tx.status === "reconciled"
                           ? "uncleared"
@@ -1434,16 +1441,18 @@ export function TransactionsView() {
         tx={detailTx}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        isLocked={Boolean(detailTx && accountMap.get(detailTx.accountId)?.is_immutable)}
+        isLocked={Boolean(
+          detailTx && accountMap.get(detailTx.accountId)?.is_immutable,
+        ) || isBudgetArchived}
         envelope={detailTx?.envelopeId != null ? envelopeMap.get(detailTx.envelopeId) : undefined}
         onDelete={() => {
           if (!detailTx) return;
-          if (accountMap.get(detailTx.accountId)?.is_immutable) return;
+          if (accountMap.get(detailTx.accountId)?.is_immutable || isBudgetArchived) return;
           openDeleteModal(detailTx);
         }}
         onEdit={() => {
           if (!detailTx) return;
-          if (accountMap.get(detailTx.accountId)?.is_immutable) return;
+          if (accountMap.get(detailTx.accountId)?.is_immutable || isBudgetArchived) return;
           setEditTx(detailTx);
           setEditOpen(true);
           setDetailOpen(false);

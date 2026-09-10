@@ -48,9 +48,15 @@ interface Props {
   accountId: number;
   budgetId: number;
   isArchived?: boolean;
+  isBudgetArchived?: boolean;
 }
 
-export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }: Props) {
+export function AccountInsightsPanel({
+  accountId,
+  budgetId,
+  isArchived = false,
+  isBudgetArchived = false,
+}: Props) {
   const router = useRouter();
   const { accountMap, accounts } = useAccounts(budgetId);
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
@@ -66,6 +72,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(108,58,237,0.15)",
       title: "Create Transaction",
       desc: "Record a new transaction",
+      disabled: isBudgetArchived,
     },
     {
       icon: <ArrowLeftRight size={16} />,
@@ -73,6 +80,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(59,130,246,0.15)",
       title: "Record Transfer",
       desc: "Move money between accounts",
+      disabled: isBudgetArchived,
     },
     {
       icon: <CheckCircle size={16} />,
@@ -80,6 +88,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(34,197,94,0.15)",
       title: "Reconcile Balance",
       desc: "Verify cleared transactions",
+      disabled: isBudgetArchived,
     },
     {
       icon: <Download size={16} />,
@@ -107,6 +116,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
           bg: "rgba(107,114,128,0.12)",
           title: "Unarchive Account",
           desc: "Restore to active accounts",
+          disabled: isBudgetArchived,
         }
       : {
           icon: <Archive size={16} />,
@@ -114,6 +124,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
           bg: "rgba(107,114,128,0.12)",
           title: "Archive Account",
           desc: "Hide from active accounts",
+          disabled: isBudgetArchived,
         },
   ];
   const inflows = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
@@ -183,7 +194,13 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
                 key={title}
                 onClick={isDisabled ? undefined : onClick}
                 disabled={isDisabled}
-                title={disabled ? "Coming soon" : undefined}
+                title={
+                  isBudgetArchived && disabled
+                    ? "This budget is archived and cannot be modified"
+                    : disabled
+                      ? "Coming soon"
+                      : undefined
+                }
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-all",
                   isDisabled

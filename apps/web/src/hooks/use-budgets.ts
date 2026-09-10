@@ -34,6 +34,7 @@ function apiBudgetToUI(b: ApiBudget): Budget {
     name: b.title,
     notes: b.notes ?? undefined,
     createdAt: b.created_at,
+    isArchived: b.is_archived,
   };
 }
 
@@ -63,4 +64,11 @@ export function useBudgets() {
     error: query.error ? (query.error as Error).message : null,
     refetch: query.refetch,
   };
+}
+
+/** Returns the currently active Budget object (or undefined while loading/unset). */
+export function useActiveBudget(): Budget | undefined {
+  const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const { data: budgets } = useBudgets();
+  return budgets.find((b) => b.id === activeBudgetId);
 }

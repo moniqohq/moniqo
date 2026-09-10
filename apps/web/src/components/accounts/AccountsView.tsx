@@ -39,6 +39,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useActiveBudget } from "@/hooks/use-budgets";
 import { useAccountBalanceHistory } from "@/hooks/use-account-balance-history";
 import type { ApiBalancePoint } from "@/lib/api/types";
 import { formatCurrency, formatCurrencyCompact, cn } from "@/lib/utils";
@@ -384,6 +385,8 @@ export function AccountsView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const activeBudget = useActiveBudget();
+  const isBudgetArchived = !!activeBudget?.isArchived;
 
   const initialStatus = (searchParams.get("status") ?? "active") as StatusFilter;
   const initialType = (searchParams.get("type") ?? "all") as TypeFilter;
@@ -582,7 +585,9 @@ export function AccountsView() {
           )}
           <button
             onClick={() => setAddModalOpen(true)}
-            className="mr-2 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.35)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.5)]"
+            disabled={isBudgetArchived}
+            title={isBudgetArchived ? "This budget is archived and cannot be modified" : undefined}
+            className="mr-2 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B21B6] to-[#6C3AED] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(108,58,237,0.35)] transition-all hover:from-[#6C3AED] hover:to-[#7C4AFF] hover:shadow-[0_0_28px_rgba(108,58,237,0.5)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-[#5B21B6] disabled:hover:to-[#6C3AED] disabled:hover:shadow-[0_0_20px_rgba(108,58,237,0.35)]"
           >
             <Plus size={15} />
             Add Account
@@ -667,6 +672,7 @@ export function AccountsView() {
             selectedId={selectedAccount?.id ?? 0}
             onSelect={handleSelect}
             onCreateAccount={() => setAddModalOpen(true)}
+            createDisabled={isBudgetArchived}
           />
           {selectedAccount != null && (
             <AccountDetails accountId={selectedAccount.id} budgetId={selectedAccount.budgetId} />
@@ -676,6 +682,7 @@ export function AccountsView() {
               accountId={selectedAccount.id}
               budgetId={selectedAccount.budgetId}
               isArchived={selectedAccount.isArchived}
+              isBudgetArchived={isBudgetArchived}
             />
           )}
         </div>

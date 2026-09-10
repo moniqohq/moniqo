@@ -176,6 +176,24 @@ func TestSvc_Create(t *testing.T) {
 		require.NoError(t, err)
 		repo.AssertExpectations(t)
 	})
+
+	t.Run("rejects when budget is archived", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		checker := &internalmock.BudgetChecker{}
+		checker.On("IsArchived", testBudgetID).Return(true, nil)
+
+		svc := account.NewSvc(repo, log)
+		svc.SetBudgetChecker(checker)
+		_, err := svc.Create(context.Background(), testBudgetID, account.CreateRequest{
+			Name: "Checking",
+			Type: models.AccountTypeChecking,
+		})
+
+		assert.ErrorIs(t, err, account.ErrBudgetArchived)
+		repo.AssertNotCalled(t, "Create")
+		checker.AssertExpectations(t)
+	})
 }
 
 // TestSvc_GetByID covers account.Svc.GetByID.

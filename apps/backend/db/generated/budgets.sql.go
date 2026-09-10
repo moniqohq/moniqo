@@ -29,6 +29,28 @@ import (
 	"context"
 )
 
+const archiveBudget = `-- name: ArchiveBudget :one
+UPDATE budgets
+SET archived_at = now(), updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL AND archived_at IS NULL
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at
+`
+
+func (q *Queries) ArchiveBudget(ctx context.Context, id int64) (Budget, error) {
+	row := q.db.QueryRow(ctx, archiveBudget, id)
+	var i Budget
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.ArchivedAt,
+	)
+	return i, err
+}
+
 const budgetTitleExistsForUser = `-- name: BudgetTitleExistsForUser :one
 SELECT EXISTS (
     SELECT 1
@@ -75,7 +97,7 @@ func (q *Queries) CountActiveBudgetsForUser(ctx context.Context, userID int64) (
 const createBudget = `-- name: CreateBudget :one
 INSERT INTO budgets (title, notes)
 VALUES ($1, $2)
-RETURNING id, title, notes, created_at, updated_at, deleted_at
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at
 `
 
 type CreateBudgetParams struct {
@@ -93,12 +115,13 @@ func (q *Queries) CreateBudget(ctx context.Context, arg CreateBudgetParams) (Bud
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
 
 const getBudgetByID = `-- name: GetBudgetByID :one
-SELECT id, title, notes, created_at, updated_at, deleted_at
+SELECT id, title, notes, created_at, updated_at, deleted_at, archived_at
 FROM budgets
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -113,12 +136,26 @@ func (q *Queries) GetBudgetByID(ctx context.Context, id int64) (Budget, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
 
+const isBudgetArchived = `-- name: IsBudgetArchived :one
+SELECT (archived_at IS NOT NULL)::bool AS archived
+FROM budgets
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) IsBudgetArchived(ctx context.Context, id int64) (bool, error) {
+	row := q.db.QueryRow(ctx, isBudgetArchived, id)
+	var archived bool
+	err := row.Scan(&archived)
+	return archived, err
+}
+
 const listBudgetsForUser = `-- name: ListBudgetsForUser :many
-SELECT b.id, b.title, b.notes, b.created_at, b.updated_at, b.deleted_at
+SELECT b.id, b.title, b.notes, b.created_at, b.updated_at, b.deleted_at, b.archived_at
 FROM budgets b
 JOIN budget_users bu ON bu.budget_id = b.id
 WHERE bu.user_id    = $1
@@ -143,6 +180,7 @@ func (q *Queries) ListBudgetsForUser(ctx context.Context, userID int64) ([]Budge
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.ArchivedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -160,7 +198,7 @@ SET title      = COALESCE($2, title),
     notes      = COALESCE($3, notes),
     updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, title, notes, created_at, updated_at, deleted_at
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at
 `
 
 type PatchBudgetParams struct {
@@ -179,6 +217,7 @@ func (q *Queries) PatchBudget(ctx context.Context, arg PatchBudgetParams) (Budge
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -198,7 +237,7 @@ const updateBudget = `-- name: UpdateBudget :one
 UPDATE budgets
 SET title = $2, notes = $3, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, title, notes, created_at, updated_at, deleted_at
+RETURNING id, title, notes, created_at, updated_at, deleted_at, archived_at
 `
 
 type UpdateBudgetParams struct {
@@ -217,6 +256,7 @@ func (q *Queries) UpdateBudget(ctx context.Context, arg UpdateBudgetParams) (Bud
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }

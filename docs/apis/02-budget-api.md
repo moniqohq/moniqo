@@ -37,6 +37,8 @@ Represents a financial planning container.
 | `id` | Integer | Yes | Auto-generated serial identifier |
 | `title` | String | Yes | Unique budget title per user |
 | `notes` | String | No | Optional description |
+| `is_archived` | Boolean | Yes | Whether the budget has been archived |
+| `archived_at` | String (ISO 8601) | No | Timestamp the budget was archived, if any |
 
 ---
 
@@ -331,4 +333,45 @@ Budget becomes inaccessible but is preserved.
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 404 | `NOT_FOUND` | Budget not found |
 | 409 | `CONFLICT` | User has only one active budget remaining |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+### Archive Budget
+
+Marks the budget as archived: all accounts, envelopes, and transactions within it become read-only. Idempotent — archiving an already-archived budget returns it unchanged. There is no unarchive endpoint; archiving a budget is permanent.
+
+**`POST /api/v1/budgets/{id}/archive`**
+**Authentication:** Required. Role must be `OWNER` or `ADMIN`.
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "title": "Household Budget",
+    "notes": "Shared with spouse",
+    "is_archived": true,
+    "archived_at": "2026-07-07T10:15:00Z"
+  },
+  "msg": "budget archived successfully"
+}
+```
+
+**Business Rules**
+
+- No unarchive operation exists; this is a one-way transition.
+- Once archived, all create/update/delete operations on the budget's accounts, envelopes, and transactions are rejected with `409 CONFLICT`.
+- Idempotent: re-archiving an already-archived budget succeeds without change.
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid ID |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 403 | `FORBIDDEN` | Caller is not `OWNER` or `ADMIN` |
+| 404 | `NOT_FOUND` | Budget not found |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |

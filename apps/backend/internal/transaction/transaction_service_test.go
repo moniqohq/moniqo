@@ -147,6 +147,25 @@ func TestSvc_Create(t *testing.T) {
 		assert.Equal(t, money.FromMinorUnits(150000), txn.Amount)
 		repo.AssertExpectations(t)
 	})
+
+	t.Run("rejects when budget is archived", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		budgetChecker := &internalmock.BudgetChecker{}
+		budgetChecker.On("IsArchived", testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetBudgetChecker(budgetChecker)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrBudgetArchived)
+		repo.AssertNotCalled(t, "Create")
+		budgetChecker.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------

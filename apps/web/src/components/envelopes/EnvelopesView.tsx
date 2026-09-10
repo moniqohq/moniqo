@@ -43,6 +43,7 @@ import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useUIStore } from "@/stores/ui.store";
 import { useEnvelopes } from "@/hooks/use-envelopes";
+import { useActiveBudget } from "@/hooks/use-budgets";
 import type { EnvelopeStatusParam } from "@/lib/api/envelopes";
 import { useEnvelopes as useApiEnvelopes } from "@/hooks/useEnvelopes";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -128,22 +129,25 @@ function RowActions({
   onAddTransaction,
   onModify,
   onArchive,
+  disabled = false,
 }: {
   onAddTransaction: () => void;
   onModify: () => void;
   onArchive: () => void;
+  disabled?: boolean;
 }) {
   const btnCls =
-    "p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30";
+    "p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[#5A6A85] disabled:hover:bg-transparent";
+  const title = disabled ? "This budget is archived and cannot be modified" : undefined;
   return (
     <div className="flex items-center gap-0.5">
-      <button onClick={onAddTransaction} title="Add Transaction" className={btnCls}>
+      <button onClick={onAddTransaction} disabled={disabled} title={title ?? "Add Transaction"} className={btnCls}>
         <PlusCircle size={13} />
       </button>
-      <button onClick={onModify} title="Modify Envelope" className={btnCls}>
+      <button onClick={onModify} disabled={disabled} title={title ?? "Modify Envelope"} className={btnCls}>
         <Pencil size={13} />
       </button>
-      <button onClick={onArchive} title="Archive Envelope" className={btnCls}>
+      <button onClick={onArchive} disabled={disabled} title={title ?? "Archive Envelope"} className={btnCls}>
         <Archive size={13} />
       </button>
     </div>
@@ -604,6 +608,8 @@ export function EnvelopesView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
+  const activeBudget = useActiveBudget();
+  const isBudgetArchived = !!activeBudget?.isArchived;
 
   const initialStatus = (searchParams.get("status") ?? "active") as ArchivedFilter;
   const [statusFilter, setStatusFilter] = useState<ArchivedFilter>(initialStatus);
@@ -790,7 +796,9 @@ export function EnvelopesView() {
 
           <button
             onClick={() => setAddOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-4 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none"
+            disabled={isBudgetArchived}
+            title={isBudgetArchived ? "This budget is archived and cannot be modified" : undefined}
+            className="inline-flex items-center gap-2 rounded-lg border border-[#6C3AED] bg-[#6C3AED] px-4 py-2 text-sm font-medium whitespace-nowrap text-white shadow-sm transition-colors hover:bg-[#7C4AFF] focus:ring-2 focus:ring-[#6C3AED]/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#6C3AED]"
           >
             <Plus size={14} />
             Add Envelope
@@ -999,6 +1007,7 @@ export function EnvelopesView() {
                                     );
                                     setArchiveOpen(true);
                                   }}
+                                  disabled={isBudgetArchived}
                                 />
                               </div>
                             </td>

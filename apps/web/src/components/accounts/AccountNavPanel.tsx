@@ -38,6 +38,7 @@ interface Props {
   selectedId: number;
   onSelect: (id: number) => void;
   onCreateAccount: () => void;
+  createDisabled?: boolean;
 }
 
 const TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string; bg: string }> = {
@@ -180,7 +181,13 @@ function AccountGroup({
   );
 }
 
-export function AccountNavPanel({ accounts, selectedId, onSelect, onCreateAccount }: Props) {
+export function AccountNavPanel({
+  accounts,
+  selectedId,
+  onSelect,
+  onCreateAccount,
+  createDisabled = false,
+}: Props) {
   const activeAccounts = accounts.filter((a) => !a.isArchived);
   const archivedAccounts = accounts.filter((a) => a.isArchived);
 
@@ -227,7 +234,9 @@ export function AccountNavPanel({ accounts, selectedId, onSelect, onCreateAccoun
       <div className="border-t border-[#1A2540] p-3">
         <button
           onClick={onCreateAccount}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[rgba(108,58,237,0.4)] px-3 py-2.5 text-xs font-semibold text-[#7C3AED] transition-all hover:border-[rgba(108,58,237,0.6)] hover:bg-[rgba(108,58,237,0.08)] hover:shadow-[0_0_12px_rgba(108,58,237,0.15)]"
+          disabled={createDisabled}
+          title={createDisabled ? "This budget is archived and cannot be modified" : undefined}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[rgba(108,58,237,0.4)] px-3 py-2.5 text-xs font-semibold text-[#7C3AED] transition-all hover:border-[rgba(108,58,237,0.6)] hover:bg-[rgba(108,58,237,0.08)] hover:shadow-[0_0_12px_rgba(108,58,237,0.15)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-[rgba(108,58,237,0.4)] disabled:hover:bg-transparent disabled:hover:shadow-none"
         >
           <Plus size={13} />
           Create New Account

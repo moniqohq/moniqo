@@ -79,10 +79,12 @@ func (r Role) Rank() int {
 // Budget is the API-facing representation of a budget (tenant boundary).
 // Internal fields (updated_at, deleted_at) are excluded by type.
 type Budget struct {
-	ID        int64     `json:"id"`
-	Title     string    `json:"title"`
-	Notes     *string   `json:"notes"`
-	CreatedAt time.Time `json:"created_at"`
+	ID         int64      `json:"id"`
+	Title      string     `json:"title"`
+	Notes      *string    `json:"notes"`
+	CreatedAt  time.Time  `json:"created_at"`
+	IsArchived bool       `json:"is_archived"`
+	ArchivedAt *time.Time `json:"archived_at"`
 }
 
 // BudgetUser is the API-facing representation of a budget membership record.

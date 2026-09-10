@@ -452,6 +452,8 @@ func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 		budget.RequireBudgetAccess(membershipRepo, authz.BudgetEdit, log))
 	budgetsGroup.DELETE("/:id", budgetHandler.Delete,
 		budget.RequireBudgetAccess(membershipRepo, authz.BudgetDelete, log))
+	budgetsGroup.POST("/:id/archive", budgetHandler.Archive,
+		budget.RequireBudgetAccess(membershipRepo, authz.BudgetArchive, log))
 
 	// Membership routes — all require ManageMembers (OWNER only).
 	membersGroup := e.Group("/api/v1/budgets")
@@ -472,6 +474,7 @@ func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 
 	accountRepo := account.NewRepo(pool, log)
 	accountSvc := account.NewSvc(accountRepo, log)
+	accountSvc.SetBudgetChecker(budget.NewRepo(pool, log))
 	accountHandler := account.NewHandler(accountSvc, log)
 
 	// Account routes are nested under a budget; budget_id is the membership scope.
@@ -503,6 +506,7 @@ func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 
 	envelopeRepo := envelope.NewRepo(pool, log)
 	envelopeSvc := envelope.NewSvc(envelopeRepo, log)
+	envelopeSvc.SetBudgetChecker(budget.NewRepo(pool, log))
 	envelopeHandler := envelope.NewHandler(envelopeSvc, log)
 
 	// Envelope routes are nested under a budget; budget_id is the membership scope.
@@ -537,6 +541,7 @@ func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger
 	txnRepo := transaction.NewRepo(pool, log)
 	txnSvc := transaction.NewSvc(txnRepo, log)
 	txnSvc.SetAccountChecker(account.NewRepo(pool, log))
+	txnSvc.SetBudgetChecker(budget.NewRepo(pool, log))
 	txnHandler := transaction.NewHandler(txnSvc, log)
 
 	txnGroup := e.Group("/api/v1/budgets/:budget_id/transactions")

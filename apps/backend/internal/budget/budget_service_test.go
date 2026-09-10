@@ -207,3 +207,35 @@ func TestSvc_SoftDelete(t *testing.T) {
 		repo.AssertExpectations(t)
 	})
 }
+
+func TestSvc_Archive(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.BudgetRepository{}
+		archived := makeBudget("My Budget")
+		archived.IsArchived = true
+		repo.On("Archive", testBudgetID).Return(archived, nil)
+
+		svc := budget.NewSvc(repo, log)
+		b, err := svc.Archive(context.Background(), testBudgetID)
+
+		require.NoError(t, err)
+		assert.True(t, b.IsArchived)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.BudgetRepository{}
+		repo.On("Archive", testBudgetID).Return(models.Budget{}, budget.ErrNotFound)
+
+		svc := budget.NewSvc(repo, log)
+		_, err := svc.Archive(context.Background(), testBudgetID)
+
+		assert.ErrorIs(t, err, budget.ErrNotFound)
+		repo.AssertExpectations(t)
+	})
+}

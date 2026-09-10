@@ -36,6 +36,18 @@ import (
 // the requested operation (e.g. only OWNER/ADMIN may delete an envelope).
 var ErrForbidden = errors.New("insufficient role")
 
+// ErrBudgetArchived is returned when a mutating operation is attempted
+// against an envelope whose budget has been archived. Archived budgets are
+// read-only: no new activity is allowed on their envelopes.
+var ErrBudgetArchived = errors.New("budget is archived")
+
+// BudgetChecker reports whether a budget is archived. Satisfied by the
+// budget package's Repository; kept as a narrow interface here to avoid an
+// import cycle between the envelope and budget packages.
+type BudgetChecker interface {
+	IsArchived(ctx context.Context, budgetID int64) (bool, error)
+}
+
 // Service is the business-logic contract for envelopes.
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.BudgetEnvelope, error)
@@ -51,8 +63,9 @@ type Service interface {
 
 // Svc is the concrete implementation of Service.
 type Svc struct {
-	repo Repository
-	log  *zap.Logger
+	repo   Repository
+	budget BudgetChecker
+	log    *zap.Logger
 }
 
 // NewSvc returns a Svc wired to the given repository.
@@ -60,9 +73,34 @@ func NewSvc(repo Repository, log *zap.Logger) *Svc {
 	return &Svc{repo: repo, log: log}
 }
 
+// SetBudgetChecker wires a BudgetChecker used to reject envelope mutations
+// against archived budgets. When unset, the archived-budget guard is skipped.
+func (s *Svc) SetBudgetChecker(budget BudgetChecker) {
+	s.budget = budget
+}
+
+// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
+func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
+	if s.budget == nil {
+		return nil
+	}
+	archived, err := s.budget.IsArchived(ctx, budgetID)
+	if err != nil {
+		return fmt.Errorf("check budget archived: %w", err)
+	}
+	if archived {
+		return ErrBudgetArchived
+	}
+	return nil
+}
+
 // Create inserts a new envelope into budgetID.
 func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (models.BudgetEnvelope, error) {
 	s.log.Debug("creating envelope", zap.Int64("budget_id", budgetID), zap.String("title", req.Title))
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.BudgetEnvelope{}, err
+	}
 
 	exists, err := s.repo.ExistsByTitle(ctx, budgetID, req.Title, nil)
 	if err != nil {
@@ -169,6 +207,10 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		zap.Int64("budget_id", budgetID),
 	)
 
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.BudgetEnvelope{}, err
+	}
+
 	existing, err := s.repo.GetByID(ctx, id, budgetID)
 	if err != nil {
 		if !errors.Is(err, ErrNotFound) {
@@ -236,6 +278,10 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		zap.Int64("envelope_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.BudgetEnvelope{}, err
+	}
 
 	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {
 		if !errors.Is(err, ErrNotFound) {
@@ -312,6 +358,10 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		return ErrForbidden
 	}
 
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return err
+	}
+
 	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil
@@ -373,6 +423,10 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 func (s *Svc) ForceDelete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
 	if callerRole != models.RoleOwner {
 		return ErrForbidden
+	}
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return err
 	}
 
 	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {

@@ -51,6 +51,18 @@ type AccountChecker interface {
 	IsImmutable(ctx context.Context, id, budgetID int64) (bool, error)
 }
 
+// ErrBudgetArchived is returned when a transaction is created or modified
+// against an archived budget. Archived budgets are read-only: no new
+// activity is allowed.
+var ErrBudgetArchived = errors.New("budget is archived")
+
+// BudgetChecker reports whether a budget is archived. Satisfied by the
+// budget package's Repository; kept as a narrow interface here to avoid an
+// import cycle between the transaction and budget packages.
+type BudgetChecker interface {
+	IsArchived(ctx context.Context, budgetID int64) (bool, error)
+}
+
 // statusOrDefault returns s if set, otherwise the default uncleared status for new transactions.
 func statusOrDefault(s *models.TransactionStatus) models.TransactionStatus {
 	if s == nil {
@@ -74,6 +86,7 @@ type Service interface {
 type Svc struct {
 	repo     Repository
 	accounts AccountChecker
+	budget   BudgetChecker
 	log      *zap.Logger
 }
 
@@ -86,6 +99,27 @@ func NewSvc(repo Repository, log *zap.Logger) *Svc {
 // against archived accounts. When unset, the archived-account guard is skipped.
 func (s *Svc) SetAccountChecker(accounts AccountChecker) {
 	s.accounts = accounts
+}
+
+// SetBudgetChecker wires a BudgetChecker used to reject transaction mutations
+// against archived budgets. When unset, the archived-budget guard is skipped.
+func (s *Svc) SetBudgetChecker(budget BudgetChecker) {
+	s.budget = budget
+}
+
+// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
+func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
+	if s.budget == nil {
+		return nil
+	}
+	archived, err := s.budget.IsArchived(ctx, budgetID)
+	if err != nil {
+		return fmt.Errorf("check budget archived: %w", err)
+	}
+	if archived {
+		return ErrBudgetArchived
+	}
+	return nil
 }
 
 // Create persists a standard (non-transfer) transaction.
@@ -102,6 +136,9 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	}
 	if req.EnvelopeID == nil && req.Amount.Int64() < 0 {
 		return models.Transaction{}, ErrValidation
+	}
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Transaction{}, err
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
@@ -152,6 +189,9 @@ func (s *Svc) CreateTransfer(ctx context.Context, budgetID int64, req CreateRequ
 	}
 	if *req.TransferAccountID == req.AccountID {
 		return models.Transaction{}, ErrConflict
+	}
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Transaction{}, err
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
@@ -273,6 +313,9 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 	if req.Amount.Int64() == 0 {
 		return models.Transaction{}, ErrValidation
 	}
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Transaction{}, err
+	}
 
 	existing, err := s.repo.GetByID(ctx, id, budgetID)
 	if err != nil {
@@ -377,6 +420,9 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 	if req.Amount != nil && req.Amount.Int64() == 0 {
 		return models.Transaction{}, ErrValidation
 	}
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Transaction{}, err
+	}
 	if req.AccountID != nil {
 		if err := s.checkNotArchived(ctx, *req.AccountID, budgetID); err != nil {
 			return models.Transaction{}, err
@@ -465,6 +511,10 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
 	if callerRole == models.RoleViewer {
 		return ErrForbidden
+	}
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return err
 	}
 
 	txn, err := s.repo.GetByID(ctx, id, budgetID)
