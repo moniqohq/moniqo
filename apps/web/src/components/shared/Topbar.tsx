@@ -33,6 +33,7 @@ import {
   Settings,
   LogOut,
   User,
+  Trash2,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { useBudgets } from "@/hooks/use-budgets";
@@ -44,6 +45,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { Budget } from "@/types";
 import { CreateBudgetModal } from "@/components/budget/CreateBudgetModal";
+import { DeleteBudgetDialog } from "@/components/budget/DeleteBudgetDialog";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
 function BudgetSwitcher({
@@ -57,6 +59,7 @@ function BudgetSwitcher({
 }) {
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
@@ -117,47 +120,63 @@ function BudgetSwitcher({
               {budgets.map((budget) => {
                 const isActive = budget.id === activeBudgetId;
                 return (
-                  <button
-                    key={budget.id}
-                    onClick={() => {
-                      setActiveBudget(budget.id);
-                      setOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors",
-                      isActive
-                        ? "bg-[#6C3AED]/20 text-white"
-                        : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
-                    )}
-                  >
-                    <span
+                  <div key={budget.id} className="group relative flex items-center">
+                    <button
+                      onClick={() => {
+                        setActiveBudget(budget.id);
+                        setOpen(false);
+                      }}
                       className={cn(
-                        "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
-                        isActive ? "bg-[#6C3AED]" : "bg-[#131C2E]",
+                        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors",
+                        isActive
+                          ? "bg-[#6C3AED]/20 text-white"
+                          : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                       )}
                     >
-                      <Wallet
-                        size={15}
-                        className={isActive ? "text-white" : "text-[#5A6A85]"}
-                        strokeWidth={1.8}
-                      />
-                    </span>
-
-                    <div className="min-w-0 flex-1">
-                      <p
+                      <span
                         className={cn(
-                          "truncate text-sm leading-tight font-medium",
-                          isActive ? "text-white" : "text-[#A8B4CC]",
+                          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
+                          isActive ? "bg-[#6C3AED]" : "bg-[#131C2E]",
                         )}
                       >
-                        {budget.name}
-                      </p>
-                    </div>
+                        <Wallet
+                          size={15}
+                          className={isActive ? "text-white" : "text-[#5A6A85]"}
+                          strokeWidth={1.8}
+                        />
+                      </span>
 
-                    {isActive && (
-                      <Check size={14} className="flex-shrink-0 text-[#7C5AFF]" strokeWidth={2.5} />
-                    )}
-                  </button>
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "truncate text-sm leading-tight font-medium",
+                            isActive ? "text-white" : "text-[#A8B4CC]",
+                          )}
+                        >
+                          {budget.name}
+                        </p>
+                      </div>
+
+                      {isActive && (
+                        <Check
+                          size={14}
+                          className="mr-1 flex-shrink-0 text-[#7C5AFF] transition-opacity group-hover:opacity-0"
+                          strokeWidth={2.5}
+                        />
+                      )}
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(budget);
+                      }}
+                      title="Delete budget"
+                      className="absolute right-1.5 flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] opacity-0 transition-all group-hover:opacity-100 hover:bg-[#EF4444]/15 hover:text-[#EF4444] focus:opacity-100 focus:outline-none"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -186,6 +205,24 @@ function BudgetSwitcher({
         onClose={() => setCreateOpen(false)}
         onCreated={onBudgetCreated}
       />
+
+      {deleteTarget && (
+        <DeleteBudgetDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => {
+            if (!o) setDeleteTarget(null);
+          }}
+          budget={deleteTarget}
+          isOnlyBudget={budgets.length <= 1}
+          onDeleted={(deletedId) => {
+            if (deletedId === activeBudgetId) {
+              const next = budgets.find((b) => b.id !== deletedId);
+              setActiveBudget(next?.id ?? null);
+            }
+            onBudgetCreated();
+          }}
+        />
+      )}
     </div>
   );
 }

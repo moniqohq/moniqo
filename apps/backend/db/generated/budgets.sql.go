@@ -56,6 +56,22 @@ func (q *Queries) BudgetTitleExistsForUser(ctx context.Context, arg BudgetTitleE
 	return exists, err
 }
 
+const countActiveBudgetsForUser = `-- name: CountActiveBudgetsForUser :one
+SELECT COUNT(*)
+FROM budgets b
+JOIN budget_users bu ON bu.budget_id = b.id
+WHERE bu.user_id    = $1
+  AND bu.deleted_at IS NULL
+  AND b.deleted_at  IS NULL
+`
+
+func (q *Queries) CountActiveBudgetsForUser(ctx context.Context, userID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveBudgetsForUser, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createBudget = `-- name: CreateBudget :one
 INSERT INTO budgets (title, notes)
 VALUES ($1, $2)

@@ -39,6 +39,7 @@ type Repository interface {
 	Patch(ctx context.Context, p PatchParams) (models.Budget, error)
 	SoftDeleteCascade(ctx context.Context, budgetID int64) error
 	TitleExistsForUser(ctx context.Context, userID int64, title string, excludeBudgetID int64) (bool, error)
+	CountActiveBudgetsForUser(ctx context.Context, userID int64) (int64, error)
 }
 
 // Svc implements business logic for budget operations.
@@ -145,9 +146,19 @@ func (s *Svc) Patch(ctx context.Context, ownerID, budgetID int64, req PatchReque
 }
 
 // SoftDelete soft-deletes the budget and its memberships. Idempotent — deleting
-// an already-deleted budget returns success.
-func (s *Svc) SoftDelete(ctx context.Context, budgetID int64) error {
+// an already-deleted budget returns success. Rejects deletion with ErrLastBudget
+// if userID would be left with no active budgets.
+func (s *Svc) SoftDelete(ctx context.Context, userID, budgetID int64) error {
 	s.log.Info("soft-deleting budget", zap.Int64("budget_id", budgetID))
+
+	count, err := s.repo.CountActiveBudgetsForUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("count active budgets: %w", err)
+	}
+	if count <= 1 {
+		return ErrLastBudget
+	}
+
 	if err := s.repo.SoftDeleteCascade(ctx, budgetID); err != nil {
 		return fmt.Errorf("soft delete budget: %w", err)
 	}

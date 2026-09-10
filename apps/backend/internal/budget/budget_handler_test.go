@@ -218,11 +218,12 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("success returns 200", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.BudgetService{
-			SoftDeleteFn: func(_ context.Context, _ int64) error { return nil },
+			SoftDeleteFn: func(_ context.Context, _, _ int64) error { return nil },
 		}
 		c, rec := newCtx(e, http.MethodDelete, "/api/v1/budgets/10", "")
 		c.SetParamNames("id")
 		c.SetParamValues("10")
+		injectMembership(c, models.BudgetUser{UserID: testUserID, BudgetID: testBudgetID, Role: models.RoleOwner})
 		h := budget.NewHandler(svc, log)
 
 		require.NoError(t, h.Delete(c))
@@ -232,15 +233,42 @@ func TestHandler_Delete(t *testing.T) {
 		assert.Equal(t, "budget deleted successfully", resp.Msg)
 	})
 
+	t.Run("last budget returns 409", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.BudgetService{
+			SoftDeleteFn: func(_ context.Context, _, _ int64) error { return budget.ErrLastBudget },
+		}
+		c, rec := newCtx(e, http.MethodDelete, "/api/v1/budgets/10", "")
+		c.SetParamNames("id")
+		c.SetParamValues("10")
+		injectMembership(c, models.BudgetUser{UserID: testUserID, BudgetID: testBudgetID, Role: models.RoleOwner})
+		h := budget.NewHandler(svc, log)
+
+		require.NoError(t, h.Delete(c))
+		assert.Equal(t, http.StatusConflict, rec.Code)
+	})
+
 	t.Run("invalid id returns 404", func(t *testing.T) {
 		t.Parallel()
 		c, rec := newCtx(e, http.MethodDelete, "/api/v1/budgets/notanid", "")
 		c.SetParamNames("id")
 		c.SetParamValues("notanid")
+		injectMembership(c, models.BudgetUser{UserID: testUserID, BudgetID: testBudgetID, Role: models.RoleOwner})
 		h := budget.NewHandler(nil, log)
 
 		require.NoError(t, h.Delete(c))
 		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("no membership returns 401", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodDelete, "/api/v1/budgets/10", "")
+		c.SetParamNames("id")
+		c.SetParamValues("10")
+		h := budget.NewHandler(nil, log)
+
+		require.NoError(t, h.Delete(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 }
 

@@ -46,7 +46,7 @@ type Service interface {
 	GetByID(ctx context.Context, budgetID int64) (models.Budget, error)
 	Replace(ctx context.Context, ownerID, budgetID int64, req ReplaceRequest) (models.Budget, error)
 	Patch(ctx context.Context, ownerID, budgetID int64, req PatchRequest) (models.Budget, error)
-	SoftDelete(ctx context.Context, budgetID int64) error
+	SoftDelete(ctx context.Context, userID, budgetID int64) error
 }
 
 // Handler holds HTTP handlers for budget endpoints.
@@ -198,12 +198,20 @@ func (h *Handler) Patch(c echo.Context) error {
 
 // Delete handles DELETE /api/v1/budgets/:id.
 func (h *Handler) Delete(c echo.Context) error {
+	membership, ok := MembershipFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, "not authenticated")
+	}
+
 	budgetID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		return httpx.NotFound(c, "budget not found")
 	}
 
-	if err := h.svc.SoftDelete(c.Request().Context(), budgetID); err != nil {
+	if err := h.svc.SoftDelete(c.Request().Context(), membership.UserID, budgetID); err != nil {
+		if errors.Is(err, ErrLastBudget) {
+			return httpx.Conflict(c, ErrLastBudget.Error())
+		}
 		h.log.Error("delete budget failed", zap.Int64("budget_id", budgetID), zap.Error(err))
 		return httpx.InternalError(c)
 	}

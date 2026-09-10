@@ -214,6 +214,17 @@ func (r *Repo) SoftDeleteCascade(ctx context.Context, budgetID int64) error {
 	return nil
 }
 
+// CountActiveBudgetsForUser returns the number of active budgets userID is an
+// active member of.
+func (r *Repo) CountActiveBudgetsForUser(ctx context.Context, userID int64) (int64, error) {
+	q := db.New(r.pool)
+	count, err := q.CountActiveBudgetsForUser(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("count active budgets for user: %w", err)
+	}
+	return count, nil
+}
+
 // TitleExistsForUser reports whether the user (as OWNER) already has an active
 // budget with the given title, excluding budgetID (pass 0 for create checks).
 func (r *Repo) TitleExistsForUser(ctx context.Context, userID int64, title string, excludeBudgetID int64) (bool, error) {
