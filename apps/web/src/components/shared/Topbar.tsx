@@ -34,6 +34,7 @@ import {
   LogOut,
   User,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { useBudgets } from "@/hooks/use-budgets";
@@ -46,6 +47,7 @@ import { useRouter } from "next/navigation";
 import type { Budget } from "@/types";
 import { CreateBudgetModal } from "@/components/budget/CreateBudgetModal";
 import { DeleteBudgetDialog } from "@/components/budget/DeleteBudgetDialog";
+import { EditBudgetDialog } from "@/components/budget/EditBudgetDialog";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
 function BudgetSwitcher({
@@ -60,6 +62,7 @@ function BudgetSwitcher({
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
+  const [editTarget, setEditTarget] = useState<Budget | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
@@ -166,16 +169,28 @@ function BudgetSwitcher({
                       )}
                     </button>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(budget);
-                      }}
-                      title="Delete budget"
-                      className="absolute right-1.5 flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] opacity-0 transition-all group-hover:opacity-100 hover:bg-[#EF4444]/15 hover:text-[#EF4444] focus:opacity-100 focus:outline-none"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditTarget(budget);
+                        }}
+                        title="Edit budget"
+                        className="flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] transition-colors hover:bg-[#6C3AED]/15 hover:text-[#8B6CFF] focus:outline-none"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(budget);
+                        }}
+                        title="Delete budget"
+                        className="flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] transition-colors hover:bg-[#EF4444]/15 hover:text-[#EF4444] focus:outline-none"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -219,6 +234,19 @@ function BudgetSwitcher({
               const next = budgets.find((b) => b.id !== deletedId);
               setActiveBudget(next?.id ?? null);
             }
+            onBudgetCreated();
+          }}
+        />
+      )}
+
+      {editTarget && (
+        <EditBudgetDialog
+          open={!!editTarget}
+          onOpenChange={(o) => {
+            if (!o) setEditTarget(null);
+          }}
+          budget={editTarget}
+          onSaved={() => {
             onBudgetCreated();
           }}
         />
