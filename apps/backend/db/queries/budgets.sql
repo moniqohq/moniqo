@@ -36,6 +36,14 @@ UPDATE budgets
 SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL;
 
+-- name: CountActiveBudgetsForUser :one
+SELECT COUNT(*)
+FROM budgets b
+JOIN budget_users bu ON bu.budget_id = b.id
+WHERE bu.user_id    = $1
+  AND bu.deleted_at IS NULL
+  AND b.deleted_at  IS NULL;
+
 -- name: BudgetTitleExistsForUser :one
 SELECT EXISTS (
     SELECT 1

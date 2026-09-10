@@ -185,12 +185,25 @@ func TestSvc_SoftDelete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.BudgetRepository{}
+		repo.On("CountActiveBudgetsForUser", testUserID).Return(int64(2), nil)
 		repo.On("SoftDeleteCascade", testBudgetID).Return(nil)
 
 		svc := budget.NewSvc(repo, log)
-		err := svc.SoftDelete(context.Background(), testBudgetID)
+		err := svc.SoftDelete(context.Background(), testUserID, testBudgetID)
 
 		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("last budget returns ErrLastBudget", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.BudgetRepository{}
+		repo.On("CountActiveBudgetsForUser", testUserID).Return(int64(1), nil)
+
+		svc := budget.NewSvc(repo, log)
+		err := svc.SoftDelete(context.Background(), testUserID, testBudgetID)
+
+		assert.ErrorIs(t, err, budget.ErrLastBudget)
 		repo.AssertExpectations(t)
 	})
 }

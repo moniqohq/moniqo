@@ -309,6 +309,7 @@ Idempotent operation.
 - Historical financial data retained.
 - Already deleted resource must not cause failure.
 - Operation must be idempotent.
+- Must reject deletion of a user's last remaining active budget.
 
 **Side Effects on Deletion**
 
@@ -329,4 +330,5 @@ Budget becomes inaccessible but is preserved.
 | 400 | `VALIDATION_ERROR` | Invalid ID |
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 404 | `NOT_FOUND` | Budget not found |
+| 409 | `CONFLICT` | User has only one active budget remaining |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |

@@ -40,7 +40,7 @@ type BudgetService struct {
 	GetByIDFn    func(ctx context.Context, budgetID int64) (models.Budget, error)
 	ReplaceFn    func(ctx context.Context, ownerID, budgetID int64, req budget.ReplaceRequest) (models.Budget, error)
 	PatchFn      func(ctx context.Context, ownerID, budgetID int64, req budget.PatchRequest) (models.Budget, error)
-	SoftDeleteFn func(ctx context.Context, budgetID int64) error
+	SoftDeleteFn func(ctx context.Context, userID, budgetID int64) error
 }
 
 // Create delegates to CreateFn.
@@ -69,8 +69,8 @@ func (m *BudgetService) Patch(ctx context.Context, ownerID, budgetID int64, req 
 }
 
 // SoftDelete delegates to SoftDeleteFn.
-func (m *BudgetService) SoftDelete(ctx context.Context, budgetID int64) error {
-	return m.SoftDeleteFn(ctx, budgetID)
+func (m *BudgetService) SoftDelete(ctx context.Context, userID, budgetID int64) error {
+	return m.SoftDeleteFn(ctx, userID, budgetID)
 }
 
 // MembershipService is a test double for the budget.MembershipService handler interface.
@@ -176,6 +176,16 @@ func (m *BudgetRepository) SoftDeleteCascade(_ context.Context, budgetID int64) 
 func (m *BudgetRepository) TitleExistsForUser(_ context.Context, userID int64, title string, excludeBudgetID int64) (bool, error) {
 	args := m.Called(userID, title, excludeBudgetID)
 	return args.Bool(0), args.Error(1)
+}
+
+// CountActiveBudgetsForUser records the call and returns the configured stub values.
+func (m *BudgetRepository) CountActiveBudgetsForUser(_ context.Context, userID int64) (int64, error) {
+	args := m.Called(userID)
+	count, ok := args.Get(0).(int64)
+	if !ok {
+		return 0, args.Error(1)
+	}
+	return count, args.Error(1)
 }
 
 // MembershipRepository is a testify mock for budget.MembershipRepository.
