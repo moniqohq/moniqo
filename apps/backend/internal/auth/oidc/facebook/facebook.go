@@ -112,7 +112,6 @@ type debugTokenResponse struct {
 	Error *graphError    `json:"error"`
 }
 
-
 // graphError is Graph API's shared error shape, returned at top level (not
 // under "data") on a non-200 response.
 type graphError struct {
@@ -137,7 +136,6 @@ type pictureURLData struct {
 type pictureData struct {
 	Data pictureURLData `json:"data"`
 }
-
 
 // VerifyAccessToken validates accessToken via Graph's debug_token endpoint
 // (asserting it is valid, of type USER, and was issued for this app — the
