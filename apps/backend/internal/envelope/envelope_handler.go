@@ -416,6 +416,9 @@ func (h *Handler) CreateEnvelope(c echo.Context) error {
 		if errors.Is(err, ErrConflict) {
 			return httpx.Conflict(c, "envelope title already in use")
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Create envelope failed",
 			zap.Int64("budget_id", budgetID),
 			zap.String("title", req.Title),
@@ -472,6 +475,9 @@ func (h *Handler) ReplaceEnvelope(c echo.Context) error {
 		}
 		if errors.Is(err, ErrValidation) {
 			return validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: errMustBeNonNeg}})
+		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
 		}
 		h.log.Error("Replace envelope failed",
 			zap.Int64("envelope_id", id),
@@ -530,6 +536,9 @@ func (h *Handler) PatchEnvelope(c echo.Context) error {
 		if errors.Is(err, ErrValidation) {
 			return validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: errMustBeNonNeg}})
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Patch envelope failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -562,6 +571,9 @@ func (h *Handler) DeleteEnvelope(c echo.Context) error {
 		if errors.Is(err, ErrForbidden) {
 			return httpx.Forbidden(c, "insufficient role")
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Delete envelope failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -593,6 +605,9 @@ func (h *Handler) ForceDeleteEnvelope(c echo.Context) error {
 	if err := h.svc.ForceDelete(c.Request().Context(), id, budgetID, membership.Role); err != nil {
 		if errors.Is(err, ErrForbidden) {
 			return httpx.Forbidden(c, "insufficient role")
+		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
 		}
 		h.log.Error("Force delete envelope failed",
 			zap.Int64("envelope_id", id),

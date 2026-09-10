@@ -41,6 +41,7 @@ type BudgetService struct {
 	ReplaceFn    func(ctx context.Context, ownerID, budgetID int64, req budget.ReplaceRequest) (models.Budget, error)
 	PatchFn      func(ctx context.Context, ownerID, budgetID int64, req budget.PatchRequest) (models.Budget, error)
 	SoftDeleteFn func(ctx context.Context, userID, budgetID int64) error
+	ArchiveFn    func(ctx context.Context, budgetID int64) (models.Budget, error)
 }
 
 // Create delegates to CreateFn.
@@ -71,6 +72,11 @@ func (m *BudgetService) Patch(ctx context.Context, ownerID, budgetID int64, req 
 // SoftDelete delegates to SoftDeleteFn.
 func (m *BudgetService) SoftDelete(ctx context.Context, userID, budgetID int64) error {
 	return m.SoftDeleteFn(ctx, userID, budgetID)
+}
+
+// Archive delegates to ArchiveFn.
+func (m *BudgetService) Archive(ctx context.Context, budgetID int64) (models.Budget, error) {
+	return m.ArchiveFn(ctx, budgetID)
 }
 
 // MembershipService is a test double for the budget.MembershipService handler interface.
@@ -170,6 +176,16 @@ func (m *BudgetRepository) Patch(_ context.Context, p budget.PatchParams) (model
 func (m *BudgetRepository) SoftDeleteCascade(_ context.Context, budgetID int64) error {
 	args := m.Called(budgetID)
 	return args.Error(0)
+}
+
+// Archive records the call and returns the configured stub values.
+func (m *BudgetRepository) Archive(_ context.Context, budgetID int64) (models.Budget, error) {
+	args := m.Called(budgetID)
+	b, ok := args.Get(0).(models.Budget)
+	if !ok {
+		return models.Budget{}, args.Error(1)
+	}
+	return b, args.Error(1)
 }
 
 // TitleExistsForUser records the call and returns the configured stub values.

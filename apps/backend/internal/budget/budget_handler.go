@@ -47,6 +47,7 @@ type Service interface {
 	Replace(ctx context.Context, ownerID, budgetID int64, req ReplaceRequest) (models.Budget, error)
 	Patch(ctx context.Context, ownerID, budgetID int64, req PatchRequest) (models.Budget, error)
 	SoftDelete(ctx context.Context, userID, budgetID int64) error
+	Archive(ctx context.Context, budgetID int64) (models.Budget, error)
 }
 
 // Handler holds HTTP handlers for budget endpoints.
@@ -217,4 +218,24 @@ func (h *Handler) Delete(c echo.Context) error {
 	}
 
 	return httpx.OK(c, nil, "budget deleted successfully")
+}
+
+// Archive handles POST /api/v1/budgets/:id/archive. Archiving is one-way:
+// there is no unarchive endpoint.
+func (h *Handler) Archive(c echo.Context) error {
+	budgetID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return httpx.NotFound(c, "budget not found")
+	}
+
+	b, err := h.svc.Archive(c.Request().Context(), budgetID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return httpx.NotFound(c, "budget not found")
+		}
+		h.log.Error("archive budget failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, b, "budget archived successfully")
 }

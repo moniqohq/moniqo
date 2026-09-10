@@ -289,6 +289,9 @@ func (h *Handler) CreateAccount(c echo.Context) error {
 		if errors.Is(err, ErrConflict) {
 			return httpx.Conflict(c, "account name already in use")
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Create account failed",
 			zap.Int64("budget_id", budgetID),
 			zap.String("name", req.Name),
@@ -330,6 +333,9 @@ func (h *Handler) ReplaceAccount(c echo.Context) error {
 		}
 		if errors.Is(err, ErrConflict) {
 			return httpx.Conflict(c, "account name already in use")
+		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
 		}
 		h.log.Error("Replace account failed",
 			zap.Int64("account_id", id),
@@ -384,6 +390,9 @@ func (h *Handler) PatchAccount(c echo.Context) error {
 		if errors.Is(err, ErrArchiveNonZeroBalance) {
 			return httpx.ValidationError(c, []httpx.FieldError{{Field: "balance", Error: "must be zero before archiving"}})
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Patch account failed",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -416,6 +425,9 @@ func (h *Handler) DeleteAccount(c echo.Context) error {
 		if errors.Is(err, ErrForbidden) {
 			return httpx.Forbidden(c, "insufficient role")
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Delete account failed",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -443,6 +455,9 @@ func (h *Handler) ReconcileAccount(c echo.Context) error {
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return httpx.NotFound(c, "account not found")
+		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
 		}
 		h.log.Error("Reconcile account failed",
 			zap.Int64("account_id", id),
@@ -485,6 +500,9 @@ func (h *Handler) ArchiveAccount(c echo.Context) error {
 		if errors.Is(err, ErrArchiveNonZeroBalance) {
 			return httpx.ValidationError(c, []httpx.FieldError{{Field: "balance", Error: "must be zero before archiving"}})
 		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
+		}
 		h.log.Error("Archive account failed",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -522,6 +540,9 @@ func (h *Handler) UnarchiveAccount(c echo.Context) error {
 		}
 		if errors.Is(err, ErrForbidden) {
 			return httpx.Forbidden(c, "insufficient role")
+		}
+		if errors.Is(err, ErrBudgetArchived) {
+			return httpx.Conflict(c, "budget is archived")
 		}
 		h.log.Error("Unarchive account failed",
 			zap.Int64("account_id", id),

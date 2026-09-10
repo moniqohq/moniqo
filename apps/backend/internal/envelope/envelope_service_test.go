@@ -132,6 +132,24 @@ func TestSvc_Create(t *testing.T) {
 		require.NoError(t, err)
 		repo.AssertExpectations(t)
 	})
+
+	t.Run("rejects when budget is archived", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		checker := &internalmock.BudgetChecker{}
+		checker.On("IsArchived", testBudgetID).Return(true, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		svc.SetBudgetChecker(checker)
+		_, err := svc.Create(context.Background(), testBudgetID, envelope.CreateRequest{
+			Title:        "Groceries",
+			AllocatedAmt: money.FromMinorUnits(50000),
+		})
+
+		assert.ErrorIs(t, err, envelope.ErrBudgetArchived)
+		repo.AssertNotCalled(t, "Create")
+		checker.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------

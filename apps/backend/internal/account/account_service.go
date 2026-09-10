@@ -40,6 +40,18 @@ const defaultBalanceHistoryMonths = 6
 // the requested operation (e.g. only OWNER/ADMIN may delete an account).
 var ErrForbidden = errors.New("insufficient role")
 
+// ErrBudgetArchived is returned when a mutating operation is attempted
+// against an account whose budget has been archived. Archived budgets are
+// read-only: no new activity is allowed on their accounts.
+var ErrBudgetArchived = errors.New("budget is archived")
+
+// BudgetChecker reports whether a budget is archived. Satisfied by the
+// budget package's Repository; kept as a narrow interface here to avoid an
+// import cycle between the account and budget packages.
+type BudgetChecker interface {
+	IsArchived(ctx context.Context, budgetID int64) (bool, error)
+}
+
 // Service is the business-logic contract for accounts.
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Account, error)
@@ -56,13 +68,35 @@ type Service interface {
 
 // Svc is the concrete implementation of Service.
 type Svc struct {
-	repo Repository
-	log  *zap.Logger
+	repo   Repository
+	budget BudgetChecker
+	log    *zap.Logger
 }
 
 // NewSvc returns a Svc wired to the given repository.
 func NewSvc(repo Repository, log *zap.Logger) *Svc {
 	return &Svc{repo: repo, log: log}
+}
+
+// SetBudgetChecker wires a BudgetChecker used to reject account mutations
+// against archived budgets. When unset, the archived-budget guard is skipped.
+func (s *Svc) SetBudgetChecker(budget BudgetChecker) {
+	s.budget = budget
+}
+
+// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
+func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
+	if s.budget == nil {
+		return nil
+	}
+	archived, err := s.budget.IsArchived(ctx, budgetID)
+	if err != nil {
+		return fmt.Errorf("check budget archived: %w", err)
+	}
+	if archived {
+		return ErrBudgetArchived
+	}
+	return nil
 }
 
 // isOnBudgetDefault returns the canonical is_on_budget default for the given
@@ -79,6 +113,10 @@ func isOnBudgetDefault(t models.AccountType) bool {
 //nolint:revive,funlen
 func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Account, error) {
 	s.log.Debug("creating account", zap.Int64("budget_id", budgetID), zap.String("name", req.Name))
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Account{}, err
+	}
 
 	// Apply is_on_budget default based on account type when not explicitly set.
 	isOnBudget := isOnBudgetDefault(req.Type)
@@ -224,6 +262,10 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		zap.Int64("budget_id", budgetID),
 	)
 
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Account{}, err
+	}
+
 	// Verify the account exists.
 	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {
 		if !errors.Is(err, ErrNotFound) {
@@ -310,6 +352,10 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest, c
 		zap.Int64("account_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Account{}, err
+	}
 
 	if req.Archived != nil {
 		if *req.Archived {
@@ -400,6 +446,10 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		return ErrForbidden
 	}
 
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return err
+	}
+
 	// Idempotent: a missing account is not an error.
 	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -460,6 +510,10 @@ func (s *Svc) Reconcile(ctx context.Context, id, budgetID int64) (models.Account
 		zap.Int64("budget_id", budgetID),
 	)
 
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Account{}, err
+	}
+
 	account, err := s.repo.MarkReconciled(ctx, id, budgetID)
 	if err != nil {
 		if !errors.Is(err, ErrNotFound) {
@@ -489,6 +543,10 @@ func (s *Svc) Reconcile(ctx context.Context, id, budgetID int64) (models.Account
 func (s *Svc) Archive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
 	if callerRole != models.RoleOwner && callerRole != models.RoleAdmin {
 		return models.Account{}, ErrForbidden
+	}
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Account{}, err
 	}
 
 	account, err := s.repo.GetByID(ctx, id, budgetID)
@@ -536,6 +594,10 @@ func (s *Svc) Archive(ctx context.Context, id, budgetID int64, callerRole models
 func (s *Svc) Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
 	if callerRole != models.RoleOwner && callerRole != models.RoleAdmin {
 		return models.Account{}, ErrForbidden
+	}
+
+	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
+		return models.Account{}, err
 	}
 
 	account, err := s.repo.GetByID(ctx, id, budgetID)

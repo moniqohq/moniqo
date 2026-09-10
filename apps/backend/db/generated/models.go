@@ -268,12 +268,13 @@ type Account struct {
 }
 
 type Budget struct {
-	ID        int64
-	Title     string
-	Notes     *string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID         int64
+	Title      string
+	Notes      *string
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+	ArchivedAt pgtype.Timestamptz
 }
 
 type BudgetUser struct {

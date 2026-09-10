@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -46,11 +47,17 @@ func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
 
 // rowToBudget converts a generated db.Budget row to the public-safe model.
 func rowToBudget(b db.Budget) models.Budget {
+	var archivedAt *time.Time
+	if b.ArchivedAt.Valid {
+		archivedAt = &b.ArchivedAt.Time
+	}
 	return models.Budget{
-		ID:        b.ID,
-		Title:     b.Title,
-		Notes:     b.Notes,
-		CreatedAt: b.CreatedAt.Time,
+		ID:         b.ID,
+		Title:      b.Title,
+		Notes:      b.Notes,
+		CreatedAt:  b.CreatedAt.Time,
+		IsArchived: archivedAt != nil,
+		ArchivedAt: archivedAt,
 	}
 }
 
@@ -212,6 +219,38 @@ func (r *Repo) SoftDeleteCascade(ctx context.Context, budgetID int64) error {
 
 	r.log.Info("budget soft-deleted with cascade", zap.Int64("budget_id", budgetID))
 	return nil
+}
+
+// Archive marks the budget identified by budgetID as archived. Idempotent:
+// archiving an already-archived budget matches zero rows, so the current row
+// is re-fetched and returned instead of erroring.
+func (r *Repo) Archive(ctx context.Context, budgetID int64) (models.Budget, error) {
+	q := db.New(r.pool)
+	row, err := q.ArchiveBudget(ctx, budgetID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return r.GetByID(ctx, budgetID)
+		}
+		r.log.Error("ArchiveBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return models.Budget{}, fmt.Errorf("archive budget: %w", err)
+	}
+	return rowToBudget(row), nil
+}
+
+// IsArchived reports whether budgetID refers to an archived budget. Satisfies
+// the BudgetChecker interface used by the account, envelope, and transaction
+// packages to reject writes against archived budgets.
+func (r *Repo) IsArchived(ctx context.Context, budgetID int64) (bool, error) {
+	q := db.New(r.pool)
+	archived, err := q.IsBudgetArchived(ctx, budgetID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrNotFound
+		}
+		r.log.Error("IsBudgetArchived query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return false, fmt.Errorf("is budget archived: %w", err)
+	}
+	return archived, nil
 }
 
 // CountActiveBudgetsForUser returns the number of active budgets userID is an

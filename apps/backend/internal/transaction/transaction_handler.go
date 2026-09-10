@@ -568,6 +568,9 @@ func (h *Handler) handleDeleteTransactionError(c echo.Context, err error, id, bu
 	if errors.Is(err, ErrAccountLocked) {
 		return httpx.Conflict(c, errAccountLocked)
 	}
+	if errors.Is(err, ErrBudgetArchived) {
+		return httpx.Conflict(c, "budget is archived")
+	}
 	h.log.Error("Delete transaction failed",
 		zap.Int64("transaction_id", id),
 		zap.Int64("budget_id", budgetID),
@@ -588,6 +591,9 @@ func (h *Handler) handleCreateTransactionError(c echo.Context, err error, budget
 	}
 	if errors.Is(err, ErrAccountArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	}
+	if errors.Is(err, ErrBudgetArchived) {
+		return httpx.Conflict(c, "budget is archived")
 	}
 	if errors.Is(err, ErrEnvelopeArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
@@ -618,6 +624,9 @@ func (h *Handler) handleReplaceTransactionError(c echo.Context, err error, id, b
 	if errors.Is(err, ErrAccountArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
 	}
+	if errors.Is(err, ErrBudgetArchived) {
+		return httpx.Conflict(c, "budget is archived")
+	}
 	if errors.Is(err, ErrEnvelopeArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
 	}
@@ -647,6 +656,9 @@ func (h *Handler) handlePatchTransactionError(c echo.Context, err error, id, bud
 	}
 	if errors.Is(err, ErrAccountArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	}
+	if errors.Is(err, ErrBudgetArchived) {
+		return httpx.Conflict(c, "budget is archived")
 	}
 	if errors.Is(err, ErrEnvelopeArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})

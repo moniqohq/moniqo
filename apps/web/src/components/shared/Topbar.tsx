@@ -35,6 +35,7 @@ import {
   User,
   Trash2,
   Pencil,
+  Archive,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { useBudgets } from "@/hooks/use-budgets";
@@ -48,6 +49,7 @@ import type { Budget } from "@/types";
 import { CreateBudgetModal } from "@/components/budget/CreateBudgetModal";
 import { DeleteBudgetDialog } from "@/components/budget/DeleteBudgetDialog";
 import { EditBudgetDialog } from "@/components/budget/EditBudgetDialog";
+import { ArchiveBudgetDialog } from "@/components/budget/ArchiveBudgetDialog";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
 function BudgetSwitcher({
@@ -63,6 +65,7 @@ function BudgetSwitcher({
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
   const [editTarget, setEditTarget] = useState<Budget | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Budget | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
@@ -111,7 +114,7 @@ function BudgetSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="absolute top-full left-0 z-50 mt-1.5 w-64 overflow-hidden rounded-xl border border-[#1A2640] bg-[#0A1120] shadow-2xl shadow-black/40"
+            className="absolute top-full left-0 z-50 mt-1.5 w-80 overflow-hidden rounded-xl border border-[#1A2640] bg-[#0A1120] shadow-2xl shadow-black/40"
           >
             <div className="px-3 pt-3 pb-2">
               <p className="text-[10px] font-semibold tracking-widest text-[#3A4A60] uppercase">
@@ -130,7 +133,7 @@ function BudgetSwitcher({
                         setOpen(false);
                       }}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors",
+                        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 pr-24 text-left transition-colors",
                         isActive
                           ? "bg-[#6C3AED]/20 text-white"
                           : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
@@ -149,7 +152,7 @@ function BudgetSwitcher({
                         />
                       </span>
 
-                      <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
                         <p
                           className={cn(
                             "truncate text-sm leading-tight font-medium",
@@ -158,16 +161,22 @@ function BudgetSwitcher({
                         >
                           {budget.name}
                         </p>
+                        {budget.isArchived && (
+                          <span className="flex-shrink-0 rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#F59E0B] uppercase">
+                            Archived
+                          </span>
+                        )}
                       </div>
 
-                      {isActive && (
-                        <Check
-                          size={14}
-                          className="mr-1 flex-shrink-0 text-[#7C5AFF] transition-opacity group-hover:opacity-0"
-                          strokeWidth={2.5}
-                        />
-                      )}
                     </button>
+
+                    {isActive && (
+                      <Check
+                        size={14}
+                        className="pointer-events-none absolute right-3 flex-shrink-0 text-[#7C5AFF] transition-opacity group-hover:opacity-0"
+                        strokeWidth={2.5}
+                      />
+                    )}
 
                     <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100">
                       <button
@@ -180,6 +189,18 @@ function BudgetSwitcher({
                       >
                         <Pencil size={14} />
                       </button>
+                      {!budget.isArchived && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setArchiveTarget(budget);
+                          }}
+                          title="Archive budget"
+                          className="flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] transition-colors hover:bg-[#F59E0B]/15 hover:text-[#F59E0B] focus:outline-none"
+                        >
+                          <Archive size={14} />
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -247,6 +268,19 @@ function BudgetSwitcher({
           }}
           budget={editTarget}
           onSaved={() => {
+            onBudgetCreated();
+          }}
+        />
+      )}
+
+      {archiveTarget && (
+        <ArchiveBudgetDialog
+          open={!!archiveTarget}
+          onOpenChange={(o) => {
+            if (!o) setArchiveTarget(null);
+          }}
+          budget={archiveTarget}
+          onArchived={() => {
             onBudgetCreated();
           }}
         />
