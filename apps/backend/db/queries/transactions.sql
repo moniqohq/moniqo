@@ -109,6 +109,11 @@ UPDATE transactions
 SET deleted_at = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
+-- name: SoftDeleteTransactionsByBudget :exec
+UPDATE transactions
+SET deleted_at = now()
+WHERE budget_id = $1 AND deleted_at IS NULL;
+
 -- name: GetTransactionsByGroupID :many
 SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
 FROM transactions

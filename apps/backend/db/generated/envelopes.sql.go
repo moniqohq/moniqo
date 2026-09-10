@@ -279,6 +279,17 @@ func (q *Queries) SoftDeleteEnvelope(ctx context.Context, arg SoftDeleteEnvelope
 	return err
 }
 
+const softDeleteEnvelopesByBudget = `-- name: SoftDeleteEnvelopesByBudget :exec
+UPDATE envelopes
+SET deleted_at = now()
+WHERE budget_id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteEnvelopesByBudget(ctx context.Context, budgetID int64) error {
+	_, err := q.db.Exec(ctx, softDeleteEnvelopesByBudget, budgetID)
+	return err
+}
+
 const sumBudgetAllocated = `-- name: SumBudgetAllocated :one
 SELECT COALESCE(SUM(allocated_amt), 0)::BIGINT AS total_allocated
 FROM envelopes
