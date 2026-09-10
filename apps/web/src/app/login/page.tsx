@@ -806,7 +806,7 @@ function LoginPageInner() {
               </div>
 
               {/* Social buttons */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {OIDC_PROVIDERS.map(({ id, label, icon, kind }) => (
                   <button
                     key={id}
