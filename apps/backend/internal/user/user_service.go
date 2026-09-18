@@ -326,7 +326,10 @@ func (s *Svc) verificationToken(userID int64) string {
 }
 
 // changePassword verifies currentPwd against the stored hash and, if it
-// matches, replaces it with a bcrypt hash of newPwd.
+// matches, replaces it with a bcrypt hash of newPwd. This also invalidates
+// every existing session for the user (see Repository.UpdatePassword), so the
+// caller's own access token stops working once it expires and its refresh
+// token is revoked — the client must treat a successful change as a logout.
 func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd string) error {
 	hash, err := s.repo.GetHashByID(ctx, id)
 	if err != nil {

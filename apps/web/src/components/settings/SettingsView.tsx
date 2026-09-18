@@ -50,6 +50,7 @@ import { SecurityView } from "./SecurityView";
 import { DataPrivacyView } from "./DataPrivacyView";
 import { MembersPermissionsView } from "./MembersPermissionsView";
 import { ConnectedAccountsView } from "./ConnectedAccountsView";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -314,6 +315,7 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
   const [isEditing, setIsEditing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const profileForm = useMemo(
     () => ({
@@ -658,6 +660,27 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                   </Button>
                 </div>
 
+                {/* ── Password ──────────────────────────────── */}
+                <div className="mt-5 flex items-center justify-between border-t border-[#1E2B42] pt-5">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                      style={{ background: "rgba(108,58,237,0.15)" }}
+                    >
+                      <Lock size={15} className="text-[#A78BFA]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-semibold text-white">Password</p>
+                      <p className="text-[11px] text-[#5A6A85]">
+                        Update your password regularly to keep your account secure.
+                      </p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setChangePasswordOpen(true)}>
+                    Change password
+                  </Button>
+                </div>
+
                 {/* ── Security info cards (inside same card) ──── */}
                 <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#1E2B42] pt-5 lg:grid-cols-4">
                   {SECURITY_CARDS.map((card) => {
@@ -689,6 +712,8 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
             )}
         </div>
       </div>
+
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </div>
   );
 }

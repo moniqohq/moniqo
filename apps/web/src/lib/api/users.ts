@@ -52,3 +52,17 @@ export function patchUser(id: number, req: PatchUserRequest): Promise<ApiUser> {
     body: JSON.stringify(req),
   });
 }
+
+// Changes the authenticated user's password via the PATCH /users/{id}
+// "special case" contract (docs/apis/01-user-api.md). The server invalidates
+// every existing session as part of this call, so a successful response means
+// the caller's own tokens are revoked too — the caller must sign out locally.
+export function changePassword(
+  userId: number,
+  req: { current_password: string; new_password: string },
+): Promise<ApiUser> {
+  return apiFetch<ApiUser>(`/api/v1/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(req),
+  });
+}
