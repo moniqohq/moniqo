@@ -390,6 +390,11 @@ type User struct {
 	Currency              *string
 	Timezone              *string
 	DateFormat            *string
+	AvatarKey             string
+	AvatarContentType     string
+	AvatarSizeBytes       int64
+	AvatarEtag            string
+	AvatarUpdatedAt       pgtype.Timestamptz
 }
 
 type UserIdentity struct {

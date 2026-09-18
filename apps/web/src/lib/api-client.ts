@@ -68,7 +68,13 @@ export async function apiFetch<T>(
   const { token, _retry, ...init } = options;
 
   const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
+  // A FormData body (e.g. avatar upload) must keep the browser-generated
+  // multipart/form-data boundary; overriding it with application/json here
+  // would break the server's multipart parser. FormData is safely re-sendable
+  // on the 401-retry below (unlike an arbitrary stream body).
+  if (!(init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(path, {

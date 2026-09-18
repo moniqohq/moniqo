@@ -20,7 +20,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import {
   User,
   Bell,
@@ -39,6 +38,7 @@ import {
   Eye,
   SquarePen,
   CalendarDays,
+  Trash2,
 } from "lucide-react";
 import { isFeatureEnabled } from "@/features/feature-flags";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -52,13 +52,15 @@ import { MembersPermissionsView } from "./MembersPermissionsView";
 import { ConnectedAccountsView } from "./ConnectedAccountsView";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import { SectionCard } from "@/components/shared/SectionCard";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
-import { patchUser } from "@/lib/api/users";
 import { ApiError } from "@/lib/api-client";
+import { updateProfile, uploadAvatar, deleteAvatar } from "@/lib/api/users";
+import { resizeImageToWebP, ImageResizeError } from "@/lib/image/resize";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -309,6 +311,7 @@ function ReadField({ value, icon: Icon }: { value: string; icon?: React.ElementT
 export function SettingsView({ initialNav = "profile" }: { initialNav?: string } = {}) {
   const storeUser = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const bumpAvatarVersion = useAuthStore((s) => s.bumpAvatarVersion);
 
   const [activeNav, setActiveNav] = useState(initialNav);
   const [searchQuery, setSearchQuery] = useState("");
@@ -332,10 +335,23 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
     setDraftUserId(storeUser?.id);
     setDraftForm(profileForm);
   }
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // Local optimistic preview only, shown while an upload is in flight or has
+  // just completed; the authoritative source of truth is storeUser.picture.
+  const [preview, setPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const asideRef = useRef<HTMLElement>(null);
   const [profileSidebarHeight, setProfileSidebarHeight] = useState<number | null>(null);
+
+  // Revokes the previous blob: URL whenever preview changes to a new value
+  // (or on unmount) — the old handlePhotoChange never did this, leaking one
+  // object URL per file selection.
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   useEffect(() => {
     if (activeNav !== "profile") return;
@@ -353,7 +369,7 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
     setSaveError(null);
     setSaving(true);
     try {
-      const updated = await patchUser(storeUser.id, {
+      const updated = await updateProfile(storeUser.id, {
         name: draftForm.fullName || null,
         email: draftForm.email,
       });
@@ -366,10 +382,50 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
     }
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) setAvatarUrl(URL.createObjectURL(file));
+    if (!file || !storeUser) return;
+
+    setAvatarError(null);
+    setAvatarUploading(true);
+    try {
+      const resized = await resizeImageToWebP(file);
+      setPreview(URL.createObjectURL(resized));
+
+      const updated = await uploadAvatar(storeUser.id, resized);
+      setUser(updated);
+      bumpAvatarVersion();
+      setPreview(null); // fall back to the authoritative, now cache-busted URL
+    } catch (err) {
+      if (err instanceof ImageResizeError) {
+        setAvatarError(err.message);
+      } else if (err instanceof ApiError) {
+        setAvatarError(err.fields?.[0]?.error ?? err.message);
+      } else {
+        setAvatarError("Failed to update profile picture.");
+      }
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = ""; // allow re-selecting the same file
+    }
   }
+
+  async function handleRemovePhoto() {
+    if (!storeUser) return;
+    setAvatarError(null);
+    setAvatarUploading(true);
+    try {
+      const updated = await deleteAvatar(storeUser.id);
+      setUser(updated);
+      bumpAvatarVersion();
+      setPreview(null);
+    } catch (err) {
+      setAvatarError(err instanceof ApiError ? err.message : "Failed to remove profile picture.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
   const filteredGroups = NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter(
@@ -518,27 +574,16 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                   {/* Avatar column */}
                   <div className="flex shrink-0 flex-col items-center gap-3 sm:w-44">
                     <div className="relative">
-                      {avatarUrl ? (
-                        <Image
-                          src={avatarUrl}
-                          alt="Avatar"
-                          width={96}
-                          height={96}
-                          className="h-24 w-24 rounded-full object-cover ring-4 ring-[rgba(108,58,237,0.2)]"
-                        />
-                      ) : (
-                        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#9B59F5] text-[28px] font-bold text-white ring-4 ring-[rgba(108,58,237,0.2)]">
-                          {(storeUser?.name ?? storeUser?.username ?? "?")
-                            .split(" ")
-                            .map((w) => w[0])
-                            .slice(0, 2)
-                            .join("")
-                            .toUpperCase()}
-                        </div>
-                      )}
+                      <UserAvatar
+                        user={storeUser}
+                        src={preview ?? undefined}
+                        size={96}
+                        className="ring-4 ring-[rgba(108,58,237,0.2)] text-[28px]"
+                      />
                       <button
-                        className="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full border border-[#2A3A54] bg-[#1E2B42] transition-colors hover:bg-[#2A3A54]"
+                        className="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full border border-[#2A3A54] bg-[#1E2B42] transition-colors hover:bg-[#2A3A54] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading}
                       >
                         <Camera size={12} className="text-[#A8B4CC]" />
                       </button>
@@ -548,6 +593,9 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                       <p className="mt-0.5 text-[10px] text-[#5A6A85]">
                         JPG, PNG or WebP. Max 2MB.
                       </p>
+                      {avatarError && (
+                        <p className="mt-0.5 text-[10px] text-[#F87171]">{avatarError}</p>
+                      )}
                     </div>
                     <input
                       ref={fileInputRef}
@@ -556,15 +604,30 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                       className="hidden"
                       onChange={handlePhotoChange}
                     />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 text-[11px]"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Camera size={11} />
-                      Change photo
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-[11px]"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading}
+                      >
+                        <Camera size={11} />
+                        {avatarUploading ? "Uploading…" : "Change photo"}
+                      </Button>
+                      {storeUser?.picture && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-[11px] text-[#F87171] hover:text-[#F87171]"
+                          onClick={handleRemovePhoto}
+                          disabled={avatarUploading}
+                        >
+                          <Trash2 size={11} />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Divider */}

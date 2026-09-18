@@ -66,3 +66,30 @@ WHERE id = $1 AND deleted_at IS NULL;
 INSERT INTO users (username, email, hash, name, picture, status)
 VALUES ($1, $2, NULL, $3, $4, 'active')
 RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+
+-- name: GetUserAvatarMeta :one
+-- Used by the avatar GET handler to decide whether it is serving a locally
+-- stored file (avatar_key set), redirecting to an external OIDC picture
+-- (picture set, avatar_key empty), or returning 404 (both empty).
+SELECT avatar_key, avatar_content_type, avatar_size_bytes, avatar_etag, avatar_updated_at, picture
+FROM users
+WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: SetUserAvatar :one
+-- Points picture at the stable API URL passed in $6 (always
+-- "/api/v1/users/{id}/picture" in practice; the caller computes it since
+-- queries should not embed application URL structure).
+UPDATE users
+SET avatar_key = $2, avatar_content_type = $3, avatar_size_bytes = $4,
+    avatar_etag = $5, avatar_updated_at = now(), picture = $6, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+
+-- name: ClearUserAvatar :one
+-- Clears both the stored-avatar columns and picture, so removing a photo
+-- also drops an inherited OIDC picture (both fall back to initials client-side).
+UPDATE users
+SET avatar_key = '', avatar_content_type = '', avatar_size_bytes = 0,
+    avatar_etag = '', avatar_updated_at = NULL, picture = '', updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;

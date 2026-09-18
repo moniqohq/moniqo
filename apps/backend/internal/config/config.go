@@ -41,6 +41,10 @@ const (
 	defaultWorkerInterval              = 5 * time.Second
 	defaultWorkerBatch           int32 = 10
 	defaultBaseBackoff                 = 30 * time.Second
+
+	defaultStorageDriver    = "local"
+	defaultStorageLocalRoot = "/app/data"
+	defaultAvatarMaxBytes   = 2 << 20 // 2MB
 )
 
 // Config holds all runtime settings for the backend server.
@@ -60,6 +64,18 @@ type Config struct {
 	CORSOrigins           []string // CORS_ORIGINS comma-separated; defaults to AppBaseURL
 	Email                 EmailConfig
 	OIDC                  OIDCConfig
+	Uploads               UploadConfig
+}
+
+// UploadConfig groups settings for binary file uploads (currently only user
+// avatars). Driver selects the storage.Storage implementation wired up in
+// cmd/server/main.go; adding an "s3" driver later is a config change plus a
+// new internal/storage/s3 package, not a database migration, because
+// users.picture stores a stable API URL rather than a filesystem path.
+type UploadConfig struct {
+	Driver         string // STORAGE_DRIVER, default "local"
+	LocalRoot      string // STORAGE_LOCAL_ROOT, default "/app/data"
+	MaxAvatarBytes int64  // AVATAR_MAX_BYTES, default 2MB
 }
 
 // OIDCConfig groups OpenID Connect third-party login settings. Each provider
@@ -136,6 +152,16 @@ func Load() Config {
 		CORSOrigins:           corsOrigins(envOrDefault("APP_BASE_URL", "http://localhost:3000")),
 		Email:                 loadEmailConfig(env),
 		OIDC:                  loadOIDCConfig(),
+		Uploads:               loadUploadConfig(),
+	}
+}
+
+// loadUploadConfig reads binary-upload settings from the environment.
+func loadUploadConfig() UploadConfig {
+	return UploadConfig{
+		Driver:         envOrDefault("STORAGE_DRIVER", defaultStorageDriver),
+		LocalRoot:      envOrDefault("STORAGE_LOCAL_ROOT", defaultStorageLocalRoot),
+		MaxAvatarBytes: envInt64("AVATAR_MAX_BYTES", defaultAvatarMaxBytes),
 	}
 }
 
@@ -222,6 +248,17 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	if n, err := strconv.Atoi(v); err == nil && n > 0 {
+		return n
+	}
+	return fallback
+}
+
+func envInt64(key string, fallback int64) int64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
 		return n
 	}
 	return fallback

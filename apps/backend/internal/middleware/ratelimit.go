@@ -36,6 +36,8 @@ const (
 	passwordResetRate15Min = 15.0
 	passwordReset15Min     = 15 * 60.0 // 15 minutes in seconds
 	passwordResetBurst     = 15
+	avatarRatePerMin       = 120.0
+	avatarBurst            = 120
 )
 
 // RegisterRateLimiter returns a rate limiter middleware scoped to the registration
@@ -54,6 +56,15 @@ func LoginRateLimiter() echo.MiddlewareFunc {
 // password reset endpoints: 15 requests per IP per 15 minutes.
 func PasswordResetRateLimiter() echo.MiddlewareFunc {
 	return newIPRateLimiter(passwordResetRate15Min/passwordReset15Min, passwordResetBurst)
+}
+
+// AvatarRateLimiter returns a rate limiter middleware scoped to the profile
+// picture GET endpoint: 120 requests per IP per minute. This is the only
+// unauthenticated read endpoint in the API (an <img> tag cannot attach an
+// Authorization header), so it is the one most exposed to scraping/abuse via
+// user-id enumeration.
+func AvatarRateLimiter() echo.MiddlewareFunc {
+	return newIPRateLimiter(avatarRatePerMin/secondsPerMin, avatarBurst)
 }
 
 func newIPRateLimiter(r float64, burst int) echo.MiddlewareFunc {

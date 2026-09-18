@@ -26,9 +26,14 @@ import type { ApiUser } from "@/lib/api-types";
 interface AuthStore {
   user: ApiUser | null;
   accessToken: string | null;
+  // Bumped on every avatar upload/removal so components far from the
+  // Settings page (e.g. the Topbar) know to cache-bust the otherwise-stable
+  // /api/v1/users/{id}/picture URL and re-render.
+  avatarVersion: number;
   setAuth: (user: ApiUser, accessToken: string) => void;
   setUser: (user: ApiUser) => void;
   setAccessToken: (token: string) => void;
+  bumpAvatarVersion: () => void;
   clearAuth: () => void;
 }
 
@@ -37,6 +42,7 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       user: null,
       accessToken: null,
+      avatarVersion: 0,
 
       setAuth: (user, accessToken) => set({ user, accessToken }),
 
@@ -44,13 +50,15 @@ export const useAuthStore = create<AuthStore>()(
 
       setAccessToken: (token) => set({ accessToken: token }),
 
+      bumpAvatarVersion: () => set((state) => ({ avatarVersion: state.avatarVersion + 1 })),
+
       clearAuth: () => set({ user: null, accessToken: null }),
     }),
     {
       name: "moniqo-auth",
-      // Only persist the user object for UI continuity.
+      // Only persist fields needed for UI continuity across reloads.
       // The access token is memory-only; it is rehydrated via /auth/refresh on load.
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({ user: state.user, avatarVersion: state.avatarVersion }),
     },
   ),
 );
