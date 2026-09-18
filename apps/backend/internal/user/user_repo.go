@@ -177,12 +177,45 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 	}), nil
 }
 
-// UpdatePassword replaces the bcrypt hash for the given user.
+// UpdatePassword replaces the bcrypt hash for the given user and, in the same
+// transaction, invalidates every existing session (access tokens issued
+// before now, and all refresh tokens) with reason "password_changed" — an
+// authenticated password change must not leave other devices signed in.
 func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error {
-	r.log.Debug("executing UpdateUserPassword query", zap.Int64("user_id", id))
-	q := db.New(r.pool)
+	r.log.Debug("beginning password update transaction", zap.Int64("user_id", id))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
 	if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{ID: id, Hash: &hash}); err != nil {
+		r.log.Error("UpdateUserPassword query failed", zap.Int64("user_id", id), zap.Error(err))
 		return fmt.Errorf("update user password: %w", err)
+	}
+
+	if err := q.SetTokensInvalidBefore(ctx, db.SetTokensInvalidBeforeParams{
+		ID:                  id,
+		TokensInvalidBefore: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}); err != nil {
+		r.log.Error("SetTokensInvalidBefore query failed", zap.Int64("user_id", id), zap.Error(err))
+		return fmt.Errorf("set tokens invalid before: %w", err)
+	}
+
+	reason := "password_changed"
+	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
+		UserID:        id,
+		RevokedReason: &reason,
+	}); err != nil {
+		r.log.Error("RevokeAllUserRefreshTokens query failed", zap.Int64("user_id", id), zap.Error(err))
+		return fmt.Errorf("revoke user refresh tokens: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
 }
