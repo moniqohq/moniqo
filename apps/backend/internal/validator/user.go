@@ -22,6 +22,7 @@ package validator
 
 import (
 	"net/mail"
+	"net/url"
 	"regexp"
 	"unicode"
 	"unicode/utf8"
@@ -32,14 +33,49 @@ import (
 // usernameRe enforces: starts with a letter, followed by alphanumeric chars, with
 // optional single - or _ separators between alphanumeric segments.
 const (
-	fieldEmail     = "email"
-	minPasswordLen = 8
-	maxPasswordLen = 72
-	maxEmailLen    = 254
-	maxNameLen     = 100
+	fieldEmail       = "email"
+	fieldPicture     = "picture"
+	minPasswordLen   = 8
+	maxPasswordLen   = 72
+	maxEmailLen      = 254
+	maxNameLen       = 100
+	maxPictureURLLen = 2048
+
+	errPictureReadOnly = "read-only; upload via PUT /api/v1/users/{id}/picture"
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)
+
+// mintedPictureRe matches the exact server-minted relative avatar URL
+// ("/api/v1/users/{id}/picture"), the only non-empty form of `picture` a
+// client should ever see or round-trip.
+var mintedPictureRe = regexp.MustCompile(`^/api/v1/users/\d+/picture$`)
+
+// ValidatePictureURL reports whether picture is safe to store and later
+// serve — either directly in an <img>, or (for the avatar GET endpoint) as
+// the target of a server-side redirect. It accepts:
+//   - "" (no picture)
+//   - the exact minted relative avatar URL
+//   - an absolute https:// URL with a non-empty host, no embedded userinfo,
+//     and a bounded length
+//
+// This is what makes the avatar GET endpoint's redirect-to-external-picture
+// behavior provably not an open redirect: nothing else can ever reach
+// users.picture. It rejects javascript:, data:, and other script-capable or
+// scheme-confusable values.
+func ValidatePictureURL(picture string) *httpx.FieldError {
+	if picture == "" || mintedPictureRe.MatchString(picture) {
+		return nil
+	}
+	if len(picture) > maxPictureURLLen {
+		return &httpx.FieldError{Field: fieldPicture, Error: "must not exceed 2048 characters"}
+	}
+	u, err := url.Parse(picture)
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
+		return &httpx.FieldError{Field: fieldPicture, Error: "must be a valid https URL"}
+	}
+	return nil
+}
 
 func validateUsername(username string) *httpx.FieldError {
 	ulen := utf8.RuneCountInString(username)
@@ -173,6 +209,10 @@ type ReplaceProfileInput struct {
 }
 
 // ValidateReplaceProfile aggregates all field-level failures in a single pass.
+// picture is server-managed and read-only over this endpoint: an empty
+// string is accepted (so a round-trip PUT of the current profile still
+// works), but any non-empty value is rejected — clients must use
+// PUT /api/v1/users/{id}/picture instead.
 func ValidateReplaceProfile(in ReplaceProfileInput) []httpx.FieldError {
 	var errs []httpx.FieldError
 
@@ -186,6 +226,10 @@ func ValidateReplaceProfile(in ReplaceProfileInput) []httpx.FieldError {
 
 	if fe := validateName(in.Name); fe != nil {
 		errs = append(errs, *fe)
+	}
+
+	if in.Picture != "" {
+		errs = append(errs, httpx.FieldError{Field: fieldPicture, Error: errPictureReadOnly})
 	}
 
 	return errs
@@ -204,20 +248,44 @@ type PatchProfileInput struct {
 
 func validatePatchProfileFields(in PatchProfileInput) []httpx.FieldError {
 	var errs []httpx.FieldError
-	if in.Username != nil {
-		if fe := validateUsername(*in.Username); fe != nil {
-			errs = append(errs, *fe)
-		}
+	if fe := validatePatchUsername(in.Username); fe != nil {
+		errs = append(errs, *fe)
 	}
-	if in.Email != nil {
-		if fe := validateEmail(*in.Email); fe != nil {
-			errs = append(errs, *fe)
-		}
+	if fe := validatePatchEmail(in.Email); fe != nil {
+		errs = append(errs, *fe)
 	}
 	if fe := validateName(in.Name); fe != nil {
 		errs = append(errs, *fe)
 	}
+	if fe := validatePatchPicture(in.Picture); fe != nil {
+		errs = append(errs, *fe)
+	}
 	return errs
+}
+
+func validatePatchUsername(username *string) *httpx.FieldError {
+	if username == nil {
+		return nil
+	}
+	return validateUsername(*username)
+}
+
+func validatePatchEmail(email *string) *httpx.FieldError {
+	if email == nil {
+		return nil
+	}
+	return validateEmail(*email)
+}
+
+// validatePatchPicture rejects a non-nil picture on PATCH: picture is
+// server-managed and read-only over this endpoint, whether or not the
+// supplied value matches the current one. Clients must use
+// PUT /api/v1/users/{id}/picture instead.
+func validatePatchPicture(picture *string) *httpx.FieldError {
+	if picture == nil {
+		return nil
+	}
+	return &httpx.FieldError{Field: fieldPicture, Error: errPictureReadOnly}
 }
 
 func validatePatchPasswordFields(in PatchProfileInput) []httpx.FieldError {

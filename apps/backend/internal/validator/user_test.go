@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
@@ -277,11 +278,21 @@ func TestValidateReplaceProfile(t *testing.T) {
 			i.Name = strPtr("Saqib Abdul")
 			return i
 		}()},
-		{name: "with picture", input: func() validator.ReplaceProfileInput {
+		{name: "with empty picture", input: func() validator.ReplaceProfileInput {
 			i := validReplaceInput()
-			i.Picture = "https://example.com/avatar.png"
+			i.Picture = ""
 			return i
 		}()},
+		{
+			name: "non-empty picture is rejected as read-only",
+			input: func() validator.ReplaceProfileInput {
+				i := validReplaceInput()
+				i.Picture = "https://example.com/avatar.png"
+				return i
+			}(),
+			wantField: "picture",
+			wantMsg:   "read-only",
+		},
 		// username errors
 		{
 			name:      "username starts with digit",
@@ -375,7 +386,12 @@ func TestValidatePatchProfile(t *testing.T) {
 		{name: "update username only", input: validator.PatchProfileInput{Username: strPtr("newuser01")}},
 		{name: "update email only", input: validator.PatchProfileInput{Email: strPtr("new@example.com")}},
 		{name: "update name only", input: validator.PatchProfileInput{Name: strPtr("New Name")}},
-		{name: "update picture only", input: validator.PatchProfileInput{Picture: strPtr("avatar.png")}},
+		{
+			name:      "picture is rejected as read-only",
+			input:     validator.PatchProfileInput{Picture: strPtr("avatar.png")},
+			wantField: "picture",
+			wantMsg:   "read-only",
+		},
 		{name: "password change with valid new password", input: validator.PatchProfileInput{
 			CurrentPassword: strPtr("OldPass1"),
 			NewPassword:     strPtr("NewPass1"),
@@ -437,6 +453,40 @@ func TestValidatePatchProfile(t *testing.T) {
 				assert.Empty(t, fields)
 			} else {
 				assert.Contains(t, fields[tc.wantField], tc.wantMsg)
+			}
+		})
+	}
+}
+
+func TestValidatePictureURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		picture string
+		wantErr bool
+	}{
+		{name: "empty is valid", picture: "", wantErr: false},
+		{name: "minted relative URL is valid", picture: "/api/v1/users/42/picture", wantErr: false},
+		{name: "valid external https URL", picture: "https://lh3.googleusercontent.com/a/avatar.png", wantErr: false},
+		{name: "javascript scheme is rejected", picture: "javascript:alert(1)", wantErr: true},
+		{name: "data URI is rejected", picture: "data:text/html;base64,PHNjcmlwdD4=", wantErr: true},
+		{name: "protocol-relative URL is rejected", picture: "//evil.com/a.png", wantErr: true},
+		{name: "plain http is rejected", picture: "http://example.com/a.png", wantErr: true},
+		{name: "embedded userinfo is rejected", picture: "https://user:pass@example.com/a.png", wantErr: true},
+		{name: "excessively long URL is rejected", picture: "https://example.com/" + strings.Repeat("a", 2049), wantErr: true},
+		{name: "minted URL for a different id is still valid", picture: "/api/v1/users/1/picture", wantErr: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fe := validator.ValidatePictureURL(tc.picture)
+			if tc.wantErr {
+				require.NotNil(t, fe)
+				assert.Equal(t, "picture", fe.Field)
+			} else {
+				assert.Nil(t, fe)
 			}
 		})
 	}

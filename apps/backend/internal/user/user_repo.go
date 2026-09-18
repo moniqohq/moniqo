@@ -286,6 +286,82 @@ func (r *Repo) Activate(ctx context.Context, id int64) error {
 	return nil
 }
 
+// GetAvatarMeta returns the stored-avatar metadata and the raw picture value
+// (which may be an external OIDC URL) for the given user.
+// Returns ErrNotFound if the user is gone or soft-deleted.
+func (r *Repo) GetAvatarMeta(ctx context.Context, id int64) (AvatarMeta, string, error) {
+	r.log.Debug("executing GetUserAvatarMeta query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	row, err := q.GetUserAvatarMeta(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return AvatarMeta{}, "", ErrNotFound
+		}
+		r.log.Error("GetUserAvatarMeta query failed", zap.Int64("user_id", id), zap.Error(err))
+		return AvatarMeta{}, "", fmt.Errorf("get user avatar meta: %w", err)
+	}
+	var updatedAt *time.Time
+	if row.AvatarUpdatedAt.Valid {
+		t := row.AvatarUpdatedAt.Time
+		updatedAt = &t
+	}
+	return AvatarMeta{
+		Key:         row.AvatarKey,
+		ContentType: row.AvatarContentType,
+		Size:        row.AvatarSizeBytes,
+		ETag:        row.AvatarEtag,
+		UpdatedAt:   updatedAt,
+	}, row.Picture, nil
+}
+
+// SetAvatar persists the given avatar metadata and points picture at
+// p.PublicURL. Returns ErrNotFound if the user is gone or soft-deleted.
+func (r *Repo) SetAvatar(ctx context.Context, p SetAvatarParams) (models.User, error) {
+	r.log.Debug("executing SetUserAvatar query", zap.Int64("user_id", p.ID))
+	q := db.New(r.pool)
+	row, err := q.SetUserAvatar(ctx, db.SetUserAvatarParams{
+		ID:                p.ID,
+		AvatarKey:         p.Key,
+		AvatarContentType: p.ContentType,
+		AvatarSizeBytes:   p.Size,
+		AvatarEtag:        p.ETag,
+		Picture:           p.PublicURL,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.User{}, ErrNotFound
+		}
+		r.log.Error("SetUserAvatar query failed", zap.Int64("user_id", p.ID), zap.Error(err))
+		return models.User{}, fmt.Errorf("set user avatar: %w", err)
+	}
+	return toPublicUser(publicUserRow{
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+	}), nil
+}
+
+// ClearAvatar clears both the stored-avatar columns and picture. Idempotent:
+// clearing an already-empty avatar is a success.
+// Returns ErrNotFound if the user is gone or soft-deleted.
+func (r *Repo) ClearAvatar(ctx context.Context, id int64) (models.User, error) {
+	r.log.Debug("executing ClearUserAvatar query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	row, err := q.ClearUserAvatar(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.User{}, ErrNotFound
+		}
+		r.log.Error("ClearUserAvatar query failed", zap.Int64("user_id", id), zap.Error(err))
+		return models.User{}, fmt.Errorf("clear user avatar: %w", err)
+	}
+	return toPublicUser(publicUserRow{
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+	}), nil
+}
+
 // insertWithTx inserts a user row within the provided transaction and returns the
 // public-safe model. Callers are responsible for commit/rollback.
 func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (models.User, error) {

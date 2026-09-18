@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -58,11 +59,17 @@ import (
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
 	"github.com/moniqohq/moniqo/apps/backend/internal/onboarding"
 	"github.com/moniqohq/moniqo/apps/backend/internal/search"
+	"github.com/moniqohq/moniqo/apps/backend/internal/storage/local"
 	"github.com/moniqohq/moniqo/apps/backend/internal/transaction"
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
 
 const envDevelopment = "development"
+
+// avatarPathRe matches exactly "GET /api/v1/users/{id}/picture", anchored and
+// digit-only so it cannot also match "/api/v1/users/{id}" (the full profile,
+// which must stay authenticated).
+var avatarPathRe = regexp.MustCompile(`^/api/v1/users/\d+/picture$`)
 
 func main() {
 	cfg := config.Load()
@@ -219,17 +226,24 @@ func buildEmailSubsystem(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger)
 
 // publicRoute identifies a route that bypasses JWT authentication. A prefix
 // route matches any path that begins with path (used for wildcard groups like
-// the password-reset flow); otherwise path must match exactly.
+// the password-reset flow); a re route matches via regexp (used where a
+// prefix would be too broad, e.g. the avatar GET endpoint — a prefix of
+// "/api/v1/users/" would also expose the full-profile GET); otherwise path
+// must match exactly.
 type publicRoute struct {
 	method string
 	path   string
 	prefix bool
+	re     *regexp.Regexp
 }
 
 // matches reports whether the route covers the given request method and path.
 func (r publicRoute) matches(method, path string) bool {
 	if r.method != method {
 		return false
+	}
+	if r.re != nil {
+		return r.re.MatchString(path)
 	}
 	if r.prefix {
 		return strings.HasPrefix(path, r.path)
@@ -253,6 +267,7 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google)
 		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (response_mode=form_post providers)
 		{method: http.MethodPost, path: "/api/v1/auth/facebook/login"},                // facebook token login, no redirect
+		{method: http.MethodGet, re: avatarPathRe},                                    // profile picture: <img> can't send Authorization
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -268,12 +283,36 @@ func newAuthSkipper() echomw.Skipper {
 	}
 }
 
+// wireAvatarStorage constructs the storage.Storage backend named by
+// cfg.Driver and, on success, wires it into userSvc via the setter
+// (user.Svc.SetStorage) rather than a constructor parameter — matching the
+// pattern used by other slices' optional cross-cutting dependencies (e.g.
+// account.Svc's SetBudgetChecker). A construction failure is logged, not
+// fatal: it degrades to the picture endpoints returning 500 rather than the
+// whole server failing to start, the same philosophy as an unconfigured
+// OIDC provider.
+func wireAvatarStorage(userSvc *user.Svc, cfg config.UploadConfig, log *zap.Logger) {
+	switch cfg.Driver {
+	case "local":
+		store, err := local.New(cfg.LocalRoot, log)
+		if err != nil {
+			log.Error("failed to initialize local avatar storage; picture endpoints will return errors", zap.Error(err))
+			return
+		}
+		userSvc.SetStorage(store)
+	default:
+		log.Error("unknown STORAGE_DRIVER; picture endpoints will return errors", zap.String("driver", cfg.Driver))
+	}
+}
+
 func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, log *zap.Logger) {
 	jwtSecret := []byte(cfg.JWTSecret)
 
 	userRepo := user.NewRepo(pool, log)
 	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.APIBaseURL, jwtSecret, log)
 	userHandler := user.NewHandler(userSvc, cfg.AppBaseURL, log)
+	userHandler.SetAvatarLimit(cfg.Uploads.MaxAvatarBytes)
+	wireAvatarStorage(userSvc, cfg.Uploads, log)
 
 	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
@@ -310,16 +349,8 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	passwordResetGroup.GET("/validate", passwordResetHandler.ValidateToken)
 	passwordResetGroup.POST("/confirm", passwordResetHandler.ConfirmReset)
 
-	verifyGroup := e.Group("/api/v1/users")
-	verifyGroup.GET("/verify", userHandler.VerifyEmail)
-
 	registerOIDCRoutes(e, cfg, pool, authSvc, log)
-
-	usersGroup := e.Group("/api/v1/users")
-	usersGroup.GET("/:id", userHandler.GetProfile)
-	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
-	usersGroup.PATCH("/:id", userHandler.PatchProfile)
-	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
+	registerUserRoutes(e, userHandler)
 
 	registerBudgetRoutes(e, pool, log)
 	registerAccountRoutes(e, pool, log)
@@ -327,6 +358,28 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	registerTransactionRoutes(e, pool, log)
 	registerSearchRoutes(e, pool, log)
 	registerOnboardingRoutes(e, pool, log)
+}
+
+// registerUserRoutes wires the profile CRUD and profile-picture endpoints
+// under /api/v1/users. The avatar GET route is registered as its own group
+// (rather than under the shared usersGroup) purely so its rate limiter only
+// applies to that one unauthenticated route — see avatarPathRe in
+// newAuthSkipper for why it must be public.
+func registerUserRoutes(e *echo.Echo, userHandler *user.Handler) {
+	verifyGroup := e.Group("/api/v1/users")
+	verifyGroup.GET("/verify", userHandler.VerifyEmail)
+
+	usersGroup := e.Group("/api/v1/users")
+	usersGroup.GET("/:id", userHandler.GetProfile)
+	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
+	usersGroup.PATCH("/:id", userHandler.PatchProfile)
+	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
+	usersGroup.PUT("/:id/picture", userHandler.UploadPicture)
+	usersGroup.DELETE("/:id/picture", userHandler.DeletePicture)
+
+	avatarGroup := e.Group("/api/v1/users")
+	avatarGroup.Use(appmw.AvatarRateLimiter())
+	avatarGroup.GET("/:id/picture", userHandler.GetPicture)
 }
 
 // registerOnboardingRoutes wires the onboarding domain (first-time setup

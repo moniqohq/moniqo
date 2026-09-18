@@ -31,6 +31,7 @@ import (
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 )
 
 const (
@@ -344,11 +345,24 @@ func (s *OIDCSvc) createUserForIdentity(ctx context.Context, identity oidc.Ident
 		name := identity.Name
 		namePtr = &name
 	}
+	// The identity provider's picture claim is untrusted input: it must be a
+	// valid https URL (see validator.ValidatePictureURL) since it flows
+	// straight into an <img src> and, via the avatar GET endpoint's
+	// redirect-for-external-pictures behavior, into a server-side redirect
+	// target. A malformed or malicious claim degrades to no picture rather
+	// than failing the whole signup.
+	picture := identity.Picture
+	if fe := validator.ValidatePictureURL(picture); fe != nil {
+		s.log.Warn("dropping invalid picture claim from OIDC identity",
+			zap.String("provider", identity.Provider))
+		picture = ""
+	}
+
 	user, err := s.repo.CreateUserFromIdentity(ctx, CreateOIDCUserParams{
 		Username:        deriveUsername(identity.Email, identity.Name),
 		Email:           identity.Email,
 		Name:            namePtr,
-		Picture:         identity.Picture,
+		Picture:         picture,
 		Provider:        identity.Provider,
 		ProviderSubject: identity.Subject,
 		ProviderEmail:   identity.Email,

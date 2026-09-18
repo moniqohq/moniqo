@@ -388,6 +388,11 @@ type User struct {
 	OnboardingCompletedAt pgtype.Timestamptz
 	Currency              *string
 	Timezone              *string
+	AvatarKey             string
+	AvatarContentType     string
+	AvatarSizeBytes       int64
+	AvatarEtag            string
+	AvatarUpdatedAt       pgtype.Timestamptz
 }
 
 type UserIdentity struct {

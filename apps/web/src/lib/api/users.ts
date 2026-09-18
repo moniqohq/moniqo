@@ -34,3 +34,33 @@ export function changePassword(
     body: JSON.stringify(req),
   });
 }
+
+// Updates editable profile fields (name, email, ...). picture is
+// server-managed and must never be sent here — see uploadAvatar/deleteAvatar.
+export function updateProfile(
+  userId: number,
+  patch: { name?: string | null; email?: string },
+): Promise<ApiUser> {
+  return apiFetch<ApiUser>(`/api/v1/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+// Uploads a new profile picture. The server sniffs the real content type and
+// rejects anything outside its JPEG/PNG/WebP allowlist regardless of what
+// `image` claims to be, so no client-side MIME check is required here.
+export function uploadAvatar(userId: number, image: Blob): Promise<ApiUser> {
+  const form = new FormData();
+  form.append("file", image, "avatar");
+  return apiFetch<ApiUser>(`/api/v1/users/${userId}/picture`, {
+    method: "PUT",
+    body: form,
+  });
+}
+
+// Removes the user's profile picture (including an inherited OIDC picture).
+// Idempotent — safe to call even if there's nothing to remove.
+export function deleteAvatar(userId: number): Promise<ApiUser> {
+  return apiFetch<ApiUser>(`/api/v1/users/${userId}/picture`, { method: "DELETE" });
+}

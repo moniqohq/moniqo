@@ -23,7 +23,10 @@ package user
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -39,7 +42,28 @@ import (
 const (
 	fieldBody      = "body"
 	errInvalidJSON = "invalid json"
+
+	// defaultMaxAvatarBytes is used until SetAvatarLimit is called; keeping a
+	// sane default means tests that never call SetAvatarLimit still behave
+	// reasonably rather than accepting unbounded uploads.
+	defaultMaxAvatarBytes = 2 << 20 // 2MB
+
+	pictureFormField = "file"
 )
+
+// isAllowedAvatarType reports whether a sniffed content type is on the
+// upload allowlist. Deliberately excludes SVG (script-capable — this
+// allowlist is what blocks stored XSS via a crafted upload) and GIF (no
+// client-side resize path produces animated GIFs, so there's no legitimate
+// use case).
+func isAllowedAvatarType(contentType string) bool {
+	switch contentType {
+	case "image/jpeg", "image/png", "image/webp":
+		return true
+	default:
+		return false
+	}
+}
 
 // Service is the service contract required by Handler.
 type Service interface {
@@ -49,18 +73,27 @@ type Service interface {
 	PatchProfile(ctx context.Context, id int64, req PatchProfileRequest) (models.User, error)
 	Delete(ctx context.Context, id int64) error
 	VerifyEmail(ctx context.Context, token string) error
+	SetPicture(ctx context.Context, id int64, in PictureUpload) (models.User, error)
+	DeletePicture(ctx context.Context, id int64) (models.User, error)
+	OpenPicture(ctx context.Context, id int64) (PictureResult, error)
 }
 
 // Handler holds HTTP handlers for user endpoints.
 type Handler struct {
-	svc        Service
-	appBaseURL string
-	log        *zap.Logger
+	svc            Service
+	appBaseURL     string
+	log            *zap.Logger
+	maxAvatarBytes int64
 }
 
 // NewHandler returns a user Handler wired to the given service.
 func NewHandler(svc Service, appBaseURL string, log *zap.Logger) *Handler {
-	return &Handler{svc: svc, appBaseURL: appBaseURL, log: log}
+	return &Handler{svc: svc, appBaseURL: appBaseURL, log: log, maxAvatarBytes: defaultMaxAvatarBytes}
+}
+
+// SetAvatarLimit overrides the maximum accepted avatar upload size in bytes.
+func (h *Handler) SetAvatarLimit(n int64) {
+	h.maxAvatarBytes = n
 }
 
 // Register handles POST /api/v1/users.
@@ -244,6 +277,204 @@ func (h *Handler) VerifyEmail(c echo.Context) error {
 
 	h.log.Info("email verified successfully, redirecting to login")
 	return c.Redirect(http.StatusFound, h.appBaseURL+"/login?verified=true")
+}
+
+// UploadPicture handles PUT /api/v1/users/{id}/picture. It accepts a single
+// multipart/form-data part named "file", sniffs its real content type
+// (ignoring whatever Content-Type the client's multipart part claims), and
+// rejects anything outside the image allowlist. On success it returns the
+// full updated user, with picture set to the stable
+// "/api/v1/users/{id}/picture" URL.
+func (h *Handler) UploadPicture(c echo.Context) error {
+	h.log.Debug("received upload picture request")
+
+	userID, ok := h.resolveOwnership(c)
+	if !ok {
+		return nil
+	}
+
+	data, contentType, ok := h.readAndSniffAvatar(c, userID)
+	if !ok {
+		return nil // response already written by readAndSniffAvatar
+	}
+
+	sum := sha256.Sum256(data)
+	pub, err := h.svc.SetPicture(c.Request().Context(), userID, PictureUpload{
+		Data:        data,
+		ContentType: contentType,
+		ETag:        hex.EncodeToString(sum[:]),
+	})
+	if errors.Is(err, ErrNotFound) {
+		return httpx.NotFound(c, "user not found")
+	}
+	if errors.Is(err, ErrStorageUnavailable) {
+		h.log.Error("avatar storage unavailable", zap.Int64("user_id", userID))
+		return httpx.InternalError(c)
+	}
+	if err != nil {
+		h.log.Error("set picture failed", zap.Int64("user_id", userID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, pub, "profile picture updated successfully")
+}
+
+// GetPicture handles GET /api/v1/users/{id}/picture. Unlike every other user
+// endpoint, this one is registered as public (see newAuthSkipper in
+// cmd/server/main.go): an <img> tag cannot attach an Authorization header,
+// and the frontend's access token lives only in memory, so there is no way
+// for a browser-rendered <img> to authenticate this request. The accepted
+// trade-off is that an avatar is readable by anyone who can guess a user id
+// — the same property external OIDC avatar URLs already have.
+func (h *Handler) GetPicture(c echo.Context) error {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return httpx.NotFound(c, "picture not found")
+	}
+
+	result, err := h.svc.OpenPicture(c.Request().Context(), userID)
+	if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNoPicture) {
+		return httpx.NotFound(c, "picture not found")
+	}
+	if errors.Is(err, ErrStorageUnavailable) {
+		h.log.Error("avatar storage unavailable", zap.Int64("user_id", userID))
+		return httpx.InternalError(c)
+	}
+	if err != nil {
+		h.log.Error("open picture failed", zap.Int64("user_id", userID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	switch result.Kind {
+	case PictureExternal:
+		// Safe only because users.picture can no longer hold an arbitrary
+		// client-supplied string (see validator.ValidatePictureURL and the
+		// read-only PATCH/PUT rejection) — otherwise this would be an open
+		// redirect.
+		return c.Redirect(http.StatusFound, result.ExternalURL)
+	case PictureStored:
+		defer result.Body.Close()
+		return streamStoredPicture(c, result)
+	case PictureNone:
+		fallthrough
+	default:
+		return httpx.NotFound(c, "picture not found")
+	}
+}
+
+// streamStoredPicture writes cache-validation headers and streams a locally
+// (or, in the future, S3-) stored avatar. Cache-Control is "private,
+// must-revalidate" rather than a long max-age: the URL is stable across
+// avatar changes, so a shared/CDN cache holding a long-lived response would
+// serve a stale image past an update. The strong ETag keeps revalidation
+// cheap — a matching If-None-Match short-circuits to a ~200-byte 304.
+func streamStoredPicture(c echo.Context, result PictureResult) error {
+	etag := `"` + result.Meta.ETag + `"`
+	c.Response().Header().Set("ETag", etag)
+	c.Response().Header().Set("Cache-Control", "private, max-age=0, must-revalidate")
+	c.Response().Header().Set("X-Content-Type-Options", "nosniff")
+
+	if inm := c.Request().Header.Get("If-None-Match"); inm != "" && inm == etag {
+		return c.NoContent(http.StatusNotModified)
+	}
+
+	return c.Stream(http.StatusOK, result.Meta.ContentType, result.Body)
+}
+
+// DeletePicture handles DELETE /api/v1/users/{id}/picture. It is idempotent:
+// removing an already-absent picture is a success, matching this API's
+// general idempotency convention for destructive operations.
+func (h *Handler) DeletePicture(c echo.Context) error {
+	h.log.Debug("received delete picture request")
+
+	userID, ok := h.resolveOwnership(c)
+	if !ok {
+		return nil
+	}
+
+	pub, err := h.svc.DeletePicture(c.Request().Context(), userID)
+	if errors.Is(err, ErrNotFound) {
+		return httpx.NotFound(c, "user not found")
+	}
+	if err != nil {
+		h.log.Error("delete picture failed", zap.Int64("user_id", userID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, pub, "profile picture removed successfully")
+}
+
+const errFileTooLarge = "must not exceed the maximum upload size"
+
+// isMaxBytesError reports whether err was produced by the http.MaxBytesReader
+// wrapping the request body in readAndSniffAvatar.
+func isMaxBytesError(err error) bool {
+	var maxBytesErr *http.MaxBytesError
+	return errors.As(err, &maxBytesErr)
+}
+
+// readAndSniffAvatar extracts, size-caps, and content-sniffs the uploaded
+// "file" part. On any failure it writes the HTTP response itself (following
+// the same pattern as resolveOwnership) and returns ok=false; the caller
+// should simply return nil.
+//
+//nolint:revive // a linear sequence of upload validation steps reads more clearly inline than split up further
+func (h *Handler) readAndSniffAvatar(c echo.Context, userID int64) (data []byte, contentType string, ok bool) {
+	// Cap the request body before any parsing touches it. Using
+	// http.MaxBytesReader (rather than echo's BodyLimit middleware) keeps
+	// the oversize-file error inside this handler so it can be reported
+	// through the same httpx.Response envelope as every other validation
+	// failure, instead of echo's own {"message": "..."} shape.
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, h.maxAvatarBytes)
+
+	fh, err := c.FormFile(pictureFormField)
+	if err != nil {
+		msg := "required"
+		if isMaxBytesError(err) {
+			msg = errFileTooLarge
+		}
+		_ = httpx.ValidationError(c, []httpx.FieldError{{Field: pictureFormField, Error: msg}})
+		return nil, "", false
+	}
+
+	f, err := fh.Open()
+	if err != nil {
+		h.log.Error("failed to open uploaded file", zap.Int64("user_id", userID), zap.Error(err))
+		_ = httpx.InternalError(c)
+		return nil, "", false
+	}
+	defer f.Close()
+
+	data, err = io.ReadAll(io.LimitReader(f, h.maxAvatarBytes+1))
+	if err != nil {
+		if isMaxBytesError(err) {
+			_ = httpx.ValidationError(c, []httpx.FieldError{{Field: pictureFormField, Error: errFileTooLarge}})
+			return nil, "", false
+		}
+		h.log.Error("failed to read uploaded file", zap.Int64("user_id", userID), zap.Error(err))
+		_ = httpx.InternalError(c)
+		return nil, "", false
+	}
+	if int64(len(data)) > h.maxAvatarBytes {
+		_ = httpx.ValidationError(c, []httpx.FieldError{{Field: pictureFormField, Error: errFileTooLarge}})
+		return nil, "", false
+	}
+	if len(data) == 0 {
+		_ = httpx.ValidationError(c, []httpx.FieldError{{Field: pictureFormField, Error: "must not be empty"}})
+		return nil, "", false
+	}
+
+	// Sniff the real content type from the bytes; never trust the client's
+	// declared Content-Type for the multipart part. This is the control
+	// that keeps a mislabeled or malicious upload (e.g. an SVG renamed
+	// to .png) from ever being stored or served as an image.
+	sniffed := http.DetectContentType(data)
+	if !isAllowedAvatarType(sniffed) {
+		_ = httpx.ValidationError(c, []httpx.FieldError{{Field: pictureFormField, Error: "must be a JPEG, PNG, or WebP image"}})
+		return nil, "", false
+	}
+
+	return data, sniffed, true
 }
 
 // resolveOwnership extracts the authenticated user id from the JWT claims and

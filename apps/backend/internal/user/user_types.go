@@ -20,7 +20,11 @@
 
 package user
 
-import "errors"
+import (
+	"errors"
+	"io"
+	"time"
+)
 
 // -----------------------------------------------------------------------------
 // Handler layer
@@ -87,4 +91,68 @@ type UpdateProfileParams struct {
 	Username string
 	Email    string
 	Picture  string
+}
+
+// -----------------------------------------------------------------------------
+// Avatar / profile picture
+// -----------------------------------------------------------------------------
+
+// ErrNoPicture is returned when a user has neither an uploaded avatar nor an
+// external (OIDC) picture set.
+var ErrNoPicture = errors.New("no picture")
+
+// ErrStorageUnavailable is returned when an avatar upload/get/delete is
+// attempted but no storage.Storage has been wired via Svc.SetStorage.
+var ErrStorageUnavailable = errors.New("avatar storage unavailable")
+
+// AvatarMeta describes the currently stored avatar for a user, as recorded in
+// the users.avatar_* columns. A zero-value AvatarMeta (empty Key) means no
+// file is stored locally — the user may still have an external Picture URL
+// (e.g. from OIDC).
+type AvatarMeta struct {
+	Key         string
+	ContentType string
+	Size        int64
+	ETag        string
+	UpdatedAt   *time.Time
+}
+
+// SetAvatarParams holds the values persisted when an avatar upload succeeds.
+type SetAvatarParams struct {
+	ID          int64
+	Key         string
+	ContentType string
+	ETag        string
+	Size        int64
+	PublicURL   string // the stable API URL written to users.picture
+}
+
+// PictureUpload holds a validated, sniffed image ready to be stored.
+type PictureUpload struct {
+	Data        []byte
+	ContentType string // one of the allowlisted constants in validator/image sniffing
+	ETag        string // hex sha256 of Data
+}
+
+// PictureKind distinguishes how a user's profile picture should be served.
+type PictureKind int
+
+const (
+	// PictureNone means the user has no picture at all.
+	PictureNone PictureKind = iota
+	// PictureStored means the picture is held in local/object storage and
+	// should be streamed back to the client.
+	PictureStored
+	// PictureExternal means the picture is an absolute URL (e.g. from OIDC)
+	// and the client should be redirected there.
+	PictureExternal
+)
+
+// PictureResult is returned by Service.OpenPicture. Body is non-nil only when
+// Kind is PictureStored, and the caller must Close it.
+type PictureResult struct {
+	Kind        PictureKind
+	Body        io.ReadCloser
+	Meta        AvatarMeta
+	ExternalURL string
 }

@@ -42,7 +42,8 @@ import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/use-envelopes";
 import { useAuthStore } from "@/stores/auth.store";
 import { logout as apiLogout } from "@/lib/api/auth";
-import { getInitials, formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { Budget } from "@/types";
@@ -320,9 +321,7 @@ function UserMenu() {
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-[#131C2E] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
       >
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
-          {getInitials(user?.name ?? user?.username ?? "")}
-        </div>
+        <UserAvatar user={user} size={36} className="text-[13px]" />
         <div className="hidden text-left sm:block">
           <div className="text-[15px] leading-tight font-medium text-white">
             {user?.name ?? user?.username ?? ""}
@@ -349,9 +348,7 @@ function UserMenu() {
           >
             {/* User info header */}
             <div className="flex items-center gap-3 px-3 py-3">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
-                {getInitials(user?.name ?? user?.username ?? "")}
-              </div>
+              <UserAvatar user={user} size={36} className="text-[13px]" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">
                   {user?.name ?? user?.username ?? ""}

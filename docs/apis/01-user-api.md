@@ -22,6 +22,7 @@ The API supports:
 - Full profile replacement
 - Partial profile update
 - Password change (authenticated)
+- Profile picture upload / removal
 - Account deletion
 
 > Unless explicitly stated, all endpoints require authentication.
@@ -41,7 +42,7 @@ Represents an authenticated identity in the system.
 | `username` | String | Yes | Unique username (8–12 chars, see constraints) |
 | `hash` | String | No | bcrypt password hash — absent for accounts created via third-party (OIDC) sign-in with no password set; **never returned in any response regardless** |
 | `email` | String | Yes | Unique email address (RFC 5321, required at registration) |
-| `picture` | String | Yes | Avatar reference; empty string `""` when not set, never `null` |
+| `picture` | String | Yes | Server-managed avatar reference; empty string `""` when not set, never `null`. Either the relative URL `/api/v1/users/{id}/picture` (an uploaded avatar) or an absolute `https` URL (an OIDC-provided avatar). **Read-only** over this API — see [Profile Picture](#profile-picture) below; PUT/PATCH reject a non-empty value. |
 | `status` | Enum | Yes | Account lifecycle state: `pending_verification` or `active` |
 | `last_login` | Timestamp | No | Most recent successful authentication; `null` before first login |
 | `created_at` | Timestamp | Yes | Server-side creation timestamp |
@@ -219,7 +220,7 @@ Returns authenticated user's profile.
     "name": "Saqib Abdul",
     "username": "saqib",
     "email": "saqib@example.com",
-    "picture": "https://cdn.moniqo.app/avatar.png",
+    "picture": "/api/v1/users/1/picture",
     "last_login": "2026-02-23T15:04:05Z"
   },
   "msg": "user fetched successfully"
@@ -254,7 +255,7 @@ Replaces editable user fields — idempotent operation.
 **`PUT /api/v1/users/{id}`**
 **Authentication:** Required
 
-**Editable fields:** `name`, `username`, `email`, `picture`
+**Editable fields:** `name`, `username`, `email`
 
 **Request Payload**
 
@@ -262,10 +263,11 @@ Replaces editable user fields — idempotent operation.
 {
   "name": "Saqib Abdul",
   "username": "saqib",
-  "email": "saqib@moniqo.app",
-  "picture": "https://cdn.moniqo.app/new-avatar.png"
+  "email": "saqib@moniqo.app"
 }
 ```
+
+`picture` may be included as `""` for a full round-trip of a previously-fetched profile, but any other value is rejected — see [Profile Picture](#profile-picture).
 
 **Response — 200 OK**
 
@@ -277,7 +279,7 @@ Replaces editable user fields — idempotent operation.
     "name": "Saqib Abdul",
     "username": "saqib",
     "email": "saqib@moniqo.app",
-    "picture": "https://cdn.moniqo.app/new-avatar.png",
+    "picture": "",
     "last_login": "2026-02-23T15:04:05Z"
   },
   "msg": "user updated successfully"
@@ -325,9 +327,11 @@ Updates specific fields only.
 
 ```json
 {
-  "picture": "https://cdn.moniqo.app/avatar-2.png"
+  "name": "Saqib A."
 }
 ```
+
+`picture` is not an accepted field on PATCH (it is rejected with a `400` validation error) — see [Profile Picture](#profile-picture).
 
 **Response — 200 OK**
 
@@ -336,10 +340,10 @@ Updates specific fields only.
   "success": true,
   "data": {
     "id": 1,
-    "name": "Saqib Abdul",
+    "name": "Saqib A.",
     "username": "saqib",
     "email": "saqib@moniqo.app",
-    "picture": "https://cdn.moniqo.app/avatar-2.png",
+    "picture": "/api/v1/users/1/picture",
     "last_login": "2026-02-23T15:04:05Z"
   },
   "msg": "user updated successfully"
@@ -393,6 +397,120 @@ If password update is requested:
 | 403 | `FORBIDDEN` | Password verification failed |
 | 404 | `NOT_FOUND` | User not found |
 | 409 | `CONFLICT` | Duplicate username/email |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+## Profile Picture
+
+`picture` is server-managed: clients never write it via PUT/PATCH (see above). It is set only by uploading a picture, by removing one, or — for accounts created via third-party sign-in — by the identity provider at signup. Three endpoints govern it.
+
+Clients should treat `picture` as an opaque URL and render it directly (e.g. `<img src={picture}>`), without trying to construct or parse it. Because the URL is stable across a picture change (uploading a new picture does not change the URL), a client that caches images by URL should append a cache-busting query parameter after a successful upload or removal.
+
+### Upload Profile Picture
+
+Uploads and replaces the authenticated user's profile picture.
+
+**`PUT /api/v1/users/{id}/picture`**
+**Authentication:** Required
+**Content-Type:** `multipart/form-data`, single part named `file`
+
+**Constraints**
+
+- Max size: 2MB (`AVATAR_MAX_BYTES`, configurable server-side).
+- Accepted image types: JPEG, PNG, WebP. The server sniffs the actual file content — the part's declared `Content-Type` is ignored — and rejects anything else (including SVG and GIF) with a `400`.
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Saqib Abdul",
+    "username": "saqib",
+    "email": "saqib@moniqo.app",
+    "picture": "/api/v1/users/1/picture",
+    "last_login": "2026-02-23T15:04:05Z"
+  },
+  "msg": "profile picture updated successfully"
+}
+```
+
+**Business Rules**
+
+- Only the authenticated user may set their own picture (ownership check identical to PUT/PATCH/DELETE on the profile itself).
+- Replacing an existing picture removes the old stored image.
+- Uploading byte-identical content to the current picture is a safe no-op.
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Missing `file` part, oversized file, or unsupported/undetectable image type |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 403 | `FORBIDDEN` | Access denied (id does not match authenticated principal) |
+| 404 | `NOT_FOUND` | User not found |
+| 500 | `INTERNAL_ERROR` | Unexpected failure (including avatar storage being unavailable) |
+
+---
+
+### Get Profile Picture
+
+Returns the raw image bytes for a user's profile picture.
+
+**`GET /api/v1/users/{id}/picture`**
+**Authentication:** **Not required.** This is the only unauthenticated endpoint in this API besides registration and login. An `<img>` tag cannot attach an `Authorization` header, and the client's access token is memory-only (never stored in a cookie), so there is no mechanism by which a browser-rendered `<img>` could authenticate this request. The accepted trade-off is that a picture is fetchable by anyone who can guess a user id — the same exposure that an OIDC-hosted avatar URL (e.g. a Google or Facebook CDN link) already has. This endpoint is rate-limited per IP to bound scraping.
+
+**Responses**
+
+| Status | Condition | Notes |
+|---|---|---|
+| 200 | A picture was uploaded via this API | Body is the raw image; `Content-Type` reflects the sniffed type from upload time; `ETag` and `Cache-Control: private, max-age=0, must-revalidate` are set |
+| 304 | `If-None-Match` matches the current `ETag` | No body |
+| 302 | No uploaded picture, but `picture` holds an external (OIDC) URL | `Location` header points at the external URL |
+| 404 | No picture set, or the user does not exist / is deleted | Standard envelope, `"picture not found"` |
+
+Because the URL is stable but the underlying image can change, responses are marked non-cacheable by shared caches (`private`) and rely on `ETag` revalidation rather than a long `max-age`.
+
+---
+
+### Remove Profile Picture
+
+Clears the authenticated user's profile picture — idempotent operation.
+
+**`DELETE /api/v1/users/{id}/picture`**
+**Authentication:** Required
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Saqib Abdul",
+    "username": "saqib",
+    "email": "saqib@moniqo.app",
+    "picture": "",
+    "last_login": "2026-02-23T15:04:05Z"
+  },
+  "msg": "profile picture removed successfully"
+}
+```
+
+**Business Rules**
+
+- Removing an already-absent picture is a success, not an error.
+- This also clears an inherited OIDC picture, not only an uploaded one — after removal, `picture` is always `""` regardless of its prior source.
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 403 | `FORBIDDEN` | Access denied |
+| 404 | `NOT_FOUND` | User not found |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
 
 ---

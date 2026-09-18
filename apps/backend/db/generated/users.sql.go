@@ -42,6 +42,53 @@ func (q *Queries) ActivateUser(ctx context.Context, id int64) error {
 	return err
 }
 
+const clearUserAvatar = `-- name: ClearUserAvatar :one
+UPDATE users
+SET avatar_key = '', avatar_content_type = '', avatar_size_bytes = 0,
+    avatar_etag = '', avatar_updated_at = NULL, picture = '', updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+`
+
+type ClearUserAvatarRow struct {
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+}
+
+// Clears both the stored-avatar columns and picture, so removing a photo
+// also drops an inherited OIDC picture (both fall back to initials client-side).
+func (q *Queries) ClearUserAvatar(ctx context.Context, id int64) (ClearUserAvatarRow, error) {
+	row := q.db.QueryRow(ctx, clearUserAvatar, id)
+	var i ClearUserAvatarRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Picture,
+		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.OnboardingCompletedAt,
+		&i.LastLogin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, hash, name)
 VALUES ($1, $2, $3, $4)
@@ -150,6 +197,38 @@ func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserW
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getUserAvatarMeta = `-- name: GetUserAvatarMeta :one
+SELECT avatar_key, avatar_content_type, avatar_size_bytes, avatar_etag, avatar_updated_at, picture
+FROM users
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type GetUserAvatarMetaRow struct {
+	AvatarKey         string
+	AvatarContentType string
+	AvatarSizeBytes   int64
+	AvatarEtag        string
+	AvatarUpdatedAt   pgtype.Timestamptz
+	Picture           string
+}
+
+// Used by the avatar GET handler to decide whether it is serving a locally
+// stored file (avatar_key set), redirecting to an external OIDC picture
+// (picture set, avatar_key empty), or returning 404 (both empty).
+func (q *Queries) GetUserAvatarMeta(ctx context.Context, id int64) (GetUserAvatarMetaRow, error) {
+	row := q.db.QueryRow(ctx, getUserAvatarMeta, id)
+	var i GetUserAvatarMetaRow
+	err := row.Scan(
+		&i.AvatarKey,
+		&i.AvatarContentType,
+		&i.AvatarSizeBytes,
+		&i.AvatarEtag,
+		&i.AvatarUpdatedAt,
+		&i.Picture,
 	)
 	return i, err
 }
@@ -263,6 +342,70 @@ type SetTokensInvalidBeforeParams struct {
 func (q *Queries) SetTokensInvalidBefore(ctx context.Context, arg SetTokensInvalidBeforeParams) error {
 	_, err := q.db.Exec(ctx, setTokensInvalidBefore, arg.ID, arg.TokensInvalidBefore)
 	return err
+}
+
+const setUserAvatar = `-- name: SetUserAvatar :one
+UPDATE users
+SET avatar_key = $2, avatar_content_type = $3, avatar_size_bytes = $4,
+    avatar_etag = $5, avatar_updated_at = now(), picture = $6, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+`
+
+type SetUserAvatarParams struct {
+	ID                int64
+	AvatarKey         string
+	AvatarContentType string
+	AvatarSizeBytes   int64
+	AvatarEtag        string
+	Picture           string
+}
+
+type SetUserAvatarRow struct {
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+}
+
+// Points picture at the stable API URL passed in $6 (always
+// "/api/v1/users/{id}/picture" in practice; the caller computes it since
+// queries should not embed application URL structure).
+func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (SetUserAvatarRow, error) {
+	row := q.db.QueryRow(ctx, setUserAvatar,
+		arg.ID,
+		arg.AvatarKey,
+		arg.AvatarContentType,
+		arg.AvatarSizeBytes,
+		arg.AvatarEtag,
+		arg.Picture,
+	)
+	var i SetUserAvatarRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Picture,
+		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.OnboardingCompletedAt,
+		&i.LastLogin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }
 
 const softDeleteUser = `-- name: SoftDeleteUser :exec

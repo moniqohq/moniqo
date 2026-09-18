@@ -36,6 +36,9 @@ type UserService struct {
 	ReplaceProfileFn func(ctx context.Context, id int64, req user.ReplaceProfileRequest) (models.User, error)
 	PatchProfileFn   func(ctx context.Context, id int64, req user.PatchProfileRequest) (models.User, error)
 	DeleteFn         func(ctx context.Context, id int64) error
+	SetPictureFn     func(ctx context.Context, id int64, in user.PictureUpload) (models.User, error)
+	DeletePictureFn  func(ctx context.Context, id int64) (models.User, error)
+	OpenPictureFn    func(ctx context.Context, id int64) (user.PictureResult, error)
 }
 
 // Register delegates to RegisterFn.
@@ -66,6 +69,21 @@ func (m *UserService) Delete(ctx context.Context, id int64) error {
 // VerifyEmail records the call and returns the configured stub error.
 func (*UserService) VerifyEmail(_ context.Context, _ string) error {
 	return nil
+}
+
+// SetPicture delegates to SetPictureFn.
+func (m *UserService) SetPicture(ctx context.Context, id int64, in user.PictureUpload) (models.User, error) {
+	return m.SetPictureFn(ctx, id, in)
+}
+
+// DeletePicture delegates to DeletePictureFn.
+func (m *UserService) DeletePicture(ctx context.Context, id int64) (models.User, error) {
+	return m.DeletePictureFn(ctx, id)
+}
+
+// OpenPicture delegates to OpenPictureFn.
+func (m *UserService) OpenPicture(ctx context.Context, id int64) (user.PictureResult, error) {
+	return m.OpenPictureFn(ctx, id)
 }
 
 // UserRepository is a testify mock for user.Repository.
@@ -125,4 +143,34 @@ func (m *UserRepository) GetHashByID(_ context.Context, id int64) (string, error
 func (m *UserRepository) Activate(_ context.Context, id int64) error {
 	args := m.Called(id)
 	return args.Error(0)
+}
+
+// GetAvatarMeta records the call and returns the configured stub values.
+func (m *UserRepository) GetAvatarMeta(_ context.Context, id int64) (user.AvatarMeta, string, error) {
+	args := m.Called(id)
+	meta, ok := args.Get(0).(user.AvatarMeta)
+	if !ok {
+		meta = user.AvatarMeta{}
+	}
+	return meta, args.String(1), args.Error(2) //nolint:mnd
+}
+
+// SetAvatar records the call and returns the configured stub values.
+func (m *UserRepository) SetAvatar(_ context.Context, p user.SetAvatarParams) (models.User, error) {
+	args := m.Called(p)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
+	return u, args.Error(1)
+}
+
+// ClearAvatar records the call and returns the configured stub values.
+func (m *UserRepository) ClearAvatar(_ context.Context, id int64) (models.User, error) {
+	args := m.Called(id)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
+	return u, args.Error(1)
 }
