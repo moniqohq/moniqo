@@ -36,7 +36,7 @@ This API supports full CRUD operations and maintains financial integrity rules.
 | `budget_id` | Integer | Yes | Foreign key referencing Budget |
 | `account_id` | Integer | Yes | Primary ledger account |
 | `transfer_account_id` | Integer | No | Target account for transfer transactions |
-| `budget_envelope_id` | Integer | No | Associated envelope for budgeting impact |
+| `budget_envelope_id` | Integer | Conditional | Associated envelope for budgeting impact. Required for expenses (negative `amount`); must be omitted/`null` for income (positive `amount`) and for transfers |
 | `amount` | Decimal | Yes | Monetary value (positive or negative based on type) |
 | `date` | Time | Yes | Transaction date |
 | `status` | Enum | Yes | Clearing state: `uncleared`, `cleared`, `reconciled` |
@@ -73,8 +73,13 @@ Allowed values: `uncleared`, `cleared`, `reconciled`
 - Transfer transactions must:
   - Not have `budget_envelope_id`
   - Create a mirrored transaction internally (optional implementation detail)
-- Non-transfer transactions with a negative `amount` (expenses) require `budget_envelope_id`.
-- Non-transfer transactions with a positive `amount` (income) do not require `budget_envelope_id`; unallocated income flows into "To Be Budgeted".
+- Envelopes apply to expenses only, not income: allocation (moving money into an
+  envelope) is conceptually distinct from spending it.
+  - Expense (negative `amount`, non-transfer): `budget_envelope_id` is required.
+  - Income (positive `amount`, non-transfer): `budget_envelope_id` must be `null`/omitted;
+    unallocated income flows into "To Be Budgeted".
+  - A `PATCH` that flips a transaction's effective sign must re-evaluate this rule
+    against the resulting amount, not just the fields present in the request body.
 - Amount cannot be zero.
 - Date must be valid.
 - Editing a transaction must recalculate:
@@ -162,7 +167,7 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 - Amount cannot be zero.
 - If `transfer_account_id` provided: `budget_envelope_id` must be `null`.
 - If not a transfer and `amount` is negative (expense): `budget_envelope_id` required.
-- If not a transfer and `amount` is positive (income): `budget_envelope_id` optional — unallocated income increases "To Be Budgeted".
+- If not a transfer and `amount` is positive (income): `budget_envelope_id` must be `null`/omitted — unallocated income increases "To Be Budgeted".
 - Rejected if `account_id` (or, for transfers, either leg's account) refers to an archived account — archived accounts are read-only.
 
 **Validation Rules**
@@ -304,6 +309,8 @@ Idempotent operation.
   was previously `cleared` or `reconciled`. Send the current `status` explicitly to preserve it.
 - For transfers, `status` is applied to both legs so they never disagree on clearing state.
 - Rejected if `account_id` refers to an archived account.
+- Envelope rule enforced against the request's own `amount`: expense requires
+  `budget_envelope_id`, income/transfer must have it `null`/omitted.
 
 **Side Effects**
 
@@ -342,11 +349,19 @@ Idempotent operation.
 - Must not allow empty PATCH body.
 - Financial recalculation required.
 - Rejected if the patch would move the transaction onto an archived account.
+- The envelope rule is re-evaluated against the transaction's *effective* post-patch
+  amount and `transfer_account_id` — i.e. the patched value if present, otherwise the
+  existing stored value — not just the fields present in the request body. A `PATCH`
+  that flips an expense's amount sign to positive automatically clears any existing
+  `budget_envelope_id`; the reverse (income → expense) requires the request to supply
+  a `budget_envelope_id` since one cannot be inferred.
 
 **Validation Rules**
 
 - Amount cannot be zero.
 - All IDs must belong to the same budget.
+- An explicit positive `amount` with an explicit `budget_envelope_id` in the same
+  request is rejected regardless of the existing stored transaction.
 
 **Side Effects**
 
