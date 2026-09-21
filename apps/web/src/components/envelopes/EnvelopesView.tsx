@@ -147,12 +147,16 @@ function RowActions({
       >
         <PlusCircle size={13} />
       </button>
-      <button onClick={onModify} title="Modify Envelope" className={btnCls}>
-        <Pencil size={13} />
-      </button>
-      <button onClick={onArchive} title="Archive Envelope" className={btnCls}>
-        <Archive size={13} />
-      </button>
+      {!isArchived && (
+        <>
+          <button onClick={onModify} title="Modify Envelope" className={btnCls}>
+            <Pencil size={13} />
+          </button>
+          <button onClick={onArchive} title="Archive Envelope" className={btnCls}>
+            <Archive size={13} />
+          </button>
+        </>
+      )}
     </div>
   );
 }

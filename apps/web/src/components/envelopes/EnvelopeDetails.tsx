@@ -513,32 +513,36 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
             <Plus size={15} />
             Add Transaction
           </button>
-          <button
-            onClick={() => setModifyOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
-            style={{
-              background: "linear-gradient(135deg, #854D0E 0%, #CA8A04 100%)",
-              color: "#fff",
-              boxShadow: "0 0 12px rgba(202,138,4,0.3)",
-              border: "1px solid rgba(202,138,4,0.5)",
-            }}
-          >
-            <Pencil size={13} />
-            Modify Envelope
-          </button>
-          <button
-            onClick={() => setArchiveOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
-            style={{
-              background: "linear-gradient(135deg, #92400E 0%, #C2651A 100%)",
-              color: "#fff",
-              boxShadow: "0 0 12px rgba(194,101,26,0.3)",
-              border: "1px solid rgba(194,101,26,0.5)",
-            }}
-          >
-            <Archive size={13} />
-            Archive Envelope
-          </button>
+          {!envelope?.isArchived && (
+            <>
+              <button
+                onClick={() => setModifyOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
+                style={{
+                  background: "linear-gradient(135deg, #854D0E 0%, #CA8A04 100%)",
+                  color: "#fff",
+                  boxShadow: "0 0 12px rgba(202,138,4,0.3)",
+                  border: "1px solid rgba(202,138,4,0.5)",
+                }}
+              >
+                <Pencil size={13} />
+                Modify Envelope
+              </button>
+              <button
+                onClick={() => setArchiveOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
+                style={{
+                  background: "linear-gradient(135deg, #92400E 0%, #C2651A 100%)",
+                  color: "#fff",
+                  boxShadow: "0 0 12px rgba(194,101,26,0.3)",
+                  border: "1px solid rgba(194,101,26,0.5)",
+                }}
+              >
+                <Archive size={13} />
+                Archive Envelope
+              </button>
+            </>
+          )}
           <button
             onClick={() => setForceDeleteOpen(true)}
             className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
