@@ -234,7 +234,8 @@ export function AddTransactionModal({
         payload.amount = -absAmount;
       } else {
         payload.account_id = selectedAccount?.id;
-        payload.budget_envelope_id = selectedEnvelope?.id ?? null;
+        // Envelopes only apply to expenses; income must omit/clear the field.
+        payload.budget_envelope_id = isExpense ? selectedEnvelope?.id ?? null : null;
         payload.amount = isIncome ? absAmount : -absAmount;
       }
       await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/transactions`, {
@@ -366,7 +367,12 @@ export function AddTransactionModal({
                   {tabs.map(({ type, label, icon }, i) => (
                     <button
                       key={type}
-                      onClick={() => setTxType(type)}
+                      onClick={() => {
+                        setTxType(type);
+                        // Envelopes only apply to expenses; drop any selection so a
+                        // stale envelope can't be submitted for income/transfer.
+                        if (type !== "expense") setSelectedEnvelope(null);
+                      }}
                       className={cn(
                         "inline-flex flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold transition-all focus:outline-none",
                         i > 0 && "border-l border-[#1A2540]",
