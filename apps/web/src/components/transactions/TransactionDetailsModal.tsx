@@ -46,10 +46,10 @@ import {
 } from "lucide-react";
 import type { Transaction, AccountType } from "@/types";
 import type { ApiEnvelope } from "@/lib/api-types";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatTransactionDate, cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 
-function formatModalDate(dateStr: string): string {
+function formatTimestamp(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", {
     month: "long",
@@ -121,7 +121,7 @@ export function TransactionDetailsModal({
 
   const accMeta = ACCOUNT_TYPE_META.checking;
 
-  const formattedDate = formatModalDate(tx.date);
+  const formattedDate = formatTransactionDate(tx.date);
   const txId = `TXN-${tx.id}`;
 
   // Envelope balance after this transaction = allocated - spent, both of which
@@ -429,7 +429,7 @@ export function TransactionDetailsModal({
                           </IconBox>
                         }
                         label="Created at"
-                        value={formatModalDate(tx.createdAt)}
+                        value={formatTimestamp(tx.createdAt)}
                       />
 
                       {/* Reconciliation status */}

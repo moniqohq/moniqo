@@ -298,6 +298,22 @@ func TestHandler_GetTransaction(t *testing.T) {
 		require.NoError(t, transaction.NewHandler(svc, log).GetTransaction(c))
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
+
+	t.Run("response date is serialized as RFC3339", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			GetByIDFn: func(_ context.Context, _, _ int64) (models.Transaction, error) {
+				return makeTxnWithEnvelope(-100000), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).GetTransaction(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"date":"2026-03-01T00:00:00Z"`)
+	})
 }
 
 // ---------------------------------------------------------------------------

@@ -43,6 +43,16 @@ export function formatCurrency(amount: number): string {
   return amount < 0 ? `${symbol} -${num}` : `${symbol} ${num}`;
 }
 
+export function formatTransactionDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function formatCurrencyCompact(amount: number): string {
   const { symbol, locale } = getCurrency(usePreferencesStore.getState().currency);
   const formatted = Math.abs(amount).toLocaleString(locale);
