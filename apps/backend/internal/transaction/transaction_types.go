@@ -42,6 +42,45 @@ var (
 	ErrValidation = errors.New("validation error")
 )
 
+// FieldViolationError is a service-layer validation or conflict error that
+// names the offending request field, so handlers can surface a descriptive
+// message instead of collapsing every rule into a generic "validation
+// failed" / "business rule violation" string. Sentinel is ErrValidation or
+// ErrConflict and is preserved through Unwrap so existing
+// errors.Is(err, ErrValidation) checks keep working.
+type FieldViolationError struct {
+	Field    string
+	Reason   string
+	Sentinel error
+}
+
+// NewFieldViolation returns a FieldViolationError wrapping sentinel
+// (ErrValidation or ErrConflict), naming the field and the reason it failed.
+// Exported for use by tests that need to simulate a service-layer field violation.
+func NewFieldViolation(field, reason string, sentinel error) *FieldViolationError {
+	return &FieldViolationError{Field: field, Reason: reason, Sentinel: sentinel}
+}
+
+// Error implements the error interface.
+func (e *FieldViolationError) Error() string {
+	return e.Field + ": " + e.Reason
+}
+
+// Unwrap exposes the underlying sentinel (ErrValidation or ErrConflict) for errors.Is.
+func (e *FieldViolationError) Unwrap() error {
+	return e.Sentinel
+}
+
+// validationViolation returns a FieldViolationError wrapping ErrValidation.
+func validationViolation(field, reason string) error {
+	return NewFieldViolation(field, reason, ErrValidation)
+}
+
+// conflictViolation returns a FieldViolationError wrapping ErrConflict.
+func conflictViolation(field, reason string) error {
+	return NewFieldViolation(field, reason, ErrConflict)
+}
+
 // CreateRequest is the request payload for POST /api/v1/budgets/:budget_id/transactions.
 type CreateRequest struct {
 	AccountID         int64                     `json:"account_id"`

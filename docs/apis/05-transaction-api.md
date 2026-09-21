@@ -82,6 +82,31 @@ Allowed values: `uncleared`, `cleared`, `reconciled`
 
 ---
 
+## Validation Error Format
+
+A `400 VALIDATION_ERROR` response names every field that failed and why, aggregated in a single response — the same envelope used by every other endpoint in this API:
+
+```json
+{
+  "success": false,
+  "data": {
+    "fields": [
+      { "field": "account_id", "error": "must be a JSON integer (received \"10\")" },
+      { "field": "amount", "error": "must be a JSON number in major units, e.g. 12.34 (received \"1500\")" },
+      { "field": "date", "error": "must be an RFC 3339 timestamp, e.g. 2026-03-01T00:00:00Z (received \"01-03-2026\")" }
+    ]
+  },
+  "msg": "validation failed"
+}
+```
+
+- A field that fails to decode (wrong JSON type, e.g. a string where a number is expected) is reported with the value that was received.
+- A field that decodes but fails a domain rule (e.g. `amount: 0`, or `budget_envelope_id` set alongside `transfer_account_id`) is reported with the rule that was violated.
+- All failures across all fields are returned together in one response, not one at a time.
+- A `409 BUSINESS_RULE_VIOLATION` conflict (e.g. self-transfer) uses the same envelope with `data: null` and a specific `msg` naming the offending field and rule instead of a generic message.
+
+---
+
 ## Endpoints
 
 ### Create Transaction
