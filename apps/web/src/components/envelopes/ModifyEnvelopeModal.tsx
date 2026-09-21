@@ -40,7 +40,10 @@ import {
 import { cn } from "@/lib/utils";
 import { patchEnvelope } from "@/lib/api/envelopes";
 import { invalidateBudgetData } from "@/lib/query-keys";
+import { envelopeErrorBanner, envelopeFieldErrors } from "@/lib/envelope-errors";
 import type { Nature } from "@/lib/envelope-nature";
+
+const KNOWN_FIELDS = new Set(["title", "allocated_amt"]);
 
 import type { BudgetEnvelope } from "@/types";
 
@@ -168,7 +171,15 @@ function ReadOnlyNatureBadge({ nature }: { nature: Nature | "" }) {
 
 /* ── AllocationInput ─────────────────────────────────────── */
 
-function AllocationInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function AllocationInput({
+  value,
+  onChange,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+}) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const step = () => {
@@ -261,7 +272,11 @@ function AllocationInput({ value, onChange }: { value: string; onChange: (v: str
         </div>
       </div>
 
-      <p className="mt-1.5 text-xs text-[#7A8BA8]">Money assigned from To Be Budgeted.</p>
+      {error ? (
+        <p className="mt-1.5 text-xs text-[#F87171]">{error}</p>
+      ) : (
+        <p className="mt-1.5 text-xs text-[#7A8BA8]">Money assigned from To Be Budgeted.</p>
+      )}
     </div>
   );
 }
@@ -526,6 +541,7 @@ export function ModifyEnvelopeModal({
   const [description, setDescription] = useState(envelope.description ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
 
   const allocatedNum = parseAmount(allocatedRaw);
@@ -547,6 +563,7 @@ export function ModifyEnvelopeModal({
   const handleSave = async () => {
     setLoading(true);
     setError(null);
+    setFieldErrors({});
     try {
       await patchEnvelope(budgetId, envelope.id, {
         title: title.trim(),
@@ -562,7 +579,14 @@ export function ModifyEnvelopeModal({
         onClose();
       }, 1800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error.");
+      const fields = envelopeFieldErrors(err);
+      setFieldErrors(fields);
+      const leftover = Object.entries(fields).filter(([field]) => !KNOWN_FIELDS.has(field));
+      if (leftover.length > 0) {
+        setError(leftover.map(([, msg]) => msg).join(" "));
+      } else if (Object.keys(fields).length === 0) {
+        setError(envelopeErrorBanner(err));
+      }
       setLoading(false);
     }
   };
@@ -640,13 +664,21 @@ export function ModifyEnvelopeModal({
                         placeholder="e.g., Groceries"
                         className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                       />
-                      <p className="mt-1.5 text-xs text-[#7A8BA8]">
-                        A clear name for this spending category.
-                      </p>
+                      {fieldErrors.title ? (
+                        <p className="mt-1.5 text-xs text-[#F87171]">{fieldErrors.title}</p>
+                      ) : (
+                        <p className="mt-1.5 text-xs text-[#7A8BA8]">
+                          A clear name for this spending category.
+                        </p>
+                      )}
                     </div>
 
                     {/* Allocated amount */}
-                    <AllocationInput value={allocatedRaw} onChange={setAllocatedRaw} />
+                    <AllocationInput
+                      value={allocatedRaw}
+                      onChange={setAllocatedRaw}
+                      error={fieldErrors.allocated_amt}
+                    />
 
                     {/* Nature (read-only — set at creation, cannot be changed) */}
                     <div>

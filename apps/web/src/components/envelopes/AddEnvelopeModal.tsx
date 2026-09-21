@@ -27,6 +27,9 @@ import { cn } from "@/lib/utils";
 import { createEnvelope } from "@/lib/api/envelopes";
 import { invalidateBudgetData } from "@/lib/query-keys";
 import { toWireNature, type Nature } from "@/lib/envelope-nature";
+import { envelopeErrorBanner, envelopeFieldErrors } from "@/lib/envelope-errors";
+
+const KNOWN_FIELDS = new Set(["title", "allocated_amt", "nature"]);
 
 export interface AddEnvelopeModalProps {
   open: boolean;
@@ -152,6 +155,7 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [prevOpen, setPrevOpen] = useState(open);
 
   if (open !== prevOpen) {
@@ -162,6 +166,7 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
       setNature("");
       setDescription("");
       setError(null);
+      setFieldErrors({});
       setLoading(false);
     }
   }
@@ -241,9 +246,13 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                     placeholder="e.g., Groceries"
                     className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                   />
-                  <p className="mt-1.5 text-xs text-[#9AAABF]">
-                    A short, clear name for this envelope.
-                  </p>
+                  {fieldErrors.title ? (
+                    <p className="mt-1.5 text-xs text-[#F87171]">{fieldErrors.title}</p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-[#9AAABF]">
+                      A short, clear name for this envelope.
+                    </p>
+                  )}
                 </div>
 
                 {/* Allocated amount */}
@@ -264,9 +273,13 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                       className="flex-1 bg-transparent px-3.5 py-3 text-sm text-white tabular-nums placeholder:text-[#4A5A75] focus:outline-none"
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-[#9AAABF]">
-                    Set the amount you want to allocate to this envelope.
-                  </p>
+                  {fieldErrors.allocated_amt ? (
+                    <p className="mt-1.5 text-xs text-[#F87171]">{fieldErrors.allocated_amt}</p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-[#9AAABF]">
+                      Set the amount you want to allocate to this envelope.
+                    </p>
+                  )}
                 </div>
 
                 {/* Nature */}
@@ -290,6 +303,9 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                       />
                     ))}
                   </div>
+                  {fieldErrors.nature && (
+                    <p className="mt-1.5 text-xs text-[#F87171]">{fieldErrors.nature}</p>
+                  )}
                 </div>
 
                 {/* Description */}
@@ -336,6 +352,7 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                     if (!title.trim() || isNaN(allocatedAmt) || allocatedAmt < 0) return;
                     setLoading(true);
                     setError(null);
+                    setFieldErrors({});
                     try {
                       await createEnvelope(budgetId, {
                         title: title.trim(),
@@ -347,7 +364,16 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                       onCreated();
                       onClose();
                     } catch (err) {
-                      setError(err instanceof Error ? err.message : "Unexpected error.");
+                      const fields = envelopeFieldErrors(err);
+                      setFieldErrors(fields);
+                      const leftover = Object.entries(fields).filter(
+                        ([field]) => !KNOWN_FIELDS.has(field),
+                      );
+                      if (leftover.length > 0) {
+                        setError(leftover.map(([, msg]) => msg).join(" "));
+                      } else if (Object.keys(fields).length === 0) {
+                        setError(envelopeErrorBanner(err));
+                      }
                       setLoading(false);
                     }
                   }}
