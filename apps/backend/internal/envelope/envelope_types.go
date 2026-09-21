@@ -45,11 +45,35 @@ const (
 	maxTitleLen = 80
 )
 
+// Nature classifies an envelope's spending category on a want/should/need/must
+// scale. It is set once at creation and is immutable thereafter — PUT and PATCH
+// must never accept it.
+type Nature string
+
+// Valid Nature values.
+const (
+	NatureWant   Nature = "want"
+	NatureShould Nature = "should"
+	NatureNeed   Nature = "need"
+	NatureMust   Nature = "must"
+)
+
+// validNature reports whether n is one of the known Nature values.
+func validNature(n string) bool {
+	switch Nature(n) {
+	case NatureWant, NatureShould, NatureNeed, NatureMust:
+		return true
+	default:
+		return false
+	}
+}
+
 // CreateRequest is the request payload for POST /api/v1/budgets/:budget_id/envelopes.
 type CreateRequest struct {
 	Title        string       `json:"title"`
 	AllocatedAmt money.Amount `json:"allocated_amt"`
 	Description  *string      `json:"description"`
+	Nature       *string      `json:"nature"`
 }
 
 // ReplaceRequest is the request payload for PUT /api/v1/budgets/:budget_id/envelopes/:id.
@@ -74,6 +98,7 @@ type CreateParams struct {
 	Title        string
 	AllocatedAmt money.Amount
 	Description  *string
+	Nature       *string
 }
 
 // UpdateParams carries the repository-layer arguments for a full envelope update (PUT).

@@ -53,11 +53,11 @@ import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { EnvelopeDetails } from "./EnvelopeDetails";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import type { BudgetEnvelope } from "@/types";
+import type { Nature } from "@/lib/envelope-nature";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
 /* ── Status type ────────────────────────────────────────── */
 type Status = "Healthy" | "Warning" | "Fully Used" | "Overspent";
-type Nature = "Want" | "Should" | "Need" | "Must";
 type ArchivedFilter = "active" | "archived" | "all";
 
 interface EnvelopeRow {
@@ -65,7 +65,7 @@ interface EnvelopeRow {
   name: string;
   description: string;
   iconKey: string;
-  nature: Nature;
+  nature?: Nature;
   allocated: number;
   spent: number;
   isArchived: boolean;
@@ -633,7 +633,7 @@ export function EnvelopesView() {
     name: e.name,
     description: e.description ?? "",
     iconKey: "folder",
-    nature: "Need" as Nature,
+    nature: e.nature,
     allocated: e.allocated,
     spent: e.spent,
     isArchived: e.isArchived,

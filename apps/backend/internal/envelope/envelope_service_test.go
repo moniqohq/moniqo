@@ -56,6 +56,14 @@ func makeEnvelope(title string) models.BudgetEnvelope {
 	}
 }
 
+// makeEnvelopeWithNature returns a fixed envelope with a non-nil Nature, to
+// verify that Nature set at creation survives Replace/Patch round trips.
+func makeEnvelopeWithNature(title, nature string) models.BudgetEnvelope {
+	e := makeEnvelope(title)
+	e.Nature = &nature
+	return e
+}
+
 // ---------------------------------------------------------------------------
 // TestSvc_Create
 // ---------------------------------------------------------------------------
@@ -99,6 +107,29 @@ func TestSvc_Create(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, envelope.ErrConflict)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("forwards nature to CreateParams", func(t *testing.T) {
+		t.Parallel()
+		nature := "want"
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("ExistsByTitle", testBudgetID, "Groceries", (*int64)(nil)).Return(false, nil)
+		repo.On("Create", envelope.CreateParams{
+			BudgetID:     testBudgetID,
+			Title:        "Groceries",
+			AllocatedAmt: money.FromMinorUnits(50000),
+			Nature:       &nature,
+		}).Return(makeEnvelope("Groceries"), nil)
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.Create(context.Background(), testBudgetID, envelope.CreateRequest{
+			Title:        "Groceries",
+			AllocatedAmt: money.FromMinorUnits(50000),
+			Nature:       &nature,
+		})
+
+		require.NoError(t, err)
 		repo.AssertExpectations(t)
 	})
 }
@@ -293,6 +324,31 @@ func TestSvc_Replace(t *testing.T) {
 		assert.ErrorIs(t, err, envelope.ErrValidation)
 		repo.AssertNotCalled(t, "Update", mock.Anything)
 	})
+
+	t.Run("preserves nature — not part of UpdateParams", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(makeEnvelopeWithNature("Old", "need"), nil)
+		repo.On("ExistsByTitle", testBudgetID, "New", envelopeIDPtr()).Return(false, nil)
+		repo.On("SumSpent", testEnvelopeID, testBudgetID).Return(money.FromMinorUnits(0), nil)
+		repo.On("Update", envelope.UpdateParams{
+			ID:           testEnvelopeID,
+			BudgetID:     testBudgetID,
+			Title:        "New",
+			AllocatedAmt: money.FromMinorUnits(60000),
+		}).Return(makeEnvelopeWithNature("New", "need"), nil)
+
+		svc := envelope.NewSvc(repo, log)
+		e, err := svc.Replace(context.Background(), testEnvelopeID, testBudgetID, envelope.ReplaceRequest{
+			Title:        "New",
+			AllocatedAmt: money.FromMinorUnits(60000),
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, e.Nature)
+		assert.Equal(t, "need", *e.Nature)
+		repo.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -357,6 +413,29 @@ func TestSvc_Patch(t *testing.T) {
 
 		assert.ErrorIs(t, err, envelope.ErrValidation)
 		repo.AssertNotCalled(t, "Patch", mock.Anything)
+	})
+
+	t.Run("preserves nature — not part of PatchParams", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(makeEnvelopeWithNature("Food", "must"), nil)
+		repo.On("ExistsByTitle", testBudgetID, "Updated", envelopeIDPtr()).Return(false, nil)
+		repo.On("Patch", envelope.PatchParams{
+			ID:       testEnvelopeID,
+			BudgetID: testBudgetID,
+			Title:    &title,
+		}).Return(makeEnvelopeWithNature("Updated", "must"), nil)
+		repo.On("SumSpent", testEnvelopeID, testBudgetID).Return(money.FromMinorUnits(0), nil)
+
+		svc := envelope.NewSvc(repo, log)
+		e, err := svc.Patch(context.Background(), testEnvelopeID, testBudgetID, envelope.PatchRequest{
+			Title: &title,
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, e.Nature)
+		assert.Equal(t, "must", *e.Nature)
+		repo.AssertExpectations(t)
 	})
 }
 

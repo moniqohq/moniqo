@@ -326,6 +326,34 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 		assert.Equal(t, "body", fields[0].Field)
 		assert.Equal(t, "invalid JSON", fields[0].Error)
 	})
+
+	t.Run("valid nature returns 201", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			CreateFn: func(_ context.Context, _ int64, req envelope.CreateRequest) (models.BudgetEnvelope, error) {
+				require.NotNil(t, req.Nature)
+				assert.Equal(t, "want", *req.Nature)
+				return fixedEnvelope(), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", `{"title":"Groceries","allocated_amt":500.00,"nature":"want"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, envelope.NewHandler(svc, log).CreateEnvelope(c))
+		assert.Equal(t, http.StatusCreated, rec.Code)
+	})
+
+	t.Run("invalid nature returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPost, "/", `{"title":"Groceries","allocated_amt":500.00,"nature":"urgent"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, envelope.NewHandler(svc, log).CreateEnvelope(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +444,17 @@ func TestHandler_ReplaceEnvelope(t *testing.T) {
 		assert.Equal(t, "title", fields[0].Field)
 		assert.Equal(t, "title is required", fields[0].Error)
 	})
+
+	t.Run("nature in body returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPut, "/", `{"title":"Groceries","allocated_amt":600.00,"nature":"want"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReplaceEnvelope(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -504,6 +543,28 @@ func TestHandler_PatchEnvelope(t *testing.T) {
 		require.Len(t, fields, 1)
 		assert.Equal(t, "allocated_amt", fields[0].Field)
 		assert.Equal(t, "cannot be less than the amount already spent", fields[0].Error)
+	})
+
+	t.Run("nature in body returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPatch, "/", `{"nature":"want"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, envelope.NewHandler(svc, log).PatchEnvelope(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("nature alongside title returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPatch, "/", `{"title":"New Title","nature":"want"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, envelope.NewHandler(svc, log).PatchEnvelope(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 }
 

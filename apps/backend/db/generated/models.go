@@ -312,6 +312,7 @@ type Envelope struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
+	Nature       *string
 }
 
 type OnboardingProgress struct {

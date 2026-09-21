@@ -40,10 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { patchEnvelope } from "@/lib/api/envelopes";
 import { invalidateBudgetData } from "@/lib/query-keys";
-
-/* ── types ───────────────────────────────────────────────── */
-
-type Nature = "Want" | "Should" | "Need" | "Must";
+import type { Nature } from "@/lib/envelope-nature";
 
 import type { BudgetEnvelope } from "@/types";
 
@@ -131,56 +128,41 @@ const NATURE_OPTIONS: {
   },
 ];
 
-/* ── NatureCard ──────────────────────────────────────────── */
+/* ── ReadOnlyNatureBadge ─────────────────────────────────── */
+// Nature is set once at creation and is immutable thereafter, so Modify only
+// ever displays it — there is no click handler here by design.
 
-function NatureCard({
-  option,
-  selected,
-  onClick,
-}: {
-  option: (typeof NATURE_OPTIONS)[number];
-  selected: boolean;
-  onClick: () => void;
-}) {
+function ReadOnlyNatureBadge({ nature }: { nature: Nature | "" }) {
+  const option = NATURE_OPTIONS.find((o) => o.value === nature);
+
+  if (!option) {
+    return (
+      <div className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-3">
+        <span className="text-sm font-medium text-[#5A6A85]">Unclassified</span>
+      </div>
+    );
+  }
+
   const Icon = option.icon;
   return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileHover={{ y: -1 }}
-      transition={{ duration: 0.15 }}
-      aria-pressed={selected}
-      className="flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-3 transition-all duration-200 focus:outline-none"
-      style={
-        selected
-          ? {
-              borderColor: option.selectedBorder,
-              backgroundColor: option.selectedBg,
-              boxShadow: option.selectedShadow,
-            }
-          : {
-              borderColor: "#1E2B42",
-              backgroundColor: "#0D1525",
-            }
-      }
+    <div
+      className="flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-3"
+      style={{
+        borderColor: option.selectedBorder,
+        backgroundColor: option.selectedBg,
+        boxShadow: option.selectedShadow,
+      }}
     >
       <div
-        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-all duration-200"
-        style={{
-          backgroundColor: option.iconBg,
-          color: option.iconColor,
-          opacity: selected ? 1 : 0.55,
-        }}
+        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
+        style={{ backgroundColor: option.iconBg, color: option.iconColor }}
       >
-        <Icon size={13} strokeWidth={selected ? 2 : 1.8} />
+        <Icon size={13} strokeWidth={2} />
       </div>
-      <span
-        className="text-sm font-medium whitespace-nowrap transition-all duration-200"
-        style={{ color: option.iconColor, opacity: selected ? 1 : 0.6 }}
-      >
+      <span className="text-sm font-medium whitespace-nowrap" style={{ color: option.iconColor }}>
         {option.label}
       </span>
-    </motion.button>
+    </div>
   );
 }
 
@@ -538,7 +520,9 @@ export function ModifyEnvelopeModal({
       envelope.allocated,
     ),
   );
-  const [nature, setNature] = useState<Nature | "">("");
+  // Nature is set once at creation and is immutable thereafter — Modify only
+  // ever displays the envelope's existing value, never a local, editable copy.
+  const nature: Nature | "" = envelope.nature ?? "";
   const [description, setDescription] = useState(envelope.description ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -664,35 +648,13 @@ export function ModifyEnvelopeModal({
                     {/* Allocated amount */}
                     <AllocationInput value={allocatedRaw} onChange={setAllocatedRaw} />
 
-                    {/* Nature */}
+                    {/* Nature (read-only — set at creation, cannot be changed) */}
                     <div>
-                      <label className="mb-3 block text-sm font-semibold text-white">
-                        Nature <span className="font-normal text-[#5A6A85]">(optional)</span>
-                      </label>
-
-                      {/* Cards */}
-                      <div className="grid grid-cols-4 gap-2">
-                        {NATURE_OPTIONS.map((opt) => (
-                          <NatureCard
-                            key={opt.value}
-                            option={opt}
-                            selected={nature === opt.value}
-                            onClick={() => setNature(nature === opt.value ? "" : opt.value)}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Descriptions row */}
-                      <div className="mt-2 grid grid-cols-4 gap-2">
-                        {NATURE_OPTIONS.map((opt) => (
-                          <p
-                            key={opt.value}
-                            className="px-1 text-center text-[11px] leading-snug text-[#5A6A85]"
-                          >
-                            {opt.description}
-                          </p>
-                        ))}
-                      </div>
+                      <label className="mb-3 block text-sm font-semibold text-white">Nature</label>
+                      <ReadOnlyNatureBadge nature={nature} />
+                      <p className="mt-1.5 text-xs text-[#7A8BA8]">
+                        Set at creation and cannot be changed.
+                      </p>
                     </div>
 
                     {/* Description */}

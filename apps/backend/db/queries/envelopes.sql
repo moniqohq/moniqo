@@ -1,10 +1,10 @@
 -- name: CreateEnvelope :one
-INSERT INTO envelopes (budget_id, title, allocated_amt, description)
-VALUES ($1, $2, $3, $4)
-RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at;
+INSERT INTO envelopes (budget_id, title, allocated_amt, description, nature)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature;
 
 -- name: GetEnvelopeByID :one
-SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature
 FROM envelopes
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
@@ -16,29 +16,31 @@ FROM envelopes
 WHERE id = $1 AND budget_id = $2;
 
 -- name: ListEnvelopesByBudget :many
-SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature
 FROM envelopes
 WHERE budget_id = $1
   AND (sqlc.narg(archived)::bool IS NULL OR (deleted_at IS NOT NULL) = sqlc.narg(archived))
 ORDER BY lower(title) ASC;
 
 -- name: UpdateEnvelope :one
+-- nature is intentionally excluded: it is set once at creation and is immutable thereafter.
 UPDATE envelopes
 SET title         = $3,
     allocated_amt = $4,
     description   = $5,
     updated_at    = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature;
 
 -- name: PatchEnvelope :one
+-- nature is intentionally excluded: it is set once at creation and is immutable thereafter.
 UPDATE envelopes
 SET title         = COALESCE(sqlc.narg(title), title),
     allocated_amt = COALESCE(sqlc.narg(allocated_amt), allocated_amt),
     description   = COALESCE(sqlc.narg(description), description),
     updated_at    = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at;
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature;
 
 -- name: SoftDeleteEnvelope :exec
 UPDATE envelopes

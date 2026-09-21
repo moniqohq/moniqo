@@ -81,6 +81,7 @@ func toModel(row db.Envelope) models.BudgetEnvelope {
 		Title:        row.Title,
 		AllocatedAmt: money.FromMinorUnits(row.AllocatedAmt),
 		Description:  row.Description,
+		Nature:       row.Nature,
 		IsArchived:   row.DeletedAt.Valid,
 		CreatedAt:    row.CreatedAt.Time,
 	}
@@ -99,6 +100,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.BudgetEnvelop
 		Title:        p.Title,
 		AllocatedAmt: p.AllocatedAmt.Int64(),
 		Description:  p.Description,
+		Nature:       p.Nature,
 	})
 	if err != nil {
 		r.log.Error("CreateEnvelope query failed",

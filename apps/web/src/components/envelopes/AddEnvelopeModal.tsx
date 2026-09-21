@@ -26,10 +26,7 @@ import { X, Plus, Heart, Star, Target, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createEnvelope } from "@/lib/api/envelopes";
 import { invalidateBudgetData } from "@/lib/query-keys";
-
-/* ── types ────────────────────────────────────────────── */
-
-type Nature = "Want" | "Should" | "Need" | "Must";
+import { toWireNature, type Nature } from "@/lib/envelope-nature";
 
 export interface AddEnvelopeModalProps {
   open: boolean;
@@ -344,6 +341,7 @@ export function AddEnvelopeModal({ open, onClose, budgetId, onCreated }: AddEnve
                         title: title.trim(),
                         allocated_amt: allocatedAmt,
                         description: description.trim() || undefined,
+                        nature: nature ? toWireNature(nature) : undefined,
                       });
                       invalidateBudgetData(queryClient, budgetId);
                       onCreated();

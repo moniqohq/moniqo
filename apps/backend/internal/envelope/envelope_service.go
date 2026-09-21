@@ -85,6 +85,7 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 		Title:        req.Title,
 		AllocatedAmt: req.AllocatedAmt,
 		Description:  req.Description,
+		Nature:       req.Nature,
 	}
 	env, err := s.repo.Create(ctx, p)
 	if err != nil {

@@ -20,6 +20,7 @@
 
 import { apiFetch } from "./client";
 import type { ApiEnvelope, ApiBudgetSummary, ApiDashboardStats } from "./types";
+import type { WireNature } from "@/lib/envelope-nature";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/envelopes`;
 
@@ -49,7 +50,7 @@ export function getDashboardStats(budgetId: number, month?: string): Promise<Api
 
 export function createEnvelope(
   budgetId: number,
-  req: { title: string; allocated_amt: number; description?: string },
+  req: { title: string; allocated_amt: number; description?: string; nature?: WireNature },
 ): Promise<ApiEnvelope> {
   return apiFetch<ApiEnvelope>(base(budgetId), {
     method: "POST",

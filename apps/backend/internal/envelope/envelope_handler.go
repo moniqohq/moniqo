@@ -61,12 +61,31 @@ const (
 	errMustBeNonNeg     = "must be non-negative"
 	errAllocatedLtSpent = "cannot be less than the amount already spent"
 	errAmountNotNumber  = "must be a number"
+	errNatureInvalid    = "must be one of want, should, need, must"
 	fieldTitle          = "title"
 	fieldAllocatedAmt   = "allocated_amt"
+	fieldNature         = "nature"
 
 	errInsufficientAvailable = "source does not have enough available balance to cover this amount"
 	fieldAmount              = "amount"
 )
+
+// readOnlyKeyErrors inspects the raw JSON body for keys that are read-only on
+// update (e.g. spent_amt, nature) and returns a field error for each one present,
+// regardless of whether c.Bind populated a matching struct field.
+func readOnlyKeyErrors(rawBody []byte, keys ...string) []httpx.FieldError {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal(rawBody, &raw) != nil {
+		return nil
+	}
+	var errs []httpx.FieldError
+	for _, key := range keys {
+		if _, ok := raw[key]; ok {
+			errs = append(errs, httpx.FieldError{Field: key, Error: key + " is read-only and cannot be set"})
+		}
+	}
+	return errs
+}
 
 // Handler exposes the envelope domain over HTTP.
 type Handler struct {
@@ -147,11 +166,20 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 	if req.AllocatedAmt.Int64() < 0 {
 		errs = append(errs, httpx.FieldError{Field: fieldAllocatedAmt, Error: errMustBeNonNeg})
 	}
+	if req.Nature != nil && !validNature(*req.Nature) {
+		errs = append(errs, httpx.FieldError{Field: fieldNature, Error: errNatureInvalid})
+	}
 	return errs
 }
 
 // validateReplaceRequest validates the payload for PUT (full replace).
-func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
+// Rejects any body containing a "nature" key: nature is set once at creation
+// and is immutable thereafter.
+func validateReplaceRequest(req ReplaceRequest, rawBody []byte) []httpx.FieldError {
+	if errs := readOnlyKeyErrors(rawBody, fieldNature); len(errs) > 0 {
+		return errs
+	}
+
 	var errs []httpx.FieldError
 	if fe := validateTitle(req.Title); fe != nil {
 		errs = append(errs, *fe)
@@ -163,19 +191,17 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 }
 
 // validatePatchRequest validates the payload for PATCH (partial update).
-// Rejects empty bodies and any body containing a "spent_amt" key.
+// Rejects any body containing a "spent_amt" or "nature" key (both are
+// read-only on update), then rejects empty bodies, then validates provided fields.
 //
 //nolint:revive,cyclop
 func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
-	if req.Title == nil && req.AllocatedAmt == nil && req.Description == nil {
-		return []httpx.FieldError{{Field: fieldBody, Error: "request body must contain at least one field"}}
+	if errs := readOnlyKeyErrors(rawBody, "spent_amt", fieldNature); len(errs) > 0 {
+		return errs
 	}
 
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(rawBody, &raw) == nil {
-		if _, ok := raw["spent_amt"]; ok {
-			return []httpx.FieldError{{Field: "spent_amt", Error: "spent_amt is read-only and cannot be set"}}
-		}
+	if req.Title == nil && req.AllocatedAmt == nil && req.Description == nil {
+		return []httpx.FieldError{{Field: fieldBody, Error: "request body must contain at least one field"}}
 	}
 
 	var errs []httpx.FieldError
@@ -302,12 +328,20 @@ func (h *Handler) ReplaceEnvelope(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errInvalidID}})
 	}
 
+	// Read the raw body once so we can both inspect keys and bind.
+	rawBytes, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+	}
+	// Restore body so Echo's binder can read it.
+	c.Request().Body = io.NopCloser(bytes.NewBuffer(rawBytes))
+
 	var req ReplaceRequest
 	if err := c.Bind(&req); err != nil {
 		return httpx.ValidationError(c, []httpx.FieldError{bindError(err)})
 	}
 
-	if errs := validateReplaceRequest(req); len(errs) > 0 {
+	if errs := validateReplaceRequest(req, rawBytes); len(errs) > 0 {
 		return httpx.ValidationError(c, errs)
 	}
 
