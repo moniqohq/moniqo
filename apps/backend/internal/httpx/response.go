@@ -51,10 +51,17 @@ func OK(c echo.Context, data any, msg string) error {
 
 // ValidationError writes a 400 JSON response listing the failed field constraints.
 func ValidationError(c echo.Context, fields []FieldError) error {
+	return ValidationErrorMsg(c, fields, "validation failed")
+}
+
+// ValidationErrorMsg writes a 400 JSON response listing the failed field constraints,
+// with a caller-supplied summary message describing the failure(s) instead of the
+// generic "validation failed" string.
+func ValidationErrorMsg(c echo.Context, fields []FieldError, msg string) error {
 	return c.JSON(http.StatusBadRequest, Response{
 		Success: false,
 		Data:    map[string]any{"fields": fields},
-		Msg:     "validation failed",
+		Msg:     msg,
 	})
 }
 

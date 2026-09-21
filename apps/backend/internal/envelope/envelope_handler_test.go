@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -148,12 +149,38 @@ func TestHandler_ListEnvelopes(t *testing.T) {
 		assert.Empty(t, arr)
 	})
 
-	t.Run("invalid budget_id returns 400", func(t *testing.T) {
+	t.Run("invalid budget_id returns 400 naming the field and value", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{}
 		c, rec := newCtx(e, http.MethodGet, "/", "")
 		c.SetParamNames("budget_id")
 		c.SetParamValues("abc")
+
+		require.NoError(t, envelope.NewHandler(svc, log).ListEnvelopes(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "budget_id")
+		assert.Contains(t, resp.Msg, `"abc"`)
+		assert.NotEqual(t, "validation failed", resp.Msg)
+	})
+
+	t.Run("zero budget_id returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("0")
+
+		require.NoError(t, envelope.NewHandler(svc, log).ListEnvelopes(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("negative budget_id returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("-1")
 
 		require.NoError(t, envelope.NewHandler(svc, log).ListEnvelopes(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
@@ -252,7 +279,7 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, rec.Code)
 	})
 
-	t.Run("title too short returns 400 with field detail", func(t *testing.T) {
+	t.Run("title too short returns 400 naming the field and length", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{}
 		c, rec := newCtx(e, http.MethodPost, "/", `{"title":"AB","allocated_amt":100.00}`)
@@ -261,10 +288,10 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 
 		require.NoError(t, envelope.NewHandler(svc, log).CreateEnvelope(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		fields := fieldErrors(t, parseResp(t, rec.Body.String()))
-		require.Len(t, fields, 1)
-		assert.Equal(t, "title", fields[0].Field)
-		assert.Equal(t, "must be between 3 and 80 characters", fields[0].Error)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "title")
+		assert.Contains(t, resp.Msg, "(got 2)")
+		assert.NotEqual(t, "validation failed", resp.Msg)
 	})
 
 	t.Run("empty title returns 400 with 'required' detail", func(t *testing.T) {
@@ -282,7 +309,7 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 		assert.Equal(t, "title is required", fields[0].Error)
 	})
 
-	t.Run("negative allocated_amt returns 400 with field detail", func(t *testing.T) {
+	t.Run("negative allocated_amt returns 400 naming the field and value", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{}
 		c, rec := newCtx(e, http.MethodPost, "/", `{"title":"Valid","allocated_amt":-1.00}`)
@@ -291,10 +318,32 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 
 		require.NoError(t, envelope.NewHandler(svc, log).CreateEnvelope(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		fields := fieldErrors(t, parseResp(t, rec.Body.String()))
-		require.Len(t, fields, 1)
-		assert.Equal(t, "allocated_amt", fields[0].Field)
-		assert.Equal(t, "must be non-negative", fields[0].Error)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "allocated_amt")
+		assert.Contains(t, resp.Msg, "-1.00")
+		assert.NotEqual(t, "validation failed", resp.Msg)
+	})
+
+	t.Run("multiple validation failures are all reported", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPost, "/", `{"title":"AB","allocated_amt":-1.00,"nature":"urgent"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, envelope.NewHandler(svc, log).CreateEnvelope(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "3 fields failed validation")
+		assert.Contains(t, resp.Msg, "title")
+		assert.Contains(t, resp.Msg, "allocated_amt")
+		assert.Contains(t, resp.Msg, "nature")
+
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		fields, ok := data["fields"].([]any)
+		require.True(t, ok)
+		assert.Len(t, fields, 3)
 	})
 
 	t.Run("non-numeric allocated_amt returns field-specific error", func(t *testing.T) {
@@ -327,6 +376,26 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 		assert.Equal(t, "invalid JSON", fields[0].Error)
 	})
 
+	t.Run("wrong JSON type for allocated_amt names that field, not body", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPost, "/", `{"title":"Groceries","allocated_amt":"abc"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, envelope.NewHandler(svc, log).CreateEnvelope(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		fields, ok := data["fields"].([]any)
+		require.True(t, ok)
+		require.Len(t, fields, 1)
+		fe, ok := fields[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "allocated_amt", fe["field"])
+	})
+
 	t.Run("valid nature returns 201", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{
@@ -344,7 +413,7 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, rec.Code)
 	})
 
-	t.Run("invalid nature returns 400", func(t *testing.T) {
+	t.Run("invalid nature returns 400 naming the field and value", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{}
 		c, rec := newCtx(e, http.MethodPost, "/", `{"title":"Groceries","allocated_amt":500.00,"nature":"urgent"}`)
@@ -353,6 +422,10 @@ func TestHandler_CreateEnvelope(t *testing.T) {
 
 		require.NoError(t, envelope.NewHandler(svc, log).CreateEnvelope(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "nature")
+		assert.Contains(t, resp.Msg, `"urgent"`)
+		assert.NotEqual(t, "validation failed", resp.Msg)
 	})
 }
 
@@ -411,7 +484,30 @@ func TestHandler_ReplaceEnvelope(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, rec.Code)
 	})
 
-	t.Run("allocated_amt < spent returns 400 with field detail", func(t *testing.T) {
+	t.Run("allocated_amt < spent returns 400 naming both amounts", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ReplaceFn: func(_ context.Context, _, _ int64, _ envelope.ReplaceRequest) (models.BudgetEnvelope, error) {
+				return models.BudgetEnvelope{}, &envelope.AllocatedBelowSpentError{
+					Allocated: money.FromMinorUnits(100),
+					Spent:     money.FromMinorUnits(45000),
+				}
+			},
+		}
+		c, rec := newCtx(e, http.MethodPut, "/", `{"title":"Food","allocated_amt":1.00}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReplaceEnvelope(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "allocated_amt")
+		assert.Contains(t, resp.Msg, "450.00") // spent
+		assert.Contains(t, resp.Msg, "1.00")   // allocated
+		assert.NotEqual(t, "validation failed", resp.Msg)
+	})
+
+	t.Run("bare ErrValidation still returns 400", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{
 			ReplaceFn: func(_ context.Context, _, _ int64, _ envelope.ReplaceRequest) (models.BudgetEnvelope, error) {
@@ -427,7 +523,7 @@ func TestHandler_ReplaceEnvelope(t *testing.T) {
 		fields := fieldErrors(t, parseResp(t, rec.Body.String()))
 		require.Len(t, fields, 1)
 		assert.Equal(t, "allocated_amt", fields[0].Field)
-		assert.Equal(t, "cannot be less than the amount already spent", fields[0].Error)
+		assert.Equal(t, "must be non-negative", fields[0].Error)
 	})
 
 	t.Run("empty title returns 400 with 'required' detail", func(t *testing.T) {
@@ -493,7 +589,7 @@ func TestHandler_PatchEnvelope(t *testing.T) {
 		fields := fieldErrors(t, parseResp(t, rec.Body.String()))
 		require.Len(t, fields, 1)
 		assert.Equal(t, "body", fields[0].Field)
-		assert.Equal(t, "request body must contain at least one field", fields[0].Error)
+		assert.Equal(t, "must contain at least one of title, allocated_amt, description", fields[0].Error)
 	})
 
 	t.Run("empty title returns 400 with 'required' detail", func(t *testing.T) {
@@ -526,11 +622,14 @@ func TestHandler_PatchEnvelope(t *testing.T) {
 		assert.Equal(t, "spent_amt is read-only and cannot be set", fields[0].Error)
 	})
 
-	t.Run("allocated_amt < spent returns 400 with field detail", func(t *testing.T) {
+	t.Run("allocated_amt < spent returns 400 naming both amounts", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.EnvelopeService{
 			PatchFn: func(_ context.Context, _, _ int64, _ envelope.PatchRequest) (models.BudgetEnvelope, error) {
-				return models.BudgetEnvelope{}, envelope.ErrValidation
+				return models.BudgetEnvelope{}, &envelope.AllocatedBelowSpentError{
+					Allocated: money.FromMinorUnits(100),
+					Spent:     money.FromMinorUnits(45000),
+				}
 			},
 		}
 		c, rec := newCtx(e, http.MethodPatch, "/", `{"allocated_amt":1.00}`)
@@ -539,10 +638,11 @@ func TestHandler_PatchEnvelope(t *testing.T) {
 
 		require.NoError(t, envelope.NewHandler(svc, log).PatchEnvelope(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
-		fields := fieldErrors(t, parseResp(t, rec.Body.String()))
-		require.Len(t, fields, 1)
-		assert.Equal(t, "allocated_amt", fields[0].Field)
-		assert.Equal(t, "cannot be less than the amount already spent", fields[0].Error)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "allocated_amt")
+		assert.Contains(t, resp.Msg, "450.00") // spent
+		assert.Contains(t, resp.Msg, "1.00")   // allocated
+		assert.NotEqual(t, "validation failed", resp.Msg)
 	})
 
 	t.Run("nature in body returns 400", func(t *testing.T) {
@@ -778,6 +878,46 @@ func TestHandler_GetBudgetSummary(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestHandler_GetDashboardStats
+// ---------------------------------------------------------------------------
+
+func TestHandler_GetDashboardStats(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("success returns 200 with stats", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			GetDashboardStatsFn: func(_ context.Context, _ int64, _ time.Time) (models.DashboardStats, error) {
+				return models.DashboardStats{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, envelope.NewHandler(svc, log).GetDashboardStats(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("invalid month format returns 400 naming the field and value", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodGet, "/?month=2026-13", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, envelope.NewHandler(svc, log).GetDashboardStats(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		assert.Contains(t, resp.Msg, "month")
+		assert.Contains(t, resp.Msg, "2026-13")
+		assert.NotEqual(t, "validation failed", resp.Msg)
+	})
+}
+
+// ---------------------------------------------------------------------------
 // TestHandler_ListEnvelopes_StatusFilter
 // ---------------------------------------------------------------------------
 
@@ -798,7 +938,7 @@ func TestHandler_ListEnvelopes_StatusFilter(t *testing.T) {
 		fields := fieldErrors(t, parseResp(t, rec.Body.String()))
 		require.Len(t, fields, 1)
 		assert.Equal(t, "status", fields[0].Field)
-		assert.Equal(t, "must be one of active, archived, all", fields[0].Error)
+		assert.Equal(t, "must be one of active, archived, all (got \"bogus\")", fields[0].Error)
 	})
 
 	t.Run("status=archived passes true filter", func(t *testing.T) {

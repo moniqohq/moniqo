@@ -71,6 +71,36 @@ Available balance (`allocated_amt - spent_amt`) is not a separate field; clients
 
 ---
 
+## Validation Error Format
+
+Validation failures on any BudgetEnvelope endpoint (`POST`, `PUT`, `PATCH`, and query-parameter
+validation on `GET`) return `400` with field-level details, in the same envelope used across
+the API:
+
+```json
+{
+  "success": false,
+  "data": {
+    "fields": [
+      { "field": "title", "error": "must be between 3 and 80 characters (got 2)" },
+      { "field": "allocated_amt", "error": "must be non-negative (got -5.00)" }
+    ]
+  },
+  "msg": "2 fields failed validation: title, allocated_amt"
+}
+```
+
+Unlike other resources, `msg` here is a **descriptive summary of the specific failure(s)** —
+not the generic `"validation failed"` string — naming the failing field(s) and the rule
+violated. A single-field failure produces `msg` in `"<field> <rule>"` form, e.g.
+`"title must be between 3 and 80 characters (got 2)"`.
+
+Where meaningful, the field's `error` text echoes the offending value (truncated for very
+long strings), e.g. `"must be one of want, should, need, must (got \"urgent\")"`. All field
+errors are aggregated and returned in a single response.
+
+---
+
 ## Endpoints
 
 ### Create Budget Envelope

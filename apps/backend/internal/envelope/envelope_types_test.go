@@ -21,9 +21,12 @@
 package envelope
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/moniqohq/moniqo/apps/backend/internal/money"
 )
 
 // ---------------------------------------------------------------------------
@@ -53,5 +56,37 @@ func TestValidNature(t *testing.T) {
 	t.Run("empty string is rejected", func(t *testing.T) {
 		t.Parallel()
 		assert.False(t, validNature(""))
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestAllocatedBelowSpentError
+// ---------------------------------------------------------------------------
+
+func TestAllocatedBelowSpentError(t *testing.T) {
+	t.Parallel()
+
+	err := &AllocatedBelowSpentError{
+		Allocated: money.FromMinorUnits(2000),
+		Spent:     money.FromMinorUnits(4500),
+	}
+
+	t.Run("Error message names both amounts", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, "cannot be less than the 45.00 already spent (got 20.00)", err.Error())
+	})
+
+	t.Run("errors.Is matches the ErrValidation sentinel", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, err, ErrValidation)
+	})
+
+	t.Run("errors.As recovers the concrete type and its fields", func(t *testing.T) {
+		t.Parallel()
+		var target *AllocatedBelowSpentError
+		require := assert.New(t)
+		require.True(errors.As(error(err), &target))
+		require.Equal(money.FromMinorUnits(2000), target.Allocated)
+		require.Equal(money.FromMinorUnits(4500), target.Spent)
 	})
 }

@@ -305,6 +305,11 @@ func TestSvc_Replace(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, envelope.ErrValidation)
+
+		var belowSpent *envelope.AllocatedBelowSpentError
+		require.ErrorAs(t, err, &belowSpent)
+		assert.Equal(t, money.FromMinorUnits(20000), belowSpent.Allocated)
+		assert.Equal(t, money.FromMinorUnits(40000), belowSpent.Spent)
 	})
 
 	t.Run("regression: cannot zero allocated_amt on an overspent envelope", func(t *testing.T) {
@@ -396,6 +401,11 @@ func TestSvc_Patch(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, envelope.ErrValidation)
+
+		var belowSpent *envelope.AllocatedBelowSpentError
+		require.ErrorAs(t, err, &belowSpent)
+		assert.Equal(t, money.FromMinorUnits(100), belowSpent.Allocated)
+		assert.Equal(t, money.FromMinorUnits(40000), belowSpent.Spent)
 	})
 
 	t.Run("regression: cannot zero allocated_amt on an overspent envelope", func(t *testing.T) {
