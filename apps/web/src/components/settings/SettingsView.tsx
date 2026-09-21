@@ -51,6 +51,7 @@ import { DataPrivacyView } from "./DataPrivacyView";
 import { MembersPermissionsView } from "./MembersPermissionsView";
 import { ConnectedAccountsView } from "./ConnectedAccountsView";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
+import { ChangeEmailDialog } from "./ChangeEmailDialog";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Input } from "@/components/ui/input";
@@ -319,6 +320,8 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [emailChangeOpen, setEmailChangeOpen] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   const profileForm = useMemo(
     () => ({
@@ -367,13 +370,28 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
   async function handleSave() {
     if (!storeUser) return;
     setSaveError(null);
+
+    const trimmedEmail = draftForm.email.trim();
+    const emailChanged = trimmedEmail.toLowerCase() !== profileForm.email.toLowerCase();
+    if (emailChanged && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setSaveError("Enter a valid email address.");
+      return;
+    }
+
     setSaving(true);
     try {
-      const updated = await updateProfile(storeUser.id, {
-        name: draftForm.fullName || null,
-        email: draftForm.email,
-      });
-      setUser(updated);
+      const nameChanged = (draftForm.fullName || null) !== (storeUser.name ?? null);
+      if (nameChanged) {
+        const updated = await updateProfile(storeUser.id, { name: draftForm.fullName || null });
+        setUser(updated);
+      }
+      if (emailChanged) {
+        // Changing email requires OTP verification — open that dialog and
+        // stay in edit mode until it either completes or is cancelled.
+        setPendingEmail(trimmedEmail);
+        setEmailChangeOpen(true);
+        return;
+      }
       setIsEditing(false);
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : "Failed to save profile.");
@@ -650,7 +668,12 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                       )}
                     </FormField>
 
-                    <FormField label="Email address">
+                    <FormField
+                      label="Email address"
+                      helperText={
+                        isEditing ? "Changing your email requires verifying the new address." : undefined
+                      }
+                    >
                       {isEditing ? (
                         <Input
                           value={draftForm.email}
@@ -777,6 +800,20 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
       </div>
 
       <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+      <ChangeEmailDialog
+        open={emailChangeOpen}
+        onOpenChange={(nextOpen) => {
+          setEmailChangeOpen(nextOpen);
+          if (!nextOpen) setSaving(false);
+        }}
+        newEmail={pendingEmail}
+        onChanged={(updated) => {
+          setUser(updated);
+          setIsEditing(false);
+          setSaving(false);
+          setEmailChangeOpen(false);
+        }}
+      />
     </div>
   );
 }

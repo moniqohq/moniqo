@@ -35,6 +35,19 @@ export interface ApiUser {
   onboarding_completed_at: string | null;
   last_login: string | null;
   created_at: string;
+  // false for OIDC-only accounts (no password credential). Used to decide
+  // whether to render a current-password field in the email-change dialog.
+  has_password: boolean;
+}
+
+// The state of the verified-email-change (OTP) flow for the authenticated
+// user — see docs/apis/01-user-api.md#email-change.
+export interface EmailChangeStatus {
+  pending: boolean;
+  new_email?: string;
+  expires_at?: string;
+  attempts_remaining: number;
+  retry_after_seconds?: number;
 }
 
 export interface ApiAuthTokens {
