@@ -27,6 +27,8 @@ export function adaptTransaction(
   envelopes: Map<number, ApiEnvelope>,
 ): Transaction {
   const account = accounts.get(raw.account_id);
+  const transferAccount =
+    raw.transfer_account_id != null ? accounts.get(raw.transfer_account_id) : undefined;
   const envelope =
     raw.budget_envelope_id != null ? envelopes.get(raw.budget_envelope_id) : undefined;
 
@@ -45,6 +47,7 @@ export function adaptTransaction(
     accountId: raw.account_id,
     accountName: account?.name ?? "Unknown account",
     transferAccountId: raw.transfer_account_id ?? undefined,
+    transferAccountName: transferAccount?.name,
     envelopeId: raw.budget_envelope_id ?? undefined,
     envelopeName: envelope?.title,
     payee: raw.memo ?? "",

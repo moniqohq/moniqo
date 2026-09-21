@@ -326,7 +326,7 @@ export function TransactionDetailsModal({
                             </IconBox>
                           }
                           label="Transfer Account"
-                          value="—"
+                          value={tx.transferAccountName ?? "—"}
                         />
 
                         {/* Running Balance */}
