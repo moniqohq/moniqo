@@ -40,7 +40,7 @@ import {
 import { formatCurrency, cn } from "@/lib/utils";
 import type { TransactionType } from "@/types";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { invalidateBudgetData } from "@/lib/query-keys";
 
 interface AddTransactionModalProps {
@@ -241,7 +241,11 @@ export function AddTransactionModal({
       onSuccess?.();
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Unexpected error");
+      if (err instanceof ApiError) {
+        setSaveError(err.fields?.[0]?.error ?? err.message);
+      } else {
+        setSaveError("Unexpected error");
+      }
     } finally {
       setSaving(false);
     }

@@ -125,10 +125,12 @@ function EnvelopeProgress({ pct }: { pct: number }) {
 
 /* ── Row actions ────────────────────────────────────────── */
 function RowActions({
+  isArchived,
   onAddTransaction,
   onModify,
   onArchive,
 }: {
+  isArchived: boolean;
   onAddTransaction: () => void;
   onModify: () => void;
   onArchive: () => void;
@@ -137,7 +139,12 @@ function RowActions({
     "p-1.5 rounded-lg text-[#5A6A85] hover:text-[#E8EEF8] hover:bg-[#1E2B42] transition-all focus:outline-none focus:ring-2 focus:ring-[#6C3AED]/30";
   return (
     <div className="flex items-center gap-0.5">
-      <button onClick={onAddTransaction} title="Add Transaction" className={btnCls}>
+      <button
+        onClick={isArchived ? undefined : onAddTransaction}
+        disabled={isArchived}
+        title={isArchived ? "Archived envelopes cannot receive new transactions" : "Add Transaction"}
+        className={cn(btnCls, isArchived && "cursor-not-allowed opacity-40 hover:bg-transparent")}
+      >
         <PlusCircle size={13} />
       </button>
       <button onClick={onModify} title="Modify Envelope" className={btnCls}>
@@ -983,6 +990,7 @@ export function EnvelopesView() {
                             <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-end">
                                 <RowActions
+                                  isArchived={env.isArchived}
                                   onAddTransaction={() => {
                                     setTxEnvelopeId(Number(env.id));
                                     setAddTxOpen(true);

@@ -335,7 +335,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
   const { data: accounts } = useAccounts(activeBudgetId);
   const { accounts: txAccounts } = useApiAccounts(activeBudgetId);
   const { envelopes: txEnvelopes } = useApiEnvelopes(activeBudgetId);
-  const { data: apiEnvelopes, refetch: refetchEnvelopes } = useEnvelopes(activeBudgetId);
+  const { data: apiEnvelopes, refetch: refetchEnvelopes } = useEnvelopes(activeBudgetId, "all");
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
 
   const envelopeIdNum = Number(envelopeId);
@@ -497,11 +497,17 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         {/* Right — action buttons */}
         <div className="flex flex-shrink-0 items-center gap-2">
           <button
-            onClick={() => setAddTxOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap text-white transition-all"
+            onClick={envelope?.isArchived ? undefined : () => setAddTxOpen(true)}
+            disabled={envelope?.isArchived}
+            title={
+              envelope?.isArchived
+                ? "Archived envelopes cannot receive new transactions"
+                : undefined
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
             style={{
               background: "linear-gradient(135deg, #6C3AED 0%, #7C4AFF 100%)",
-              boxShadow: "0 0 20px rgba(108,58,237,0.35)",
+              boxShadow: envelope?.isArchived ? "none" : "0 0 20px rgba(108,58,237,0.35)",
             }}
           >
             <Plus size={15} />
