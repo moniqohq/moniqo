@@ -26,7 +26,9 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
@@ -47,7 +49,7 @@ type Service interface {
 	GetByID(ctx context.Context, id int64) (models.User, error)
 	ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error)
 	PatchProfile(ctx context.Context, id int64, req PatchProfileRequest) (models.User, error)
-	Delete(ctx context.Context, id int64) error
+	Delete(ctx context.Context, p DeleteAccountParams) error
 	VerifyEmail(ctx context.Context, token string) error
 }
 
@@ -207,7 +209,8 @@ func (h *Handler) PatchProfile(c echo.Context) error {
 	return httpx.OK(c, pub, "user updated successfully")
 }
 
-// DeleteProfile handles DELETE /api/v1/users/{id}.
+// DeleteProfile handles DELETE /api/v1/users/{id}. Deletion requires the
+// caller's current password and is idempotent.
 func (h *Handler) DeleteProfile(c echo.Context) error {
 	h.log.Debug("received delete profile request")
 
@@ -216,9 +219,34 @@ func (h *Handler) DeleteProfile(c echo.Context) error {
 		return nil
 	}
 
-	if err := h.svc.Delete(c.Request().Context(), userID); err != nil {
-		h.log.Error("delete profile failed", zap.Int64("user_id", userID), zap.Error(err))
+	var req DeleteAccountRequest
+	if err := c.Bind(&req); err != nil {
+		h.log.Debug("failed to bind delete account request body", zap.Error(err))
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+	}
+
+	if errs := validator.ValidateDeleteAccount(validator.DeleteAccountInput{
+		CurrentPassword: req.CurrentPassword,
+	}); len(errs) > 0 {
+		return httpx.ValidationError(c, errs)
+	}
+
+	// resolveOwnership already confirmed claims are present on this request.
+	claims, _ := auth.ClaimsFromContext(c)
+	jti, err := uuid.Parse(claims.ID)
+	if err != nil {
+		h.log.Error("delete profile: malformed jti claim in token", zap.String("jti", claims.ID))
 		return httpx.InternalError(c)
+	}
+
+	err = h.svc.Delete(c.Request().Context(), DeleteAccountParams{
+		UserID:          userID,
+		CurrentPassword: *req.CurrentPassword,
+		JTI:             jti,
+		ExpiresAt:       claims.ExpiresAt.Time,
+	})
+	if err != nil {
+		return h.mapDeleteErr(c, userID, err)
 	}
 
 	return httpx.OK(c, nil, "user deleted successfully")
@@ -244,6 +272,33 @@ func (h *Handler) VerifyEmail(c echo.Context) error {
 
 	h.log.Info("email verified successfully, redirecting to login")
 	return c.Redirect(http.StatusFound, h.appBaseURL+"/login?verified=true")
+}
+
+// mapDeleteErr translates a Delete error into the matching HTTP response.
+func (h *Handler) mapDeleteErr(c echo.Context, userID int64, err error) error {
+	if errors.Is(err, ErrWrongPassword) {
+		return httpx.Forbidden(c, "current password is incorrect")
+	}
+	if errors.Is(err, ErrNoPasswordCredential) {
+		return httpx.Conflict(c, "set a password before deleting your account")
+	}
+	var lastOwner *LastOwnerError
+	if errors.As(err, &lastOwner) {
+		return httpx.Conflict(c, lastOwnerMessage(lastOwner.Budgets))
+	}
+	h.log.Error("delete profile failed", zap.Int64("user_id", userID), zap.Error(err))
+	return httpx.InternalError(c)
+}
+
+// lastOwnerMessage names the budgets blocking deletion so the caller knows
+// exactly which ones need an ownership transfer (or member removal) first.
+func lastOwnerMessage(budgets []BlockingBudget) string {
+	titles := make([]string, len(budgets))
+	for i, b := range budgets {
+		titles[i] = `"` + b.Title + `"`
+	}
+	return "transfer ownership of shared budget(s) " + strings.Join(titles, ", ") +
+		" before deleting your account"
 }
 
 // resolveOwnership extracts the authenticated user id from the JWT claims and

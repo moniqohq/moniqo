@@ -73,6 +73,18 @@ func (q *Queries) CreateUserIdentity(ctx context.Context, arg CreateUserIdentity
 	return i, err
 }
 
+const deleteAllUserIdentities = `-- name: DeleteAllUserIdentities :exec
+DELETE FROM user_identities WHERE user_id = $1
+`
+
+// Used on account deletion: hard-deleted so the provider+subject unique index
+// frees up and a future re-signup with the same identity does not resolve to
+// the soft-deleted user row.
+func (q *Queries) DeleteAllUserIdentities(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deleteAllUserIdentities, userID)
+	return err
+}
+
 const deleteUserIdentity = `-- name: DeleteUserIdentity :exec
 DELETE FROM user_identities
 WHERE user_id = $1 AND provider = $2
