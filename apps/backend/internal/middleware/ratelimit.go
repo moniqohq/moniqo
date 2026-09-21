@@ -38,6 +38,8 @@ const (
 	passwordResetBurst     = 15
 	avatarRatePerMin       = 120.0
 	avatarBurst            = 120
+	emailChangeRate15Min   = 20.0
+	emailChangeBurst       = 20
 )
 
 // RegisterRateLimiter returns a rate limiter middleware scoped to the registration
@@ -65,6 +67,17 @@ func PasswordResetRateLimiter() echo.MiddlewareFunc {
 // user-id enumeration.
 func AvatarRateLimiter() echo.MiddlewareFunc {
 	return newIPRateLimiter(avatarRatePerMin/secondsPerMin, avatarBurst)
+}
+
+// EmailChangeRateLimiter returns a rate limiter middleware scoped to the
+// verified-email-change endpoints: 20 requests per IP per 15 minutes.
+// Generous enough for a shared-NAT household working through one attempt
+// (a request, up to three verifies, and a cancel), tight enough to slow
+// distributed OTP guessing across many accounts — the per-user attempt cap
+// and lockout in user.Svc are the primary defense against guessing a single
+// account's code.
+func EmailChangeRateLimiter() echo.MiddlewareFunc {
+	return newIPRateLimiter(emailChangeRate15Min/passwordReset15Min, emailChangeBurst)
 }
 
 func newIPRateLimiter(r float64, burst int) echo.MiddlewareFunc {

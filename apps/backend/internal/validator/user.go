@@ -21,6 +21,7 @@
 package validator
 
 import (
+	"fmt"
 	"net/mail"
 	"net/url"
 	"regexp"
@@ -42,6 +43,12 @@ const (
 	maxPictureURLLen = 2048
 
 	errPictureReadOnly = "read-only; upload via PUT /api/v1/users/{id}/picture"
+	errEmailReadOnly   = "read-only; change via POST /api/v1/users/{id}/email-change"
+
+	fieldNewEmail        = "new_email"
+	fieldCurrentPassword = "current_password"
+	fieldCode            = "code"
+	otpCodeLen           = 6
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)
@@ -306,11 +313,14 @@ func validatePatchUsername(username *string) *httpx.FieldError {
 	return validateUsername(*username)
 }
 
+// validatePatchEmail rejects a non-nil email on PATCH: email is read-only
+// over this endpoint, an exact mirror of validatePatchPicture below. Clients
+// must use the OTP-verified POST /api/v1/users/{id}/email-change flow instead.
 func validatePatchEmail(email *string) *httpx.FieldError {
 	if email == nil {
 		return nil
 	}
-	return validateEmail(*email)
+	return &httpx.FieldError{Field: fieldEmail, Error: errEmailReadOnly}
 }
 
 // validatePatchPicture rejects a non-nil picture on PATCH: picture is
@@ -368,6 +378,47 @@ func ValidateDeleteAccount(in DeleteAccountInput) []httpx.FieldError {
 	}
 	if fe := validatePassword("current_password", *in.CurrentPassword); fe != nil {
 		return []httpx.FieldError{*fe}
+	}
+	return nil
+}
+
+// -----------------------------------------------------------------------------
+// Verified email change (OTP)
+// -----------------------------------------------------------------------------
+
+// RequestEmailChangeInput holds the fields for
+// POST /api/v1/users/{id}/email-change.
+type RequestEmailChangeInput struct {
+	NewEmail        string
+	CurrentPassword *string
+}
+
+// ValidateRequestEmailChange checks new_email format. current_password
+// format isn't checked here — whether it's required at all depends on
+// whether the account has a password credential, which the validator can't
+// see; the service returns ErrWrongPassword (403) if it was required and
+// missing or wrong.
+func ValidateRequestEmailChange(in RequestEmailChangeInput) []httpx.FieldError {
+	var errs []httpx.FieldError
+	if fe := validateEmail(in.NewEmail); fe != nil {
+		errs = append(errs, httpx.FieldError{Field: fieldNewEmail, Error: fe.Error})
+	}
+	if in.CurrentPassword != nil && *in.CurrentPassword == "" {
+		errs = append(errs, httpx.FieldError{Field: fieldCurrentPassword, Error: "must not be empty if provided"})
+	}
+	return errs
+}
+
+// otpCodeRe matches exactly 6 ASCII digits.
+var otpCodeRe = regexp.MustCompile(`^[0-9]{6}$`)
+
+// ValidateVerifyEmailChange checks that code is exactly 6 ASCII digits.
+func ValidateVerifyEmailChange(code string) []httpx.FieldError {
+	if code == "" {
+		return []httpx.FieldError{{Field: fieldCode, Error: errRequired}}
+	}
+	if !otpCodeRe.MatchString(code) {
+		return []httpx.FieldError{{Field: fieldCode, Error: fmt.Sprintf("must be exactly %d digits", otpCodeLen)}}
 	}
 	return nil
 }

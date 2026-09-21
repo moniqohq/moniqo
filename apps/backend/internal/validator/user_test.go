@@ -445,7 +445,6 @@ func TestValidatePatchProfile(t *testing.T) {
 	}{
 		// success: individual field updates
 		{name: "update username only", input: validator.PatchProfileInput{Username: strPtr("newuser01")}},
-		{name: "update email only", input: validator.PatchProfileInput{Email: strPtr("new@example.com")}},
 		{name: "update name only", input: validator.PatchProfileInput{Name: strPtr("New Name")}},
 		{name: "update currency only", input: validator.PatchProfileInput{Currency: strPtr("EUR")}},
 		{name: "update timezone only", input: validator.PatchProfileInput{Timezone: strPtr("Europe/Berlin")}},
@@ -474,12 +473,18 @@ func TestValidatePatchProfile(t *testing.T) {
 			wantField: "username",
 			wantMsg:   "must start with a letter",
 		},
-		// email errors
+		// email errors: read-only over PATCH regardless of the value supplied
 		{
-			name:      "invalid email",
+			name:      "email is rejected as read-only",
 			input:     validator.PatchProfileInput{Email: strPtr("notanemail")},
 			wantField: "email",
-			wantMsg:   "invalid email format",
+			wantMsg:   "read-only",
+		},
+		{
+			name:      "email is rejected as read-only even when valid",
+			input:     validator.PatchProfileInput{Email: strPtr("new@example.com")},
+			wantField: "email",
+			wantMsg:   "read-only",
 		},
 		// name errors
 		{

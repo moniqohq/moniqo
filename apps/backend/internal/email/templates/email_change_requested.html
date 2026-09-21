@@ -1,0 +1,32 @@
+<!--
+  ~ Moniqo is a personal finance management application designed to help users
+  ~ track, manage, and optimize their financial activities.
+  ~
+  ~ Copyright (C) 2026 Moniqo <support@moniqo.in>
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+{{define "subject"}}An email change was requested on your Moniqo account{{end}} {{define "content"}}
+<h1>Email change requested</h1>
+<p>
+  Hi{{if .Name}} {{.Name}}{{end}}, a request was made to change the email address on your Moniqo
+  account to <strong>{{.NewEmail}}</strong>. A confirmation code was sent there, and it expires in
+  {{.ExpiresIn}} — nothing will change unless that code is entered.
+</p>
+<p style="font-size: 13px; color: #999">
+  If you didn't request this, someone else may have access to your account. We recommend
+  <a href="https://app.moniqo.in/forgot-password">resetting your password</a> and contacting
+  <a href="mailto:{{.SupportEmail}}">{{.SupportEmail}}</a> right away.
+</p>
+{{end}}

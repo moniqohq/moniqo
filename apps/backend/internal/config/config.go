@@ -38,6 +38,8 @@ const (
 	defaultRefreshTokenTTL             = 168 * time.Hour // 7d
 	defaultRefreshTokenMaxAge          = 720 * time.Hour // 30d
 	defaultPasswordResetTokenTTL       = time.Hour
+	defaultEmailChangeCodeTTL          = 15 * time.Minute
+	defaultEmailChangeLockout          = 30 * time.Minute
 	defaultWorkerInterval              = 5 * time.Second
 	defaultWorkerBatch           int32 = 10
 	defaultBaseBackoff                 = 30 * time.Second
@@ -59,9 +61,11 @@ type Config struct {
 	RefreshTokenTTL       time.Duration
 	RefreshTokenMaxAge    time.Duration
 	PasswordResetTokenTTL time.Duration
-	AppBaseURL            string   // frontend base URL (APP_BASE_URL)
-	APIBaseURL            string   // backend self URL for building API links (API_BASE_URL)
-	CORSOrigins           []string // CORS_ORIGINS comma-separated; defaults to AppBaseURL
+	EmailChangeCodeTTL    time.Duration // EMAIL_CHANGE_CODE_TTL, default 15m
+	EmailChangeLockout    time.Duration // EMAIL_CHANGE_LOCKOUT, default 30m
+	AppBaseURL            string        // frontend base URL (APP_BASE_URL)
+	APIBaseURL            string        // backend self URL for building API links (API_BASE_URL)
+	CORSOrigins           []string      // CORS_ORIGINS comma-separated; defaults to AppBaseURL
 	Email                 EmailConfig
 	OIDC                  OIDCConfig
 	Uploads               UploadConfig
@@ -147,6 +151,8 @@ func Load() Config {
 		RefreshTokenTTL:       envDuration("REFRESH_TOKEN_TTL", defaultRefreshTokenTTL),
 		RefreshTokenMaxAge:    envDuration("REFRESH_TOKEN_MAX_AGE", defaultRefreshTokenMaxAge),
 		PasswordResetTokenTTL: envDuration("PASSWORD_RESET_TOKEN_TTL", defaultPasswordResetTokenTTL),
+		EmailChangeCodeTTL:    envDuration("EMAIL_CHANGE_CODE_TTL", defaultEmailChangeCodeTTL),
+		EmailChangeLockout:    envDuration("EMAIL_CHANGE_LOCKOUT", defaultEmailChangeLockout),
 		AppBaseURL:            envOrDefault("APP_BASE_URL", "http://localhost:3000"),
 		APIBaseURL:            envOrDefault("API_BASE_URL", "http://localhost:8080"),
 		CORSOrigins:           corsOrigins(envOrDefault("APP_BASE_URL", "http://localhost:3000")),

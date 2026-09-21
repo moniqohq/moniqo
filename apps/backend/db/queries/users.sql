@@ -1,10 +1,10 @@
 -- name: CreateUser :one
 INSERT INTO users (username, email, hash, name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password;
 
 -- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
+SELECT id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before, (hash IS NOT NULL)::boolean AS has_password
 FROM users
 WHERE id = $1 AND deleted_at IS NULL;
 
@@ -18,7 +18,16 @@ UPDATE users
 SET name = $2, username = $3, email = $4, picture = $5,
     currency = $6, timezone = $7, date_format = $8, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password;
+
+-- name: UpdateUserEmail :one
+-- Applies a verified email change and promotes a still-pending account to
+-- active: completing the OTP flow proves control of the new address, which
+-- is exactly what pending_verification was waiting on.
+UPDATE users
+SET email = $2, status = 'active', updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password;
 
 -- name: UpdateUserOnboardingProfile :one
 UPDATE users
@@ -27,7 +36,7 @@ SET name = COALESCE(sqlc.narg(name), name),
     timezone = $3,
     updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password;
 
 -- name: MarkUserOnboardingComplete :exec
 UPDATE users
@@ -65,7 +74,7 @@ WHERE id = $1 AND deleted_at IS NULL;
 -- by the identity provider so the account is created active, not pending.
 INSERT INTO users (username, email, hash, name, picture, status)
 VALUES ($1, $2, NULL, $3, $4, 'active')
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password;
 
 -- name: GetUserAvatarMeta :one
 -- Used by the avatar GET handler to decide whether it is serving a locally
@@ -83,7 +92,7 @@ UPDATE users
 SET avatar_key = $2, avatar_content_type = $3, avatar_size_bytes = $4,
     avatar_etag = $5, avatar_updated_at = now(), picture = $6, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password;
 
 -- name: ClearUserAvatar :one
 -- Clears both the stored-avatar columns and picture, so removing a photo
@@ -92,4 +101,4 @@ UPDATE users
 SET avatar_key = '', avatar_content_type = '', avatar_size_bytes = 0,
     avatar_etag = '', avatar_updated_at = NULL, picture = '', updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password;

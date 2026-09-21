@@ -160,38 +160,42 @@ func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.E
 	go emailWorker.Run(workerCtx)
 
 	authRepo := auth.NewRepo(pool, log)
-	go runTokenCleanup(workerCtx, authRepo, log)
+	userRepo := user.NewRepo(pool, log)
+	go runStaleDataCleanup(workerCtx, authRepo, userRepo, log)
 
 	e.Server.RegisterOnShutdown(func() {
 		workerCancel()
 		emailWorker.Wait()
 	})
 
-	registerRoutes(e, cfg, pool, emailSvc, log)
+	registerRoutes(e, cfg, pool, emailSvc, userRepo, log)
 	return e
 }
 
-// runTokenCleanup periodically removes expired rows from revoked_access_tokens
-// and password_reset_tokens.
-func runTokenCleanup(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
+// runStaleDataCleanup periodically removes expired rows from
+// revoked_access_tokens, password_reset_tokens, and email_change_requests.
+func runStaleDataCleanup(ctx context.Context, authRepo *auth.Repo, userRepo *user.Repo, log *zap.Logger) {
 	ticker := time.NewTicker(tokenCleanupInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			cleanExpiredTokens(ctx, repo, log)
+			cleanExpiredTokens(ctx, authRepo, userRepo, log)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func cleanExpiredTokens(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
-	if err := repo.DeleteExpiredRevokedTokens(ctx); err != nil {
-		log.Error("token cleanup: revoked access tokens failed", zap.Error(err))
+func cleanExpiredTokens(ctx context.Context, authRepo *auth.Repo, userRepo *user.Repo, log *zap.Logger) {
+	if err := authRepo.DeleteExpiredRevokedTokens(ctx); err != nil {
+		log.Error("cleanup: revoked access tokens failed", zap.Error(err))
 	}
-	if err := repo.DeleteExpiredPasswordResetTokens(ctx); err != nil {
-		log.Error("token cleanup: password reset tokens failed", zap.Error(err))
+	if err := authRepo.DeleteExpiredPasswordResetTokens(ctx); err != nil {
+		log.Error("cleanup: password reset tokens failed", zap.Error(err))
+	}
+	if err := userRepo.DeleteStaleEmailChangeRequests(ctx); err != nil {
+		log.Error("cleanup: email change requests failed", zap.Error(err))
 	}
 }
 
@@ -305,11 +309,11 @@ func wireAvatarStorage(userSvc *user.Svc, cfg config.UploadConfig, log *zap.Logg
 	}
 }
 
-func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, log *zap.Logger) {
+func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, userRepo *user.Repo, log *zap.Logger) {
 	jwtSecret := []byte(cfg.JWTSecret)
 
-	userRepo := user.NewRepo(pool, log)
 	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.APIBaseURL, jwtSecret, log)
+	userSvc.SetEmailChangePolicy(cfg.EmailChangeCodeTTL, cfg.EmailChangeLockout)
 	userHandler := user.NewHandler(userSvc, cfg.AppBaseURL, log)
 	userHandler.SetAvatarLimit(cfg.Uploads.MaxAvatarBytes)
 	wireAvatarStorage(userSvc, cfg.Uploads, log)
@@ -380,6 +384,16 @@ func registerUserRoutes(e *echo.Echo, userHandler *user.Handler) {
 	avatarGroup := e.Group("/api/v1/users")
 	avatarGroup.Use(appmw.AvatarRateLimiter())
 	avatarGroup.GET("/:id/picture", userHandler.GetPicture)
+
+	// Verified-email-change (OTP). All four are authenticated (ownership is
+	// enforced the same way as usersGroup above), so unlike the password-reset
+	// group there is no newAuthSkipper entry.
+	emailChangeGroup := e.Group("/api/v1/users/:id/email-change")
+	emailChangeGroup.Use(appmw.EmailChangeRateLimiter())
+	emailChangeGroup.GET("", userHandler.GetEmailChangeStatus)
+	emailChangeGroup.POST("", userHandler.RequestEmailChange)
+	emailChangeGroup.POST("/verify", userHandler.VerifyEmailChange)
+	emailChangeGroup.DELETE("", userHandler.CancelEmailChange)
 }
 
 // registerOnboardingRoutes wires the onboarding domain (first-time setup

@@ -32,6 +32,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
@@ -42,10 +43,13 @@ import (
 )
 
 // Repository is the persistence contract required by Svc.
+//
+//nolint:interfacebloat
 type Repository interface {
 	Create(ctx context.Context, p CreateParams) (models.User, error)
 	GetByID(ctx context.Context, id int64) (models.User, error)
 	UpdateProfile(ctx context.Context, p UpdateProfileParams) (models.User, error)
+	EmailTaken(ctx context.Context, emailAddr string) (bool, error)
 	UpdatePassword(ctx context.Context, id int64, hash string) error
 	DeleteAccount(ctx context.Context, p DeleteAccountParams) error
 	GetHashByID(ctx context.Context, id int64) (string, error)
@@ -53,6 +57,16 @@ type Repository interface {
 	GetAvatarMeta(ctx context.Context, id int64) (AvatarMeta, string, error)
 	SetAvatar(ctx context.Context, p SetAvatarParams) (models.User, error)
 	ClearAvatar(ctx context.Context, id int64) (models.User, error)
+
+	// Verified-email-change (OTP), see user_emailchange_repo.go.
+	GetLiveEmailChange(ctx context.Context, userID int64) (EmailChangeRequest, error)
+	GetEmailChangeLockout(ctx context.Context, userID int64) (time.Time, bool, error)
+	CreateEmailChange(ctx context.Context, p CreateEmailChangeParams) (EmailChangeRequest, error)
+	IncrementEmailChangeAttempt(ctx context.Context, requestID uuid.UUID) (int32, error)
+	FailEmailChange(ctx context.Context, requestID uuid.UUID) error
+	CancelEmailChanges(ctx context.Context, userID int64) error
+	CompleteEmailChange(ctx context.Context, requestID uuid.UUID, userID int64, newEmail string) (models.User, error)
+	DeleteStaleEmailChangeRequests(ctx context.Context) error
 }
 
 const (
@@ -66,29 +80,49 @@ const (
 	// avatarKeyShardModulus buckets avatar keys into 256 shard directories
 	// (see the key layout convention documented in internal/storage/storage.go).
 	avatarKeyShardModulus = 256
+
+	// defaultEmailChangeTTL and defaultEmailChangeLockout back SetEmailChangePolicy
+	// until it is called; callers that never call it (mainly tests) still get
+	// sane, non-zero durations rather than an OTP that expires immediately.
+	defaultEmailChangeTTL     = 15 * time.Minute
+	defaultEmailChangeLockout = 30 * time.Minute
 )
 
 // Svc implements the business logic for user operations.
 type Svc struct {
-	repo        Repository
-	mailer      email.Enqueuer
-	bcryptCost  int
-	appBaseURL  string
-	tokenSecret []byte
-	log         *zap.Logger
-	store       storage.Storage
+	repo               Repository
+	mailer             email.Enqueuer
+	bcryptCost         int
+	appBaseURL         string
+	tokenSecret        []byte
+	log                *zap.Logger
+	store              storage.Storage
+	emailChangeTTL     time.Duration
+	emailChangeLockout time.Duration
 }
 
 // NewSvc returns a Svc wired to the given repository, mailer, and configuration.
 func NewSvc(repo Repository, mailer email.Enqueuer, bcryptCost int, appBaseURL string, tokenSecret []byte, log *zap.Logger) *Svc {
 	return &Svc{
-		repo:        repo,
-		mailer:      mailer,
-		bcryptCost:  bcryptCost,
-		appBaseURL:  appBaseURL,
-		tokenSecret: tokenSecret,
-		log:         log,
+		repo:               repo,
+		mailer:             mailer,
+		bcryptCost:         bcryptCost,
+		appBaseURL:         appBaseURL,
+		tokenSecret:        tokenSecret,
+		log:                log,
+		emailChangeTTL:     defaultEmailChangeTTL,
+		emailChangeLockout: defaultEmailChangeLockout,
 	}
+}
+
+// SetEmailChangePolicy overrides the OTP lifetime and the post-lockout
+// cooldown for the verified-email-change flow (see
+// user_emailchange_service.go). Follows the same optional-setter pattern as
+// SetStorage / Handler.SetAvatarLimit, so no NewSvc call site — including
+// every existing test — needs to change to pick up a non-default policy.
+func (s *Svc) SetEmailChangePolicy(ttl, lockout time.Duration) {
+	s.emailChangeTTL = ttl
+	s.emailChangeLockout = lockout
 }
 
 // SetStorage wires the object store used for uploaded avatars. When unset,
@@ -151,12 +185,23 @@ func (s *Svc) GetByID(ctx context.Context, id int64) (models.User, error) {
 // SetPicture) and is never accepted from the request body — the current
 // value is always carried forward, so a PUT can never desync users.picture
 // from a stored avatar or blank one out from under it.
+//
+// email is likewise read-only here, but unlike picture it is a required
+// field on this endpoint (for a full round-trip of a previously-fetched
+// profile), so the validator cannot statically reject it — instead it must
+// match the current value exactly, checked here where the current value is
+// known. Any other value returns ErrEmailReadOnly; changing an email
+// requires the OTP-verified flow in user_emailchange_service.go.
 func (s *Svc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error) {
 	s.log.Info("replacing user profile", zap.Int64("user_id", id))
 
 	current, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return models.User{}, fmt.Errorf("get user by id: %w", err)
+	}
+
+	if !strings.EqualFold(req.Email, current.Email) {
+		return models.User{}, ErrEmailReadOnly
 	}
 
 	u, err := s.repo.UpdateProfile(ctx, UpdateProfileParams{
@@ -205,7 +250,10 @@ func (s *Svc) PatchProfile(ctx context.Context, id int64, req PatchProfileReques
 // server-managed (see PictureUpload / SetPicture) and is never taken from
 // req — the validator rejects a non-nil req.Picture before this is reached,
 // but the current value is carried forward here regardless, defense in depth
-// against picture ever desyncing from a stored avatar.
+// against picture ever desyncing from a stored avatar. email is likewise
+// read-only over PATCH (the validator rejects a non-nil req.Email) and is
+// always carried forward from current for the same reason — changing an
+// email requires the OTP-verified flow in user_emailchange_service.go.
 func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) UpdateProfileParams {
 	name := current.Name
 	if req.Name != nil {
@@ -601,9 +649,9 @@ func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {
 		To:             u.Email,
 		ToName:         name,
 		Payload: map[string]any{
-			"Name":            name,
-			"VerificationURL": verURL,
-			"ExpiresIn":       "24 hours",
+			payloadKeyName:      name,
+			"VerificationURL":   verURL,
+			payloadKeyExpiresIn: "24 hours",
 		},
 	})
 	if err != nil {

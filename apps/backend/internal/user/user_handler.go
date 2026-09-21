@@ -68,6 +68,8 @@ func isAllowedAvatarType(contentType string) bool {
 }
 
 // Service is the service contract required by Handler.
+//
+//nolint:interfacebloat
 type Service interface {
 	Register(ctx context.Context, req RegisterRequest) (models.User, error)
 	GetByID(ctx context.Context, id int64) (models.User, error)
@@ -78,6 +80,12 @@ type Service interface {
 	SetPicture(ctx context.Context, id int64, in PictureUpload) (models.User, error)
 	DeletePicture(ctx context.Context, id int64) (models.User, error)
 	OpenPicture(ctx context.Context, id int64) (PictureResult, error)
+
+	// Verified-email-change (OTP), see user_emailchange_service.go.
+	RequestEmailChange(ctx context.Context, id int64, req RequestEmailChangeRequest) (EmailChangeStatus, error)
+	VerifyEmailChange(ctx context.Context, id int64, req VerifyEmailChangeRequest) (models.User, error)
+	CancelEmailChange(ctx context.Context, id int64) error
+	GetEmailChangeStatus(ctx context.Context, id int64) (EmailChangeStatus, error)
 }
 
 // Handler holds HTTP handlers for user endpoints.

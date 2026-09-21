@@ -286,6 +286,18 @@ type BudgetUser struct {
 	DeletedAt pgtype.Timestamptz
 }
 
+type EmailChangeRequest struct {
+	ID           pgtype.UUID
+	UserID       int64
+	NewEmail     string
+	CodeHash     string
+	AttemptCount int32
+	ExpiresAt    pgtype.Timestamptz
+	ConsumedAt   pgtype.Timestamptz
+	FailedAt     pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+}
+
 type EmailJob struct {
 	ID             pgtype.UUID
 	IdempotencyKey string

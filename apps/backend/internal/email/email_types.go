@@ -29,6 +29,11 @@ type TemplateName string
 const (
 	TemplateVerification  TemplateName = "verification"
 	TemplatePasswordReset TemplateName = "password_reset"
+
+	// Verified-email-change (OTP) notifications, see internal/user/user_emailchange_service.go.
+	TemplateEmailChangeCode      TemplateName = "email_change_code"
+	TemplateEmailChangeRequested TemplateName = "email_change_requested"
+	TemplateEmailChangeCompleted TemplateName = "email_change_completed"
 )
 
 // EnqueueParams is the input to Enqueuer.Enqueue.

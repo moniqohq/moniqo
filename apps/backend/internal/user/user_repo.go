@@ -63,6 +63,7 @@ type publicUserRow struct {
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
+	HasPassword           bool
 }
 
 // toPublicUser converts a scanned row into a public-safe model.
@@ -90,6 +91,7 @@ func toPublicUser(row publicUserRow) models.User {
 		OnboardingCompletedAt: oc,
 		LastLogin:             ll,
 		CreatedAt:             row.CreatedAt.Time,
+		HasPassword:           row.HasPassword,
 	}
 }
 
@@ -125,6 +127,7 @@ func rowToPublic(row db.CreateUserRow) models.User {
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	})
 }
 
@@ -145,6 +148,7 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (models.User, error) {
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	}), nil
 }
 
@@ -180,7 +184,22 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	}), nil
+}
+
+// EmailTaken reports whether emailAddr is already in use, case-insensitively,
+// including by a soft-deleted account — this matches the scope of the
+// underlying users_email_key unique index, so a caller relying on this check
+// to avoid a doomed insert/update never gets a false negative.
+func (r *Repo) EmailTaken(ctx context.Context, emailAddr string) (bool, error) {
+	q := db.New(r.pool)
+	count, err := q.CountUsersByEmail(ctx, emailAddr)
+	if err != nil {
+		r.log.Error("CountUsersByEmail query failed", zap.Error(err))
+		return false, fmt.Errorf("count users by email: %w", err)
+	}
+	return count > 0, nil
 }
 
 // UpdatePassword replaces the bcrypt hash for the given user and, in the same
@@ -432,6 +451,7 @@ func (r *Repo) SetAvatar(ctx context.Context, p SetAvatarParams) (models.User, e
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	}), nil
 }
 
@@ -453,6 +473,7 @@ func (r *Repo) ClearAvatar(ctx context.Context, id int64) (models.User, error) {
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	}), nil
 }
 

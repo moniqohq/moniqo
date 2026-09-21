@@ -26,6 +26,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+
+	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
 
 // TestAuthSkipperAvatarRoute is a regression test for the regexp branch added
@@ -51,4 +54,17 @@ func TestAuthSkipperAvatarRoute(t *testing.T) {
 	assert.False(t, isSkipped(http.MethodGet, "/api/v1/users/7/picture/extra"), "must be exact, not a prefix match")
 	assert.False(t, isSkipped(http.MethodPut, "/api/v1/users/7/picture"), "must not exempt the authenticated PUT upload endpoint")
 	assert.False(t, isSkipped(http.MethodDelete, "/api/v1/users/7/picture"), "must not exempt the authenticated DELETE endpoint")
+}
+
+// TestRegisterUserRoutesDoesNotPanic guards against an Echo radix-tree route
+// conflict between the new /:id/email-change group and the existing /:id
+// and /:id/picture routes — Echo panics at registration time on an
+// ambiguous param name, not at request time, so this only needs to register
+// the routes, never call them.
+func TestRegisterUserRoutesDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	e := echo.New()
+	h := user.NewHandler(nil, "http://localhost:3000", zap.NewNop())
+	registerUserRoutes(e, h)
 }
