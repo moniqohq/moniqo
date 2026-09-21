@@ -292,6 +292,8 @@ Replaces editable user fields — idempotent operation.
 }
 ```
 
+`email` is **read-only** over this endpoint: it must be included (this is a full-representation PUT) and must exactly match the caller's current email, for a full round-trip of a previously-fetched profile — any other value is rejected with a `400`. Changing an email requires the OTP-verified flow — see [Email Change](#email-change).
+
 `picture` may be included as `""` for a full round-trip of a previously-fetched profile, but any other value is rejected — see [Profile Picture](#profile-picture).
 
 **Response — 200 OK**
@@ -324,7 +326,7 @@ Replaces editable user fields — idempotent operation.
 **Validation Rules**
 
 - Username constraints enforced.
-- Email format validation.
+- `email` must exactly match the caller's current email (case-insensitive) — see above.
 - Unique constraints enforced.
 - `currency`, if provided, must be one of the supported ISO-4217 codes.
 - `timezone`, if provided, must be a valid IANA timezone name.
@@ -339,10 +341,10 @@ Replaces editable user fields — idempotent operation.
 
 | HTTP | Code | Description |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid field |
+| 400 | `VALIDATION_ERROR` | Invalid field, or `email` does not match the current value |
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 404 | `NOT_FOUND` | User not found |
-| 409 | `CONFLICT` | Duplicate username/email |
+| 409 | `CONFLICT` | Duplicate username |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
 
 ---
@@ -374,7 +376,7 @@ Updates specific fields only.
 }
 ```
 
-`picture` is not an accepted field on PATCH (it is rejected with a `400` validation error) — see [Profile Picture](#profile-picture).
+`picture` is not an accepted field on PATCH (it is rejected with a `400` validation error) — see [Profile Picture](#profile-picture). `email` is likewise not accepted on PATCH, regardless of its value — see [Email Change](#email-change) for the OTP-verified flow.
 
 **Response — 200 OK**
 
@@ -422,7 +424,7 @@ If password update is requested:
 **Validation Rules**
 
 - Username rules enforced if updated.
-- Email format validation.
+- `email`, if present at all, is rejected as read-only (see above) regardless of format.
 - Password strength validation.
 - `currency`, if provided, must be one of the supported ISO-4217 codes (`INR`, `USD`, `EUR`, `GBP`, `AUD`, `CAD`, `SGD`).
 - `timezone`, if provided, must be a valid IANA timezone name.
@@ -438,11 +440,11 @@ If password update is requested:
 
 | HTTP | Code | Description |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid or missing field |
+| 400 | `VALIDATION_ERROR` | Invalid or missing field, or `email` present (read-only) |
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 403 | `FORBIDDEN` | Password verification failed |
 | 404 | `NOT_FOUND` | User not found |
-| 409 | `CONFLICT` | Duplicate username/email |
+| 409 | `CONFLICT` | Duplicate username |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
 
 ---
@@ -558,6 +560,171 @@ Clears the authenticated user's profile picture — idempotent operation.
 | 403 | `FORBIDDEN` | Access denied |
 | 404 | `NOT_FOUND` | User not found |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+## Email Change
+
+Email is the account-recovery channel (password reset mails to it), so it cannot be changed by
+simply writing a new value — `email` is read-only on both PUT and PATCH (see above). Changing it
+requires proving control of the new address via a 6-digit one-time code, entered within the
+lifetime and attempt budget below.
+
+**Business Rules**
+
+- The code is 6 digits, valid for **15 minutes**, and can be attempted at most **3 times**.
+- There is **no resend**: a client that needs a new code must issue a fresh request, which
+  supersedes any still-pending one for the same user.
+- After the 3rd wrong attempt, the request is invalidated and the user enters a **30-minute
+  cooldown** before a new request is accepted.
+- Requesting a change requires the caller's current password, **unless** the account has no
+  password credential (an OIDC-only signup) — those accounts skip this check.
+- A notice is emailed to the **current** address both when a change is requested and when it
+  completes; both are best-effort and never fail the API call.
+- On completion, `status` is promoted from `pending_verification` to `active` (control of the new
+  address is now proven) and `email` is updated. **Sessions are not revoked** — no credential
+  changed, and the request was already re-authenticated with the password.
+
+### Request Email Change
+
+**`POST /api/v1/users/{id}/email-change`**
+**Authentication:** Required
+
+**Request Payload**
+
+```json
+{
+  "new_email": "new@example.com",
+  "current_password": "CurrentPass1"
+}
+```
+
+`current_password` is required unless the account has no password credential.
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "pending": true,
+    "new_email": "new@example.com",
+    "expires_at": "2026-02-23T15:19:05Z",
+    "attempts_remaining": 3
+  },
+  "msg": "verification code sent to the new email address"
+}
+```
+
+**Side Effects**
+
+- Any prior pending request for this user is superseded.
+- A 6-digit code is emailed to `new_email` (expires in 15 minutes).
+- A "change requested" notice is emailed to the current address.
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid `new_email` format, or `new_email` matches the current email |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 403 | `FORBIDDEN` | Access denied, or `current_password` missing/incorrect |
+| 404 | `NOT_FOUND` | User not found |
+| 409 | `CONFLICT` | `new_email` already in use |
+| 429 | `RATE_LIMITED` | Per-IP throttle, or the user is inside the post-lockout cooldown (`Retry-After` header set) |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+### Verify Email Change
+
+**`POST /api/v1/users/{id}/email-change/verify`**
+**Authentication:** Required
+
+**Request Payload**
+
+```json
+{
+  "code": "483920"
+}
+```
+
+**Response — 200 OK**
+
+Returns the full updated user object (same shape as `PATCH /api/v1/users/{id}`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Saqib Abdul",
+    "username": "saqib",
+    "email": "new@example.com",
+    "picture": "",
+    "last_login": "2026-02-23T15:04:05Z"
+  },
+  "msg": "email address updated successfully"
+}
+```
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | `code` malformed, or wrong/expired (`fields[0].error` reports attempts remaining), or no pending request exists |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 403 | `FORBIDDEN` | Access denied |
+| 409 | `CONFLICT` | `new_email` was claimed by another account during the verification window |
+| 429 | `RATE_LIMITED` | Third wrong attempt just triggered the cooldown (`Retry-After` header set) |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+### Cancel Email Change
+
+Cancels the authenticated user's pending request — idempotent operation.
+
+**`DELETE /api/v1/users/{id}/email-change`**
+**Authentication:** Required
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "msg": "email change request cancelled"
+}
+```
+
+Cancelling with nothing pending is a success, not an error.
+
+---
+
+### Get Email Change Status
+
+Lets a client (e.g. re-opening the verification dialog after a page refresh) check whether a
+request is pending.
+
+**`GET /api/v1/users/{id}/email-change`**
+**Authentication:** Required
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "pending": true,
+    "new_email": "new@example.com",
+    "expires_at": "2026-02-23T15:19:05Z",
+    "attempts_remaining": 2
+  },
+  "msg": "email change status fetched successfully"
+}
+```
+
+`data.pending` is `false` (with the other fields omitted) when no request is outstanding.
 
 ---
 
