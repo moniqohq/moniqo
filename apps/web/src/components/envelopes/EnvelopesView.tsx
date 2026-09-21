@@ -458,6 +458,12 @@ function SummaryCard({
 /* ── Budget health radial ───────────────────────────────── */
 const healthColor = (score: number) =>
   score >= 80 ? "#22C55E" : score >= 60 ? "#F59E0B" : "#EF4444";
+const healthMessage = (score: number) =>
+  score >= 80
+    ? "You're doing great! Keep it up."
+    : score >= 60
+      ? "Spending is picking up — keep an eye on your envelopes."
+      : "You've used most of your budget. Review it before spending more.";
 
 function HealthRadial({ score }: { score: number }) {
   const r = 52;
@@ -504,7 +510,7 @@ function HealthRadial({ score }: { score: number }) {
         </p>
         <p className="text-xs text-[#5A6A85]">{sublabel}</p>
         <p className="mt-2 max-w-[120px] text-[11px] leading-relaxed text-[#3A4A60]">
-          You&apos;re doing great! Keep it up.
+          {healthMessage(score)}
         </p>
       </div>
     </div>
@@ -516,21 +522,21 @@ const ALLOCATION_COLORS = ["#6C3AED", "#22C55E", "#3B82F6", "#EF4444", "#F59E0B"
 const ALLOCATION_MAX_SLICES = 5;
 
 function AllocationDonut({ envelopes }: { envelopes: EnvelopeRow[] }) {
-  const totalAllocated = envelopes.reduce((sum, e) => sum + e.allocated, 0);
+  const positive = envelopes.filter((e) => e.allocated > 0);
+  const totalAllocated = positive.reduce((sum, e) => sum + e.allocated, 0);
+  const pctOf = (amt: number) => (totalAllocated > 0 ? Math.round((amt / totalAllocated) * 100) : 0);
 
-  const sorted = [...envelopes]
-    .filter((e) => e.allocated > 0)
-    .sort((a, b) => b.allocated - a.allocated);
-  const top = sorted.slice(0, ALLOCATION_MAX_SLICES);
-  const rest = sorted.slice(ALLOCATION_MAX_SLICES);
-  const restTotal = rest.reduce((sum, e) => sum + e.allocated, 0);
+  const sorted = [...positive].sort((a, b) => b.allocated - a.allocated);
+  const top = sorted.slice(0, ALLOCATION_MAX_SLICES).filter((e) => pctOf(e.allocated) > 0);
+  const restTotal =
+    sorted.reduce((sum, e) => sum + e.allocated, 0) - top.reduce((sum, e) => sum + e.allocated, 0);
 
   const slices = [
     ...top.map((e) => ({ name: e.name, allocated: e.allocated })),
-    ...(restTotal > 0 ? [{ name: "Other", allocated: restTotal }] : []),
+    ...(pctOf(restTotal) > 0 ? [{ name: "Other", allocated: restTotal }] : []),
   ].map((s, i) => ({
     ...s,
-    value: totalAllocated > 0 ? Math.round((s.allocated / totalAllocated) * 100) : 0,
+    value: pctOf(s.allocated),
     color: ALLOCATION_COLORS[i % ALLOCATION_COLORS.length],
   }));
 
@@ -711,6 +717,10 @@ export function EnvelopesView() {
   const totalOverspent = overspentRows.reduce((s, e) => s + Math.abs(getRemaining(e)), 0);
   const healthScore =
     totalAllocated > 0 ? Math.max(0, Math.round(100 - (totalSpent / totalAllocated) * 100)) : 100;
+  const topSpend = envelopes
+    .filter((e) => e.spent > 0)
+    .sort((a, b) => b.spent - a.spent)
+    .slice(0, 3);
 
   if (selectedId !== null) {
     return (
@@ -1187,27 +1197,24 @@ export function EnvelopesView() {
             }
           >
             <div className="flex flex-col gap-2.5">
-              {[...envelopes]
-                .sort((a, b) => b.spent - a.spent)
-                .slice(0, 3)
-                .map((env) => (
-                  <div key={env.id} className="flex items-center gap-2.5">
-                    <div
-                      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm"
-                      style={{ backgroundColor: "rgba(108,58,237,0.18)", color: "#A78BFA" }}
-                    >
-                      💼
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-[#A8B4CC]">{env.name}</p>
-                      <p className="text-[11px] font-semibold text-[#A78BFA] tabular-nums">
-                        {formatCurrency(env.spent)} spent
-                      </p>
-                    </div>
+              {topSpend.map((env) => (
+                <div key={env.id} className="flex items-center gap-2.5">
+                  <div
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm"
+                    style={{ backgroundColor: "rgba(108,58,237,0.18)", color: "#A78BFA" }}
+                  >
+                    💼
                   </div>
-                ))}
-              {envelopes.length === 0 && (
-                <p className="text-xs text-[#5A6A85]">No envelopes found.</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-[#A8B4CC]">{env.name}</p>
+                    <p className="text-[11px] font-semibold text-[#A78BFA] tabular-nums">
+                      {formatCurrency(env.spent)} spent
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {topSpend.length === 0 && (
+                <p className="text-xs text-[#5A6A85]">No spending yet.</p>
               )}
             </div>
           </SideCard>
