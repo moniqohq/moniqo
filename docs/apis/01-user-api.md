@@ -106,8 +106,25 @@ Registration always produces `pending_verification`. Email verification is handl
 ### Deletion Rules
 
 - Deleting user removes access to all owned resources.
-- Implementation must use **soft delete only**.
-- Deleting a user will also soft delete all associated resources (e.g., envelopes, transactions, etc.).
+- Implementation must use **soft delete only** — the user row is marked
+  `deleted_at`, never physically removed. Username and email remain
+  permanently reserved (uniqueness is enforced including soft-deleted rows),
+  so a deleted account's username/email cannot be re-registered.
+- Deletion requires re-authentication with the user's current password.
+  Accounts with no password credential (OIDC-only signups) cannot delete
+  themselves until they set one (`409`).
+- If the user is the sole `OWNER` of a budget that still has other active
+  members, deletion is blocked (`409`) until ownership is transferred (see
+  `POST /api/v1/budgets/{id}/transfer-ownership` in the Budget API) or the
+  other members are removed. This never happens implicitly.
+- Budgets the user solely owns (no other active members) are soft-deleted
+  along with their memberships, mirroring `DELETE /api/v1/budgets/{id}`.
+  Their accounts, envelopes, and transactions are **not** touched by this
+  operation — same as budget deletion, financial data remains preserved for
+  audit and only becomes unreachable because the containing budget is gone.
+- The user's memberships in budgets that survive (i.e. budgets they don't
+  solely own) are soft-deleted; the budget and its data are untouched, and
+  other members are unaffected.
 - Operation must be idempotent.
 
 ---
@@ -399,50 +416,77 @@ If password update is requested:
 
 ### Delete User
 
-Deletes authenticated user account — idempotent operation.
+Permanently (soft-)deletes the authenticated user's own account — idempotent
+operation. This is a self-service endpoint only: a user can delete their own
+account, never another user's.
 
 **`DELETE /api/v1/users/{id}`**
 **Authentication:** Required
+
+**Request Body**
+
+```json
+{
+  "current_password": "string, required"
+}
+```
 
 **Response — 200 OK**
 
 ```json
 {
   "success": true,
+  "data": null,
   "msg": "user deleted successfully"
 }
 ```
 
 **Business Rules**
 
-- Must verify ownership.
-- Operation must be idempotent.
-- Only OWNER can unlink/delete other user's profile from budget belonging to budget OWNER belongs.
-- Already-deleted user must not cause failure.
+- Must verify ownership — the `{id}` path param must match the authenticated
+  principal; there is no cross-user or admin deletion path on this endpoint.
+- Requires re-authentication via `current_password`.
+- Operation must be idempotent — already-deleted user must not cause failure.
 - All sessions/tokens must be invalidated.
+- Blocked if the user is the sole `OWNER` of a shared budget (see Deletion
+  Rules above).
 
 **Validation Rules**
 
 - Authorization required.
 - ID must match authenticated principal.
+- `current_password` is required, non-empty, and at most 72 characters
+  (bcrypt limit).
 
 **Side Effects**
 
 - User marked deleted (soft delete).
-- Access revoked.
-- Tokens invalidated.
-- All associated entities (transactions, envelopes) become inaccessible but are not directly changed. Accessibility is gated by checking if the user is deleted before fetching.
+- All refresh tokens revoked and the caller's current access token
+  blocklisted — no existing session or token remains usable.
+- Pending password-reset tokens invalidated.
+- Linked OIDC identities (Google/Apple/Facebook) removed, so a future
+  sign-in with the same provider account creates a new user rather than
+  resolving to this deleted row.
+- Budgets solely owned by the user are soft-deleted along with their
+  memberships (see Deletion Rules). Budgets shared with other members, and
+  their data, are left untouched; only the deleted user's own membership in
+  them is soft-deleted.
 
 **Deletion Scenarios**
 
-- **Single owner:** When deleting a user who is the sole owner, everything associated is deleted and unrecoverable — equivalent to deleting an account from a software service.
-- **Multiple users:** The deleting owner has the option to transfer ownership or delete everything. The deleting user must be the owner to choose another user.
-- **Writer or Viewer:** If a writer or viewer deletes their account, nothing is affected as long as another owner is already defined.
+- **Single owner, no other members:** The budget and its memberships are
+  soft-deleted as part of account deletion.
+- **Single owner, other members present:** Deletion is blocked (`409`) —
+  the caller must transfer ownership or remove the other members first.
+- **Not the sole owner (ADMIN/EDITOR/VIEWER, or one of several owners):**
+  the budget is unaffected; only the deleted user's membership is removed.
 
 **Error Scenarios**
 
 | HTTP | Code | Description |
 |---|---|---|
+| 400 | `VALIDATION_ERROR` | Missing or invalid `current_password` |
 | 401 | `UNAUTHORIZED` | Not authenticated |
-| 403 | `FORBIDDEN` | Access denied |
+| 403 | `FORBIDDEN` | Access denied — id mismatch, or wrong password |
+| 409 | `CONFLICT` | No password credential set (OIDC-only account), or sole owner of a shared budget |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
