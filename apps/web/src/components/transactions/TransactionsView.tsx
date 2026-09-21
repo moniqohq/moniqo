@@ -281,7 +281,9 @@ function TxRow({
             <ArrowUp size={13} strokeWidth={2.5} />
           ) : tx.type === "expense" ? (
             <ArrowDown size={13} strokeWidth={2.5} />
-          ) : null}
+          ) : (
+            <ArrowUpRight size={13} strokeWidth={2.5} />
+          )}
         </span>
       </td>
 
