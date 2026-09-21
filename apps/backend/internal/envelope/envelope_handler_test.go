@@ -695,7 +695,13 @@ func TestHandler_GetBudgetSummary(t *testing.T) {
 
 		require.NoError(t, envelope.NewHandler(svc, log).GetBudgetSummary(c))
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "budget summary fetched successfully", parseResp(t, rec.Body.String()).Msg)
+		resp := parseResp(t, rec.Body.String())
+		assert.Equal(t, "budget summary fetched successfully", resp.Msg)
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, 400.00, data["to_be_budgeted"], 0.001)
+		assert.InDelta(t, 600.00, data["total_allocated"], 0.001)
+		assert.InDelta(t, 200.00, data["total_spent"], 0.001)
 	})
 
 	t.Run("invalid budget_id returns 400", func(t *testing.T) {
@@ -792,5 +798,115 @@ func TestHandler_ListEnvelopes_StatusFilter(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 		require.NotNil(t, gotArchived)
 		assert.False(t, *gotArchived)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestHandler_ReallocateEnvelopes
+// ---------------------------------------------------------------------------
+
+func TestHandler_ReallocateEnvelopes(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	validBody := `{"from_envelope_id":1,"to_envelope_id":2,"amount":250.00}`
+
+	t.Run("success returns 200", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ReallocateFn: func(
+				_ context.Context, _ int64, _ envelope.ReallocateRequest, _ models.Role,
+			) (models.ReallocateResult, error) {
+				env := fixedEnvelope()
+				return models.ReallocateResult{FromEnvelope: &env, ToEnvelope: &env, Summary: fixedSummary()}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		injectMembership(c, fixedMembership(models.RoleEditor))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReallocateEnvelopes(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "envelopes reallocated successfully", parseResp(t, rec.Body.String()).Msg)
+	})
+
+	t.Run("validation error (amount <= 0) returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPost, "/", `{"from_envelope_id":1,"to_envelope_id":2,"amount":0}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		injectMembership(c, fixedMembership(models.RoleEditor))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReallocateEnvelopes(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("insufficient available balance returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ReallocateFn: func(
+				_ context.Context, _ int64, _ envelope.ReallocateRequest, _ models.Role,
+			) (models.ReallocateResult, error) {
+				return models.ReallocateResult{}, envelope.ErrValidation
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		injectMembership(c, fixedMembership(models.RoleEditor))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReallocateEnvelopes(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("viewer role returns 403", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ReallocateFn: func(
+				_ context.Context, _ int64, _ envelope.ReallocateRequest, _ models.Role,
+			) (models.ReallocateResult, error) {
+				return models.ReallocateResult{}, envelope.ErrForbidden
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		injectMembership(c, fixedMembership(models.RoleViewer))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReallocateEnvelopes(c))
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("unknown envelope returns 404", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{
+			ReallocateFn: func(
+				_ context.Context, _ int64, _ envelope.ReallocateRequest, _ models.Role,
+			) (models.ReallocateResult, error) {
+				return models.ReallocateResult{}, envelope.ErrNotFound
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		injectMembership(c, fixedMembership(models.RoleEditor))
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReallocateEnvelopes(c))
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("no membership in context returns 401", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.EnvelopeService{}
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+		// no injectMembership call
+
+		require.NoError(t, envelope.NewHandler(svc, log).ReallocateEnvelopes(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 }

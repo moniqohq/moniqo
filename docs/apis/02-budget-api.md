@@ -330,3 +330,82 @@ Budget becomes inaccessible but is preserved.
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 404 | `NOT_FOUND` | Budget not found |
 | 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+### Get Budget Summary
+
+**`GET /api/v1/budgets/{id}/summary`**
+**Authentication:** Required
+
+Returns the budget's computed allocation summary. Every field is derived from live transaction and envelope data at read time — none of it is stored.
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "to_be_budgeted": 1500.00,
+    "total_allocated": 6000.00,
+    "total_spent": 2000.00,
+    "overspent_envelopes_count": 1
+  },
+  "msg": "budget summary fetched successfully"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `to_be_budgeted` | Decimal | On-budget cash not held by any envelope. Equal to on-budget cash minus the sum of each live envelope's available balance (`allocated_amt - spent_amt`). Changes only as a consequence of an inflow/outflow on an on-budget account, or of allocation/reallocation between envelopes and TBB — never as a direct consequence of categorized spending. |
+| `total_allocated` | Decimal | Sum of `allocated_amt` across all live (non-archived) envelopes. |
+| `total_spent` | Decimal | Sum of `spent_amt` across all live envelopes, as a non-negative magnitude. |
+| `overspent_envelopes_count` | Integer | Count of live envelopes where `spent_amt > allocated_amt`. |
+
+**Business Rules**
+
+- Over-allocation is permitted: `to_be_budgeted` may go negative. It is surfaced, not rejected.
+- Money spent from an envelope does not change `to_be_budgeted` — it only reduces that envelope's available balance and the corresponding on-budget cash by the same amount.
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid ID |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+### Get Dashboard Stats
+
+**`GET /api/v1/budgets/{id}/dashboard?month=YYYY-MM`**
+**Authentication:** Required
+
+Returns net worth, the requested month's income/expenses/savings, and a 6-month sparkline. `month` is optional and defaults to the current month.
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": {
+    "net_worth": 125000.00,
+    "monthly_income": 8000.00,
+    "monthly_expenses": 5200.00,
+    "monthly_savings": 2800.00,
+    "sparkline": [
+      { "month": "2026-04", "income": 8000.00, "expenses": 5200.00 }
+    ]
+  },
+  "msg": "dashboard stats fetched successfully"
+}
+```
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid ID, or `month` not in `YYYY-MM` format |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |

@@ -50,15 +50,15 @@ func (a Amount) Int64() int64 {
 }
 
 // MarshalJSON encodes the amount as a JSON number with exactly two decimal places.
-// For example, Amount(1000000) encodes as 10000.00.
+// For example, Amount(1000000) encodes as 10000.00, Amount(-50) encodes as -0.50.
 func (a Amount) MarshalJSON() ([]byte, error) {
 	v := int64(a)
-	whole := v / minorUnitFactor
-	frac := v % minorUnitFactor
-	if frac < 0 {
-		frac = -frac
+	sign := ""
+	if v < 0 {
+		sign = "-"
+		v = -v
 	}
-	return []byte(fmt.Sprintf("%d.%02d", whole, frac)), nil
+	return fmt.Appendf(nil, "%s%d.%02d", sign, v/minorUnitFactor, v%minorUnitFactor), nil
 }
 
 // UnmarshalJSON decodes a JSON number (integer or decimal) into minor units.

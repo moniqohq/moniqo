@@ -63,6 +63,9 @@ const (
 	errAmountNotNumber  = "must be a number"
 	fieldTitle          = "title"
 	fieldAllocatedAmt   = "allocated_amt"
+
+	errInsufficientAvailable = "source does not have enough available balance to cover this amount"
+	fieldAmount              = "amount"
 )
 
 // Handler exposes the envelope domain over HTTP.
@@ -487,4 +490,60 @@ func (h *Handler) GetDashboardStats(c echo.Context) error {
 	}
 
 	return httpx.OK(c, stats, "dashboard stats fetched successfully")
+}
+
+// validateReallocateRequest validates the payload for POST .../envelopes/reallocate.
+func validateReallocateRequest(req ReallocateRequest) []httpx.FieldError {
+	var errs []httpx.FieldError
+	if req.Amount.Int64() <= 0 {
+		errs = append(errs, httpx.FieldError{Field: fieldAmount, Error: "must be greater than zero"})
+	}
+	if req.FromEnvelopeID == nil && req.ToEnvelopeID == nil {
+		errs = append(errs, httpx.FieldError{Field: fieldBody, Error: "at least one of from_envelope_id, to_envelope_id is required"})
+	}
+	if req.FromEnvelopeID != nil && req.ToEnvelopeID != nil && *req.FromEnvelopeID == *req.ToEnvelopeID {
+		errs = append(errs, httpx.FieldError{Field: fieldBody, Error: "from_envelope_id and to_envelope_id must differ"})
+	}
+	return errs
+}
+
+// ReallocateEnvelopes handles POST /api/v1/budgets/:budget_id/envelopes/reallocate.
+//
+//nolint:revive
+func (h *Handler) ReallocateEnvelopes(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	membership, ok := membershipFromContext(c)
+	if !ok {
+		return httpx.Unauthorized(c, "not authenticated")
+	}
+
+	var req ReallocateRequest
+	if err := c.Bind(&req); err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+	}
+
+	if errs := validateReallocateRequest(req); len(errs) > 0 {
+		return httpx.ValidationError(c, errs)
+	}
+
+	result, err := h.svc.Reallocate(c.Request().Context(), budgetID, req, membership.Role)
+	if err != nil {
+		if errors.Is(err, ErrForbidden) {
+			return httpx.Forbidden(c, "insufficient role")
+		}
+		if errors.Is(err, ErrNotFound) {
+			return httpx.NotFound(c, "budget envelope not found")
+		}
+		if errors.Is(err, ErrValidation) {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAmount, Error: errInsufficientAvailable}})
+		}
+		h.log.Error("Reallocate failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, result, "envelopes reallocated successfully")
 }

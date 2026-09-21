@@ -35,9 +35,12 @@ This API supports full CRUD operations for Budget Envelopes.
 | `title` | String | Yes | Unique envelope name within the budget |
 | `budget_id` | Integer | Yes | Foreign key referencing Budget |
 | `allocated_amt` | Decimal | Yes | Amount allocated to this envelope |
-| `spent_amt` | Decimal | Yes | System-calculated total spent |
+| `spent_amt` | Decimal | Yes | System-calculated total spent, always a non-negative magnitude (outflows are stored as negative transaction amounts internally, but `spent_amt` is normalized to positive before it reaches the API) |
 | `description` | String | No | Optional descriptive text |
 | `is_archived` | Boolean | Yes | `true` when the envelope has been soft-deleted (archived); historical transactions remain intact |
+| `is_overspent` | Boolean | Yes | `true` when `spent_amt > allocated_amt` |
+
+Available balance (`allocated_amt - spent_amt`) is not a separate field; clients compute it from `allocated_amt` and `spent_amt`.
 
 ---
 
@@ -292,7 +295,7 @@ Idempotent operation.
 - Complete representation required.
 - `spent_amt` cannot be modified.
 - Title uniqueness enforced.
-- `allocated_amt` must be ≥ `spent_amt` (optional strict rule).
+- `allocated_amt` must be ≥ `spent_amt`. Enforced unconditionally, matching the PATCH rule below — an envelope's allocation can never be reduced below what has already been spent.
 
 **Validation Rules**
 
@@ -463,6 +466,62 @@ Idempotent operation.
 
 > `400 VALIDATION_ERROR` responses use the field-level `data.fields` format described under
 > [Create Budget Envelope](#create-budget-envelope) above.
+
+---
+
+### Reallocate
+
+**`POST /api/v1/budgets/{budget_id}/envelopes/reallocate`**
+**Authentication:** Required (EDITOR or above)
+
+Atomically moves money between two envelopes, or between an envelope and "To Be Budgeted". This is the only endpoint that changes an envelope's `allocated_amt` in relation to another envelope or to TBB in a single, consistent operation — it exists so that "To Be Budgeted changes only via allocation or reallocation" can actually be guaranteed, instead of relying on the client issuing two independent, non-atomic PATCH requests.
+
+**Request Payload**
+
+```json
+{
+  "from_envelope_id": 3,
+  "to_envelope_id": 7,
+  "amount": 250.00
+}
+```
+
+- `from_envelope_id`: source envelope id, or `null` to move money out of "To Be Budgeted".
+- `to_envelope_id`: destination envelope id, or `null` to move money back into "To Be Budgeted".
+- `amount`: must be greater than 0.
+- Exactly one of `from_envelope_id` / `to_envelope_id` may be `null`, not both — the request must always name at least one envelope.
+- `from_envelope_id` and `to_envelope_id` must differ when both are provided.
+
+**Business Rules**
+
+- Both envelope rows involved (when not "To Be Budgeted") are locked for the duration of the operation, and the source's available balance (`allocated_amt - spent_amt`) is re-checked against `amount` at write time — this closes the same race window described for PUT/PATCH above.
+- When moving out of an envelope, `amount` must not exceed that envelope's available balance (`allocated_amt - spent_amt`). An **overspent** envelope has an available balance of 0 or less, so money can never be pulled out of it — this is what keeps an overspent envelope overspent.
+- When moving out of "To Be Budgeted", `amount` must not exceed the budget's current `to_be_budgeted` (doctrine invariant: allocation must always be cash-backed).
+- Moving money into an envelope or into "To Be Budgeted" has no upper bound beyond `amount > 0`.
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "from_envelope": { "...": "BudgetEnvelope, or null when the source was To Be Budgeted" },
+    "to_envelope": { "...": "BudgetEnvelope, or null when the destination was To Be Budgeted" },
+    "summary": { "...": "BudgetSummary, recomputed after the move" }
+  },
+  "msg": "envelopes reallocated successfully"
+}
+```
+
+**Error Scenarios**
+
+| HTTP | Code |
+|---|---|
+| 400 | `VALIDATION_ERROR` — bad request shape, or amount exceeds the source's available balance / TBB |
+| 401 | `UNAUTHORIZED` |
+| 403 | `FORBIDDEN` — caller role below EDITOR |
+| 404 | `NOT_FOUND` — an envelope id does not exist in this budget |
+| 500 | `INTERNAL_ERROR` |
 
 ---
 

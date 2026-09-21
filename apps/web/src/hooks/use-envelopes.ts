@@ -27,7 +27,7 @@ import type { BudgetEnvelope, BudgetSummary } from "@/types";
 import type { ApiEnvelope, ApiBudgetSummary } from "@/lib/api/types";
 
 export function apiEnvelopeToUI(e: ApiEnvelope): BudgetEnvelope {
-  const spent = -e.spent_amt;
+  const spent = e.spent_amt;
   const available = e.allocated_amt - spent;
   return {
     id: e.id,
@@ -47,7 +47,7 @@ function apiSummaryToUI(s: ApiBudgetSummary): BudgetSummary {
   return {
     toBeBudgeted: s.to_be_budgeted,
     totalAllocated: s.total_allocated,
-    totalSpent: -s.total_spent,
+    totalSpent: s.total_spent,
     overspentEnvelopesCount: s.overspent_envelopes_count,
   };
 }

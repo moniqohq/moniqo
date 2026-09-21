@@ -61,19 +61,33 @@ SELECT EXISTS (
       AND deleted_at   IS NULL
 ) AS exists;
 
+-- name: GetEnvelopeForUpdate :one
+SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+FROM envelopes
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+FOR UPDATE;
+
+-- name: AdjustEnvelopeAllocated :one
+UPDATE envelopes
+SET allocated_amt = allocated_amt + $3,
+    updated_at    = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at;
+
 -- name: SumBudgetAllocated :one
 SELECT COALESCE(SUM(allocated_amt), 0)::BIGINT AS total_allocated
 FROM envelopes
 WHERE budget_id = $1 AND deleted_at IS NULL;
 
 -- name: GetBudgetEnvelopeSummary :one
+-- t.spent is a positive magnitude; outflows are stored as negative amounts.
 SELECT
-    COALESCE(SUM(e.allocated_amt), 0)::BIGINT                                                  AS total_allocated,
-    COALESCE(SUM(COALESCE(t.spent, 0)), 0)::BIGINT                                             AS total_spent,
-    COUNT(*) FILTER (WHERE COALESCE(t.spent, 0) > e.allocated_amt)::BIGINT                    AS overspent_count
+    COALESCE(SUM(e.allocated_amt), 0)::BIGINT                                  AS total_allocated,
+    COALESCE(SUM(COALESCE(t.spent, 0)), 0)::BIGINT                             AS total_spent,
+    COUNT(*) FILTER (WHERE COALESCE(t.spent, 0) > e.allocated_amt)::BIGINT     AS overspent_count
 FROM envelopes e
 LEFT JOIN (
-    SELECT envelope_id, SUM(amount) AS spent
+    SELECT envelope_id, -SUM(amount) AS spent
     FROM transactions tr
     WHERE tr.budget_id   = $1
       AND tr.envelope_id IS NOT NULL
