@@ -632,3 +632,169 @@ func TestSvc_ArchivedAccountGuard(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// TestSvc_ArchivedEnvelopeGuard covers the archived/out-of-budget envelope
+// guard wired via SetEnvelopeChecker across Create, Replace, and Patch.
+// ---------------------------------------------------------------------------
+
+func TestSvc_ArchivedEnvelopeGuard(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("Create rejects archived envelope", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		envelopes := &internalmock.EnvelopeChecker{}
+		envelopes.On("ArchivedState", testEnvelopeID, testBudgetID).Return(true, true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetEnvelopeChecker(envelopes)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrEnvelopeArchived)
+		repo.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("Create rejects envelope not in this budget", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		envelopes := &internalmock.EnvelopeChecker{}
+		envelopes.On("ArchivedState", testEnvelopeID, testBudgetID).Return(false, false, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetEnvelopeChecker(envelopes)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrEnvelopeNotFound)
+		repo.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("Create succeeds when envelope is active", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", testifymock.Anything).Return(makeTxnWithEnvelope(-1000), nil)
+		envelopes := &internalmock.EnvelopeChecker{}
+		envelopes.On("ArchivedState", testEnvelopeID, testBudgetID).Return(true, false, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetEnvelopeChecker(envelopes)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		require.NoError(t, err)
+		envelopes.AssertExpectations(t)
+	})
+
+	t.Run("Replace rejects moving transaction onto an archived envelope", func(t *testing.T) {
+		t.Parallel()
+		var newEnvelopeID int64 = 99
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		envelopes := &internalmock.EnvelopeChecker{}
+		envelopes.On("ArchivedState", newEnvelopeID, testBudgetID).Return(true, true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetEnvelopeChecker(envelopes)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &newEnvelopeID,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrEnvelopeArchived)
+		repo.AssertNotCalled(t, "Update")
+	})
+
+	t.Run("Replace succeeds editing a historical transaction whose envelope is unchanged and archived", func(t *testing.T) {
+		t.Parallel()
+		sameEnvelopeID := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		repo.On("Update", testifymock.Anything).Return(makeTxnWithEnvelope(-2000), nil)
+		envelopes := &internalmock.EnvelopeChecker{}
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetEnvelopeChecker(envelopes)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &sameEnvelopeID,
+			Amount:     money.FromMinorUnits(-2000),
+			Date:       testDate,
+		})
+
+		require.NoError(t, err)
+		envelopes.AssertNotCalled(t, "ArchivedState")
+	})
+
+	t.Run("Patch rejects moving transaction onto an archived envelope", func(t *testing.T) {
+		t.Parallel()
+		var newEnvelopeID int64 = 99
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		envelopes := &internalmock.EnvelopeChecker{}
+		envelopes.On("ArchivedState", newEnvelopeID, testBudgetID).Return(true, true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetEnvelopeChecker(envelopes)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{
+			EnvelopeID: &newEnvelopeID,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrEnvelopeArchived)
+		repo.AssertNotCalled(t, "Patch")
+	})
+
+	t.Run("Patch with no EnvelopeID never calls the checker", func(t *testing.T) {
+		t.Parallel()
+		newAmount := money.FromMinorUnits(-3000)
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		repo.On("Patch", testifymock.Anything).Return(makeTxnWithEnvelope(-3000), nil)
+		envelopes := &internalmock.EnvelopeChecker{}
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetEnvelopeChecker(envelopes)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{
+			Amount: &newAmount,
+		})
+
+		require.NoError(t, err)
+		envelopes.AssertNotCalled(t, "ArchivedState")
+	})
+
+	t.Run("guard is skipped when no EnvelopeChecker is wired", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", testifymock.Anything).Return(makeTxnWithEnvelope(-1000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
+		})
+
+		require.NoError(t, err)
+	})
+}

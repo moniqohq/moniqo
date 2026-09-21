@@ -8,6 +8,13 @@ SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at,
 FROM envelopes
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
+-- name: IsEnvelopeArchived :one
+-- No deleted_at filter: for envelopes, deleted_at IS the archive flag.
+-- pgx.ErrNoRows means the envelope does not exist in this budget.
+SELECT (deleted_at IS NOT NULL)::bool AS archived
+FROM envelopes
+WHERE id = $1 AND budget_id = $2;
+
 -- name: ListEnvelopesByBudget :many
 SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
 FROM envelopes

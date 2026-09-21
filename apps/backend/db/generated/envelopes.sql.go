@@ -240,6 +240,26 @@ func (q *Queries) HardDeleteEnvelope(ctx context.Context, arg HardDeleteEnvelope
 	return err
 }
 
+const isEnvelopeArchived = `-- name: IsEnvelopeArchived :one
+SELECT (deleted_at IS NOT NULL)::bool AS archived
+FROM envelopes
+WHERE id = $1 AND budget_id = $2
+`
+
+type IsEnvelopeArchivedParams struct {
+	ID       int64
+	BudgetID int64
+}
+
+// No deleted_at filter: for envelopes, deleted_at IS the archive flag.
+// pgx.ErrNoRows means the envelope does not exist in this budget.
+func (q *Queries) IsEnvelopeArchived(ctx context.Context, arg IsEnvelopeArchivedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isEnvelopeArchived, arg.ID, arg.BudgetID)
+	var archived bool
+	err := row.Scan(&archived)
+	return archived, err
+}
+
 const listEnvelopesByBudget = `-- name: ListEnvelopesByBudget :many
 SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
 FROM envelopes

@@ -91,6 +91,22 @@ func findFieldError(tb testing.TB, errs []httpx.FieldError, field string) httpx.
 	return httpx.FieldError{}
 }
 
+// assertFieldError asserts that body is a validation-error envelope whose
+// first field error is for the given field.
+func assertFieldError(tb testing.TB, body, field string) {
+	tb.Helper()
+	resp := parseResp(tb, body)
+	assert.False(tb, resp.Success)
+	data, ok := resp.Data.(map[string]any)
+	require.True(tb, ok, "expected data to be an object")
+	fields, ok := data["fields"].([]any)
+	require.True(tb, ok, "expected data.fields to be an array")
+	require.NotEmpty(tb, fields)
+	first, ok := fields[0].(map[string]any)
+	require.True(tb, ok)
+	assert.Equal(tb, field, first["field"])
+}
+
 // ---------------------------------------------------------------------------
 // TestHandler_ListTransactions
 // ---------------------------------------------------------------------------
@@ -481,6 +497,40 @@ func TestHandler_CreateTransaction(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
 		assert.Equal(t, http.StatusConflict, rec.Code)
+	})
+
+	t.Run("archived envelope returns 400 with budget_envelope_id field error", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.ErrEnvelopeArchived
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assertFieldError(t, rec.Body.String(), "budget_envelope_id")
+	})
+
+	t.Run("envelope not in budget returns 400 with budget_envelope_id field error", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.ErrEnvelopeNotFound
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assertFieldError(t, rec.Body.String(), "budget_envelope_id")
 	})
 }
 
