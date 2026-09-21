@@ -40,6 +40,10 @@ This API supports full CRUD operations and maintains financial integrity rules.
 | `amount` | Decimal | Yes | Monetary value (positive or negative based on type) |
 | `date` | Time | Yes | Transaction date |
 | `status` | Enum | Yes | Clearing state: `uncleared`, `cleared`, `reconciled` |
+| `memo` | String or null | No | Free-text note attached to the transaction |
+| `transfer_group_id` | String (UUID) or null | No | Shared identifier linking the two legs of a transfer |
+| `created_at` | Time | Yes | Transaction creation timestamp |
+| `balance_after` | Decimal or null | Yes | The account's cumulative balance through this transaction, inclusive. Only computed on read paths that scan the account's full transaction history (`GET` single transaction, `GET` list); `null` on create/replace/patch responses rather than approximated |
 
 ### TransactionStatus Enum
 
@@ -49,6 +53,7 @@ Allowed values: `uncleared`, `cleared`, `reconciled`
 - `cleared` — the transaction has been matched against a bank statement and counts toward the account's `cleared_balance`.
 - `reconciled` — set automatically when the containing account is reconciled (see Account API); also counts toward `cleared_balance`.
 - Transactions may be created or patched with an explicit `status`; omitting it defaults to `uncleared`.
+- `PUT` (Replace) may also set `status` explicitly; omitting it leaves the transaction's existing status unchanged rather than resetting it to `uncleared`. This is a deliberate deviation from full-replace semantics: `status` is a workflow field (advanced by reconciliation), not part of the transaction's core content, so a `PUT` that omits it does not silently un-reconcile the transaction.
 
 ---
 
@@ -156,11 +161,14 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
     "transfer_account_id": null,
     "amount": -1500.00,
     "date": "2026-03-01T00:00:00Z",
-    "status": "uncleared"
+    "status": "uncleared",
+    "balance_after": null
   },
   "msg": "transaction created successfully"
 }
 ```
+
+`balance_after` is always `null` on create — it requires scanning the account's full transaction history, which only the read endpoints do.
 
 **Business Rules**
 
@@ -220,7 +228,8 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
       "budget_envelope_id": 5,
       "amount": -1500.00,
       "date": "2026-03-01T00:00:00Z",
-      "status": "uncleared"
+      "status": "uncleared",
+      "balance_after": 8500.00
     }
   ],
   "meta": {
@@ -259,7 +268,8 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
     "budget_envelope_id": 5,
     "amount": -1500.00,
     "date": "2026-03-01T00:00:00Z",
-    "status": "uncleared"
+    "status": "uncleared",
+    "balance_after": 8500.00
   },
   "msg": "transaction fetched successfully"
 }
@@ -311,6 +321,11 @@ Idempotent operation.
 - Rejected if `account_id` refers to an archived account.
 - Envelope rule enforced against the request's own `amount`: expense requires
   `budget_envelope_id`, income/transfer must have it `null`/omitted.
+- `status` may optionally be included in the payload to explicitly set the clearing
+  state (e.g. reconciling as part of a broader edit). If omitted, the transaction's
+  existing `status` is left unchanged — `PUT` does not reset it to `uncleared`.
+- For transfers, a `status` change is mirrored to both legs.
+- The response's `balance_after` is always `null` on this endpoint.
 
 **Side Effects**
 
@@ -355,6 +370,8 @@ Idempotent operation.
   that flips an expense's amount sign to positive automatically clears any existing
   `budget_envelope_id`; the reverse (income → expense) requires the request to supply
   a `budget_envelope_id` since one cannot be inferred.
+- For transfers, a `status` change is mirrored to both legs.
+- The response's `balance_after` is always `null` on this endpoint.
 
 **Validation Rules**
 

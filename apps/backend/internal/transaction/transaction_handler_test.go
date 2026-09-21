@@ -257,6 +257,25 @@ func TestHandler_ListTransactions(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.False(t, got.IncludeArchived)
 	})
+
+	t.Run("balance_after is serialized as a two-decimal amount", func(t *testing.T) {
+		t.Parallel()
+		txn := makeTxnWithEnvelope(-100000)
+		balance := money.FromMinorUnits(400000)
+		txn.BalanceAfter = &balance
+		svc := &internalmock.TransactionService{
+			ListFn: func(_ context.Context, _ int64, _ transaction.ListFilters) ([]models.Transaction, int, error) {
+				return []models.Transaction{txn}, 1, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"balance_after":4000.00`)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -313,6 +332,22 @@ func TestHandler_GetTransaction(t *testing.T) {
 		require.NoError(t, transaction.NewHandler(svc, log).GetTransaction(c))
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), `"date":"2026-03-01T00:00:00Z"`)
+	})
+
+	t.Run("balance_after is null when unavailable", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			GetByIDFn: func(_ context.Context, _, _ int64) (models.Transaction, error) {
+				return makeTxnWithEnvelope(-100000), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).GetTransaction(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"balance_after":null`)
 	})
 }
 
@@ -937,6 +972,22 @@ func TestHandler_PatchTransaction(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("balance_after is null on a write response", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			PatchFn: func(_ context.Context, _, _ int64, _ transaction.PatchRequest) (models.Transaction, error) {
+				return makeTxnWithEnvelope(-250000), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPatch, "/", `{"status":"reconciled"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"balance_after":null`)
 	})
 }
 

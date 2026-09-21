@@ -58,5 +58,6 @@ export function adaptTransaction(
     memo: raw.memo ?? undefined,
     status: raw.status,
     cleared: raw.status === "cleared" || raw.status === "reconciled",
+    runningBalance: raw.balance_after ?? undefined,
   };
 }

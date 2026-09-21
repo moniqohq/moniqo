@@ -53,6 +53,7 @@ export function apiTransactionToUI(
     memo: t.memo ?? undefined,
     status: t.status,
     cleared: t.status === "cleared" || t.status === "reconciled",
+    runningBalance: t.balance_after ?? undefined,
   };
 }
 

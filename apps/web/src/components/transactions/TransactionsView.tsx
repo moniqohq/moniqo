@@ -72,7 +72,6 @@ import { useActiveBudget } from "@/hooks/use-budgets";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
-import { useRunningBalances } from "@/hooks/useRunningBalances";
 import { patchTransaction, deleteTransaction } from "@/lib/api/transactions";
 import type { ApiTransactionStatus } from "@/lib/api/types";
 import { invalidateBudgetData } from "@/lib/query-keys";
@@ -966,24 +965,6 @@ export function TransactionsView() {
     return result;
   }, [transactions, typeFilter, searchQuery]);
 
-  // Running balance is only well-defined within a single account's chronological
-  // history, so it's only computed when the view is scoped to exactly one account.
-  const singleAccountId = accountFilter.size === 1 ? Number([...accountFilter][0]) : null;
-  const singleAccountBalance =
-    singleAccountId != null ? accountMap.get(singleAccountId)?.balance : undefined;
-  const { balances: runningBalances } = useRunningBalances(
-    activeBudgetId,
-    singleAccountId,
-    singleAccountBalance,
-  );
-  const rowsWithBalance = useMemo(
-    () =>
-      filteredTransactions.map((t) =>
-        runningBalances.has(t.id) ? { ...t, runningBalance: runningBalances.get(t.id) } : t,
-      ),
-    [filteredTransactions, runningBalances],
-  );
-
   const allSelected =
     selected.size === filteredTransactions.length && filteredTransactions.length > 0;
   const someSelected = selected.size > 0 && !allSelected;
@@ -1055,8 +1036,8 @@ export function TransactionsView() {
    */
 
   const selectedTransactions = useMemo(
-    () => rowsWithBalance.filter((t) => selected.has(t.id)),
-    [rowsWithBalance, selected],
+    () => filteredTransactions.filter((t) => selected.has(t.id)),
+    [filteredTransactions, selected],
   );
 
   function isLocked(tx: Transaction) {
@@ -1504,7 +1485,7 @@ export function TransactionsView() {
                 </tr>
               )}
               {!txLoading &&
-                rowsWithBalance.map((tx, i) => (
+                filteredTransactions.map((tx, i) => (
                   <TxRow
                     key={tx.id}
                     tx={tx}

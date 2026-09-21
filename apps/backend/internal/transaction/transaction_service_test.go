@@ -809,6 +809,43 @@ func TestSvc_Patch(t *testing.T) {
 		require.NoError(t, err)
 		repo.AssertExpectations(t)
 	})
+
+	t.Run("status-only patch on a transfer leg propagates to the mirror leg", func(t *testing.T) {
+		t.Parallel()
+		groupID := "test-group-id"
+		status := models.TransactionStatusReconciled
+		acc1 := testAccountID
+		acc2 := testAccount2ID
+
+		leg1 := makeTxn(-500000)
+		leg1.TransferGroupID = &groupID
+		leg1.TransferAccountID = &acc2
+
+		leg2 := leg1
+		leg2.ID = 2
+		leg2.AccountID = acc2
+		leg2.TransferAccountID = &acc1
+		leg2.Amount = money.FromMinorUnits(500000)
+
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(leg1, nil)
+		repo.On("GetByGroupID", groupID, testBudgetID).Return([]models.Transaction{leg1, leg2}, nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:       testTransactionID,
+			BudgetID: testBudgetID,
+			Status:   &status,
+		}).Return(leg1, nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:       leg2.ID,
+			BudgetID: testBudgetID,
+			Status:   &status,
+		}).Return(leg2, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Status: &status})
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------

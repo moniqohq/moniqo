@@ -121,6 +121,9 @@ export function TransactionDetailsModal({
 
   const accMeta = ACCOUNT_TYPE_META.checking;
 
+  const typeLabel = tx.type.charAt(0).toUpperCase() + tx.type.slice(1);
+  const heading = tx.memo || typeLabel;
+
   const formattedDate = formatTransactionDate(tx.date);
   const txId = `TXN-${tx.id}`;
 
@@ -180,15 +183,12 @@ export function TransactionDetailsModal({
                       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
                       style={{ backgroundColor: "#1E2B42" }}
                     >
-                      {(tx.payee || "?")[0]}
+                      {heading[0]}
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-xl leading-tight font-semibold text-[#E8EEF8]">
-                        {tx.payee || "Unknown Payee"}
+                        {heading}
                       </p>
-                      {tx.memo && (
-                        <p className="mt-0.5 truncate text-sm text-[#5A6A85]">{tx.memo}</p>
-                      )}
                     </div>
                   </div>
 
@@ -312,7 +312,7 @@ export function TransactionDetailsModal({
                             </div>
                           }
                           label="Transaction Type"
-                          value={tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+                          value={typeLabel}
                         />
                       </div>
 
@@ -355,52 +355,58 @@ export function TransactionDetailsModal({
                       </div>
                     </div>
 
-                    {/* Budget Impact */}
-                    <div className="mt-6 pr-6">
-                      <div className="mb-4 h-px bg-[#141F32]" />
-                      <h3 className="mb-4 text-sm font-semibold text-[#E8EEF8]">Budget Impact</h3>
+                    {/* Budget Impact — expenses only; income/transfers never carry an envelope. */}
+                    {isExpense && (
+                      <div className="mt-6 pr-6">
+                        <div className="mb-4 h-px bg-[#141F32]" />
+                        <h3 className="mb-4 text-sm font-semibold text-[#E8EEF8]">
+                          Budget Impact
+                        </h3>
 
-                      <div className="flex items-center gap-3">
-                        {envelopeAfter != null && envelopeBefore != null ? (
-                          <>
-                            <ImpactCard label="Envelope Balance Before">
-                              <span className="text-xl font-bold text-[#E8EEF8] tabular-nums">
-                                {formatCurrency(envelopeBefore)}
+                        <div className="flex items-center gap-3">
+                          {envelopeAfter != null && envelopeBefore != null ? (
+                            <>
+                              <ImpactCard label="Envelope Balance Before">
+                                <span className="text-xl font-bold text-[#E8EEF8] tabular-nums">
+                                  {formatCurrency(envelopeBefore)}
+                                </span>
+                              </ImpactCard>
+
+                              <span className="shrink-0 text-xl font-bold text-[#3A4A60]">+</span>
+
+                              <ImpactCard label="Transaction Amount">
+                                <span
+                                  className={cn("text-xl font-bold tabular-nums", amountColor)}
+                                >
+                                  {tx.amount >= 0
+                                    ? `+${formatCurrency(tx.amount)}`
+                                    : formatCurrency(tx.amount)}
+                                </span>
+                              </ImpactCard>
+
+                              <span className="shrink-0 text-xl font-bold text-[#3A4A60]">=</span>
+
+                              <ImpactCard label="Envelope Balance After">
+                                <span
+                                  className={cn(
+                                    "text-xl font-bold tabular-nums",
+                                    envelopeAfter >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
+                                  )}
+                                >
+                                  {formatCurrency(envelopeAfter)}
+                                </span>
+                              </ImpactCard>
+                            </>
+                          ) : (
+                            <ImpactCard label="Envelope Balance">
+                              <span className="text-xl font-bold text-[#5A6A85] tabular-nums">
+                                —
                               </span>
                             </ImpactCard>
-
-                            <span className="shrink-0 text-xl font-bold text-[#3A4A60]">+</span>
-
-                            <ImpactCard label="Transaction Amount">
-                              <span className={cn("text-xl font-bold tabular-nums", amountColor)}>
-                                {tx.amount >= 0
-                                  ? `+${formatCurrency(tx.amount)}`
-                                  : formatCurrency(tx.amount)}
-                              </span>
-                            </ImpactCard>
-
-                            <span className="shrink-0 text-xl font-bold text-[#3A4A60]">=</span>
-
-                            <ImpactCard label="Envelope Balance After">
-                              <span
-                                className={cn(
-                                  "text-xl font-bold tabular-nums",
-                                  envelopeAfter >= 0 ? "text-[#4ADE80]" : "text-[#F87171]",
-                                )}
-                              >
-                                {formatCurrency(envelopeAfter)}
-                              </span>
-                            </ImpactCard>
-                          </>
-                        ) : (
-                          <ImpactCard label="Envelope Balance">
-                            <span className="text-xl font-bold text-[#5A6A85] tabular-nums">
-                              {isTransfer ? "Not applicable to transfers" : "—"}
-                            </span>
-                          </ImpactCard>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Vertical divider */}

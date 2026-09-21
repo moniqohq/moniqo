@@ -60,4 +60,9 @@ type Transaction struct {
 	Status            TransactionStatus `json:"status"`
 	Memo              *string           `json:"memo,omitempty"`
 	CreatedAt         time.Time         `json:"created_at"`
+	// BalanceAfter is the account's cumulative balance through this transaction,
+	// inclusive. It is only computed on read paths that scan the account's full
+	// transaction history (List, GetByID); it is nil on create/update/patch
+	// responses rather than approximated.
+	BalanceAfter *money.Amount `json:"balance_after"`
 }
