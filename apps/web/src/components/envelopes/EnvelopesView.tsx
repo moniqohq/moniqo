@@ -724,7 +724,7 @@ export function EnvelopesView() {
             Back to Envelopes
           </button>
         </div>
-        <EnvelopeDetails envelopeId={String(selectedId)} />
+        <EnvelopeDetails envelopeId={String(selectedId)} onDeleted={closeEnvelope} />
       </div>
     );
   }

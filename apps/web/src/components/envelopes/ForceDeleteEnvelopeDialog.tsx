@@ -33,6 +33,8 @@ export interface ForceDeleteEnvelopeDialogProps {
   onOpenChange: (open: boolean) => void;
   envelope: { id: number; title: string };
   budgetId: number;
+  /** Called after the envelope has been permanently deleted. */
+  onDeleted?: () => void;
 }
 
 /* ── Consequence row ──────────────────────────────────────── */
@@ -56,6 +58,7 @@ export function ForceDeleteEnvelopeDialog({
   onOpenChange,
   envelope,
   budgetId,
+  onDeleted,
 }: ForceDeleteEnvelopeDialogProps) {
   const queryClient = useQueryClient();
   const [understood, setUnderstood] = useState(false);
@@ -100,6 +103,7 @@ export function ForceDeleteEnvelopeDialog({
       await forceDeleteEnvelope(budgetId, envelope.id);
       invalidateBudgetData(queryClient, budgetId);
       onOpenChange(false);
+      onDeleted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected server error.");
       setLoading(false);

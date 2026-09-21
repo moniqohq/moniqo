@@ -330,7 +330,14 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (n: numb
 }
 
 /* ── Main component ──────────────────────────────────────── */
-export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) {
+export function EnvelopeDetails({
+  envelopeId = "e1",
+  onDeleted,
+}: {
+  envelopeId?: string;
+  /** Called after the envelope has been permanently (force) deleted. */
+  onDeleted?: () => void;
+}) {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { data: accounts } = useAccounts(activeBudgetId);
   const { accounts: txAccounts } = useApiAccounts(activeBudgetId);
@@ -1079,6 +1086,7 @@ export function EnvelopeDetails({ envelopeId = "e1" }: { envelopeId?: string }) 
         onOpenChange={setForceDeleteOpen}
         envelope={{ id: envelopeIdNum, title: envelope?.name ?? "Envelope" }}
         budgetId={activeBudgetId ?? 0}
+        onDeleted={onDeleted}
       />
     </div>
   );
