@@ -32,6 +32,7 @@ const (
 	maxBudgetNotesLen = 500
 
 	errEmptyBody = "request body must contain at least one field"
+	errRequired  = "required"
 )
 
 func validateBudgetTitle(title string) *httpx.FieldError {

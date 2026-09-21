@@ -42,7 +42,7 @@ func ValidateLogin(in LoginInput) []httpx.FieldError {
 
 	// Password (byte length — bcrypt truncates at 72 bytes)
 	if in.Password == "" {
-		errs = append(errs, httpx.FieldError{Field: "password", Error: "required"})
+		errs = append(errs, httpx.FieldError{Field: "password", Error: errRequired})
 	} else if fe := validatePassword("password", in.Password); fe != nil {
 		errs = append(errs, *fe)
 	}
