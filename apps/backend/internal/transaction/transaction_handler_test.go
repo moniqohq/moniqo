@@ -385,7 +385,7 @@ func TestHandler_CreateTransaction(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 
 		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "budget_envelope_id")
-		assert.Contains(t, fe.Error, "required for non-transfer transactions")
+		assert.Contains(t, fe.Error, "required for expense transactions")
 	})
 
 	t.Run("income without envelope returns 201", func(t *testing.T) {
@@ -665,6 +665,34 @@ func TestHandler_CreateTransaction(t *testing.T) {
 		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
 		assert.Equal(t, http.StatusCreated, rec.Code)
 	})
+
+	t.Run("income with envelope returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("income with no envelope returns 201", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return makeTxn(100000), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"amount":1000.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusCreated, rec.Code)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -775,6 +803,30 @@ func TestHandler_ReplaceTransaction(t *testing.T) {
 		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
+
+	t.Run("income with envelope returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPut, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":2000.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("missing envelope for expense returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPut, "/",
+			`{"account_id":5,"amount":-2000.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -874,6 +926,17 @@ func TestHandler_PatchTransaction(t *testing.T) {
 
 		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "account_id")
 		assert.Equal(t, "account does not belong to this budget", fe.Error)
+	})
+
+	t.Run("explicit positive amount with envelope returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPatch, "/", `{"amount":2500.00,"budget_envelope_id":3}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 }
 

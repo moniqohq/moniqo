@@ -97,6 +97,65 @@ func envelopeIDEqual(requested, current *int64) bool {
 	return *requested == *current
 }
 
+// isIncomeAmount reports whether a transaction with this amount and transfer_account_id
+// is income. Income is a positive amount on a non-transfer transaction; envelopes do not
+// apply to income (only to expenses), per the zero-based envelope-method domain model.
+func isIncomeAmount(amount money.Amount, transferAccountID *int64) bool {
+	return transferAccountID == nil && amount.Int64() > 0
+}
+
+// validateEnvelopeAssignment returns a field violation if envelopeID does not match the
+// envelope rule for a non-transfer transaction of this amount (income: must be nil;
+// expense: must be set). Must only be called when transfer_account_id is absent.
+func validateEnvelopeAssignment(amount money.Amount, envelopeID *int64) error {
+	if isIncomeAmount(amount, nil) {
+		if envelopeID != nil {
+			return validationViolation(fieldEnvelopeID, errEnvelopeOnIncome)
+		}
+		return nil
+	}
+	if envelopeID == nil {
+		return validationViolation(fieldEnvelopeID, errEnvelopeRequired)
+	}
+	return nil
+}
+
+// resolvePatchEnvelope re-evaluates the envelope rule against the transaction's
+// effective post-patch state (amount/transfer_account_id may be changing via req, or
+// may be carried over from existing) and reports whether the repo must be told to
+// explicitly null envelope_id. PATCH can't express "clear this field" via a nil
+// pointer (nil means "leave unchanged"), so a transaction flipping from expense to
+// income purely via an amount patch needs this explicit signal.
+func resolvePatchEnvelope(existing models.Transaction, req PatchRequest) (clearEnvelope bool, err error) {
+	effectiveAmount := existing.Amount
+	if req.Amount != nil {
+		effectiveAmount = *req.Amount
+	}
+	effectiveTransferAccountID := existing.TransferAccountID
+	if req.TransferAccountID != nil {
+		effectiveTransferAccountID = req.TransferAccountID
+	}
+	// TransferGroupID can't be changed via PATCH, so its presence on the existing
+	// row is a reliable transfer signal even when a leg's transfer_account_id
+	// wasn't populated (e.g. in older data). Transfers never carry an envelope,
+	// so the income/expense envelope rule below doesn't apply to them.
+	if effectiveTransferAccountID != nil || existing.TransferGroupID != nil {
+		return false, nil
+	}
+
+	if isIncomeAmount(effectiveAmount, effectiveTransferAccountID) {
+		if req.EnvelopeID != nil {
+			return false, validationViolation(fieldEnvelopeID, errEnvelopeOnIncome)
+		}
+		return existing.EnvelopeID != nil, nil
+	}
+	if req.EnvelopeID == nil && existing.EnvelopeID == nil {
+		// Resolves to an expense with no envelope on either side.
+		return false, validationViolation(fieldEnvelopeID, errEnvelopeRequired)
+	}
+	return false, nil
+}
+
 // Service is the business-logic contract for transactions.
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Transaction, error)
@@ -141,8 +200,8 @@ func (s *Svc) SetBudgetChecker(budget BudgetChecker) {
 }
 
 // Create persists a standard (non-transfer) transaction.
-// Requires budget_envelope_id for expenses (negative amount); income
-// (positive amount) is unallocated and flows into "To Be Budgeted" instead.
+// Requires budget_envelope_id for expenses (negative amount); envelopes do not apply
+// to income (positive amount) and budget_envelope_id must be omitted for those.
 func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Transaction, error) {
 	s.log.Debug("creating transaction",
 		zap.Int64("budget_id", budgetID),
@@ -152,8 +211,8 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	if req.Amount.Int64() == 0 {
 		return models.Transaction{}, validationViolation(fieldAmount, errAmountNonZero)
 	}
-	if req.Amount.Int64() < 0 && req.EnvelopeID == nil {
-		return models.Transaction{}, validationViolation(fieldEnvelopeID, errEnvelopeRequired)
+	if err := validateEnvelopeAssignment(req.Amount, req.EnvelopeID); err != nil {
+		return models.Transaction{}, err
 	}
 	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
 		return models.Transaction{}, err
@@ -356,6 +415,14 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 	if req.TransferAccountID != nil && *req.TransferAccountID == req.AccountID {
 		return models.Transaction{}, conflictViolation(fieldTransferAccountID, errSelfTransfer)
 	}
+	// Envelopes do not apply to income or transfers; require one for expenses.
+	// existing.TransferGroupID catches transfer legs whose replace request
+	// (unusually) omits transfer_account_id.
+	if req.TransferAccountID == nil && existing.TransferGroupID == nil {
+		if err := validateEnvelopeAssignment(req.Amount, req.EnvelopeID); err != nil {
+			return models.Transaction{}, err
+		}
+	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
 	}
@@ -475,6 +542,10 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		return models.Transaction{}, err //nolint:wrapcheck
 	}
 
+	clearEnvelope, err := resolvePatchEnvelope(existing, req)
+	if err != nil {
+		return models.Transaction{}, err
+	}
 	if req.EnvelopeID != nil && !envelopeIDEqual(req.EnvelopeID, existing.EnvelopeID) {
 		if err := s.checkEnvelopeUsable(ctx, *req.EnvelopeID, budgetID); err != nil {
 			return models.Transaction{}, err
@@ -487,6 +558,7 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		AccountID:         req.AccountID,
 		TransferAccountID: req.TransferAccountID,
 		EnvelopeID:        req.EnvelopeID,
+		ClearEnvelope:     clearEnvelope,
 		Amount:            req.Amount,
 		Date:              req.Date,
 		Status:            req.Status,

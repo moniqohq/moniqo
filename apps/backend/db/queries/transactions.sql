@@ -126,7 +126,8 @@ RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_
 -- name: PatchTransaction :one
 UPDATE transactions
 SET account_id          = COALESCE(sqlc.narg(account_id), account_id),
-    envelope_id         = COALESCE(sqlc.narg(envelope_id), envelope_id),
+    envelope_id         = CASE WHEN sqlc.arg(clear_envelope)::boolean THEN NULL
+                               ELSE COALESCE(sqlc.narg(envelope_id), envelope_id) END,
     transfer_account_id = COALESCE(sqlc.narg(transfer_account_id), transfer_account_id),
     amount              = COALESCE(sqlc.narg(amount), amount),
     date                = COALESCE(sqlc.narg(date), date),

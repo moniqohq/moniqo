@@ -164,8 +164,13 @@ type PatchParams struct {
 	AccountID         *int64
 	TransferAccountID *int64
 	EnvelopeID        *int64
-	Amount            *money.Amount
-	Date              *time.Time
-	Status            *models.TransactionStatus
-	Memo              *string
+	// ClearEnvelope, when true, forces envelope_id to NULL regardless of EnvelopeID.
+	// Used when a transaction's effective amount becomes income (envelopes do not
+	// apply to income), since EnvelopeID being nil alone cannot distinguish
+	// "leave unchanged" from "clear" under PATCH semantics.
+	ClearEnvelope bool
+	Amount        *money.Amount
+	Date          *time.Time
+	Status        *models.TransactionStatus
+	Memo          *string
 }

@@ -379,6 +379,7 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Transaction, er
 		ID:                p.ID,
 		BudgetID:          p.BudgetID,
 		AccountID:         p.AccountID,
+		ClearEnvelope:     p.ClearEnvelope,
 		EnvelopeID:        p.EnvelopeID,
 		TransferAccountID: p.TransferAccountID,
 		Amount:            amountPtr,

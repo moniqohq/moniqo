@@ -57,8 +57,10 @@ const (
 	errInvalidID        = "must be a positive integer"
 	errAmountNonZero    = "amount must be non-zero; use a negative value for outflows and a positive value for inflows"
 	errInvalidDate      = "must be an RFC 3339 timestamp, e.g. 2026-03-01T00:00:00Z"
-	errEnvelopeRequired = "budget_envelope_id is required for non-transfer transactions; " +
-		"omit it only when transfer_account_id is set"
+	errEnvelopeRequired = "budget_envelope_id is required for expense transactions; " +
+		"omit it for income transactions or when transfer_account_id is set"
+	errEnvelopeOnIncome = "budget_envelope_id is not applicable to income transactions; " +
+		"income is unallocated and flows into \"To Be Budgeted\" instead"
 	errTransferConflict = "budget_envelope_id must be omitted when transfer_account_id is set; " +
 		"a transfer moves money between accounts and cannot be assigned to an envelope"
 	errTransferAccountRequired = "transfer_account_id is required when creating a transfer"
@@ -180,6 +182,22 @@ func appendStatusError(errs []httpx.FieldError, status *models.TransactionStatus
 	return errs
 }
 
+// envelopeRuleError returns the field error for a non-transfer amount/envelope
+// pairing that violates the envelope rule (income: none; expense: required), or
+// nil if compliant. Must only be called when transfer_account_id is absent.
+func envelopeRuleError(amount money.Amount, envelopeID *int64) *httpx.FieldError {
+	if amount.Int64() > 0 {
+		if envelopeID != nil {
+			return &httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeOnIncome}
+		}
+		return nil
+	}
+	if envelopeID == nil {
+		return &httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeRequired}
+	}
+	return nil
+}
+
 // validateCreateRequest validates POST/transfer body.
 //
 //nolint:revive
@@ -202,15 +220,15 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 		if *req.TransferAccountID == req.AccountID {
 			errs = append(errs, httpx.FieldError{Field: fieldTransferAccountID, Error: errSelfTransfer})
 		}
-	} else if req.EnvelopeID == nil && req.Amount.Int64() < 0 {
-		// Standard expense: envelope required. Income (positive amount) is
-		// unallocated and flows into "To Be Budgeted" instead.
-		errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeRequired})
+	} else if fe := envelopeRuleError(req.Amount, req.EnvelopeID); fe != nil {
+		errs = append(errs, *fe)
 	}
 	return appendStatusError(errs, req.Status)
 }
 
 // validateReplaceRequest validates PUT body.
+//
+//nolint:revive
 func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 	var errs []httpx.FieldError
 	if req.AccountID <= 0 {
@@ -228,12 +246,17 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 	if req.TransferAccountID != nil && *req.TransferAccountID == req.AccountID {
 		errs = append(errs, httpx.FieldError{Field: fieldTransferAccountID, Error: errSelfTransfer})
 	}
+	if req.TransferAccountID == nil {
+		if fe := envelopeRuleError(req.Amount, req.EnvelopeID); fe != nil {
+			errs = append(errs, *fe)
+		}
+	}
 	return appendStatusError(errs, req.Status)
 }
 
 // validatePatchRequest validates PATCH body; also checks raw bytes for amount=0.
 //
-//nolint:revive
+//nolint:revive,cyclop
 func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
 	// Reject explicit spent_amt key before the empty-body check, since a body
 	// containing only spent_amt decodes to an all-nil PatchRequest and the
@@ -253,6 +276,13 @@ func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
 	var errs []httpx.FieldError
 	if req.Amount != nil && req.Amount.Int64() == 0 {
 		errs = append(errs, httpx.FieldError{Field: fieldAmount, Error: errAmountNonZero})
+	}
+	// Envelopes do not apply to income. This only catches the case where the request
+	// itself is self-evidently income (explicit positive amount, no transfer) with an
+	// explicit envelope; whether an amount-only patch flips an existing expense into
+	// income is resolved against the existing row in the service layer.
+	if req.TransferAccountID == nil && req.Amount != nil && req.Amount.Int64() > 0 && req.EnvelopeID != nil {
+		errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeOnIncome})
 	}
 	if req.Status != nil && !req.Status.IsValid() {
 		errs = append(errs, httpx.FieldError{Field: fieldStatus, Error: errInvalidStatus})

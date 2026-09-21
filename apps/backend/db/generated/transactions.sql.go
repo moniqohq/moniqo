@@ -655,12 +655,13 @@ func (q *Queries) MarkAccountTransactionsReconciled(ctx context.Context, arg Mar
 const patchTransaction = `-- name: PatchTransaction :one
 UPDATE transactions
 SET account_id          = COALESCE($3, account_id),
-    envelope_id         = COALESCE($4, envelope_id),
-    transfer_account_id = COALESCE($5, transfer_account_id),
-    amount              = COALESCE($6, amount),
-    date                = COALESCE($7, date),
-    memo                = COALESCE($8, memo),
-    status              = COALESCE($9, status),
+    envelope_id         = CASE WHEN $4::boolean THEN NULL
+                               ELSE COALESCE($5, envelope_id) END,
+    transfer_account_id = COALESCE($6, transfer_account_id),
+    amount              = COALESCE($7, amount),
+    date                = COALESCE($8, date),
+    memo                = COALESCE($9, memo),
+    status              = COALESCE($10, status),
     updated_at          = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
 RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
@@ -670,6 +671,7 @@ type PatchTransactionParams struct {
 	ID                int64
 	BudgetID          int64
 	AccountID         *int64
+	ClearEnvelope     bool
 	EnvelopeID        *int64
 	TransferAccountID *int64
 	Amount            *int64
@@ -699,6 +701,7 @@ func (q *Queries) PatchTransaction(ctx context.Context, arg PatchTransactionPara
 		arg.ID,
 		arg.BudgetID,
 		arg.AccountID,
+		arg.ClearEnvelope,
 		arg.EnvelopeID,
 		arg.TransferAccountID,
 		arg.Amount,
