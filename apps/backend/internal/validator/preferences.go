@@ -52,7 +52,7 @@ func supportedCurrencies() map[string]bool {
 
 // supportedDateFormats is the allowlist of date-format tokens accepted for a
 // user's display date format. Must match the users_date_format_check
-// database constraint in db/migrations/00021_add_user_date_format.sql.
+// database constraint in db/migrations/00022_add_user_date_format.sql.
 func supportedDateFormats() map[string]bool {
 	return map[string]bool{
 		"MMM DD, YYYY": true,
