@@ -578,12 +578,13 @@ type monthTotals struct {
 	cash    int64
 	credit  int64
 	savings int64
+	loan    int64
 }
 
 // groupBalanceRowsByMonth buckets balance-history rows by month (in order of
-// first appearance), summing checking+cash, credit card, and savings
-// balances per bucket. Loan balances are ignored: they are not part of the
-// summary cards' cash/credit/savings/net-worth math.
+// first appearance), summing checking+cash, credit card, savings, and loan
+// balances per bucket. Loan is tracked separately from the cash/credit/savings
+// summary-card buckets but is included in the net-worth calculation.
 func groupBalanceRowsByMonth(rows []db.GetAccountTypeBalanceHistoryRow) (order []string, totals map[string]*monthTotals) {
 	totals = make(map[string]*monthTotals, len(rows))
 	for _, row := range rows {
@@ -597,7 +598,6 @@ func groupBalanceRowsByMonth(rows []db.GetAccountTypeBalanceHistoryRow) (order [
 			totals[key] = t
 			order = append(order, key)
 		}
-		//nolint:exhaustive // Loan is intentionally excluded from the cash/credit/savings math.
 		switch models.AccountType(row.Type) {
 		case models.AccountTypeChecking, models.AccountTypeCash:
 			t.cash += row.Balance
@@ -605,6 +605,8 @@ func groupBalanceRowsByMonth(rows []db.GetAccountTypeBalanceHistoryRow) (order [
 			t.credit += row.Balance
 		case models.AccountTypeSavings:
 			t.savings += row.Balance
+		case models.AccountTypeLoan:
+			t.loan += row.Balance
 		default:
 		}
 	}
@@ -646,12 +648,17 @@ func (s *Svc) BalanceHistory(ctx context.Context, budgetID int64, months int) (m
 	for _, key := range order {
 		t := totals[key]
 		creditDebt := max(-t.credit, 0)
-		netWorth := t.cash + t.savings - creditDebt
+		netWorth := models.NetWorth([]models.TypeBalance{
+			{Type: models.AccountTypeChecking, Balance: money.FromMinorUnits(t.cash)},
+			{Type: models.AccountTypeSavings, Balance: money.FromMinorUnits(t.savings)},
+			{Type: models.AccountTypeCreditCard, Balance: money.FromMinorUnits(t.credit)},
+			{Type: models.AccountTypeLoan, Balance: money.FromMinorUnits(t.loan)},
+		})
 
 		history.Cash = append(history.Cash, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(t.cash)})
 		history.Credit = append(history.Credit, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(creditDebt)})
 		history.Savings = append(history.Savings, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(t.savings)})
-		history.NetWorth = append(history.NetWorth, models.BalancePoint{Month: t.month, Balance: money.FromMinorUnits(netWorth)})
+		history.NetWorth = append(history.NetWorth, models.BalancePoint{Month: t.month, Balance: netWorth})
 	}
 
 	return history, nil

@@ -289,6 +289,45 @@ func (q *Queries) GetAccountTypeBalanceHistory(ctx context.Context, arg GetAccou
 	return items, nil
 }
 
+const getAccountTypeBalances = `-- name: GetAccountTypeBalances :many
+SELECT
+    a.type,
+    COALESCE(SUM(t.amount), 0)::BIGINT AS balance
+FROM accounts a
+LEFT JOIN transactions t
+       ON t.account_id = a.id
+      AND t.budget_id  = a.budget_id
+      AND t.deleted_at IS NULL
+WHERE a.budget_id  = $1
+  AND a.deleted_at IS NULL
+GROUP BY a.type
+`
+
+type GetAccountTypeBalancesRow struct {
+	Type    AccountType
+	Balance int64
+}
+
+func (q *Queries) GetAccountTypeBalances(ctx context.Context, budgetID int64) ([]GetAccountTypeBalancesRow, error) {
+	rows, err := q.db.Query(ctx, getAccountTypeBalances, budgetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAccountTypeBalancesRow
+	for rows.Next() {
+		var i GetAccountTypeBalancesRow
+		if err := rows.Scan(&i.Type, &i.Balance); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getMonthlySparkline = `-- name: GetMonthlySparkline :many
 SELECT
     date_trunc('month', date)::date AS month,
@@ -355,22 +394,6 @@ func (q *Queries) GetMonthlyStats(ctx context.Context, arg GetMonthlyStatsParams
 	var i GetMonthlyStatsRow
 	err := row.Scan(&i.Income, &i.Expenses)
 	return i, err
-}
-
-const getNetWorth = `-- name: GetNetWorth :one
-SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS net_worth
-FROM transactions t
-JOIN accounts a ON a.id = t.account_id
-WHERE t.budget_id  = $1
-  AND t.deleted_at IS NULL
-  AND a.deleted_at IS NULL
-`
-
-func (q *Queries) GetNetWorth(ctx context.Context, budgetID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, getNetWorth, budgetID)
-	var net_worth int64
-	err := row.Scan(&net_worth)
-	return net_worth, err
 }
 
 const getTransactionByID = `-- name: GetTransactionByID :one

@@ -22,8 +22,11 @@ package envelope_test
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -496,5 +499,83 @@ func TestSvc_GetBudgetSummary(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, money.FromMinorUnits(70000), s.ToBeBudgeted)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestSvc_GetDashboardStats
+// ---------------------------------------------------------------------------
+
+func TestSvc_GetDashboardStats(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	month := time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC)
+
+	t.Run("passes net worth through unchanged and leaves other stats untouched", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetNetWorth", testBudgetID).Return(money.FromMinorUnits(250000), nil)
+		repo.On("GetMonthlyStats", testBudgetID, month).Return(db.GetMonthlyStatsRow{
+			Income:   80000,
+			Expenses: 30000,
+		}, nil)
+		repo.On("GetMonthlySparkline", testBudgetID).Return([]db.GetMonthlySparklineRow{
+			{Month: pgtype.Date{Time: time.Date(2026, time.February, 1, 0, 0, 0, 0, time.UTC), Valid: true}, Income: 70000, Expenses: 40000},
+			{Month: pgtype.Date{Time: month, Valid: true}, Income: 80000, Expenses: 30000},
+		}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		stats, err := svc.GetDashboardStats(context.Background(), testBudgetID, month)
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(250000), stats.NetWorth)
+		assert.Equal(t, money.FromMinorUnits(80000), stats.MonthlyIncome)
+		assert.Equal(t, money.FromMinorUnits(30000), stats.MonthlyExpenses)
+		assert.Equal(t, money.FromMinorUnits(50000), stats.MonthlySavings)
+		require.Len(t, stats.Sparkline, 2)
+		assert.Equal(t, "2026-02", stats.Sparkline[0].Month)
+		assert.Equal(t, money.FromMinorUnits(70000), stats.Sparkline[0].Income)
+		assert.Equal(t, "2026-03", stats.Sparkline[1].Month)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("negative net worth (liabilities exceed assets) passes through unchanged", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetNetWorth", testBudgetID).Return(money.FromMinorUnits(-15000), nil)
+		repo.On("GetMonthlyStats", testBudgetID, month).Return(db.GetMonthlyStatsRow{}, nil)
+		repo.On("GetMonthlySparkline", testBudgetID).Return([]db.GetMonthlySparklineRow{}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		stats, err := svc.GetDashboardStats(context.Background(), testBudgetID, month)
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(-15000), stats.NetWorth)
+	})
+
+	t.Run("empty budget returns zero net worth", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetNetWorth", testBudgetID).Return(money.FromMinorUnits(0), nil)
+		repo.On("GetMonthlyStats", testBudgetID, month).Return(db.GetMonthlyStatsRow{}, nil)
+		repo.On("GetMonthlySparkline", testBudgetID).Return([]db.GetMonthlySparklineRow{}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		stats, err := svc.GetDashboardStats(context.Background(), testBudgetID, month)
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(0), stats.NetWorth)
+	})
+
+	t.Run("repo failure on GetNetWorth is propagated", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetNetWorth", testBudgetID).Return(nil, errors.New("db error"))
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.GetDashboardStats(context.Background(), testBudgetID, month)
+
+		require.Error(t, err)
+		repo.AssertNotCalled(t, "GetMonthlyStats", mock.Anything, mock.Anything)
 	})
 }
