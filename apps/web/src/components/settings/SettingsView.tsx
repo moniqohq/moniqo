@@ -472,9 +472,11 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                         ? "You're in control. Add members and manage their access at any time."
                         : "We use military-grade encryption and never share your financial data."}
                     </p>
-                    <button className="mt-2 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
-                      Learn more
-                    </button>
+                    {activeNav === "members" && (
+                      <button className="mt-2 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
+                        Learn more
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
