@@ -53,23 +53,32 @@ func (q *Queries) AccountHasTransactions(ctx context.Context, arg AccountHasTran
 
 const countTransactions = `-- name: CountTransactions :one
 SELECT COUNT(*)::BIGINT AS total
-FROM transactions
-WHERE budget_id = $1
-  AND deleted_at IS NULL
-  AND (account_id    = $2  OR $2  IS NULL)
-  AND (envelope_id   = $3 OR $3 IS NULL)
-  AND (date >= $4 OR $4 IS NULL)
-  AND (date <= $5   OR $5   IS NULL)
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND (t.account_id  = $2  OR $2  IS NULL)
+  AND (t.envelope_id = $3 OR $3 IS NULL)
+  AND (t.date >= $4 OR $4 IS NULL)
+  AND (t.date <= $5   OR $5   IS NULL)
+  AND (
+    $6::bool IS TRUE
+    OR $2 IS NOT NULL
+    OR a.archived_at IS NULL
+  )
 `
 
 type CountTransactionsParams struct {
-	BudgetID   int64
-	AccountID  *int64
-	EnvelopeID *int64
-	DateFrom   pgtype.Timestamptz
-	DateTo     pgtype.Timestamptz
+	BudgetID        int64
+	AccountID       *int64
+	EnvelopeID      *int64
+	DateFrom        pgtype.Timestamptz
+	DateTo          pgtype.Timestamptz
+	IncludeArchived *bool
 }
 
+// Must mirror ListTransactions' WHERE clause exactly (see note there).
 func (q *Queries) CountTransactions(ctx context.Context, arg CountTransactionsParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countTransactions,
 		arg.BudgetID,
@@ -77,6 +86,7 @@ func (q *Queries) CountTransactions(ctx context.Context, arg CountTransactionsPa
 		arg.EnvelopeID,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.IncludeArchived,
 	)
 	var total int64
 	err := row.Scan(&total)
@@ -300,6 +310,7 @@ LEFT JOIN transactions t
       AND t.deleted_at IS NULL
 WHERE a.budget_id  = $1
   AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
 GROUP BY a.type
 `
 
@@ -308,6 +319,7 @@ type GetAccountTypeBalancesRow struct {
 	Balance int64
 }
 
+// Excludes archived accounts: archived-account balances must not affect net worth.
 func (q *Queries) GetAccountTypeBalances(ctx context.Context, budgetID int64) ([]GetAccountTypeBalancesRow, error) {
 	rows, err := q.db.Query(ctx, getAccountTypeBalances, budgetID)
 	if err != nil {
@@ -330,15 +342,18 @@ func (q *Queries) GetAccountTypeBalances(ctx context.Context, budgetID int64) ([
 
 const getMonthlySparkline = `-- name: GetMonthlySparkline :many
 SELECT
-    date_trunc('month', date)::date AS month,
-    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
-    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
-FROM transactions
-WHERE budget_id  = $1
-  AND deleted_at IS NULL
-  AND date >= date_trunc('month', now()) - interval '5 months'
-  AND date <  date_trunc('month', now()) + interval '1 month'
-GROUP BY date_trunc('month', date)
+    date_trunc('month', t.date)::date AS month,
+    COALESCE(SUM(CASE WHEN t.amount > 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN t.amount < 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
+  AND t.date >= date_trunc('month', now()) - interval '5 months'
+  AND t.date <  date_trunc('month', now()) + interval '1 month'
+GROUP BY date_trunc('month', t.date)
 ORDER BY month ASC
 `
 
@@ -370,13 +385,16 @@ func (q *Queries) GetMonthlySparkline(ctx context.Context, budgetID int64) ([]Ge
 
 const getMonthlyStats = `-- name: GetMonthlyStats :one
 SELECT
-    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
-    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
-FROM transactions
-WHERE budget_id  = $1
-  AND deleted_at IS NULL
-  AND date >= date_trunc('month', $2::timestamptz)
-  AND date <  date_trunc('month', $2::timestamptz) + interval '1 month'
+    COALESCE(SUM(CASE WHEN t.amount > 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN t.amount < 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
+  AND t.date >= date_trunc('month', $2::timestamptz)
+  AND t.date <  date_trunc('month', $2::timestamptz) + interval '1 month'
 `
 
 type GetMonthlyStatsParams struct {
@@ -521,26 +539,34 @@ func (q *Queries) HardDeleteTransactionsByEnvelope(ctx context.Context, arg Hard
 }
 
 const listTransactions = `-- name: ListTransactions :many
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
-FROM transactions
-WHERE budget_id = $1
-  AND deleted_at IS NULL
-  AND (account_id    = $4  OR $4  IS NULL)
-  AND (envelope_id   = $5 OR $5 IS NULL)
-  AND (date >= $6 OR $6 IS NULL)
-  AND (date <= $7   OR $7   IS NULL)
-ORDER BY date DESC, id DESC
+SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id, t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND (t.account_id  = $4  OR $4  IS NULL)
+  AND (t.envelope_id = $5 OR $5 IS NULL)
+  AND (t.date >= $6 OR $6 IS NULL)
+  AND (t.date <= $7   OR $7   IS NULL)
+  AND (
+    $8::bool IS TRUE
+    OR $4 IS NOT NULL
+    OR a.archived_at IS NULL
+  )
+ORDER BY t.date DESC, t.id DESC
 LIMIT $2 OFFSET $3
 `
 
 type ListTransactionsParams struct {
-	BudgetID   int64
-	Limit      int32
-	Offset     int32
-	AccountID  *int64
-	EnvelopeID *int64
-	DateFrom   pgtype.Timestamptz
-	DateTo     pgtype.Timestamptz
+	BudgetID        int64
+	Limit           int32
+	Offset          int32
+	AccountID       *int64
+	EnvelopeID      *int64
+	DateFrom        pgtype.Timestamptz
+	DateTo          pgtype.Timestamptz
+	IncludeArchived *bool
 }
 
 type ListTransactionsRow struct {
@@ -559,6 +585,14 @@ type ListTransactionsRow struct {
 	DeletedAt         pgtype.Timestamptz
 }
 
+// Archived-account transactions are excluded by default (main list = active accounts
+// only). Two escape hatches, both required to keep account-detail history working:
+//   - an explicit account_id filter always returns that account's rows regardless of
+//     archived state (this is how the account-detail view lists archived history)
+//   - include_archived=true bypasses the exclusion budget-wide
+//
+// ListTransactions and CountTransactions must stay predicate-identical or pagination
+// totals will desync.
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]ListTransactionsRow, error) {
 	rows, err := q.db.Query(ctx, listTransactions,
 		arg.BudgetID,
@@ -568,6 +602,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		arg.EnvelopeID,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.IncludeArchived,
 	)
 	if err != nil {
 		return nil, err
@@ -723,9 +758,14 @@ func (q *Queries) SoftDeleteTransactionsByGroupID(ctx context.Context, arg SoftD
 }
 
 const sumEnvelopeSpent = `-- name: SumEnvelopeSpent :one
-SELECT COALESCE(-SUM(amount), 0)::BIGINT AS spent
-FROM transactions
-WHERE envelope_id = $1 AND budget_id = $2 AND deleted_at IS NULL
+SELECT COALESCE(-SUM(t.amount), 0)::BIGINT AS spent
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.envelope_id = $1
+  AND t.budget_id   = $2
+  AND t.deleted_at  IS NULL
+  AND a.deleted_at  IS NULL
+  AND a.archived_at IS NULL
 `
 
 type SumEnvelopeSpentParams struct {
@@ -734,6 +774,8 @@ type SumEnvelopeSpentParams struct {
 }
 
 // Returns spend as a positive magnitude; outflows are stored as negative amounts.
+// Excludes transactions belonging to archived accounts: archived-account activity
+// must not affect an envelope's available-to-spend figure (would misreport spend).
 func (q *Queries) SumEnvelopeSpent(ctx context.Context, arg SumEnvelopeSpentParams) (int64, error) {
 	row := q.db.QueryRow(ctx, sumEnvelopeSpent, arg.EnvelopeID, arg.BudgetID)
 	var spent int64
@@ -745,10 +787,11 @@ const sumOnBudgetAccountBalances = `-- name: SumOnBudgetAccountBalances :one
 SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS total_balance
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
-WHERE t.budget_id    = $1
-  AND a.is_on_budget = true
-  AND a.deleted_at   IS NULL
-  AND t.deleted_at   IS NULL
+WHERE t.budget_id     = $1
+  AND a.is_on_budget  = true
+  AND a.deleted_at    IS NULL
+  AND a.archived_at   IS NULL
+  AND t.deleted_at    IS NULL
 `
 
 func (q *Queries) SumOnBudgetAccountBalances(ctx context.Context, budgetID int64) (int64, error) {

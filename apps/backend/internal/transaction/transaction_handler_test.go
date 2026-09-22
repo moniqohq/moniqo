@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
@@ -171,6 +172,90 @@ func TestHandler_ListTransactions(t *testing.T) {
 		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "budget_id")
 		assert.Contains(t, fe.Error, "positive integer")
 		assert.Contains(t, fe.Error, `"abc"`)
+	})
+
+	t.Run("query params map onto ListFilters", func(t *testing.T) {
+		t.Parallel()
+		var got transaction.ListFilters
+		svc := &internalmock.TransactionService{
+			ListFn: func(_ context.Context, _ int64, f transaction.ListFilters) ([]models.Transaction, int, error) {
+				got = f
+				return []models.Transaction{}, 0, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet,
+			"/?account_id=42&budget_envelope_id=7&date_from=2026-01-01T00:00:00Z&date_to=2026-02-01T00:00:00Z&page=2&page_size=10",
+			"")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		require.NotNil(t, got.AccountID)
+		assert.Equal(t, int64(42), *got.AccountID)
+		require.NotNil(t, got.EnvelopeID)
+		assert.Equal(t, int64(7), *got.EnvelopeID)
+		require.NotNil(t, got.DateFrom)
+		assert.Equal(t, "2026-01-01T00:00:00Z", got.DateFrom.Format(time.RFC3339))
+		require.NotNil(t, got.DateTo)
+		assert.Equal(t, "2026-02-01T00:00:00Z", got.DateTo.Format(time.RFC3339))
+		assert.Equal(t, 2, got.Page)
+		assert.Equal(t, 10, got.PageSize)
+		assert.False(t, got.IncludeArchived)
+	})
+
+	t.Run("include_archived=true maps to IncludeArchived true", func(t *testing.T) {
+		t.Parallel()
+		var got transaction.ListFilters
+		svc := &internalmock.TransactionService{
+			ListFn: func(_ context.Context, _ int64, f transaction.ListFilters) ([]models.Transaction, int, error) {
+				got = f
+				return []models.Transaction{}, 0, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/?include_archived=true", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.True(t, got.IncludeArchived)
+	})
+
+	t.Run("include_archived omitted defaults to false", func(t *testing.T) {
+		t.Parallel()
+		var got transaction.ListFilters
+		svc := &internalmock.TransactionService{
+			ListFn: func(_ context.Context, _ int64, f transaction.ListFilters) ([]models.Transaction, int, error) {
+				got = f
+				return []models.Transaction{}, 0, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.False(t, got.IncludeArchived)
+	})
+
+	t.Run("include_archived malformed value defaults to false", func(t *testing.T) {
+		t.Parallel()
+		var got transaction.ListFilters
+		svc := &internalmock.TransactionService{
+			ListFn: func(_ context.Context, _ int64, f transaction.ListFilters) ([]models.Transaction, int, error) {
+				got = f
+				return []models.Transaction{}, 0, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/?include_archived=not-a-bool", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.False(t, got.IncludeArchived)
 	})
 }
 

@@ -268,13 +268,14 @@ func (r *Repo) List(ctx context.Context, budgetID int64, f ListFilters) ([]model
 
 	q := db.New(r.conn)
 	rows, err := q.ListTransactions(ctx, db.ListTransactionsParams{
-		BudgetID:   budgetID,
-		AccountID:  f.AccountID,
-		EnvelopeID: f.EnvelopeID,
-		DateFrom:   timeToPg(f.DateFrom),
-		DateTo:     timeToPg(f.DateTo),
-		Limit:      int32(pageSize), //nolint:gosec
-		Offset:     int32(offset),   //nolint:gosec
+		BudgetID:        budgetID,
+		AccountID:       f.AccountID,
+		EnvelopeID:      f.EnvelopeID,
+		DateFrom:        timeToPg(f.DateFrom),
+		DateTo:          timeToPg(f.DateTo),
+		IncludeArchived: &f.IncludeArchived,
+		Limit:           int32(pageSize), //nolint:gosec
+		Offset:          int32(offset),   //nolint:gosec
 	})
 	if err != nil {
 		r.log.Error("ListTransactions query failed",
@@ -297,11 +298,12 @@ func (r *Repo) Count(ctx context.Context, budgetID int64, f ListFilters) (int, e
 
 	q := db.New(r.conn)
 	total, err := q.CountTransactions(ctx, db.CountTransactionsParams{
-		BudgetID:   budgetID,
-		AccountID:  f.AccountID,
-		EnvelopeID: f.EnvelopeID,
-		DateFrom:   timeToPg(f.DateFrom),
-		DateTo:     timeToPg(f.DateTo),
+		BudgetID:        budgetID,
+		AccountID:       f.AccountID,
+		EnvelopeID:      f.EnvelopeID,
+		DateFrom:        timeToPg(f.DateFrom),
+		DateTo:          timeToPg(f.DateTo),
+		IncludeArchived: &f.IncludeArchived,
 	})
 	if err != nil {
 		r.log.Error("CountTransactions query failed",
