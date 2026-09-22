@@ -1,6 +1,7 @@
 -- name: SearchTransactions :many
 -- Case-insensitive substring match over transaction memos within a budget.
 -- Joins account (always present) and envelope (optional) for display-ready hits.
+-- Archived accounts are excluded, matching the main transaction list.
 SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.amount, t.date, t.memo, t.status,
        a.name  AS account_name,
        e.title AS envelope_title
@@ -9,15 +10,20 @@ JOIN accounts a       ON a.id = t.account_id
 LEFT JOIN envelopes e ON e.id = t.envelope_id
 WHERE t.budget_id  = sqlc.arg(budget_id)
   AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
   AND t.memo ILIKE ('%' || sqlc.arg(query)::text || '%')
 ORDER BY t.date DESC, t.id DESC
 LIMIT sqlc.arg(lim);
 
 -- name: SearchAccounts :many
+-- Archived accounts are excluded so the global palette matches the "hidden from
+-- active selection" rule; use the Accounts page's archived filter to find them.
 SELECT id, budget_id, name, type, institution
 FROM accounts
-WHERE budget_id  = sqlc.arg(budget_id)
-  AND deleted_at IS NULL
+WHERE budget_id    = sqlc.arg(budget_id)
+  AND deleted_at   IS NULL
+  AND archived_at  IS NULL
   AND (name        ILIKE ('%' || sqlc.arg(query)::text || '%')
     OR institution ILIKE ('%' || sqlc.arg(query)::text || '%')
     OR notes       ILIKE ('%' || sqlc.arg(query)::text || '%'))
