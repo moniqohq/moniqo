@@ -53,6 +53,7 @@ export function adaptTransaction(
     date: raw.date,
     createdAt: raw.created_at,
     memo: raw.memo ?? undefined,
-    cleared: false,
+    status: raw.status,
+    cleared: raw.status === "cleared" || raw.status === "reconciled",
   };
 }
