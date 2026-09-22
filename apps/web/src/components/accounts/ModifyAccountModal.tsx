@@ -36,6 +36,7 @@ import {
   CalendarDays,
   Lock,
   Timer,
+  AlertCircle,
 } from "lucide-react";
 import { useAccounts } from "@/hooks/use-accounts";
 import { patchAccount } from "@/lib/api/accounts";
@@ -282,6 +283,7 @@ export function ModifyAccountModal({
   const [notes, setNotes] = useState(account?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState(false);
 
   /* reset form whenever the modal opens with a new account */
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -296,6 +298,7 @@ export function ModifyAccountModal({
       setLockTransactions(account.isImmutable);
       setNotes(account.notes ?? "");
       setError(null);
+      setNameError(false);
     }
   }, [open, account]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -328,11 +331,16 @@ export function ModifyAccountModal({
 
   const handleSave = async () => {
     if (!account) return;
+    if (!accountName.trim()) {
+      setNameError(true);
+      return;
+    }
+    setNameError(false);
     setSaving(true);
     setError(null);
     try {
       await patchAccount(budgetId, accountId, {
-        name: accountName,
+        name: accountName.trim(),
         requires_recon: reconciliation,
         is_on_budget: includeInBudget,
         is_immutable: lockTransactions,
@@ -435,9 +443,23 @@ export function ModifyAccountModal({
                       </label>
                       <input
                         value={accountName}
-                        onChange={(e) => setAccountName(e.target.value)}
-                        className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
+                        onChange={(e) => {
+                          setAccountName(e.target.value);
+                          if (nameError) setNameError(false);
+                        }}
+                        className={cn(
+                          "w-full rounded-xl border bg-[#0D1525] px-3.5 py-2.5 text-sm text-white transition-all placeholder:text-[#2A3A54] focus:ring-2 focus:outline-none",
+                          nameError
+                            ? "border-[#F87171] focus:border-[#F87171] focus:ring-[#F87171]/40"
+                            : "border-[#1E2B42] focus:border-[#6C3AED] focus:ring-[#6C3AED]/40",
+                        )}
                       />
+                      {nameError && (
+                        <p className="mt-1.5 flex items-center gap-1 text-xs text-[#F87171]">
+                          <AlertCircle size={11} />
+                          Account name is required
+                        </p>
+                      )}
                     </div>
 
                     {/* Account Number */}
