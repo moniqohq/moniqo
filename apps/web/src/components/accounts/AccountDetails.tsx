@@ -375,6 +375,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                   label: "Reconcile",
                   onClick: () =>
                     router.push(`/budgets/${account.budget_id}/accounts/${accountId}/reconcile`),
+                  disabled: !account.requires_recon,
                 },
                 { icon: <Edit2 size={14} />, label: "Edit", onClick: () => setModifyOpen(true) },
                 {
@@ -383,13 +384,24 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                   onClick: () =>
                     router.push(`/budgets/${account.budget_id}/accounts/${accountId}/archive`),
                 },
-              ] as { icon: React.ReactNode; label: string; onClick?: () => void }[]
-            ).map(({ icon, label, onClick }) => (
+              ] as {
+                icon: React.ReactNode;
+                label: string;
+                onClick?: () => void;
+                disabled?: boolean;
+              }[]
+            ).map(({ icon, label, onClick, disabled }) => (
               <button
                 key={label}
-                title={label}
-                onClick={onClick}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-3 py-1.5 text-xs font-medium text-[#E2EAF4] transition-all hover:border-[#2A3A54] hover:bg-[#111B2D] hover:text-white"
+                title={disabled ? "Reconciliation is not enabled for this account" : label}
+                onClick={disabled ? undefined : onClick}
+                disabled={disabled}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg border border-[#1A2540] bg-[#0D1525] px-3 py-1.5 text-xs font-medium text-[#E2EAF4] transition-all",
+                  disabled
+                    ? "cursor-not-allowed opacity-40"
+                    : "hover:border-[#2A3A54] hover:bg-[#111B2D] hover:text-white",
+                )}
               >
                 {icon}
                 <span className="hidden sm:inline">{label}</span>

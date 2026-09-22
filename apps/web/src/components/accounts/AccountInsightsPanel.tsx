@@ -53,6 +53,7 @@ interface Props {
 export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }: Props) {
   const router = useRouter();
   const { accountMap, accounts } = useAccounts(budgetId);
+  const account = accountMap.get(accountId);
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const { transactions: txns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
   const unarchiveAccount = useUnarchiveAccount();
@@ -80,6 +81,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(34,197,94,0.15)",
       title: "Reconcile Balance",
       desc: "Verify cleared transactions",
+      disabled: !account?.requires_recon,
     },
     {
       icon: <Download size={16} />,
@@ -183,7 +185,13 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
                 key={title}
                 onClick={isDisabled ? undefined : onClick}
                 disabled={isDisabled}
-                title={disabled ? "Coming soon" : undefined}
+                title={
+                  disabled
+                    ? title === "Reconcile Balance"
+                      ? "Reconciliation is not enabled for this account"
+                      : "Coming soon"
+                    : undefined
+                }
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-all",
                   isDisabled
