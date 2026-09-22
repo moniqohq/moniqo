@@ -90,17 +90,23 @@ WHERE budget_id = $1 AND deleted_at IS NULL;
 
 -- name: GetBudgetEnvelopeSummary :one
 -- t.spent is a positive magnitude; outflows are stored as negative amounts.
+-- Excludes transactions on archived accounts from total_spent/overspent_count for the
+-- same reason as SumEnvelopeSpent: archived-account spend must not lower an
+-- envelope's reported spend (that would present already-spent cash as available).
 SELECT
     COALESCE(SUM(e.allocated_amt), 0)::BIGINT                                  AS total_allocated,
     COALESCE(SUM(COALESCE(t.spent, 0)), 0)::BIGINT                             AS total_spent,
     COUNT(*) FILTER (WHERE COALESCE(t.spent, 0) > e.allocated_amt)::BIGINT     AS overspent_count
 FROM envelopes e
 LEFT JOIN (
-    SELECT envelope_id, -SUM(amount) AS spent
+    SELECT tr.envelope_id, -SUM(tr.amount) AS spent
     FROM transactions tr
+    JOIN accounts a ON a.id = tr.account_id
     WHERE tr.budget_id   = $1
       AND tr.envelope_id IS NOT NULL
       AND tr.deleted_at  IS NULL
+      AND a.deleted_at   IS NULL
+      AND a.archived_at  IS NULL
     GROUP BY tr.envelope_id
 ) t ON t.envelope_id = e.id
 WHERE e.budget_id = $1 AND e.deleted_at IS NULL;
