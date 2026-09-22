@@ -226,7 +226,7 @@ export function DashboardView() {
         </div>
         <div className="col-span-1 lg:col-span-2">
           <StatCard
-            label="Monthly Savings"
+            label="Monthly Net Cash Flow"
             amount={dashStats?.monthlySavings ?? 0}
             icon={PiggyBank}
             iconColor="#F59E0B"
