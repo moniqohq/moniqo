@@ -160,6 +160,7 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 - Amount cannot be zero.
 - If `transfer_account_id` provided: `budget_envelope_id` must be `null`.
 - If not a transfer: `budget_envelope_id` required.
+- Rejected if `account_id` (or, for transfers, either leg's account) refers to an archived account — archived accounts are read-only.
 
 **Validation Rules**
 
@@ -172,7 +173,7 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 
 | HTTP | Code | Description |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid payload |
+| 400 | `VALIDATION_ERROR` | Invalid payload, or `account_id`/`transfer_account_id` refers to an archived account |
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 403 | `FORBIDDEN` | Insufficient role |
 | 404 | `NOT_FOUND` | Budget/account/envelope not found |
@@ -190,10 +191,11 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 
 | Parameter | Description |
 |---|---|
-| `account_id` | Filter by account |
+| `account_id` | Filter by account. When the account is archived, its transactions are still returned — an explicit `account_id` bypasses the archived-account exclusion below. |
 | `budget_envelope_id` | Filter by envelope |
 | `date_from` | Start date range |
 | `date_to` | End date range |
+| `include_archived` | `true` to include transactions belonging to archived accounts budget-wide (default `false`) |
 | `page` | Page number |
 | `page_size` | Results per page |
 
@@ -228,6 +230,7 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 
 - Only transactions within the specified budget returned.
 - Soft-deleted transactions excluded.
+- Transactions belonging to archived accounts are excluded by default, unless the request sets an explicit `account_id` for that account or passes `include_archived=true`.
 
 ---
 
@@ -257,6 +260,7 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 **Business Rules**
 
 - Transaction must belong to the specified budget.
+- Direct lookup by ID is never filtered by the owning account's archived state — deep links and audit trails must resolve regardless.
 
 **Error Scenarios**
 
@@ -296,6 +300,7 @@ Idempotent operation.
 - `status` follows full-replace semantics: omitting it resets the transaction to `uncleared`, even if it
   was previously `cleared` or `reconciled`. Send the current `status` explicitly to preserve it.
 - For transfers, `status` is applied to both legs so they never disagree on clearing state.
+- Rejected if `account_id` refers to an archived account.
 
 **Side Effects**
 
@@ -307,7 +312,7 @@ Idempotent operation.
 
 | HTTP | Code | Description |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid or missing field |
+| 400 | `VALIDATION_ERROR` | Invalid or missing field, or `account_id` refers to an archived account |
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 404 | `NOT_FOUND` | Transaction not found |
 | 409 | `CONFLICT` | Business rule violation |
@@ -333,6 +338,7 @@ Idempotent operation.
 - Only provided fields updated.
 - Must not allow empty PATCH body.
 - Financial recalculation required.
+- Rejected if the patch would move the transaction onto an archived account.
 
 **Validation Rules**
 
@@ -349,7 +355,7 @@ Idempotent operation.
 
 | HTTP | Code | Description |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid field |
+| 400 | `VALIDATION_ERROR` | Invalid field, or `account_id` refers to an archived account |
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 404 | `NOT_FOUND` | Transaction not found |
 | 409 | `CONFLICT` | Business rule violation |
