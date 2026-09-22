@@ -387,6 +387,7 @@ type User struct {
 	OnboardingCompletedAt pgtype.Timestamptz
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 }
 
 type UserIdentity struct {

@@ -337,6 +337,36 @@ func TestHandler_PatchProfile(t *testing.T) {
 			wantMsg:     "validation failed",
 		},
 		{
+			name:        "invalid currency returns 400 with field error on currency",
+			pathID:      "7",
+			authedAs:    testUserID,
+			body:        `{"currency":"JPY"}`,
+			svc:         &mock.UserService{},
+			wantStatus:  http.StatusBadRequest,
+			wantSuccess: false,
+			wantMsg:     "validation failed",
+		},
+		{
+			name:        "invalid timezone returns 400",
+			pathID:      "7",
+			authedAs:    testUserID,
+			body:        `{"timezone":"Not/A_Zone"}`,
+			svc:         &mock.UserService{},
+			wantStatus:  http.StatusBadRequest,
+			wantSuccess: false,
+			wantMsg:     "validation failed",
+		},
+		{
+			name:        "invalid date_format returns 400",
+			pathID:      "7",
+			authedAs:    testUserID,
+			body:        `{"date_format":"DD-MM-YYYY"}`,
+			svc:         &mock.UserService{},
+			wantStatus:  http.StatusBadRequest,
+			wantSuccess: false,
+			wantMsg:     "validation failed",
+		},
+		{
 			name:     "wrong current password returns 403",
 			pathID:   "7",
 			authedAs: testUserID,
@@ -394,6 +424,24 @@ func TestHandler_PatchProfile(t *testing.T) {
 			wantSuccess: true,
 			wantMsg:     "user updated successfully",
 		},
+		{
+			name:     "currency, timezone, and date_format update succeeds",
+			pathID:   "7",
+			authedAs: testUserID,
+			body:     `{"currency":"USD","timezone":"America/New_York","date_format":"YYYY-MM-DD"}`,
+			svc: &mock.UserService{
+				PatchProfileFn: func(_ context.Context, _ int64, _ user.PatchProfileRequest) (models.User, error) {
+					u := profileUser()
+					u.Currency = ptr("USD")
+					u.Timezone = ptr("America/New_York")
+					u.DateFormat = ptr("YYYY-MM-DD")
+					return u, nil
+				},
+			},
+			wantStatus:  http.StatusOK,
+			wantSuccess: true,
+			wantMsg:     "user updated successfully",
+		},
 	}
 
 	for _, tc := range tests {
@@ -411,6 +459,38 @@ func TestHandler_PatchProfile(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHandler_PatchProfile_PreferencesEchoedAndHashStripped verifies the
+// success response for a preferences-only patch echoes the new values and
+// never leaks the password hash.
+func TestHandler_PatchProfile_PreferencesEchoedAndHashStripped(t *testing.T) {
+	t.Parallel()
+
+	log := zap.NewNop()
+	e := echo.New()
+
+	svc := &mock.UserService{
+		PatchProfileFn: func(_ context.Context, _ int64, _ user.PatchProfileRequest) (models.User, error) {
+			u := profileUser()
+			u.Currency = ptr("USD")
+			u.Timezone = ptr("America/New_York")
+			u.DateFormat = ptr("YYYY-MM-DD")
+			return u, nil
+		},
+	}
+	c, rec := newProfileCtx(e, http.MethodPatch, "7", `{"currency":"USD","timezone":"America/New_York","date_format":"YYYY-MM-DD"}`, testUserID)
+	h := user.NewHandler(svc, "http://localhost:3000", log)
+
+	require.NoError(t, h.PatchProfile(c))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	_, data := parseEnvelope(t, rec.Body.String())
+	assert.Equal(t, "USD", data["currency"])
+	assert.Equal(t, "America/New_York", data["timezone"])
+	assert.Equal(t, "YYYY-MM-DD", data["date_format"])
+	_, hasHash := data["hash"]
+	assert.False(t, hasHash, "hash must never appear in the response")
 }
 
 // TestHandler_DeleteProfile covers DELETE /api/v1/users/{id}.

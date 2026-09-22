@@ -129,11 +129,14 @@ func (s *Svc) GetByID(ctx context.Context, id int64) (models.User, error) {
 func (s *Svc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error) {
 	s.log.Info("replacing user profile", zap.Int64("user_id", id))
 	u, err := s.repo.UpdateProfile(ctx, UpdateProfileParams{
-		ID:       id,
-		Name:     req.Name,
-		Username: req.Username,
-		Email:    req.Email,
-		Picture:  req.Picture,
+		ID:         id,
+		Name:       req.Name,
+		Username:   req.Username,
+		Email:      req.Email,
+		Picture:    req.Picture,
+		Currency:   req.Currency,
+		Timezone:   req.Timezone,
+		DateFormat: req.DateFormat,
 	})
 	if err != nil {
 		return models.User{}, fmt.Errorf("update profile: %w", err)
@@ -185,12 +188,27 @@ func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) 
 	if req.Picture != nil {
 		picture = *req.Picture
 	}
+	currency := current.Currency
+	if req.Currency != nil {
+		currency = req.Currency
+	}
+	timezone := current.Timezone
+	if req.Timezone != nil {
+		timezone = req.Timezone
+	}
+	dateFormat := current.DateFormat
+	if req.DateFormat != nil {
+		dateFormat = req.DateFormat
+	}
 	return UpdateProfileParams{
-		ID:       id,
-		Name:     name,
-		Username: username,
-		Email:    emailAddr,
-		Picture:  picture,
+		ID:         id,
+		Name:       name,
+		Username:   username,
+		Email:      emailAddr,
+		Picture:    picture,
+		Currency:   currency,
+		Timezone:   timezone,
+		DateFormat: dateFormat,
 	}
 }
 

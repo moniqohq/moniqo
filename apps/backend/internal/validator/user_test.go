@@ -282,6 +282,14 @@ func TestValidateReplaceProfile(t *testing.T) {
 			i.Picture = "https://example.com/avatar.png"
 			return i
 		}()},
+		{name: "with valid currency, timezone, and date format", input: func() validator.ReplaceProfileInput {
+			i := validReplaceInput()
+			i.Currency = strPtr("USD")
+			i.Timezone = strPtr("America/New_York")
+			i.DateFormat = strPtr("YYYY-MM-DD")
+			return i
+		}()},
+		{name: "nil currency, timezone, and date format is valid", input: validReplaceInput()},
 		// username errors
 		{
 			name:      "username starts with digit",
@@ -335,6 +343,59 @@ func TestValidateReplaceProfile(t *testing.T) {
 			wantField: "name",
 			wantMsg:   "must not exceed 100 characters",
 		},
+		// currency errors
+		{
+			name:      "unsupported currency code",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Currency = strPtr("JPY"); return i }(),
+			wantField: "currency",
+			wantMsg:   "unsupported currency code",
+		},
+		{
+			name:      "empty currency string is invalid",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Currency = new(string); return i }(),
+			wantField: "currency",
+			wantMsg:   "must not be empty if provided",
+		},
+		{
+			name:      "lowercase currency code rejected",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Currency = strPtr("usd"); return i }(),
+			wantField: "currency",
+			wantMsg:   "unsupported currency code",
+		},
+		// timezone errors
+		{
+			name: "invalid IANA timezone",
+			input: func() validator.ReplaceProfileInput {
+				i := validReplaceInput()
+				i.Timezone = strPtr("Not/A_Zone")
+				return i
+			}(),
+			wantField: "timezone",
+			wantMsg:   "invalid IANA timezone",
+		},
+		{
+			name:      "empty timezone string is invalid",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.Timezone = new(string); return i }(),
+			wantField: "timezone",
+			wantMsg:   "must not be empty if provided",
+		},
+		// date format errors
+		{
+			name: "unsupported date format token",
+			input: func() validator.ReplaceProfileInput {
+				i := validReplaceInput()
+				i.DateFormat = strPtr("DD-MM-YYYY")
+				return i
+			}(),
+			wantField: "date_format",
+			wantMsg:   "unsupported date format",
+		},
+		{
+			name:      "empty date format string is invalid",
+			input:     func() validator.ReplaceProfileInput { i := validReplaceInput(); i.DateFormat = new(string); return i }(),
+			wantField: "date_format",
+			wantMsg:   "must not be empty if provided",
+		},
 	}
 
 	for _, tc := range tests {
@@ -376,6 +437,9 @@ func TestValidatePatchProfile(t *testing.T) {
 		{name: "update email only", input: validator.PatchProfileInput{Email: strPtr("new@example.com")}},
 		{name: "update name only", input: validator.PatchProfileInput{Name: strPtr("New Name")}},
 		{name: "update picture only", input: validator.PatchProfileInput{Picture: strPtr("avatar.png")}},
+		{name: "update currency only", input: validator.PatchProfileInput{Currency: strPtr("EUR")}},
+		{name: "update timezone only", input: validator.PatchProfileInput{Timezone: strPtr("Europe/Berlin")}},
+		{name: "update date format only", input: validator.PatchProfileInput{DateFormat: strPtr("DD/MM/YYYY")}},
 		{name: "password change with valid new password", input: validator.PatchProfileInput{
 			CurrentPassword: strPtr("OldPass1"),
 			NewPassword:     strPtr("NewPass1"),
@@ -407,6 +471,25 @@ func TestValidatePatchProfile(t *testing.T) {
 			input:     validator.PatchProfileInput{Name: new(string)},
 			wantField: "name",
 			wantMsg:   "must not be empty if provided",
+		},
+		// currency/timezone/date format errors
+		{
+			name:      "unsupported currency code",
+			input:     validator.PatchProfileInput{Currency: strPtr("JPY")},
+			wantField: "currency",
+			wantMsg:   "unsupported currency code",
+		},
+		{
+			name:      "invalid IANA timezone",
+			input:     validator.PatchProfileInput{Timezone: strPtr("Not/A_Zone")},
+			wantField: "timezone",
+			wantMsg:   "invalid IANA timezone",
+		},
+		{
+			name:      "unsupported date format token",
+			input:     validator.PatchProfileInput{DateFormat: strPtr("DD-MM-YYYY")},
+			wantField: "date_format",
+			wantMsg:   "unsupported date format",
 		},
 		// password change errors
 		{
