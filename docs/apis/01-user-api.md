@@ -43,6 +43,9 @@ Represents an authenticated identity in the system.
 | `email` | String | Yes | Unique email address (RFC 5321, required at registration) |
 | `picture` | String | Yes | Avatar reference; empty string `""` when not set, never `null` |
 | `status` | Enum | Yes | Account lifecycle state: `pending_verification` or `active` |
+| `currency` | String | No | Display currency, ISO-4217 code (one of `INR`, `USD`, `EUR`, `GBP`, `AUD`, `CAD`, `SGD`); `null` until set |
+| `timezone` | String | No | Display timezone, IANA name (e.g. `Asia/Kolkata`); `null` until set |
+| `date_format` | String | No | Display date format, one of `MMM DD, YYYY`, `DD/MM/YYYY`, `MM/DD/YYYY`, `YYYY-MM-DD`; `null` until set |
 | `last_login` | Timestamp | No | Most recent successful authentication; `null` before first login |
 | `created_at` | Timestamp | Yes | Server-side creation timestamp |
 | `updated_at` | Timestamp | Yes | Last modification timestamp (internal audit, never returned) |
@@ -271,7 +274,9 @@ Replaces editable user fields — idempotent operation.
 **`PUT /api/v1/users/{id}`**
 **Authentication:** Required
 
-**Editable fields:** `name`, `username`, `email`, `picture`
+**Editable fields:** `name`, `username`, `email`, `picture`, `currency`, `timezone`, `date_format`
+
+`currency`, `timezone`, and `date_format` are true full-replace fields: omitting them (or sending `null`) clears the preference, same as omitting `name`.
 
 **Request Payload**
 
@@ -280,7 +285,10 @@ Replaces editable user fields — idempotent operation.
   "name": "Saqib Abdul",
   "username": "saqib",
   "email": "saqib@moniqo.app",
-  "picture": "https://cdn.moniqo.app/new-avatar.png"
+  "picture": "https://cdn.moniqo.app/new-avatar.png",
+  "currency": "USD",
+  "timezone": "America/New_York",
+  "date_format": "YYYY-MM-DD"
 }
 ```
 
@@ -295,6 +303,9 @@ Replaces editable user fields — idempotent operation.
     "username": "saqib",
     "email": "saqib@moniqo.app",
     "picture": "https://cdn.moniqo.app/new-avatar.png",
+    "currency": "USD",
+    "timezone": "America/New_York",
+    "date_format": "YYYY-MM-DD",
     "last_login": "2026-02-23T15:04:05Z"
   },
   "msg": "user updated successfully"
@@ -313,6 +324,9 @@ Replaces editable user fields — idempotent operation.
 - Username constraints enforced.
 - Email format validation.
 - Unique constraints enforced.
+- `currency`, if provided, must be one of the supported ISO-4217 codes.
+- `timezone`, if provided, must be a valid IANA timezone name.
+- `date_format`, if provided, must be one of the supported format tokens.
 
 **Side Effects**
 
@@ -338,11 +352,23 @@ Updates specific fields only.
 **`PATCH /api/v1/users/{id}`**
 **Authentication:** Required
 
+**Editable fields:** any of `name`, `username`, `email`, `picture`, `currency`, `timezone`, `date_format`, plus the password-change pair below. Only fields present in the body are applied.
+
 **Request Payload**
 
 ```json
 {
   "picture": "https://cdn.moniqo.app/avatar-2.png"
+}
+```
+
+**Request Payload — preferences only**
+
+```json
+{
+  "currency": "USD",
+  "timezone": "America/New_York",
+  "date_format": "YYYY-MM-DD"
 }
 ```
 
@@ -394,6 +420,9 @@ If password update is requested:
 - Username rules enforced if updated.
 - Email format validation.
 - Password strength validation.
+- `currency`, if provided, must be one of the supported ISO-4217 codes (`INR`, `USD`, `EUR`, `GBP`, `AUD`, `CAD`, `SGD`).
+- `timezone`, if provided, must be a valid IANA timezone name.
+- `date_format`, if provided, must be one of `MMM DD, YYYY`, `DD/MM/YYYY`, `MM/DD/YYYY`, `YYYY-MM-DD`.
 
 **Side Effects**
 
