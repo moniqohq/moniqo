@@ -23,8 +23,11 @@ import { useState, useMemo } from "react";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
 import { useDashboardStats } from "@/hooks/use-dashboard";
+import { useAccounts } from "@/hooks/use-accounts";
+import { computeNetWorth } from "@/lib/finance";
 import {
   Wallet,
+  CreditCard,
   TrendingUp,
   TrendingDown,
   PiggyBank,
@@ -138,6 +141,8 @@ export function DashboardView() {
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const month = useMemo(() => periodToMonth(period), [period]);
   const { data: dashStats } = useDashboardStats(activeBudgetId, month);
+  const { data: accounts } = useAccounts(activeBudgetId, "active");
+  const { netWorth, totalLiabilities } = useMemo(() => computeNetWorth(accounts), [accounts]);
 
   return (
     <div className="layout-page space-y-6 py-6">
@@ -180,81 +185,66 @@ export function DashboardView() {
         }
       />
 
-      {/* Unified grid — stat cards + content aligned in shared columns */}
+      {/* Summary cards — 5 across on desktop */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard
+          label="Total Net Worth"
+          amount={netWorth}
+          icon={Wallet}
+          iconColor="#6C3AED"
+          iconBg="rgba(108,58,237,0.15)"
+          accentColor="#6C3AED"
+          sparkData={
+            dashStats?.sparkline.map((p) => ({ v: p.income - p.expenses })) ?? sparkNetWorth
+          }
+          index={0}
+        />
+        <StatCard
+          label="Total Liabilities"
+          amount={totalLiabilities}
+          icon={CreditCard}
+          iconColor="#F87171"
+          iconBg="rgba(248,113,113,0.12)"
+          accentColor="#F87171"
+          index={1}
+        />
+        <StatCard
+          label="Monthly Income"
+          amount={dashStats?.monthlyIncome ?? 0}
+          icon={TrendingUp}
+          iconColor="#22C55E"
+          iconBg="rgba(34,197,94,0.12)"
+          accentColor="#22C55E"
+          sparkData={dashStats?.sparkline.map((p) => ({ v: p.income })) ?? sparkIncome}
+          index={2}
+        />
+        <StatCard
+          label="Monthly Expenses"
+          amount={dashStats?.monthlyExpenses ?? 0}
+          icon={TrendingDown}
+          iconColor="#EF4444"
+          iconBg="rgba(239,68,68,0.12)"
+          accentColor="#EF4444"
+          sparkData={dashStats?.sparkline.map((p) => ({ v: p.expenses })) ?? sparkExpenses}
+          index={3}
+        />
+        <StatCard
+          label="Monthly Net Cash Flow"
+          amount={dashStats?.monthlySavings ?? 0}
+          icon={PiggyBank}
+          iconColor="#F59E0B"
+          iconBg="rgba(245,158,11,0.12)"
+          accentColor="#F59E0B"
+          sparkData={
+            dashStats?.sparkline.map((p) => ({ v: p.income - p.expenses })) ?? sparkToBudget
+          }
+          index={4}
+        />
+      </div>
+
+      {/* Content grid — Recent Transactions + Expense Categories + Budget Overview */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-10">
-        {/* ── Left col stat cards (cols 1–4) ── */}
-        <div className="col-span-1 lg:col-span-2">
-          <StatCard
-            label="Net Worth"
-            amount={dashStats?.netWorth ?? 0}
-            change={4.3}
-            icon={Wallet}
-            iconColor="#6C3AED"
-            iconBg="rgba(108,58,237,0.15)"
-            accentColor="#6C3AED"
-            sparkData={
-              dashStats?.sparkline.map((p) => ({ v: p.income - p.expenses })) ?? sparkNetWorth
-            }
-            index={0}
-          />
-        </div>
-        <div className="col-span-1 lg:col-span-2">
-          <StatCard
-            label="Monthly Income"
-            amount={dashStats?.monthlyIncome ?? 0}
-            icon={TrendingUp}
-            iconColor="#22C55E"
-            iconBg="rgba(34,197,94,0.12)"
-            accentColor="#22C55E"
-            sparkData={dashStats?.sparkline.map((p) => ({ v: p.income })) ?? sparkIncome}
-            index={1}
-          />
-        </div>
-
-        {/* ── Middle col stat cards (cols 5–8) ── */}
-        <div className="col-span-1 lg:col-span-2">
-          <StatCard
-            label="Monthly Expenses"
-            amount={dashStats?.monthlyExpenses ?? 0}
-            icon={TrendingDown}
-            iconColor="#EF4444"
-            iconBg="rgba(239,68,68,0.12)"
-            accentColor="#EF4444"
-            sparkData={dashStats?.sparkline.map((p) => ({ v: p.expenses })) ?? sparkExpenses}
-            index={2}
-          />
-        </div>
-        <div className="col-span-1 lg:col-span-2">
-          <StatCard
-            label="Monthly Net Cash Flow"
-            amount={dashStats?.monthlySavings ?? 0}
-            icon={PiggyBank}
-            iconColor="#F59E0B"
-            iconBg="rgba(245,158,11,0.12)"
-            accentColor="#F59E0B"
-            sparkData={
-              dashStats?.sparkline.map((p) => ({ v: p.income - p.expenses })) ?? sparkToBudget
-            }
-            index={3}
-          />
-        </div>
-
-        {/* ── Budget Overview — spans stat-card row + Expense Categories row (cols 9–10, rows 1–2) ── */}
-        <div className="col-span-2 row-span-1 h-full lg:col-span-2 lg:row-span-2">
-          <SectionCard
-            title="Budget Overview"
-            noPadding
-            noHeaderBorder
-            icon={LayoutGrid}
-            iconColor="#6C3AED"
-            iconBg="rgba(108,58,237,0.15)"
-            className="h-full"
-          >
-            <BudgetOverview />
-          </SectionCard>
-        </div>
-
-        {/* ── Row 2 left — Recent Transactions (cols 1–4) ── */}
+        {/* ── Recent Transactions (cols 1–4) ── */}
         <div className="col-span-2 h-full lg:col-span-4">
           <SectionCard
             title="Recent Transactions"
@@ -269,7 +259,7 @@ export function DashboardView() {
           </SectionCard>
         </div>
 
-        {/* ── Row 2 middle — Expense Categories (cols 5–8) ── */}
+        {/* ── Expense Categories (cols 5–8) ── */}
         <div className="col-span-2 h-full lg:col-span-4">
           <SectionCard
             title="Expense Categories"
@@ -280,6 +270,21 @@ export function DashboardView() {
             className="h-full"
           >
             <CategorySpendingList />
+          </SectionCard>
+        </div>
+
+        {/* ── Budget Overview (cols 9–10) — taller floor for more breathing room ── */}
+        <div className="col-span-2 h-full lg:col-span-2 lg:min-h-[600px]">
+          <SectionCard
+            title="Budget Overview"
+            noPadding
+            noHeaderBorder
+            icon={LayoutGrid}
+            iconColor="#6C3AED"
+            iconBg="rgba(108,58,237,0.15)"
+            className="h-full"
+          >
+            <BudgetOverview />
           </SectionCard>
         </div>
       </div>
