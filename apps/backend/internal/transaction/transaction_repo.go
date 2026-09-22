@@ -330,6 +330,7 @@ func (r *Repo) Update(ctx context.Context, p UpdateParams) (models.Transaction, 
 		TransferAccountID: p.TransferAccountID,
 		Amount:            p.Amount.Int64(),
 		Date:              pgtype.Timestamptz{Time: p.Date, Valid: true},
+		Status:            db.TransactionStatus(p.Status),
 		Memo:              p.Memo,
 	})
 	if err != nil {

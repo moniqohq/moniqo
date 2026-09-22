@@ -333,6 +333,76 @@ func TestSvc_Replace(t *testing.T) {
 		fv := fieldViolation(t, err)
 		assert.Equal(t, "transfer_account_id", fv.Field)
 	})
+
+	t.Run("persists explicit status", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
+			return p.Status == models.TransactionStatusCleared
+		})).Return(makeTxnWithEnvelope(-200000), nil)
+
+		clearedStatus := models.TransactionStatusCleared
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(-200000),
+			Date:      testDate,
+			Status:    &clearedStatus,
+		})
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("defaults status to uncleared when omitted", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
+			return p.Status == models.TransactionStatusUncleared
+		})).Return(makeTxnWithEnvelope(-200000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(-200000),
+			Date:      testDate,
+		})
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("propagates status to mirror leg", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		groupID := "grp-1"
+		primary := makeTxn(-500000)
+		primary.TransferGroupID = &groupID
+		leg2ID := testTransactionID + 1
+
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(primary, nil)
+		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
+			return p.ID == testTransactionID && p.Status == models.TransactionStatusCleared
+		})).Return(primary, nil)
+		repo.On("GetByGroupID", groupID, testBudgetID).Return([]models.Transaction{
+			primary,
+			{ID: leg2ID, BudgetID: testBudgetID, AccountID: testAccount2ID, TransferGroupID: &groupID},
+		}, nil)
+		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
+			return p.ID == leg2ID && p.Status == models.TransactionStatusCleared
+		})).Return(models.Transaction{}, nil)
+
+		clearedStatus := models.TransactionStatusCleared
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(-500000),
+			Date:      testDate,
+			Status:    &clearedStatus,
+		})
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -379,6 +449,37 @@ func TestSvc_Patch(t *testing.T) {
 		txn, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Amount: &newAmt})
 		require.NoError(t, err)
 		assert.Equal(t, money.FromMinorUnits(-200000), txn.Amount)
+	})
+
+	t.Run("status-only patch propagates to mirror leg", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		groupID := "grp-2"
+		primary := makeTxn(-500000)
+		primary.TransferGroupID = &groupID
+		leg2ID := testTransactionID + 1
+		clearedStatus := models.TransactionStatusCleared
+
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(primary, nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:       testTransactionID,
+			BudgetID: testBudgetID,
+			Status:   &clearedStatus,
+		}).Return(primary, nil)
+		repo.On("GetByGroupID", groupID, testBudgetID).Return([]models.Transaction{
+			primary,
+			{ID: leg2ID, BudgetID: testBudgetID, AccountID: testAccount2ID, TransferGroupID: &groupID},
+		}, nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:       leg2ID,
+			BudgetID: testBudgetID,
+			Status:   &clearedStatus,
+		}).Return(models.Transaction{}, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Status: &clearedStatus})
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
 	})
 }
 
