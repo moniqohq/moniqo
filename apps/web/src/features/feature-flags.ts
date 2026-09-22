@@ -39,7 +39,6 @@ export const FeatureFlags = {
   accountFilters: false,
   envelopeFilters: false,
   sidebarExtras: false,
-  settingsPreferences: false,
   settingsNotifications: false,
   settingsSecurity: false,
   settingsDataPrivacy: true,
