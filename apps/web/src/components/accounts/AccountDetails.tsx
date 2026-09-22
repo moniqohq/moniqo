@@ -40,6 +40,7 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  Info,
 } from "lucide-react";
 import { formatCurrency, formatRelativeDate, formatDate, cn } from "@/lib/utils";
 import type { AccountType } from "@/types";
@@ -257,7 +258,9 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const [addTxDefault, setAddTxDefault] = useState<"expense" | "income" | "transfer">("expense");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { accountMap, accounts } = useAccounts(budgetId);
+  // "all" so an archived account still resolves here — the account nav lets
+  // users select archived accounts, and their history must remain viewable.
+  const { accountMap, accounts, loading: accountsLoading } = useAccounts(budgetId, "all");
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const { data: budgets } = useBudgets();
   const budgetName = budgets.find((b) => b.id === budgetId)?.name;
@@ -314,13 +317,25 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   if (!account) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-[#3A4A60]">
-        Loading account…
+        {accountsLoading ? "Loading account…" : "Account not found."}
       </div>
     );
   }
 
+  const isArchived = account.is_archived;
+
   return (
     <div className="min-w-0 space-y-4">
+      {isArchived && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-[#3A2E1A] bg-[#1A140A] px-4 py-3 text-sm text-[#E9C46A]">
+          <Info size={16} className="flex-shrink-0" />
+          <span>
+            Archived — read-only. Unarchive this account to record new transactions or make
+            changes.
+          </span>
+        </div>
+      )}
+
       {/* ── Account Header + Balance Overview + Metadata ── */}
       <div className="space-y-5 rounded-2xl border border-[#1A2540] bg-[#0B1120] p-5">
         {/* Account Header */}
@@ -361,6 +376,8 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                     setAddTxDefault("expense");
                     setAddTxOpen(true);
                   },
+                  disabled: isArchived,
+                  disabledReason: "Archived accounts are read-only",
                 },
                 {
                   icon: <ArrowLeftRight size={14} />,
@@ -369,31 +386,52 @@ export function AccountDetails({ accountId, budgetId }: Props) {
                     setAddTxDefault("transfer");
                     setAddTxOpen(true);
                   },
+                  disabled: isArchived,
+                  disabledReason: "Archived accounts are read-only",
                 },
                 {
                   icon: <CheckCircle size={14} />,
                   label: "Reconcile",
                   onClick: () =>
                     router.push(`/budgets/${account.budget_id}/accounts/${accountId}/reconcile`),
-                  disabled: !account.requires_recon,
+                  disabled: !account.requires_recon || isArchived,
+                  disabledReason: isArchived
+                    ? "Archived accounts are read-only"
+                    : "Reconciliation is not enabled for this account",
                 },
-                { icon: <Edit2 size={14} />, label: "Edit", onClick: () => setModifyOpen(true) },
                 {
-                  icon: <Archive size={14} />,
-                  label: "Archive",
-                  onClick: () =>
-                    router.push(`/budgets/${account.budget_id}/accounts/${accountId}/archive`),
+                  icon: <Edit2 size={14} />,
+                  label: "Edit",
+                  onClick: () => setModifyOpen(true),
+                  disabled: isArchived,
+                  disabledReason: "Archived accounts are read-only",
                 },
+                // Unarchiving is handled by AccountInsightsPanel's quick action;
+                // hide this button once archived rather than link to a flow
+                // that only handles the forward (archive) direction.
+                ...(isArchived
+                  ? []
+                  : [
+                      {
+                        icon: <Archive size={14} />,
+                        label: "Archive",
+                        onClick: () =>
+                          router.push(
+                            `/budgets/${account.budget_id}/accounts/${accountId}/archive`,
+                          ),
+                      },
+                    ]),
               ] as {
                 icon: React.ReactNode;
                 label: string;
                 onClick?: () => void;
                 disabled?: boolean;
+                disabledReason?: string;
               }[]
-            ).map(({ icon, label, onClick, disabled }) => (
+            ).map(({ icon, label, onClick, disabled, disabledReason }) => (
               <button
                 key={label}
-                title={disabled ? "Reconciliation is not enabled for this account" : label}
+                title={disabled ? disabledReason ?? label : label}
                 onClick={disabled ? undefined : onClick}
                 disabled={disabled}
                 className={cn(

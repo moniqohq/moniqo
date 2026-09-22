@@ -52,7 +52,10 @@ interface Props {
 
 export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }: Props) {
   const router = useRouter();
-  const { accountMap, accounts } = useAccounts(budgetId);
+  // "all" so an archived account still resolves — otherwise `account` below
+  // is always undefined for an archived account, disabling Reconcile for the
+  // wrong reason and hiding the real archived state from this panel entirely.
+  const { accountMap, accounts } = useAccounts(budgetId, "all");
   const account = accountMap.get(accountId);
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const { transactions: txns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
@@ -67,6 +70,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(108,58,237,0.15)",
       title: "Create Transaction",
       desc: "Record a new transaction",
+      disabled: isArchived,
     },
     {
       icon: <ArrowLeftRight size={16} />,
@@ -74,6 +78,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(59,130,246,0.15)",
       title: "Record Transfer",
       desc: "Move money between accounts",
+      disabled: isArchived,
     },
     {
       icon: <CheckCircle size={16} />,
@@ -81,7 +86,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(34,197,94,0.15)",
       title: "Reconcile Balance",
       desc: "Verify cleared transactions",
-      disabled: !account?.requires_recon,
+      disabled: !account?.requires_recon || isArchived,
     },
     {
       icon: <Download size={16} />,
@@ -187,9 +192,11 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
                 disabled={isDisabled}
                 title={
                   disabled
-                    ? title === "Reconcile Balance"
-                      ? "Reconciliation is not enabled for this account"
-                      : "Coming soon"
+                    ? isArchived && title !== "Export Transactions"
+                      ? "Archived accounts are read-only"
+                      : title === "Reconcile Balance"
+                        ? "Reconciliation is not enabled for this account"
+                        : "Coming soon"
                     : undefined
                 }
                 className={cn(

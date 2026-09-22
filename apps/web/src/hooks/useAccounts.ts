@@ -32,11 +32,22 @@ interface UseAccountsResult {
   refetch: () => void;
 }
 
-export function useAccounts(budgetId: number | null): UseAccountsResult {
+export type AccountStatus = "active" | "archived" | "all";
+
+// Defaults to "active" to preserve existing callers' behavior. Pass "all" for
+// views (e.g. account detail) that must also resolve archived accounts —
+// otherwise an archived account's id never appears in accountMap and any
+// lookup against it silently resolves to undefined.
+export function useAccounts(
+  budgetId: number | null,
+  status: AccountStatus = "active",
+): UseAccountsResult {
   const query = useQuery({
-    queryKey: [...qk.accounts(budgetId ?? -1), "raw"],
+    queryKey: [...qk.accounts(budgetId ?? -1), "raw", status],
     queryFn: () =>
-      apiFetch<ApiAccount[]>(`/api/v1/budgets/${budgetId}/accounts`).then((d) => d ?? []),
+      apiFetch<ApiAccount[]>(`/api/v1/budgets/${budgetId}/accounts?status=${status}`).then(
+        (d) => d ?? [],
+      ),
     enabled: budgetId != null,
   });
 
