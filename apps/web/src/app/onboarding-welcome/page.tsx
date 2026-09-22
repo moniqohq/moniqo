@@ -31,8 +31,13 @@ import { StepCard } from "@/components/onboarding/StepCard";
 import { profileSchema, type ProfileFields } from "@/lib/onboarding/schemas";
 import { updateOnboardingProfile, completeOnboarding } from "@/lib/api/onboarding";
 import { useAuthStore } from "@/stores/auth.store";
+import { CURRENCIES as CURRENCY_CATALOG } from "@/lib/currency";
 
-const CURRENCIES = ["USD", "EUR", "GBP", "INR", "JPY", "AUD", "CAD", "SGD"];
+// JPY is intentionally excluded: internal/money.Amount on the backend
+// hardcodes 2 decimal places, so a zero-decimal currency would silently
+// misrepresent every stored amount. Keep in sync with the backend allowlist
+// in apps/backend/internal/validator/preferences.go.
+const CURRENCIES = CURRENCY_CATALOG.map((c) => c.code);
 
 function supportedTimezones(): string[] {
   try {
