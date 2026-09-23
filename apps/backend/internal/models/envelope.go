@@ -48,6 +48,15 @@ type BudgetSummary struct {
 	OverspentEnvelopes int64        `json:"overspent_envelopes_count"`
 }
 
+// ReallocateResult is the API-facing response for a reallocation between two
+// envelopes, or between an envelope and To Be Budgeted. FromEnvelope and/or
+// ToEnvelope are nil when that side of the move was To Be Budgeted.
+type ReallocateResult struct {
+	FromEnvelope *BudgetEnvelope `json:"from_envelope"`
+	ToEnvelope   *BudgetEnvelope `json:"to_envelope"`
+	Summary      BudgetSummary   `json:"summary"`
+}
+
 // SparklinePoint is one month's income/expense data for sparkline charts.
 type SparklinePoint struct {
 	Month    string       `json:"month"`

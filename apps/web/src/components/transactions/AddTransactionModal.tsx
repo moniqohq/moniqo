@@ -247,7 +247,9 @@ export function AddTransactionModal({
     }
   }
 
-  const availableBefore = Number(selectedEnvelope?.spent_amt ?? 0);
+  const availableBefore = selectedEnvelope
+    ? Number(selectedEnvelope.allocated_amt) - Number(selectedEnvelope.spent_amt)
+    : 0;
   const availableAfter = availableBefore - numericAmount;
   const acctAfterExpense = (selectedAccount?.balance ?? 0) - numericAmount;
   const acctAfterIncome = (selectedAccount?.balance ?? 0) + numericAmount;
@@ -731,7 +733,10 @@ export function AddTransactionModal({
                                     <div className="text-left">
                                       <p className="text-sm text-white">{env.title}</p>
                                       <p className="text-xs text-[#5A6A85]">
-                                        Available: {formatCurrency(Number(env.spent_amt))}
+                                        Available:{" "}
+                                        {formatCurrency(
+                                          Number(env.allocated_amt) - Number(env.spent_amt),
+                                        )}
                                       </p>
                                     </div>
                                   </button>

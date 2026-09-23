@@ -97,6 +97,33 @@ type PatchParams struct {
 
 // CanDecreaseAllocatedAmt reports whether a reduction in allocated_amt is safe.
 // Returns false when the new amount would fall below what has already been spent.
+// spent must be a positive magnitude (see Repository.SumSpent) — outflows are
+// stored as negative transaction amounts, so this is not the raw signed sum.
 func CanDecreaseAllocatedAmt(newAmt, spent money.Amount) bool {
 	return newAmt.Int64() >= spent.Int64()
+}
+
+// ReallocateRequest is the request payload for
+// POST /api/v1/budgets/:budget_id/envelopes/reallocate.
+// A nil FromEnvelopeID means the source is "To Be Budgeted"; a nil
+// ToEnvelopeID means the destination is "To Be Budgeted". Exactly one of the
+// two may be nil, not both.
+type ReallocateRequest struct {
+	FromEnvelopeID *int64       `json:"from_envelope_id"`
+	ToEnvelopeID   *int64       `json:"to_envelope_id"`
+	Amount         money.Amount `json:"amount"`
+}
+
+// Validate checks all field-level constraints on a ReallocateRequest.
+func (r ReallocateRequest) Validate() error {
+	if r.Amount.Int64() <= 0 {
+		return ErrValidation
+	}
+	if r.FromEnvelopeID == nil && r.ToEnvelopeID == nil {
+		return ErrValidation
+	}
+	if r.FromEnvelopeID != nil && r.ToEnvelopeID != nil && *r.FromEnvelopeID == *r.ToEnvelopeID {
+		return ErrValidation
+	}
+	return nil
 }

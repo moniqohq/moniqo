@@ -518,6 +518,8 @@ func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeEdit, log))
 	envelopesGroup.DELETE("/:id/force", envelopeHandler.ForceDeleteEnvelope,
 		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeEdit, log))
+	envelopesGroup.POST("/reallocate", envelopeHandler.ReallocateEnvelopes,
+		budget.RequireBudgetAccessParam(membershipRepo, "budget_id", authz.EnvelopeEdit, log))
 
 	// Budget summary endpoint.
 	e.GET("/api/v1/budgets/:budget_id/summary", envelopeHandler.GetBudgetSummary,

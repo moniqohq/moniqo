@@ -244,10 +244,11 @@ export function EditTransactionModal({
   const realAccountBefore = accountBefore;
   const realAccountAfter = accountBefore + signedAmount;
 
-  const envBefore = selectedEnvelope
-    ? Number(selectedEnvelope?.spent_amt ?? 0) + (isExpense ? numericAmount : 0)
+  const envAvailable = selectedEnvelope
+    ? Number(selectedEnvelope.allocated_amt) - Number(selectedEnvelope.spent_amt)
     : 0;
-  const envAfter = selectedEnvelope ? Number(selectedEnvelope?.spent_amt ?? 0) : 0;
+  const envBefore = selectedEnvelope ? envAvailable + (isExpense ? numericAmount : 0) : 0;
+  const envAfter = envAvailable;
   const isOverspent = isExpense && selectedEnvelope && envAfter < 0;
   const typeMeta = TX_TYPES.find((t) => t.value === txType)!;
 
@@ -622,7 +623,10 @@ export function EditTransactionModal({
                                   <div className="flex-1 text-left">
                                     <p className="text-sm leading-tight text-white">{env.title}</p>
                                     <p className="text-xs text-[#5A6A85]">
-                                      Available: {formatCurrency(Number(env.spent_amt))}
+                                      Available:{" "}
+                                      {formatCurrency(
+                                        Number(env.allocated_amt) - Number(env.spent_amt),
+                                      )}
                                     </p>
                                   </div>
                                 </button>

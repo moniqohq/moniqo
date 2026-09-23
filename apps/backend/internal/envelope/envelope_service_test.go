@@ -139,6 +139,19 @@ func TestSvc_GetByID(t *testing.T) {
 		assert.True(t, e.IsOverspent) // 600 spent > 500 allocated
 	})
 
+	t.Run("is_overspent false when spent equals allocated", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(makeEnvelope("Utilities"), nil)
+		repo.On("SumSpent", testEnvelopeID, testBudgetID).Return(money.FromMinorUnits(50000), nil)
+
+		svc := envelope.NewSvc(repo, log)
+		e, err := svc.GetByID(context.Background(), testEnvelopeID, testBudgetID)
+
+		require.NoError(t, err)
+		assert.False(t, e.IsOverspent) // 500 spent == 500 allocated, not overspent
+	})
+
 	t.Run("not found returns ErrNotFound", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.EnvelopeRepository{}
@@ -262,6 +275,24 @@ func TestSvc_Replace(t *testing.T) {
 
 		assert.ErrorIs(t, err, envelope.ErrValidation)
 	})
+
+	t.Run("regression: cannot zero allocated_amt on an overspent envelope", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(makeEnvelope("Food"), nil)
+		repo.On("ExistsByTitle", testBudgetID, "Food", envelopeIDPtr()).Return(false, nil)
+		// Allocated 50000, spent 60000 (positive magnitude) — the envelope is overspent.
+		repo.On("SumSpent", testEnvelopeID, testBudgetID).Return(money.FromMinorUnits(60000), nil)
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testEnvelopeID, testBudgetID, envelope.ReplaceRequest{
+			Title:        "Food",
+			AllocatedAmt: money.FromMinorUnits(0),
+		})
+
+		assert.ErrorIs(t, err, envelope.ErrValidation)
+		repo.AssertNotCalled(t, "Update", mock.Anything)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -309,6 +340,23 @@ func TestSvc_Patch(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, envelope.ErrValidation)
+	})
+
+	t.Run("regression: cannot zero allocated_amt on an overspent envelope", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		zero := money.FromMinorUnits(0)
+		repo.On("GetByID", testEnvelopeID, testBudgetID).Return(makeEnvelope("Food"), nil)
+		// Allocated 50000, spent 60000 (positive magnitude) — the envelope is overspent.
+		repo.On("SumSpent", testEnvelopeID, testBudgetID).Return(money.FromMinorUnits(60000), nil)
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testEnvelopeID, testBudgetID, envelope.PatchRequest{
+			AllocatedAmt: &zero,
+		})
+
+		assert.ErrorIs(t, err, envelope.ErrValidation)
+		repo.AssertNotCalled(t, "Patch", mock.Anything)
 	})
 }
 
@@ -460,7 +508,7 @@ func TestSvc_GetBudgetSummary(t *testing.T) {
 		s, err := svc.GetBudgetSummary(context.Background(), testBudgetID)
 
 		require.NoError(t, err)
-		assert.Equal(t, money.FromMinorUnits(40000), s.ToBeBudgeted) // 1000 - 600
+		assert.Equal(t, money.FromMinorUnits(70000), s.ToBeBudgeted) // 1000 - 600 + 300
 		assert.Equal(t, money.FromMinorUnits(60000), s.TotalAllocated)
 		assert.Equal(t, money.FromMinorUnits(30000), s.TotalSpent)
 		assert.Equal(t, int64(0), s.OverspentEnvelopes)
@@ -480,7 +528,7 @@ func TestSvc_GetBudgetSummary(t *testing.T) {
 		s, err := svc.GetBudgetSummary(context.Background(), testBudgetID)
 
 		require.NoError(t, err)
-		assert.Equal(t, money.FromMinorUnits(-30000), s.ToBeBudgeted) // 500 - 800
+		assert.Equal(t, money.FromMinorUnits(-10000), s.ToBeBudgeted) // 500 - 800 + 200
 		assert.Equal(t, int64(2), s.OverspentEnvelopes)
 	})
 
@@ -499,6 +547,166 @@ func TestSvc_GetBudgetSummary(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, money.FromMinorUnits(70000), s.ToBeBudgeted)
+	})
+
+	t.Run("categorized spend is TBB-neutral", func(t *testing.T) {
+		t.Parallel()
+
+		// Before: inflow 200000, nothing allocated or spent yet.
+		before := &internalmock.EnvelopeRepository{}
+		before.On("SumOnBudgetBalances", testBudgetID).Return(money.FromMinorUnits(200000), nil)
+		before.On("GetBudgetSummaryRow", testBudgetID).Return(db.GetBudgetEnvelopeSummaryRow{
+			TotalAllocated: 100000,
+			TotalSpent:     0,
+			OverspentCount: 0,
+		}, nil)
+		svcBefore := envelope.NewSvc(before, log)
+		sBefore, err := svcBefore.GetBudgetSummary(context.Background(), testBudgetID)
+		require.NoError(t, err)
+
+		// After: a 50000 categorized spend lowers cash and spent together.
+		after := &internalmock.EnvelopeRepository{}
+		after.On("SumOnBudgetBalances", testBudgetID).Return(money.FromMinorUnits(150000), nil)
+		after.On("GetBudgetSummaryRow", testBudgetID).Return(db.GetBudgetEnvelopeSummaryRow{
+			TotalAllocated: 100000,
+			TotalSpent:     50000,
+			OverspentCount: 0,
+		}, nil)
+		svcAfter := envelope.NewSvc(after, log)
+		sAfter, err := svcAfter.GetBudgetSummary(context.Background(), testBudgetID)
+		require.NoError(t, err)
+
+		assert.Equal(t, money.FromMinorUnits(100000), sBefore.ToBeBudgeted)
+		assert.Equal(t, money.FromMinorUnits(100000), sAfter.ToBeBudgeted)
+		assert.Equal(t, sBefore.ToBeBudgeted, sAfter.ToBeBudgeted)
+	})
+
+	t.Run("overspent envelope does not leak into TBB", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		repo.On("SumOnBudgetBalances", testBudgetID).Return(money.FromMinorUnits(5000), nil)
+		repo.On("GetBudgetSummaryRow", testBudgetID).Return(db.GetBudgetEnvelopeSummaryRow{
+			TotalAllocated: 10000,
+			TotalSpent:     15000,
+			OverspentCount: 1,
+		}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		s, err := svc.GetBudgetSummary(context.Background(), testBudgetID)
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(10000), s.ToBeBudgeted) // 5000 - 10000 + 15000
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestSvc_Reallocate
+// ---------------------------------------------------------------------------
+
+func TestSvc_Reallocate(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	fromID := int64(1)
+	toID := int64(2)
+
+	t.Run("envelope to envelope happy path", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		req := envelope.ReallocateRequest{
+			FromEnvelopeID: &fromID,
+			ToEnvelopeID:   &toID,
+			Amount:         money.FromMinorUnits(25000),
+		}
+		fromEnv := makeEnvelope("Groceries")
+		toEnv := makeEnvelope("Dining")
+		repo.On("Reallocate", testBudgetID, req).Return(&fromEnv, &toEnv, nil)
+		repo.On("SumOnBudgetBalances", testBudgetID).Return(money.FromMinorUnits(100000), nil)
+		repo.On("GetBudgetSummaryRow", testBudgetID).Return(db.GetBudgetEnvelopeSummaryRow{
+			TotalAllocated: 60000,
+			TotalSpent:     0,
+			OverspentCount: 0,
+		}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		result, err := svc.Reallocate(context.Background(), testBudgetID, req, models.RoleEditor)
+
+		require.NoError(t, err)
+		require.NotNil(t, result.FromEnvelope)
+		require.NotNil(t, result.ToEnvelope)
+		assert.Equal(t, "Groceries", result.FromEnvelope.Title)
+		assert.Equal(t, "Dining", result.ToEnvelope.Title)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("from To Be Budgeted", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		req := envelope.ReallocateRequest{
+			ToEnvelopeID: &toID,
+			Amount:       money.FromMinorUnits(10000),
+		}
+		toEnv := makeEnvelope("Dining")
+		repo.On("Reallocate", testBudgetID, req).Return((*models.BudgetEnvelope)(nil), &toEnv, nil)
+		repo.On("SumOnBudgetBalances", testBudgetID).Return(money.FromMinorUnits(100000), nil)
+		repo.On("GetBudgetSummaryRow", testBudgetID).Return(db.GetBudgetEnvelopeSummaryRow{}, nil)
+
+		svc := envelope.NewSvc(repo, log)
+		result, err := svc.Reallocate(context.Background(), testBudgetID, req, models.RoleOwner)
+
+		require.NoError(t, err)
+		assert.Nil(t, result.FromEnvelope)
+		require.NotNil(t, result.ToEnvelope)
+	})
+
+	t.Run("viewer role returns ErrForbidden", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		req := envelope.ReallocateRequest{
+			FromEnvelopeID: &fromID,
+			ToEnvelopeID:   &toID,
+			Amount:         money.FromMinorUnits(1000),
+		}
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.Reallocate(context.Background(), testBudgetID, req, models.RoleViewer)
+
+		assert.ErrorIs(t, err, envelope.ErrForbidden)
+		repo.AssertNotCalled(t, "Reallocate", mock.Anything, mock.Anything)
+	})
+
+	t.Run("insufficient available balance returns ErrValidation", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		req := envelope.ReallocateRequest{
+			FromEnvelopeID: &fromID,
+			ToEnvelopeID:   &toID,
+			Amount:         money.FromMinorUnits(999999),
+		}
+		repo.On("Reallocate", testBudgetID, req).
+			Return((*models.BudgetEnvelope)(nil), (*models.BudgetEnvelope)(nil), envelope.ErrValidation)
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.Reallocate(context.Background(), testBudgetID, req, models.RoleEditor)
+
+		assert.ErrorIs(t, err, envelope.ErrValidation)
+	})
+
+	t.Run("unknown envelope returns ErrNotFound", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.EnvelopeRepository{}
+		req := envelope.ReallocateRequest{
+			FromEnvelopeID: &fromID,
+			ToEnvelopeID:   &toID,
+			Amount:         money.FromMinorUnits(1000),
+		}
+		repo.On("Reallocate", testBudgetID, req).
+			Return((*models.BudgetEnvelope)(nil), (*models.BudgetEnvelope)(nil), envelope.ErrNotFound)
+
+		svc := envelope.NewSvc(repo, log)
+		_, err := svc.Reallocate(context.Background(), testBudgetID, req, models.RoleEditor)
+
+		assert.ErrorIs(t, err, envelope.ErrNotFound)
 	})
 }
 
