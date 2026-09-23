@@ -30,6 +30,7 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 )
 
 // toProgressResponse converts the internal model into the snake_case JSON DTO.
@@ -96,11 +97,11 @@ func (h *Handler) UpdateProfile(c echo.Context) error {
 	}
 
 	var errs []httpx.FieldError
-	if req.Currency == "" {
-		errs = append(errs, httpx.FieldError{Field: fieldCurrency, Error: errRequired})
+	if fe := validator.ValidateRequiredCurrency(fieldCurrency, req.Currency); fe != nil {
+		errs = append(errs, *fe)
 	}
-	if req.Timezone == "" {
-		errs = append(errs, httpx.FieldError{Field: fieldTimezone, Error: errRequired})
+	if fe := validator.ValidateRequiredTimezone(fieldTimezone, req.Timezone); fe != nil {
+		errs = append(errs, *fe)
 	}
 	if len(errs) > 0 {
 		return httpx.ValidationError(c, errs)

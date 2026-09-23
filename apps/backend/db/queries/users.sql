@@ -1,10 +1,10 @@
 -- name: CreateUser :one
 INSERT INTO users (username, email, hash, name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
 
 -- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
+SELECT id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
 FROM users
 WHERE id = $1 AND deleted_at IS NULL;
 
@@ -15,9 +15,10 @@ WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateUserProfile :one
 UPDATE users
-SET name = $2, username = $3, email = $4, picture = $5, updated_at = now()
+SET name = $2, username = $3, email = $4, picture = $5,
+    currency = $6, timezone = $7, date_format = $8, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
 
 -- name: UpdateUserOnboardingProfile :one
 UPDATE users
@@ -26,7 +27,7 @@ SET name = COALESCE(sqlc.narg(name), name),
     timezone = $3,
     updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
 
 -- name: MarkUserOnboardingComplete :exec
 UPDATE users
@@ -64,4 +65,4 @@ WHERE id = $1 AND deleted_at IS NULL;
 -- by the identity provider so the account is created active, not pending.
 INSERT INTO users (username, email, hash, name, picture, status)
 VALUES ($1, $2, NULL, $3, $4, 'active')
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at;

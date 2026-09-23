@@ -23,12 +23,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   User,
-  Settings2,
   Bell,
   Shield,
   Database,
   Users,
   Link2,
+  Wallet,
+  Wallet2,
   ChevronRight,
   Search,
   Camera,
@@ -41,7 +42,9 @@ import {
 } from "lucide-react";
 import { isFeatureEnabled } from "@/features/feature-flags";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { PreferencesView } from "./PreferencesView";
+import { CurrencySettingsView } from "./CurrencySettingsView";
+import { DateSettingsView } from "./DateSettingsView";
+import { BudgetSettingsView } from "./BudgetSettingsView";
 import { NotificationsView } from "./NotificationsView";
 import { SecurityView } from "./SecurityView";
 import { DataPrivacyView } from "./DataPrivacyView";
@@ -53,8 +56,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
-import { apiFetch, ApiError } from "@/lib/api";
-import type { ApiUser } from "@/lib/api-types";
+import { patchUser } from "@/lib/api/users";
+import { ApiError } from "@/lib/api-client";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -88,13 +91,20 @@ const NAV_GROUPS: NavGroup[] = [
         iconBg: "rgba(108,58,237,0.15)",
       },
       {
-        id: "preferences",
-        label: "Preferences",
-        description: "Language, currency, and display",
-        icon: Settings2,
+        id: "currency",
+        label: "Currency & Money",
+        description: "Display currency for amounts",
+        icon: Wallet,
+        iconColor: "#34D399",
+        iconBg: "rgba(34,197,94,0.12)",
+      },
+      {
+        id: "date",
+        label: "Date & Time",
+        description: "Date format and timezone",
+        icon: CalendarDays,
         iconColor: "#60A5FA",
         iconBg: "rgba(59,130,246,0.12)",
-        flag: "settingsPreferences" as const,
       },
       {
         id: "notifications",
@@ -104,6 +114,28 @@ const NAV_GROUPS: NavGroup[] = [
         iconColor: "#FBBF24",
         iconBg: "rgba(245,158,11,0.12)",
         flag: "settingsNotifications" as const,
+      },
+    ],
+  },
+  {
+    label: "BUDGET",
+    items: [
+      {
+        id: "budget",
+        label: "Budget Settings",
+        description: "Rename, switch, or delete this budget",
+        icon: Wallet2,
+        iconColor: "#34D399",
+        iconBg: "rgba(34,197,94,0.12)",
+      },
+      {
+        id: "members",
+        label: "Members & Permissions",
+        description: "Shared budget access and roles",
+        icon: Users,
+        iconColor: "#FB923C",
+        iconBg: "rgba(249,115,22,0.12)",
+        flag: "settingsMembersPermissions" as const,
       },
     ],
   },
@@ -135,20 +167,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Link2,
         iconColor: "#60A5FA",
         iconBg: "rgba(59,130,246,0.12)",
-      },
-    ],
-  },
-  {
-    label: "COLLABORATION",
-    items: [
-      {
-        id: "members",
-        label: "Members & Permissions",
-        description: "Shared budget access and roles",
-        icon: Users,
-        iconColor: "#FB923C",
-        iconBg: "rgba(249,115,22,0.12)",
-        flag: "settingsMembersPermissions" as const,
       },
     ],
   },
@@ -333,12 +351,9 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
     setSaveError(null);
     setSaving(true);
     try {
-      const updated = await apiFetch<ApiUser>(`/api/v1/users/${storeUser.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: draftForm.fullName || null,
-          email: draftForm.email,
-        }),
+      const updated = await patchUser(storeUser.id, {
+        name: draftForm.fullName || null,
+        email: draftForm.email,
       });
       setUser(updated);
       setIsEditing(false);
@@ -457,9 +472,11 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                         ? "You're in control. Add members and manage their access at any time."
                         : "We use military-grade encryption and never share your financial data."}
                     </p>
-                    <button className="mt-2 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
-                      Learn more
-                    </button>
+                    {activeNav === "members" && (
+                      <button className="mt-2 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
+                        Learn more
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -469,7 +486,9 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
 
         {/* ── MAIN CONTENT ────────────────────────────────── */}
         <div className="flex min-w-0 flex-1 flex-col gap-5">
-          {activeNav === "preferences" && <PreferencesView />}
+          {activeNav === "currency" && <CurrencySettingsView />}
+          {activeNav === "date" && <DateSettingsView />}
+          {activeNav === "budget" && <BudgetSettingsView />}
           {activeNav === "notifications" && <NotificationsView />}
           {activeNav === "security" && <SecurityView />}
           {activeNav === "privacy" && <DataPrivacyView />}
@@ -477,7 +496,9 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
           {activeNav === "connections" && <ConnectedAccountsView />}
 
           {/* ── Combined Profile + Security card ─────────── */}
-          {activeNav !== "preferences" &&
+          {activeNav !== "currency" &&
+            activeNav !== "date" &&
+            activeNav !== "budget" &&
             activeNav !== "notifications" &&
             activeNav !== "security" &&
             activeNav !== "privacy" &&

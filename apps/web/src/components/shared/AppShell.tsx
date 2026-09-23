@@ -26,6 +26,7 @@ import { Topbar } from "./Topbar";
 import { CommandPalette } from "@/components/search/CommandPalette";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
+import { usePreferencesStore } from "@/stores/preferences.store";
 import { apiFetch, authFetch } from "@/lib/api-client";
 import type { ApiAuthTokens, ApiUser } from "@/lib/api-types";
 import { listBudgets } from "@/lib/api/budget";
@@ -47,6 +48,18 @@ export function AppShell({ children }: AppShellProps) {
   const setUser = useAuthStore((s) => s.setUser);
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const setSearchOpen = useUIStore((s) => s.setSearchOpen);
+  const setPreferences = usePreferencesStore((s) => s.setPreferences);
+
+  // Keep the preferences store (currency/date format/timezone) in sync with
+  // whatever the auth store currently holds for the user.
+  useEffect(() => {
+    if (!user) return;
+    setPreferences({
+      currency: user.currency,
+      dateFormat: user.date_format,
+      timezone: user.timezone,
+    });
+  }, [user, setPreferences]);
 
   // Global ⌘K / Ctrl+K opens the command palette.
   useEffect(() => {

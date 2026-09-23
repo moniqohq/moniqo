@@ -45,7 +45,7 @@ func (q *Queries) ActivateUser(ctx context.Context, id int64) error {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, hash, name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
 `
 
 type CreateUserParams struct {
@@ -64,6 +64,7 @@ type CreateUserRow struct {
 	Status                UserStatus
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
@@ -88,6 +89,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Status,
 		&i.Currency,
 		&i.Timezone,
+		&i.DateFormat,
 		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
@@ -100,7 +102,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 const createUserWithoutPassword = `-- name: CreateUserWithoutPassword :one
 INSERT INTO users (username, email, hash, name, picture, status)
 VALUES ($1, $2, NULL, $3, $4, 'active')
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
 `
 
 type CreateUserWithoutPasswordParams struct {
@@ -119,6 +121,7 @@ type CreateUserWithoutPasswordRow struct {
 	Status                UserStatus
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
@@ -145,6 +148,7 @@ func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserW
 		&i.Status,
 		&i.Currency,
 		&i.Timezone,
+		&i.DateFormat,
 		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
@@ -155,7 +159,7 @@ func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserW
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
+SELECT id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -169,6 +173,7 @@ type GetUserByIDRow struct {
 	Status                UserStatus
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
@@ -189,6 +194,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, er
 		&i.Status,
 		&i.Currency,
 		&i.Timezone,
+		&i.DateFormat,
 		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
@@ -283,7 +289,7 @@ SET name = COALESCE($4, name),
     timezone = $3,
     updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
 `
 
 type UpdateUserOnboardingProfileParams struct {
@@ -302,6 +308,7 @@ type UpdateUserOnboardingProfileRow struct {
 	Status                UserStatus
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
@@ -326,6 +333,7 @@ func (q *Queries) UpdateUserOnboardingProfile(ctx context.Context, arg UpdateUse
 		&i.Status,
 		&i.Currency,
 		&i.Timezone,
+		&i.DateFormat,
 		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,
@@ -353,17 +361,21 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
-SET name = $2, username = $3, email = $4, picture = $5, updated_at = now()
+SET name = $2, username = $3, email = $4, picture = $5,
+    currency = $6, timezone = $7, date_format = $8, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
 `
 
 type UpdateUserProfileParams struct {
-	ID       int64
-	Name     *string
-	Username string
-	Email    string
-	Picture  string
+	ID         int64
+	Name       *string
+	Username   string
+	Email      string
+	Picture    string
+	Currency   *string
+	Timezone   *string
+	DateFormat *string
 }
 
 type UpdateUserProfileRow struct {
@@ -375,6 +387,7 @@ type UpdateUserProfileRow struct {
 	Status                UserStatus
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
@@ -389,6 +402,9 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		arg.Username,
 		arg.Email,
 		arg.Picture,
+		arg.Currency,
+		arg.Timezone,
+		arg.DateFormat,
 	)
 	var i UpdateUserProfileRow
 	err := row.Scan(
@@ -400,6 +416,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Status,
 		&i.Currency,
 		&i.Timezone,
+		&i.DateFormat,
 		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,

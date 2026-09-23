@@ -121,7 +121,7 @@ func validateName(name *string) *httpx.FieldError {
 		return nil
 	}
 	if *name == "" {
-		return &httpx.FieldError{Field: "name", Error: "must not be empty if provided"}
+		return &httpx.FieldError{Field: "name", Error: errNotEmptyIfProvided}
 	}
 	if utf8.RuneCountInString(*name) > maxNameLen {
 		return &httpx.FieldError{Field: "name", Error: "must not exceed 100 characters"}
@@ -166,10 +166,13 @@ func ValidateRegister(in RegisterInput) []httpx.FieldError {
 
 // ReplaceProfileInput holds the fields for PUT /api/v1/users/{id}.
 type ReplaceProfileInput struct {
-	Name     *string
-	Username string
-	Email    string
-	Picture  string // free-form; no format constraint
+	Name       *string
+	Username   string
+	Email      string
+	Picture    string // free-form; no format constraint
+	Currency   *string
+	Timezone   *string
+	DateFormat *string
 }
 
 // ValidateReplaceProfile aggregates all field-level failures in a single pass.
@@ -188,6 +191,18 @@ func ValidateReplaceProfile(in ReplaceProfileInput) []httpx.FieldError {
 		errs = append(errs, *fe)
 	}
 
+	if fe := validateOptionalCurrency("currency", in.Currency); fe != nil {
+		errs = append(errs, *fe)
+	}
+
+	if fe := validateOptionalTimezone("timezone", in.Timezone); fe != nil {
+		errs = append(errs, *fe)
+	}
+
+	if fe := validateOptionalDateFormat("date_format", in.DateFormat); fe != nil {
+		errs = append(errs, *fe)
+	}
+
 	return errs
 }
 
@@ -198,6 +213,9 @@ type PatchProfileInput struct {
 	Username        *string
 	Email           *string
 	Picture         *string
+	Currency        *string
+	Timezone        *string
+	DateFormat      *string
 	CurrentPassword *string
 	NewPassword     *string
 }
@@ -215,6 +233,24 @@ func validatePatchProfileFields(in PatchProfileInput) []httpx.FieldError {
 		}
 	}
 	if fe := validateName(in.Name); fe != nil {
+		errs = append(errs, *fe)
+	}
+	return append(errs, validatePatchPreferenceFields(in)...)
+}
+
+// validatePatchPreferenceFields validates the display-preference fields
+// (currency, timezone, date format) of a PATCH /api/v1/users/{id} request.
+// Split out from validatePatchProfileFields to keep each function's
+// cognitive complexity within the linter's limit.
+func validatePatchPreferenceFields(in PatchProfileInput) []httpx.FieldError {
+	var errs []httpx.FieldError
+	if fe := validateOptionalCurrency("currency", in.Currency); fe != nil {
+		errs = append(errs, *fe)
+	}
+	if fe := validateOptionalTimezone("timezone", in.Timezone); fe != nil {
+		errs = append(errs, *fe)
+	}
+	if fe := validateOptionalDateFormat("date_format", in.DateFormat); fe != nil {
 		errs = append(errs, *fe)
 	}
 	return errs
@@ -239,7 +275,8 @@ func validatePatchPasswordFields(in PatchProfileInput) []httpx.FieldError {
 // ValidatePatchProfile returns an error list. It rejects an empty body (all nil)
 // and validates only the fields that are present.
 func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
-	profileFields := in.Name != nil || in.Username != nil || in.Email != nil || in.Picture != nil
+	profileFields := in.Name != nil || in.Username != nil || in.Email != nil || in.Picture != nil ||
+		in.Currency != nil || in.Timezone != nil || in.DateFormat != nil
 	passwordFields := in.CurrentPassword != nil || in.NewPassword != nil
 	if !profileFields && !passwordFields {
 		return []httpx.FieldError{{Field: "body", Error: errEmptyBody}}

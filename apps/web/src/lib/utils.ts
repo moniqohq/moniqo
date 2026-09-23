@@ -19,37 +19,42 @@
  */
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { getCurrency } from "@/lib/currency";
+import { formatWithToken, toUTCDateOnly } from "@/lib/date-format";
+import { usePreferencesStore } from "@/stores/preferences.store";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, _currency = "INR", locale = "en-IN"): string {
+/**
+ * Formats a monetary amount using the user's preferred display currency.
+ * Reads the preferences store at call time rather than subscribing to it —
+ * components that need to re-render live when the preference changes should
+ * use the `useFormatters()` hook instead (see @/hooks/use-formatters).
+ */
+export function formatCurrency(amount: number): string {
+  const { symbol, locale } = getCurrency(usePreferencesStore.getState().currency);
   const num = new Intl.NumberFormat(locale, {
     style: "decimal",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(Math.abs(amount));
-  return amount < 0 ? `₹ -${num}` : `₹ ${num}`;
-}
-
-// Transaction dates are UTC-pinned calendar dates (e.g. "2026-03-01T00:00:00Z"), not
-// timezone-aware instants. Format in UTC so the calendar date shown always matches the
-// calendar date stored, regardless of the viewer's local timezone.
-export function formatTableDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return amount < 0 ? `${symbol} -${num}` : `${symbol} ${num}`;
 }
 
 export function formatCurrencyCompact(amount: number): string {
-  const abs = Math.abs(amount);
-  const formatted = abs.toLocaleString("en-IN");
-  return amount < 0 ? `₹ -${formatted}` : `₹ ${formatted}`;
+  const { symbol, locale } = getCurrency(usePreferencesStore.getState().currency);
+  const formatted = Math.abs(amount).toLocaleString(locale);
+  return amount < 0 ? `${symbol} -${formatted}` : `${symbol} ${formatted}`;
+}
+
+// Transaction dates are UTC-pinned calendar dates (e.g. "2026-03-01T00:00:00Z"), not
+// timezone-aware instants. Normalize to UTC so the calendar date shown always matches the
+// calendar date stored, regardless of the viewer's local timezone.
+export function formatTableDate(dateStr: string): string {
+  const token = usePreferencesStore.getState().dateFormat;
+  return formatWithToken(token, toUTCDateOnly(new Date(dateStr)));
 }
 
 export function formatDate(
@@ -57,12 +62,13 @@ export function formatDate(
   format: "short" | "medium" | "long" = "medium",
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
+  const { locale } = getCurrency(usePreferencesStore.getState().currency);
   const opts: Record<string, Intl.DateTimeFormatOptions> = {
     short: { month: "short", day: "numeric" },
     medium: { month: "short", day: "numeric", year: "numeric" },
     long: { month: "long", day: "numeric", year: "numeric" },
   };
-  return d.toLocaleDateString("en-IN", opts[format]);
+  return d.toLocaleDateString(locale, opts[format]);
 }
 
 export function formatRelativeDate(date: Date | string): string {
