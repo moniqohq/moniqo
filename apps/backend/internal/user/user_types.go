@@ -20,7 +20,12 @@
 
 package user
 
-import "errors"
+import (
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // -----------------------------------------------------------------------------
 // Handler layer
@@ -56,6 +61,23 @@ type PatchProfileRequest struct {
 	NewPassword     *string `json:"new_password"`
 }
 
+// DeleteAccountRequest is the HTTP request body for DELETE /api/v1/users/{id}.
+// CurrentPassword re-authenticates the destructive request.
+type DeleteAccountRequest struct {
+	CurrentPassword *string `json:"current_password"`
+}
+
+// DeleteAccountParams carries everything the service and repository need to
+// perform the deletion: the id to delete, the re-auth password to verify, and
+// the caller's live access-token claims so that token can be blocklisted as
+// part of the same transaction.
+type DeleteAccountParams struct {
+	UserID          int64
+	CurrentPassword string
+	JTI             uuid.UUID
+	ExpiresAt       time.Time
+}
+
 // -----------------------------------------------------------------------------
 // Repository layer
 // -----------------------------------------------------------------------------
@@ -71,6 +93,40 @@ var ErrWrongPassword = errors.New("wrong password")
 
 // ErrInvalidVerificationToken is returned when the token is malformed, expired, or has a bad signature.
 var ErrInvalidVerificationToken = errors.New("invalid verification token")
+
+// ErrNoPasswordCredential is returned when account deletion is requested for
+// an OIDC-only account that has never set a password (users.hash IS NULL), so
+// there is nothing to verify the re-authentication password against.
+var ErrNoPasswordCredential = errors.New("account has no password credential")
+
+// ErrLastOwner is returned when the user is the sole OWNER of a budget that
+// still has other active members — deleting the account would otherwise
+// leave that budget ownerless or force an implicit cascade over data that
+// belongs to other users. The caller must transfer ownership or remove the
+// other members first.
+var ErrLastOwner = errors.New("cannot delete account: sole owner of a shared budget")
+
+// BlockingBudget identifies a budget that blocks account deletion because the
+// user is its sole OWNER and other active members still belong to it.
+type BlockingBudget struct {
+	ID    int64
+	Title string
+}
+
+// LastOwnerError wraps ErrLastOwner with the specific budgets that block
+// deletion, so the handler can name them in the response message.
+type LastOwnerError struct {
+	Budgets []BlockingBudget
+}
+
+func (*LastOwnerError) Error() string {
+	return ErrLastOwner.Error()
+}
+
+// Is reports true for ErrLastOwner so callers can use errors.Is(err, ErrLastOwner).
+func (*LastOwnerError) Is(target error) bool {
+	return target == ErrLastOwner //nolint:err113
+}
 
 // CreateParams holds the values needed to insert a new user row.
 type CreateParams struct {

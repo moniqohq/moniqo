@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SectionCard } from "@/components/shared/SectionCard";
+import { DeleteAccountDialog } from "@/components/settings/DeleteAccountDialog";
 
 // ── Toggle (matches SecurityView) ─────────────────────────────────
 
@@ -211,34 +212,40 @@ function PrivacyModeCard() {
 // ── Delete Data Card ───────────────────────────────────────────────
 
 function DeleteDataCard() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="overflow-hidden rounded-xl border border-[rgba(239,68,68,0.15)] bg-[#0F1623] transition-colors hover:border-[rgba(239,68,68,0.3)]">
-      <div className="flex items-center gap-4 px-5 py-4">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-          style={{ background: "rgba(239,68,68,0.12)" }}
-        >
-          <Trash2 size={16} className="text-[#F87171]" />
+    <>
+      <div className="overflow-hidden rounded-xl border border-[rgba(239,68,68,0.15)] bg-[#0F1623] transition-colors hover:border-[rgba(239,68,68,0.3)]">
+        <div className="flex items-center gap-4 px-5 py-4">
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: "rgba(239,68,68,0.12)" }}
+          >
+            <Trash2 size={16} className="text-[#F87171]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[14px] leading-tight font-semibold text-white">Delete account</h3>
+            <p className="mt-0.5 text-[12px] text-[#5A6A85]">
+              Permanently delete your account and the data you own. This action cannot be undone.
+            </p>
+          </div>
+          <button
+            onClick={() => setOpen(true)}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-[#F87171]",
+              "rounded-lg border border-[rgba(248,113,113,0.3)] px-3 py-1.5",
+              "hover:border-[rgba(248,113,113,0.6)] hover:bg-[rgba(248,113,113,0.08)]",
+              "transition-all hover:shadow-[0_0_10px_rgba(239,68,68,0.2)]",
+            )}
+          >
+            <Trash2 size={12} />
+            Delete Account
+          </button>
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] leading-tight font-semibold text-white">Delete my data</h3>
-          <p className="mt-0.5 text-[12px] text-[#5A6A85]">
-            Permanently delete all your data. This action cannot be undone.
-          </p>
-        </div>
-        <button
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-[#F87171]",
-            "rounded-lg border border-[rgba(248,113,113,0.3)] px-3 py-1.5",
-            "hover:border-[rgba(248,113,113,0.6)] hover:bg-[rgba(248,113,113,0.08)]",
-            "transition-all hover:shadow-[0_0_10px_rgba(239,68,68,0.2)]",
-          )}
-        >
-          <Trash2 size={12} />
-          Delete Data
-        </button>
       </div>
-    </div>
+      <DeleteAccountDialog open={open} onClose={() => setOpen(false)} />
+    </>
   );
 }
 
