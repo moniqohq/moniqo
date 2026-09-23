@@ -35,7 +35,7 @@ type UserService struct {
 	GetByIDFn        func(ctx context.Context, id int64) (models.User, error)
 	ReplaceProfileFn func(ctx context.Context, id int64, req user.ReplaceProfileRequest) (models.User, error)
 	PatchProfileFn   func(ctx context.Context, id int64, req user.PatchProfileRequest) (models.User, error)
-	DeleteFn         func(ctx context.Context, id int64) error
+	DeleteFn         func(ctx context.Context, p user.DeleteAccountParams) error
 }
 
 // Register delegates to RegisterFn.
@@ -59,8 +59,8 @@ func (m *UserService) PatchProfile(ctx context.Context, id int64, req user.Patch
 }
 
 // Delete delegates to DeleteFn.
-func (m *UserService) Delete(ctx context.Context, id int64) error {
-	return m.DeleteFn(ctx, id)
+func (m *UserService) Delete(ctx context.Context, p user.DeleteAccountParams) error {
+	return m.DeleteFn(ctx, p)
 }
 
 // VerifyEmail records the call and returns the configured stub error.
@@ -109,9 +109,9 @@ func (m *UserRepository) UpdatePassword(_ context.Context, id int64, hash string
 	return args.Error(0)
 }
 
-// SoftDelete records the call and returns the configured stub error.
-func (m *UserRepository) SoftDelete(_ context.Context, id int64) error {
-	args := m.Called(id)
+// DeleteAccount records the call and returns the configured stub error.
+func (m *UserRepository) DeleteAccount(_ context.Context, p user.DeleteAccountParams) error {
+	args := m.Called(p)
 	return args.Error(0)
 }
 
