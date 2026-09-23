@@ -66,6 +66,31 @@ func fixedMembership(role models.Role) models.BudgetUser {
 	return models.BudgetUser{ID: 1, BudgetID: testBudgetID, UserID: 99, Role: role}
 }
 
+// fieldErrors extracts the []httpx.FieldError payload from a validation-error
+// response's data.fields, so tests can assert which field failed and why.
+func fieldErrors(tb testing.TB, resp httpx.Response) []httpx.FieldError {
+	tb.Helper()
+	raw, err := json.Marshal(resp.Data)
+	require.NoError(tb, err)
+	var wrapper struct {
+		Fields []httpx.FieldError `json:"fields"`
+	}
+	require.NoError(tb, json.Unmarshal(raw, &wrapper))
+	return wrapper.Fields
+}
+
+// findFieldError returns the FieldError for field, failing the test if absent.
+func findFieldError(tb testing.TB, errs []httpx.FieldError, field string) httpx.FieldError {
+	tb.Helper()
+	for _, e := range errs {
+		if e.Field == field {
+			return e
+		}
+	}
+	tb.Fatalf("no field error for %q in %+v", field, errs)
+	return httpx.FieldError{}
+}
+
 // ---------------------------------------------------------------------------
 // TestHandler_ListTransactions
 // ---------------------------------------------------------------------------
@@ -126,6 +151,10 @@ func TestHandler_ListTransactions(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "budget_id")
+		assert.Contains(t, fe.Error, "positive integer")
+		assert.Contains(t, fe.Error, `"abc"`)
 	})
 }
 
@@ -222,6 +251,9 @@ func TestHandler_CreateTransaction(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "amount")
+		assert.Contains(t, fe.Error, "non-zero")
 	})
 
 	t.Run("missing envelope for non-transfer returns 400", func(t *testing.T) {
@@ -234,6 +266,9 @@ func TestHandler_CreateTransaction(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "budget_envelope_id")
+		assert.Contains(t, fe.Error, "required for non-transfer transactions")
 	})
 
 	t.Run("transfer with envelope returns 400", func(t *testing.T) {
@@ -246,6 +281,206 @@ func TestHandler_CreateTransaction(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "budget_envelope_id")
+		assert.Contains(t, fe.Error, "must be omitted when transfer_account_id is set")
+	})
+
+	t.Run("self-transfer returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"transfer_account_id":5,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "transfer_account_id")
+		assert.Contains(t, fe.Error, "must differ from account_id")
+	})
+
+	t.Run("invalid budget_id param names the field and received value", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/", `{}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("not-a-number")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "budget_id")
+		assert.Contains(t, fe.Error, `"not-a-number"`)
+	})
+
+	t.Run("amount sent as a string names the field and received value", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":"1500","date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "amount")
+		assert.Contains(t, fe.Error, "JSON number")
+		assert.Contains(t, fe.Error, `"1500"`)
+	})
+
+	t.Run("malformed date names the field and received value", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-100.00,"date":"01-03-2026"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "date")
+		assert.Contains(t, fe.Error, "RFC 3339")
+		assert.Contains(t, fe.Error, `"01-03-2026"`)
+	})
+
+	t.Run("account_id sent as a string names the field", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":"5","budget_envelope_id":3,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "account_id")
+		assert.Contains(t, fe.Error, "JSON integer")
+		assert.Contains(t, fe.Error, `"5"`)
+	})
+
+	t.Run("status sent as a number names the field", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-100.00,"date":"2026-03-01T00:00:00Z","status":1}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "status")
+		assert.Contains(t, fe.Error, "uncleared, cleared, reconciled")
+	})
+
+	t.Run("multiple bad fields are all reported together", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":"5","amount":"1500","date":"01-03-2026"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		errs := fieldErrors(t, parseResp(t, rec.Body.String()))
+		findFieldError(t, errs, "account_id")
+		findFieldError(t, errs, "amount")
+		findFieldError(t, errs, "date")
+	})
+
+	t.Run("malformed JSON syntax returns a body-level error", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPost, "/", `{"account_id":5,`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "body")
+		assert.Contains(t, fe.Error, "malformed JSON")
+	})
+
+	t.Run("service field violation surfaces the specific field and reason", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.NewFieldViolation(
+					"account_id", "account does not belong to this budget", transaction.ErrValidation)
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "account_id")
+		assert.Equal(t, "account does not belong to this budget", fe.Error)
+	})
+
+	t.Run("service field conflict returns 409 with the specific reason", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateTransferFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.NewFieldViolation(
+					"transfer_account_id", "must differ from account_id; a transfer requires two distinct accounts",
+					transaction.ErrConflict)
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"transfer_account_id":6,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusConflict, rec.Code)
+
+		resp := parseResp(t, rec.Body.String())
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Msg, "must differ from account_id")
+	})
+
+	t.Run("bare ErrValidation from service still returns 400 (regression)", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.ErrValidation
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("bare ErrConflict from service still returns 409 (regression)", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.ErrConflict
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-100.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusConflict, rec.Code)
 	})
 }
 
@@ -290,6 +525,56 @@ func TestHandler_ReplaceTransaction(t *testing.T) {
 		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
+
+	t.Run("invalid id param names the field and received value", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPut, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-2000.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "xyz")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "id")
+		assert.Contains(t, fe.Error, `"xyz"`)
+	})
+
+	t.Run("amount sent as a string names the field", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPut, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":"2000","date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "amount")
+		assert.Contains(t, fe.Error, `"2000"`)
+	})
+
+	t.Run("service field violation surfaces the specific field and reason", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			ReplaceFn: func(_ context.Context, _, _ int64, _ transaction.ReplaceRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.NewFieldViolation(
+					"account_id", "account does not belong to this budget", transaction.ErrValidation)
+			},
+		}
+		c, rec := newCtx(e, http.MethodPut, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-2000.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "account_id")
+		assert.Equal(t, "account does not belong to this budget", fe.Error)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -325,6 +610,9 @@ func TestHandler_PatchTransaction(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "body")
+		assert.Contains(t, fe.Error, "at least one updatable field")
 	})
 
 	t.Run("spent_amt in body returns 400", func(t *testing.T) {
@@ -336,6 +624,56 @@ func TestHandler_PatchTransaction(t *testing.T) {
 
 		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "spent_amt")
+		assert.Contains(t, fe.Error, "read-only")
+	})
+
+	t.Run("amount sent as a string names the field", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPatch, "/", `{"amount":"2500"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "amount")
+		assert.Contains(t, fe.Error, `"2500"`)
+	})
+
+	t.Run("invalid id param names the field and received value", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{}
+		c, rec := newCtx(e, http.MethodPatch, "/", `{"amount":-2500.00}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "xyz")
+
+		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "id")
+		assert.Contains(t, fe.Error, `"xyz"`)
+	})
+
+	t.Run("service field violation surfaces the specific field and reason", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			PatchFn: func(_ context.Context, _, _ int64, _ transaction.PatchRequest) (models.Transaction, error) {
+				return models.Transaction{}, transaction.NewFieldViolation(
+					"account_id", "account does not belong to this budget", transaction.ErrValidation)
+			},
+		}
+		c, rec := newCtx(e, http.MethodPatch, "/", `{"amount":-2500.00}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).PatchTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "account_id")
+		assert.Equal(t, "account does not belong to this budget", fe.Error)
 	})
 }
 
