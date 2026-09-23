@@ -142,7 +142,9 @@ function RowActions({
       <button
         onClick={isArchived ? undefined : onAddTransaction}
         disabled={isArchived}
-        title={isArchived ? "Archived envelopes cannot receive new transactions" : "Add Transaction"}
+        title={
+          isArchived ? "Archived envelopes cannot receive new transactions" : "Add Transaction"
+        }
         className={cn(btnCls, isArchived && "cursor-not-allowed opacity-40 hover:bg-transparent")}
       >
         <PlusCircle size={13} />
@@ -524,7 +526,8 @@ const ALLOCATION_MAX_SLICES = 5;
 function AllocationDonut({ envelopes }: { envelopes: EnvelopeRow[] }) {
   const positive = envelopes.filter((e) => e.allocated > 0);
   const totalAllocated = positive.reduce((sum, e) => sum + e.allocated, 0);
-  const pctOf = (amt: number) => (totalAllocated > 0 ? Math.round((amt / totalAllocated) * 100) : 0);
+  const pctOf = (amt: number) =>
+    totalAllocated > 0 ? Math.round((amt / totalAllocated) * 100) : 0;
 
   const sorted = [...positive].sort((a, b) => b.allocated - a.allocated);
   const top = sorted.slice(0, ALLOCATION_MAX_SLICES).filter((e) => pctOf(e.allocated) > 0);
@@ -1213,9 +1216,7 @@ export function EnvelopesView() {
                   </div>
                 </div>
               ))}
-              {topSpend.length === 0 && (
-                <p className="text-xs text-[#5A6A85]">No spending yet.</p>
-              )}
+              {topSpend.length === 0 && <p className="text-xs text-[#5A6A85]">No spending yet.</p>}
             </div>
           </SideCard>
 
