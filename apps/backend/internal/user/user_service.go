@@ -44,7 +44,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id int64) (models.User, error)
 	UpdateProfile(ctx context.Context, p UpdateProfileParams) (models.User, error)
 	UpdatePassword(ctx context.Context, id int64, hash string) error
-	SoftDelete(ctx context.Context, id int64) error
+	DeleteAccount(ctx context.Context, p DeleteAccountParams) error
 	GetHashByID(ctx context.Context, id int64) (string, error)
 	Activate(ctx context.Context, id int64) error
 }
@@ -194,12 +194,38 @@ func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) 
 	}
 }
 
-// Delete soft-deletes the user. It is idempotent.
-func (s *Svc) Delete(ctx context.Context, id int64) error {
-	s.log.Info("soft-deleting user", zap.Int64("user_id", id))
-	if err := s.repo.SoftDelete(ctx, id); err != nil {
-		return fmt.Errorf("soft delete user: %w", err)
+// Delete re-authenticates the user with their current password and, if it
+// matches, soft-deletes the account. It is idempotent: an already-deleted
+// user (GetHashByID returns ErrNotFound) is treated as success rather than an
+// error. OIDC-only accounts (no password credential) cannot pass
+// re-authentication and get ErrNoPasswordCredential instead of a misleading
+// "wrong password". A user who is the sole OWNER of a budget with other
+// active members gets ErrLastOwner (via *LastOwnerError) and nothing is
+// deleted — the caller must transfer ownership or remove the other members
+// first.
+func (s *Svc) Delete(ctx context.Context, p DeleteAccountParams) error {
+	s.log.Info("account deletion requested", zap.Int64("user_id", p.UserID))
+
+	deleted, err := s.reauthenticateForDelete(ctx, p)
+	if deleted || err != nil {
+		return err
 	}
+
+	if err := s.repo.DeleteAccount(ctx, p); err != nil {
+		var lastOwner *LastOwnerError
+		if !errors.As(err, &lastOwner) {
+			s.log.Error("account deletion failed", zap.Int64("user_id", p.UserID), zap.Error(err))
+		} else {
+			s.log.Warn(
+				"account deletion rejected: sole owner of shared budget(s)",
+				zap.Int64("user_id", p.UserID),
+				zap.Int("blocking_budget_count", len(lastOwner.Budgets)),
+			)
+		}
+		return fmt.Errorf("delete account: %w", err)
+	}
+
+	s.log.Info("account deletion succeeded", zap.Int64("user_id", p.UserID))
 	return nil
 }
 
@@ -300,6 +326,30 @@ func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd s
 		return fmt.Errorf("update password: %w", err)
 	}
 	return nil
+}
+
+// reauthenticateForDelete verifies the caller's current password before a
+// destructive deletion. The first return value is true when the account is
+// already gone (idempotent no-op success) so Delete can return immediately.
+func (s *Svc) reauthenticateForDelete(ctx context.Context, p DeleteAccountParams) (alreadyDeleted bool, err error) {
+	hash, err := s.repo.GetHashByID(ctx, p.UserID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			s.log.Info("account deletion no-op: already deleted", zap.Int64("user_id", p.UserID))
+			return true, nil
+		}
+		s.log.Error("account deletion failed: get hash by id", zap.Int64("user_id", p.UserID), zap.Error(err))
+		return false, fmt.Errorf("get hash by id: %w", err)
+	}
+	if hash == "" {
+		s.log.Warn("account deletion rejected: no password credential", zap.Int64("user_id", p.UserID))
+		return false, ErrNoPasswordCredential
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(p.CurrentPassword)); err != nil {
+		s.log.Warn("account deletion rejected: wrong password", zap.Int64("user_id", p.UserID))
+		return false, ErrWrongPassword
+	}
+	return false, nil
 }
 
 func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {
