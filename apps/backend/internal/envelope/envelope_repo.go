@@ -462,15 +462,24 @@ func (r *Repo) GetBudgetSummaryRow(ctx context.Context, budgetID int64) (db.GetB
 	return row, nil
 }
 
-// GetNetWorth returns the sum of all transaction amounts across all accounts in the budget.
+// GetNetWorth returns total assets minus total liabilities for the budget,
+// classifying each account's balance by its account type.
 func (r *Repo) GetNetWorth(ctx context.Context, budgetID int64) (money.Amount, error) {
 	q := db.New(r.pool)
-	total, err := q.GetNetWorth(ctx, budgetID)
+	rows, err := q.GetAccountTypeBalances(ctx, budgetID)
 	if err != nil {
-		r.log.Error("GetNetWorth query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		r.log.Error("GetAccountTypeBalances query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
 		return 0, fmt.Errorf("get net worth: %w", err)
 	}
-	return money.FromMinorUnits(total), nil
+
+	balances := make([]models.TypeBalance, 0, len(rows))
+	for _, row := range rows {
+		balances = append(balances, models.TypeBalance{
+			Type:    models.AccountType(row.Type),
+			Balance: money.FromMinorUnits(row.Balance),
+		})
+	}
+	return models.NetWorth(balances), nil
 }
 
 // GetMonthlyStats returns total income and expenses for the month containing t.

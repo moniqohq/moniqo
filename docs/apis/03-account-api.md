@@ -516,8 +516,8 @@ Returns the monthly closing-balance series for the budget's cash (checking + cas
 - Balances are cumulative (all-time) closing balances as of the end of each month, not monthly deltas.
 - Archived and soft-deleted accounts are excluded.
 - `credit` is expressed as a positive debt figure (i.e. the absolute value of the credit card accounts' negative balance), floored at zero.
-- `net_worth` = `cash` + `savings` − `credit` for the same month.
-- Loan accounts are excluded from all four series (they are not part of the summary cards' cash/credit/savings/net-worth calculations).
+- `net_worth` = total assets (cash, checking, savings) minus total liabilities (credit card, loan) for the same month, using each account's actual signed balance (not the floored `credit` debt figure).
+- Loan accounts are excluded from the `cash`, `credit`, and `savings` series (they are not part of those summary cards) but are included in `net_worth`.
 
 **Error Scenarios**
 

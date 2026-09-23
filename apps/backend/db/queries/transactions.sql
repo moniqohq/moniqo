@@ -119,13 +119,18 @@ UPDATE transactions
 SET deleted_at = now()
 WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
--- name: GetNetWorth :one
-SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS net_worth
-FROM transactions t
-JOIN accounts a ON a.id = t.account_id
-WHERE t.budget_id  = $1
-  AND t.deleted_at IS NULL
-  AND a.deleted_at IS NULL;
+-- name: GetAccountTypeBalances :many
+SELECT
+    a.type,
+    COALESCE(SUM(t.amount), 0)::BIGINT AS balance
+FROM accounts a
+LEFT JOIN transactions t
+       ON t.account_id = a.id
+      AND t.budget_id  = a.budget_id
+      AND t.deleted_at IS NULL
+WHERE a.budget_id  = $1
+  AND a.deleted_at IS NULL
+GROUP BY a.type;
 
 -- name: GetMonthlyStats :one
 SELECT
