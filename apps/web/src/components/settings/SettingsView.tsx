@@ -21,7 +21,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   User,
   Settings2,
@@ -47,6 +46,7 @@ import { NotificationsView } from "./NotificationsView";
 import { SecurityView } from "./SecurityView";
 import { DataPrivacyView } from "./DataPrivacyView";
 import { MembersPermissionsView } from "./MembersPermissionsView";
+import { ConnectedAccountsView } from "./ConnectedAccountsView";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,10 +66,6 @@ type NavItem = {
   iconColor: string;
   iconBg: string;
   flag?: Parameters<typeof isFeatureEnabled>[0];
-  // When set, this item navigates to a real route instead of switching the
-  // in-page tab — used for pages that must resolve as a URL on their own
-  // (e.g. the OIDC link/callback redirect target).
-  href?: string;
 };
 
 type NavGroup = {
@@ -139,7 +135,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Link2,
         iconColor: "#60A5FA",
         iconBg: "rgba(59,130,246,0.12)",
-        href: "/settings/connections",
       },
     ],
   },
@@ -241,14 +236,6 @@ function NavItemButton({
     </>
   );
 
-  if (item.href) {
-    return (
-      <Link href={item.href} className={className}>
-        {content}
-      </Link>
-    );
-  }
-
   return (
     <button onClick={onClick} className={className}>
       {content}
@@ -300,11 +287,11 @@ function ReadField({ value, icon: Icon }: { value: string; icon?: React.ElementT
 
 // ── Main view ─────────────────────────────────────────────────────
 
-export function SettingsView() {
+export function SettingsView({ initialNav = "profile" }: { initialNav?: string } = {}) {
   const storeUser = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
 
-  const [activeNav, setActiveNav] = useState("profile");
+  const [activeNav, setActiveNav] = useState(initialNav);
   const [searchQuery, setSearchQuery] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -487,13 +474,15 @@ export function SettingsView() {
           {activeNav === "security" && <SecurityView />}
           {activeNav === "privacy" && <DataPrivacyView />}
           {activeNav === "members" && <MembersPermissionsView />}
+          {activeNav === "connections" && <ConnectedAccountsView />}
 
           {/* ── Combined Profile + Security card ─────────── */}
           {activeNav !== "preferences" &&
             activeNav !== "notifications" &&
             activeNav !== "security" &&
             activeNav !== "privacy" &&
-            activeNav !== "members" && (
+            activeNav !== "members" &&
+            activeNav !== "connections" && (
               <SectionCard
                 title="Profile"
                 description="Manage your personal information and account details."
