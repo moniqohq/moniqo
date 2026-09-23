@@ -30,6 +30,7 @@ import {
   SlidersHorizontal,
   Square,
   CheckSquare,
+  MinusSquare,
   ArrowDownLeft,
   ArrowUpRight,
   ArrowLeftRight,
@@ -59,6 +60,8 @@ import {
 import { AddTransactionModal } from "./AddTransactionModal";
 import { TransactionDetailsModal } from "./TransactionDetailsModal";
 import { DeleteTransactionModal } from "./DeleteTransactionModal";
+import { BulkDeleteTransactionsModal } from "./BulkDeleteTransactionsModal";
+import { BulkActionsBar } from "./BulkActionsBar";
 import { EditTransactionModal } from "./EditTransactionModal";
 import { DateRangePicker } from "./DateRangePicker";
 import type { DateRange } from "./DateRangePicker";
@@ -69,12 +72,14 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useRunningBalances } from "@/hooks/useRunningBalances";
-import { apiFetch } from "@/lib/api";
-import { patchTransaction } from "@/lib/api/transactions";
+import { patchTransaction, deleteTransaction } from "@/lib/api/transactions";
+import type { ApiTransactionStatus } from "@/lib/api/types";
 import { invalidateBudgetData } from "@/lib/query-keys";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { isFeatureEnabled } from "@/features/feature-flags";
+import { runBulk } from "@/lib/bulk";
+import { useToast } from "@/components/ui/toast";
 
 /* ── Sparkline data — populated from API when analytics endpoint is available ── */
 const sparkInflow: { v: number }[] = [];
@@ -201,6 +206,9 @@ function TxRow({
             e.stopPropagation();
             onSelect();
           }}
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={`Select transaction with ${tx.payee}`}
           className="flex text-[#2A3A54] transition-colors hover:text-[#6C3AED] focus:outline-none"
         >
           {selected ? <CheckSquare size={15} className="text-[#6C3AED]" /> : <Square size={15} />}
@@ -844,6 +852,10 @@ export function TransactionsView() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
+  const { showToast, ToastNode } = useToast();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [envelopeFilter, setEnvelopeFilter] = useState<Set<number>>(new Set());
@@ -886,30 +898,51 @@ export function TransactionsView() {
 
   // Adjust state during render (React's recommended pattern) rather than in an
   // effect: reset to page 1 when the active budget changes, since the current
-  // page may no longer exist under the new budget's transaction set.
+  // page may no longer exist under the new budget's transaction set. The
+  // selection must be cleared too — row ids are only meaningful within the
+  // budget they were selected under, and budget_id is the tenant boundary.
   const [prevBudgetId, setPrevBudgetId] = useState(activeBudgetId);
   if (activeBudgetId !== prevBudgetId) {
     setPrevBudgetId(activeBudgetId);
     setPage(1);
+    setSelected(new Set());
   }
 
   // Reset to page 1 whenever a server-side filter or page size changes,
-  // since the current page may no longer exist under the new query.
+  // since the current page may no longer exist under the new query. Also
+  // clear the selection — it's scoped to what's currently on screen, and a
+  // filter/page change can make previously-selected rows disappear from view.
   const handleAccountFilterChange = useCallback((next: Set<number>) => {
     setAccountFilter(next);
     setPage(1);
+    setSelected(new Set());
   }, []);
   const handleEnvelopeFilterChange = useCallback((next: Set<number>) => {
     setEnvelopeFilter(next);
     setPage(1);
+    setSelected(new Set());
   }, []);
   const handleDateRangeChange = useCallback((next: DateRange) => {
     setDateRange(next);
     setPage(1);
+    setSelected(new Set());
   }, []);
   const handlePageSizeChange = useCallback((next: number) => {
     setPageSize(next);
     setPage(1);
+    setSelected(new Set());
+  }, []);
+  const handleTypeFilterChange = useCallback((next: Set<TxTypeId>) => {
+    setTypeFilter(next);
+    setSelected(new Set());
+  }, []);
+  const handleSearchQueryChange = useCallback((next: string) => {
+    setSearchQuery(next);
+    setSelected(new Set());
+  }, []);
+  const handlePageChange = useCallback((next: number) => {
+    setPage(next);
+    setSelected(new Set());
   }, []);
   const filteredTransactions = useMemo(() => {
     let result = transactions;
@@ -995,9 +1028,7 @@ export function TransactionsView() {
     setDeleteLoading(true);
     setDeleteError(null);
     try {
-      await apiFetch<unknown>(`/api/v1/budgets/${activeBudgetId}/transactions/${deleteTx.id}`, {
-        method: "DELETE",
-      });
+      await deleteTransaction(activeBudgetId, deleteTx.id);
       refetchAll();
       setDeleteOpen(false);
       setDetailOpen(false);
@@ -1009,6 +1040,128 @@ export function TransactionsView() {
       setDeleteError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setDeleteLoading(false);
+    }
+  }
+
+  /* ── Bulk actions ────────────────────────────────────────
+   * Every action below composes the existing single-transaction endpoints
+   * (PATCH status / DELETE) over the current selection — there is no bulk
+   * API. See docs/apis/05-transaction-api.md; the backend has no batch
+   * endpoint for transactions.
+   */
+
+  const selectedTransactions = useMemo(
+    () => rowsWithBalance.filter((t) => selected.has(t.id)),
+    [rowsWithBalance, selected],
+  );
+
+  function isLocked(tx: Transaction) {
+    return Boolean(accountMap.get(tx.accountId)?.is_immutable);
+  }
+
+  function clearSelection() {
+    setSelected(new Set());
+  }
+
+  /**
+   * Runs `fn` over the eligible rows, reports a three-tier result (all
+   * succeeded / partial / all failed), refreshes budget data whenever at
+   * least one row succeeded, and — on anything less than full success —
+   * keeps only the failed rows selected so the user can retry exactly those.
+   */
+  async function runBulkAction(
+    eligible: Transaction[],
+    fn: (tx: Transaction) => Promise<unknown>,
+    verbLabel: string,
+  ) {
+    if (eligible.length === 0 || !activeBudgetId) return;
+    setBulkLoading(true);
+    try {
+      const { succeeded, failed } = await runBulk(eligible, fn);
+      if (succeeded.length > 0) refetchAll();
+
+      if (failed.length === 0) {
+        showToast(
+          "success",
+          `${succeeded.length} transaction${succeeded.length === 1 ? "" : "s"} ${verbLabel}`,
+        );
+        clearSelection();
+      } else if (succeeded.length === 0) {
+        showToast("error", failed[0].error);
+      } else {
+        showToast(
+          "warning",
+          `${failed.length} of ${eligible.length} transactions could not be updated: ${failed[0].error}`,
+        );
+        setSelected(new Set(failed.map((f) => f.item.id)));
+      }
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  function applyBulkStatus(targetStatus: ApiTransactionStatus, verbLabel: string) {
+    // Skip rows already in the target status and rows whose account is
+    // locked and can't be reconciled (mirrors markDetailTxReconciled above).
+    const eligible = selectedTransactions.filter((t) => {
+      if (t.status === targetStatus) return false;
+      if (targetStatus === "reconciled" && isLocked(t)) return false;
+      return true;
+    });
+    void runBulkAction(
+      eligible,
+      (tx) => patchTransaction(activeBudgetId!, tx.id, { status: targetStatus }),
+      verbLabel,
+    );
+  }
+
+  function openBulkDeleteModal() {
+    setBulkDeleteError(null);
+    setBulkDeleteOpen(true);
+  }
+
+  function closeBulkDeleteModal() {
+    if (bulkLoading) return;
+    setBulkDeleteOpen(false);
+    setBulkDeleteError(null);
+  }
+
+  const bulkDeleteEligible = selectedTransactions.filter((t) => !isLocked(t));
+  const bulkDeleteLocked = selectedTransactions.filter(isLocked);
+
+  async function confirmBulkDelete() {
+    if (bulkDeleteEligible.length === 0 || !activeBudgetId) return;
+    setBulkLoading(true);
+    setBulkDeleteError(null);
+    try {
+      const { succeeded, failed } = await runBulk(bulkDeleteEligible, (tx) =>
+        deleteTransaction(activeBudgetId, tx.id),
+      );
+      if (succeeded.length > 0) refetchAll();
+
+      // A deleted row can still be open in the details/edit modal — close
+      // those rather than leaving them pointed at a row that no longer exists.
+      const deletedIds = new Set(succeeded.map((tx) => tx.id));
+      if (detailTx && deletedIds.has(detailTx.id)) setDetailOpen(false);
+      if (editTx && deletedIds.has(editTx.id)) setEditOpen(false);
+
+      if (failed.length === 0) {
+        showToast(
+          "success",
+          `${succeeded.length} transaction${succeeded.length === 1 ? "" : "s"} deleted`,
+        );
+        clearSelection();
+        setBulkDeleteOpen(false);
+      } else if (succeeded.length === 0) {
+        setBulkDeleteError(failed[0].error);
+      } else {
+        setSelected(new Set(failed.map((f) => f.item.id)));
+        setBulkDeleteError(
+          `${failed.length} of ${bulkDeleteEligible.length} transactions could not be deleted: ${failed[0].error}`,
+        );
+      }
+    } finally {
+      setBulkLoading(false);
     }
   }
 
@@ -1059,7 +1212,7 @@ export function TransactionsView() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchQueryChange(e.target.value)}
               placeholder="Search transactions…"
               className="w-72 rounded-xl border border-[#1A2540] bg-transparent py-2.5 pr-3 pl-8 text-sm text-[#A8B4CC] placeholder-[#5A6A85] transition-colors hover:border-[#2A3A54] focus:border-[#2A3A54] focus:outline-none"
             />
@@ -1087,6 +1240,19 @@ export function TransactionsView() {
 
       {/* ── Table card ──────────────────────────────────── */}
       <div className="overflow-hidden rounded-lg border border-[#1A2640] bg-[#0B1220] shadow-sm">
+        {/* Bulk actions bar — only shown while rows are selected */}
+        {selected.size > 0 && (
+          <BulkActionsBar
+            count={selected.size}
+            onClear={clearSelection}
+            onMarkCleared={() => applyBulkStatus("cleared", "marked as cleared")}
+            onMarkUncleared={() => applyBulkStatus("uncleared", "marked as uncleared")}
+            onMarkReconciled={() => applyBulkStatus("reconciled", "marked as reconciled")}
+            onDelete={openBulkDeleteModal}
+            loading={bulkLoading}
+          />
+        )}
+
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-2 border-b border-[#131E30] px-4 py-3">
           <AccountFilter
@@ -1106,7 +1272,11 @@ export function TransactionsView() {
             onChange={handleDateRangeChange}
             triggerClassName={filterBtn}
           />
-          <TypeFilter value={typeFilter} onChange={setTypeFilter} triggerClassName={filterBtn} />
+          <TypeFilter
+            value={typeFilter}
+            onChange={handleTypeFilterChange}
+            triggerClassName={filterBtn}
+          />
           {isFeatureEnabled("transactionFilters") && (
             <button className={cn(filterBtn, "ml-auto")}>
               <SlidersHorizontal size={12} />
@@ -1262,10 +1432,15 @@ export function TransactionsView() {
                 <th scope="col" className="w-10 py-3 pr-2 pl-4">
                   <button
                     onClick={toggleAll}
+                    role="checkbox"
+                    aria-checked={allSelected ? "true" : someSelected ? "mixed" : "false"}
+                    aria-label="Select all transactions on this page"
                     className="flex text-[#2A3A54] transition-colors hover:text-[#6C3AED] focus:outline-none"
                   >
                     {allSelected ? (
                       <CheckSquare size={14} className="text-[#6C3AED]" />
+                    ) : someSelected ? (
+                      <MinusSquare size={14} className="text-[#6C3AED]" />
                     ) : (
                       <Square size={14} />
                     )}
@@ -1373,7 +1548,7 @@ export function TransactionsView() {
 
           <div className="inline-flex items-center gap-1" aria-label="Pagination">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => handlePageChange(Math.max(1, page - 1))}
               disabled={page <= 1}
               className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#5A6A85]"
             >
@@ -1387,7 +1562,7 @@ export function TransactionsView() {
               ) : (
                 <button
                   key={n}
-                  onClick={() => setPage(n)}
+                  onClick={() => handlePageChange(n)}
                   aria-current={n === page ? "page" : undefined}
                   className={cn(
                     "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none",
@@ -1401,7 +1576,7 @@ export function TransactionsView() {
               ),
             )}
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
               disabled={page >= totalPages}
               className="rounded-lg border border-[#1A2640] px-2.5 py-1.5 text-sm text-[#5A6A85] transition-colors hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[#5A6A85]"
             >
@@ -1474,6 +1649,16 @@ export function TransactionsView() {
         loading={deleteLoading}
         error={deleteError}
       />
+      <BulkDeleteTransactionsModal
+        transactions={bulkDeleteEligible}
+        lockedTransactions={bulkDeleteLocked}
+        open={bulkDeleteOpen}
+        onClose={closeBulkDeleteModal}
+        onConfirm={confirmBulkDelete}
+        loading={bulkLoading}
+        error={bulkDeleteError}
+      />
+      {ToastNode}
     </div>
   );
 }
