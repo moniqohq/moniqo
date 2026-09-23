@@ -43,6 +43,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, p CreateParams) (models.BudgetEnvelope, error)
 	GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEnvelope, error)
+	ArchivedState(ctx context.Context, id, budgetID int64) (exists, archived bool, err error)
 	ListByBudget(ctx context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error)
 	Update(ctx context.Context, p UpdateParams) (models.BudgetEnvelope, error)
 	Patch(ctx context.Context, p PatchParams) (models.BudgetEnvelope, error)
@@ -80,6 +81,7 @@ func toModel(row db.Envelope) models.BudgetEnvelope {
 		Title:        row.Title,
 		AllocatedAmt: money.FromMinorUnits(row.AllocatedAmt),
 		Description:  row.Description,
+		Nature:       row.Nature,
 		IsArchived:   row.DeletedAt.Valid,
 		CreatedAt:    row.CreatedAt.Time,
 	}
@@ -98,6 +100,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.BudgetEnvelop
 		Title:        p.Title,
 		AllocatedAmt: p.AllocatedAmt.Int64(),
 		Description:  p.Description,
+		Nature:       p.Nature,
 	})
 	if err != nil {
 		r.log.Error("CreateEnvelope query failed",
@@ -141,6 +144,35 @@ func (r *Repo) GetByID(ctx context.Context, id, budgetID int64) (models.BudgetEn
 	}
 
 	return toModel(row), nil
+}
+
+// ArchivedState reports whether an envelope exists within budgetID and, if so,
+// whether it is archived (soft-deleted). exists is false when the envelope does
+// not exist or belongs to a different budget.
+func (r *Repo) ArchivedState(ctx context.Context, id, budgetID int64) (exists, archived bool, err error) {
+	r.log.Debug("executing IsEnvelopeArchived query",
+		zap.Int64("envelope_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	q := db.New(r.pool)
+	archived, err = q.IsEnvelopeArchived(ctx, db.IsEnvelopeArchivedParams{
+		ID:       id,
+		BudgetID: budgetID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, false, nil
+		}
+		r.log.Error("IsEnvelopeArchived query failed",
+			zap.Int64("envelope_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return false, false, fmt.Errorf("is envelope archived: %w", err)
+	}
+
+	return true, archived, nil
 }
 
 // ListByBudget returns envelopes belonging to budgetID, filtered by archived

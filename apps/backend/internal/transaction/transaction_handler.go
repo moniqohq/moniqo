@@ -71,6 +71,8 @@ const (
 	errSpentAmtReadOnly = "spent_amt is read-only and derived from transactions; remove it from the request body"
 	errBodyUnreadable   = "must be readable"
 	errValidationFailed = "validation failed"
+	errEnvelopeArchived = "envelope is archived and cannot accept new transactions"
+	errEnvelopeNotFound = "envelope not found in this budget"
 
 	receivedValueMaxLen = 40
 
@@ -452,7 +454,7 @@ func (h *Handler) CreateTransaction(c echo.Context) error {
 
 // ReplaceTransaction handles PUT /api/v1/budgets/:budget_id/transactions/:id.
 //
-//nolint:revive
+//nolint:revive,nestif
 func (h *Handler) ReplaceTransaction(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
@@ -488,7 +490,7 @@ func (h *Handler) ReplaceTransaction(c echo.Context) error {
 
 // PatchTransaction handles PATCH /api/v1/budgets/:budget_id/transactions/:id.
 //
-//nolint:revive
+//nolint:revive,nestif
 func (h *Handler) PatchTransaction(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
@@ -574,6 +576,12 @@ func (h *Handler) handleCreateTransactionError(c echo.Context, err error, budget
 	if errors.Is(err, ErrAccountArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
 	}
+	if errors.Is(err, ErrEnvelopeArchived) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
+	}
+	if errors.Is(err, ErrEnvelopeNotFound) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeNotFound}})
+	}
 	h.log.Error("Create transaction failed",
 		zap.Int64("budget_id", budgetID),
 		zap.Error(err),
@@ -596,6 +604,12 @@ func (h *Handler) handleReplaceTransactionError(c echo.Context, err error, id, b
 	}
 	if errors.Is(err, ErrAccountArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	}
+	if errors.Is(err, ErrEnvelopeArchived) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
+	}
+	if errors.Is(err, ErrEnvelopeNotFound) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeNotFound}})
 	}
 	h.log.Error("Replace transaction failed",
 		zap.Int64("transaction_id", id),
@@ -620,6 +634,12 @@ func (h *Handler) handlePatchTransactionError(c echo.Context, err error, id, bud
 	}
 	if errors.Is(err, ErrAccountArchived) {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	}
+	if errors.Is(err, ErrEnvelopeArchived) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
+	}
+	if errors.Is(err, ErrEnvelopeNotFound) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeNotFound}})
 	}
 	h.log.Error("Patch transaction failed",
 		zap.Int64("transaction_id", id),

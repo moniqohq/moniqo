@@ -60,9 +60,9 @@ func (q *Queries) AdjustEnvelopeAllocated(ctx context.Context, arg AdjustEnvelop
 }
 
 const createEnvelope = `-- name: CreateEnvelope :one
-INSERT INTO envelopes (budget_id, title, allocated_amt, description)
-VALUES ($1, $2, $3, $4)
-RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+INSERT INTO envelopes (budget_id, title, allocated_amt, description, nature)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature
 `
 
 type CreateEnvelopeParams struct {
@@ -70,6 +70,7 @@ type CreateEnvelopeParams struct {
 	Title        string
 	AllocatedAmt int64
 	Description  *string
+	Nature       *string
 }
 
 func (q *Queries) CreateEnvelope(ctx context.Context, arg CreateEnvelopeParams) (Envelope, error) {
@@ -78,6 +79,7 @@ func (q *Queries) CreateEnvelope(ctx context.Context, arg CreateEnvelopeParams) 
 		arg.Title,
 		arg.AllocatedAmt,
 		arg.Description,
+		arg.Nature,
 	)
 	var i Envelope
 	err := row.Scan(
@@ -89,6 +91,7 @@ func (q *Queries) CreateEnvelope(ctx context.Context, arg CreateEnvelopeParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Nature,
 	)
 	return i, err
 }
@@ -171,7 +174,7 @@ func (q *Queries) GetBudgetEnvelopeSummary(ctx context.Context, budgetID int64) 
 }
 
 const getEnvelopeByID = `-- name: GetEnvelopeByID :one
-SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature
 FROM envelopes
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
 `
@@ -193,6 +196,7 @@ func (q *Queries) GetEnvelopeByID(ctx context.Context, arg GetEnvelopeByIDParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Nature,
 	)
 	return i, err
 }
@@ -240,8 +244,28 @@ func (q *Queries) HardDeleteEnvelope(ctx context.Context, arg HardDeleteEnvelope
 	return err
 }
 
+const isEnvelopeArchived = `-- name: IsEnvelopeArchived :one
+SELECT (deleted_at IS NOT NULL)::bool AS archived
+FROM envelopes
+WHERE id = $1 AND budget_id = $2
+`
+
+type IsEnvelopeArchivedParams struct {
+	ID       int64
+	BudgetID int64
+}
+
+// No deleted_at filter: for envelopes, deleted_at IS the archive flag.
+// pgx.ErrNoRows means the envelope does not exist in this budget.
+func (q *Queries) IsEnvelopeArchived(ctx context.Context, arg IsEnvelopeArchivedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isEnvelopeArchived, arg.ID, arg.BudgetID)
+	var archived bool
+	err := row.Scan(&archived)
+	return archived, err
+}
+
 const listEnvelopesByBudget = `-- name: ListEnvelopesByBudget :many
-SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature
 FROM envelopes
 WHERE budget_id = $1
   AND ($2::bool IS NULL OR (deleted_at IS NOT NULL) = $2)
@@ -271,6 +295,7 @@ func (q *Queries) ListEnvelopesByBudget(ctx context.Context, arg ListEnvelopesBy
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.Nature,
 		); err != nil {
 			return nil, err
 		}
@@ -289,7 +314,7 @@ SET title         = COALESCE($3, title),
     description   = COALESCE($5, description),
     updated_at    = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature
 `
 
 type PatchEnvelopeParams struct {
@@ -300,6 +325,7 @@ type PatchEnvelopeParams struct {
 	Description  *string
 }
 
+// nature is intentionally excluded: it is set once at creation and is immutable thereafter.
 func (q *Queries) PatchEnvelope(ctx context.Context, arg PatchEnvelopeParams) (Envelope, error) {
 	row := q.db.QueryRow(ctx, patchEnvelope,
 		arg.ID,
@@ -318,6 +344,7 @@ func (q *Queries) PatchEnvelope(ctx context.Context, arg PatchEnvelopeParams) (E
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Nature,
 	)
 	return i, err
 }
@@ -358,7 +385,7 @@ SET title         = $3,
     description   = $5,
     updated_at    = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
-RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at, nature
 `
 
 type UpdateEnvelopeParams struct {
@@ -369,6 +396,7 @@ type UpdateEnvelopeParams struct {
 	Description  *string
 }
 
+// nature is intentionally excluded: it is set once at creation and is immutable thereafter.
 func (q *Queries) UpdateEnvelope(ctx context.Context, arg UpdateEnvelopeParams) (Envelope, error) {
 	row := q.db.QueryRow(ctx, updateEnvelope,
 		arg.ID,
@@ -387,6 +415,7 @@ func (q *Queries) UpdateEnvelope(ctx context.Context, arg UpdateEnvelopeParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Nature,
 	)
 	return i, err
 }

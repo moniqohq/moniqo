@@ -37,6 +37,7 @@ This API supports full CRUD operations for Budget Envelopes.
 | `allocated_amt` | Decimal | Yes | Amount allocated to this envelope |
 | `spent_amt` | Decimal | Yes | System-calculated total spent, always a non-negative magnitude (outflows are stored as negative transaction amounts internally, but `spent_amt` is normalized to positive before it reaches the API) |
 | `description` | String | No | Optional descriptive text |
+| `nature` | String | No | One of `want`, `should`, `need`, `must`. Set only at creation; immutable thereafter — PUT and PATCH must reject it. |
 | `is_archived` | Boolean | Yes | `true` when the envelope has been soft-deleted (archived); historical transactions remain intact |
 | `is_overspent` | Boolean | Yes | `true` when `spent_amt > allocated_amt` |
 
@@ -63,9 +64,40 @@ Available balance (`allocated_amt - spent_amt`) is not a separate field; clients
 - `title` must be unique within a budget.
 - `allocated_amt` must be ≥ 0.
 - `spent_amt` is calculated from transactions and cannot be manually modified.
+- `nature` may be set at creation and is immutable thereafter; PUT and PATCH must reject any request body containing a `nature` key.
 - Envelope must belong to a valid budget.
 - Deleting an envelope must not delete historical transactions.
 - Soft-deleted envelopes must be excluded from standard queries.
+
+---
+
+## Validation Error Format
+
+Validation failures on any BudgetEnvelope endpoint (`POST`, `PUT`, `PATCH`, and query-parameter
+validation on `GET`) return `400` with field-level details, in the same envelope used across
+the API:
+
+```json
+{
+  "success": false,
+  "data": {
+    "fields": [
+      { "field": "title", "error": "must be between 3 and 80 characters (got 2)" },
+      { "field": "allocated_amt", "error": "must be non-negative (got -5.00)" }
+    ]
+  },
+  "msg": "2 fields failed validation: title, allocated_amt"
+}
+```
+
+Unlike other resources, `msg` here is a **descriptive summary of the specific failure(s)** —
+not the generic `"validation failed"` string — naming the failing field(s) and the rule
+violated. A single-field failure produces `msg` in `"<field> <rule>"` form, e.g.
+`"title must be between 3 and 80 characters (got 2)"`.
+
+Where meaningful, the field's `error` text echoes the offending value (truncated for very
+long strings), e.g. `"must be one of want, should, need, must (got \"urgent\")"`. All field
+errors are aggregated and returned in a single response.
 
 ---
 
@@ -82,7 +114,8 @@ Available balance (`allocated_amt - spent_amt`) is not a separate field; clients
 {
   "title": "Groceries",
   "allocated_amt": 5000.00,
-  "description": "Monthly grocery expenses"
+  "description": "Monthly grocery expenses",
+  "nature": "need"
 }
 ```
 
@@ -98,6 +131,7 @@ Available balance (`allocated_amt - spent_amt`) is not a separate field; clients
     "allocated_amt": 5000.00,
     "spent_amt": 0.00,
     "description": "Monthly grocery expenses",
+    "nature": "need",
     "is_archived": false
   },
   "msg": "budget envelope created successfully"
@@ -109,11 +143,13 @@ Available balance (`allocated_amt - spent_amt`) is not a separate field; clients
 - Title must be unique within budget.
 - `allocated_amt` initializes budget planning.
 - `spent_amt` starts at 0.
+- `nature` is optional; once set at creation it is immutable — it cannot be changed by PUT or PATCH.
 
 **Validation Rules**
 
 - `title` required (3–80 characters).
 - `allocated_amt` must be numeric and ≥ 0.
+- `nature`, if provided, must be one of `want`, `should`, `need`, `must`.
 - `budget_id` must exist.
 - User must have write permission.
 
@@ -180,6 +216,7 @@ path-parameter validation), not just envelope creation.
       "allocated_amt": 5000.00,
       "spent_amt": 1200.00,
       "description": "Monthly grocery expenses",
+      "nature": "need",
       "is_archived": false
     }
   ],
@@ -224,6 +261,7 @@ path-parameter validation), not just envelope creation.
     "allocated_amt": 5000.00,
     "spent_amt": 1200.00,
     "description": "Monthly grocery expenses",
+    "nature": "need",
     "is_archived": false
   },
   "msg": "budget envelope fetched successfully"
@@ -284,6 +322,7 @@ Idempotent operation.
     "allocated_amt": 6000.00,
     "spent_amt": 1200.00,
     "description": "Updated description",
+    "nature": "need",
     "is_archived": false
   },
   "msg": "budget envelope updated successfully"
@@ -294,6 +333,7 @@ Idempotent operation.
 
 - Complete representation required.
 - `spent_amt` cannot be modified.
+- `nature` is set at creation and cannot be modified; a request body containing a `nature` key must be rejected with `400`.
 - Title uniqueness enforced.
 - `allocated_amt` must be ≥ `spent_amt`. Enforced unconditionally, matching the PATCH rule below — an envelope's allocation can never be reduced below what has already been spent.
 
@@ -301,6 +341,7 @@ Idempotent operation.
 
 - All required fields present.
 - `allocated_amt` must be ≥ 0.
+- Request body must not contain a `nature` key.
 
 **Side Effects**
 
@@ -341,12 +382,14 @@ Idempotent operation.
 - Only provided fields updated.
 - Must not allow empty PATCH body.
 - `spent_amt` cannot be modified.
+- `nature` is set at creation and cannot be modified; a request body containing a `nature` key must be rejected with `400`.
 - `allocated_amt` must not be less than `spent_amt`.
 
 **Validation Rules**
 
 - If provided, fields must pass validation.
 - Empty payload → 400.
+- Request body must not contain a `nature` key.
 
 **Side Effects**
 

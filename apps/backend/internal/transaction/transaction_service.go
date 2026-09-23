@@ -51,12 +51,38 @@ type AccountChecker interface {
 	IsImmutable(ctx context.Context, id, budgetID int64) (bool, error)
 }
 
+// ErrEnvelopeArchived is returned when a transaction is created or moved onto an
+// archived envelope. Archiving an envelope blocks only future usage; historical
+// transactions already on it remain editable.
+var ErrEnvelopeArchived = errors.New("envelope is archived")
+
+// ErrEnvelopeNotFound is returned when the referenced envelope does not exist,
+// or does not belong to the transaction's budget.
+var ErrEnvelopeNotFound = errors.New("envelope not found in this budget")
+
+// EnvelopeChecker reports whether an envelope exists within a budget and whether
+// it is archived. Satisfied by the envelope package's Repository; kept as a
+// narrow interface here to avoid an import cycle between the transaction and
+// envelope packages.
+type EnvelopeChecker interface {
+	ArchivedState(ctx context.Context, id, budgetID int64) (exists, archived bool, err error)
+}
+
 // statusOrDefault returns s if set, otherwise the default uncleared status for new transactions.
 func statusOrDefault(s *models.TransactionStatus) models.TransactionStatus {
 	if s == nil {
 		return models.TransactionStatusUncleared
 	}
 	return *s
+}
+
+// envelopeIDEqual reports whether a requested envelope id matches the transaction's
+// current envelope id.
+func envelopeIDEqual(requested, current *int64) bool {
+	if requested == nil || current == nil {
+		return requested == current
+	}
+	return *requested == *current
 }
 
 // Service is the business-logic contract for transactions.
@@ -72,9 +98,10 @@ type Service interface {
 
 // Svc is the concrete implementation of Service.
 type Svc struct {
-	repo     Repository
-	accounts AccountChecker
-	log      *zap.Logger
+	repo      Repository
+	accounts  AccountChecker
+	envelopes EnvelopeChecker
+	log       *zap.Logger
 }
 
 // NewSvc returns a Svc wired to the given repository.
@@ -86,6 +113,12 @@ func NewSvc(repo Repository, log *zap.Logger) *Svc {
 // against archived accounts. When unset, the archived-account guard is skipped.
 func (s *Svc) SetAccountChecker(accounts AccountChecker) {
 	s.accounts = accounts
+}
+
+// SetEnvelopeChecker wires an EnvelopeChecker used to reject transactions
+// against archived or out-of-budget envelopes. When unset, the guard is skipped.
+func (s *Svc) SetEnvelopeChecker(envelopes EnvelopeChecker) {
+	s.envelopes = envelopes
 }
 
 // Create persists a standard (non-transfer) transaction.
@@ -103,6 +136,9 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 		return models.Transaction{}, validationViolation(fieldEnvelopeID, errEnvelopeRequired)
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
+		return models.Transaction{}, err
+	}
+	if err := s.checkEnvelopeUsable(ctx, *req.EnvelopeID, budgetID); err != nil {
 		return models.Transaction{}, err
 	}
 
@@ -300,6 +336,11 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 			return models.Transaction{}, err
 		}
 	}
+	if req.EnvelopeID != nil && !envelopeIDEqual(req.EnvelopeID, existing.EnvelopeID) {
+		if err := s.checkEnvelopeUsable(ctx, *req.EnvelopeID, budgetID); err != nil {
+			return models.Transaction{}, err
+		}
+	}
 
 	updated, err := s.repo.Update(ctx, UpdateParams{
 		ID:                id,
@@ -361,7 +402,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 // Patch applies only the non-nil fields from req to the transaction.
 // For transfers, the mirror leg's amount is kept consistent.
 //
-//nolint:revive,funlen,cyclop
+//nolint:revive,funlen,cyclop,gocognit
 func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.Transaction, error) {
 	s.log.Debug("patching transaction",
 		zap.Int64("transaction_id", id),
@@ -397,6 +438,12 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 			)
 		}
 		return models.Transaction{}, err //nolint:wrapcheck
+	}
+
+	if req.EnvelopeID != nil && !envelopeIDEqual(req.EnvelopeID, existing.EnvelopeID) {
+		if err := s.checkEnvelopeUsable(ctx, *req.EnvelopeID, budgetID); err != nil {
+			return models.Transaction{}, err
+		}
 	}
 
 	updated, err := s.repo.Patch(ctx, PatchParams{
@@ -528,6 +575,26 @@ func (s *Svc) checkNotArchived(ctx context.Context, accountID, budgetID int64) e
 	}
 	if archived {
 		return ErrAccountArchived
+	}
+	return nil
+}
+
+// checkEnvelopeUsable returns ErrEnvelopeNotFound if envelopeID does not exist
+// within budgetID, or ErrEnvelopeArchived if it is archived. No-ops when no
+// EnvelopeChecker is wired.
+func (s *Svc) checkEnvelopeUsable(ctx context.Context, envelopeID, budgetID int64) error {
+	if s.envelopes == nil {
+		return nil
+	}
+	exists, archived, err := s.envelopes.ArchivedState(ctx, envelopeID, budgetID)
+	if err != nil {
+		return fmt.Errorf("check envelope archived: %w", err)
+	}
+	if !exists {
+		return ErrEnvelopeNotFound
+	}
+	if archived {
+		return ErrEnvelopeArchived
 	}
 	return nil
 }

@@ -139,6 +139,12 @@ func (m *EnvelopeRepository) GetByID(_ context.Context, id, budgetID int64) (mod
 	return e, args.Error(1)
 }
 
+// ArchivedState records the call and returns the configured stub values.
+func (m *EnvelopeRepository) ArchivedState(_ context.Context, id, budgetID int64) (exists, archived bool, err error) {
+	args := m.Called(id, budgetID)
+	return args.Bool(0), args.Bool(1), args.Error(2) //nolint:mnd
+}
+
 // ListByBudget records the call and returns the configured stub values.
 func (m *EnvelopeRepository) ListByBudget(_ context.Context, budgetID int64, archived *bool) ([]models.BudgetEnvelope, error) {
 	args := m.Called(budgetID, archived)

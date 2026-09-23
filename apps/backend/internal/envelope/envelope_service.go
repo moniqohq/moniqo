@@ -85,6 +85,7 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 		Title:        req.Title,
 		AllocatedAmt: req.AllocatedAmt,
 		Description:  req.Description,
+		Nature:       req.Nature,
 	}
 	env, err := s.repo.Create(ctx, p)
 	if err != nil {
@@ -204,7 +205,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		return models.BudgetEnvelope{}, fmt.Errorf("sum spent: %w", err)
 	}
 	if !CanDecreaseAllocatedAmt(req.AllocatedAmt, spent) {
-		return models.BudgetEnvelope{}, ErrValidation
+		return models.BudgetEnvelope{}, &AllocatedBelowSpentError{Allocated: req.AllocatedAmt, Spent: spent}
 	}
 
 	p := UpdateParams{
@@ -273,7 +274,7 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 			return models.BudgetEnvelope{}, fmt.Errorf("sum spent: %w", err)
 		}
 		if !CanDecreaseAllocatedAmt(*req.AllocatedAmt, spent) {
-			return models.BudgetEnvelope{}, ErrValidation
+			return models.BudgetEnvelope{}, &AllocatedBelowSpentError{Allocated: *req.AllocatedAmt, Spent: spent}
 		}
 	}
 
