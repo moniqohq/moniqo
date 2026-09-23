@@ -23,12 +23,7 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, AlertTriangle } from "lucide-react";
 import type { Transaction } from "@/types";
-import { formatCurrency, cn } from "@/lib/utils";
-
-function formatPreviewDate(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
+import { formatCurrency, formatTableDate, cn } from "@/lib/utils";
 
 interface Props {
   tx: Transaction | null;
@@ -66,7 +61,7 @@ export function DeleteTransactionModal({
   if (!tx) return null;
 
   const typeLabel = tx.type.charAt(0).toUpperCase() + tx.type.slice(1);
-  const previewDate = formatPreviewDate(tx.date);
+  const previewDate = formatTableDate(tx.date);
 
   return (
     <AnimatePresence>

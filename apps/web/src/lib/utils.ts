@@ -33,9 +33,17 @@ export function formatCurrency(amount: number, _currency = "INR", locale = "en-I
   return amount < 0 ? `₹ -${num}` : `₹ ${num}`;
 }
 
+// Transaction dates are UTC-pinned calendar dates (e.g. "2026-03-01T00:00:00Z"), not
+// timezone-aware instants. Format in UTC so the calendar date shown always matches the
+// calendar date stored, regardless of the viewer's local timezone.
 export function formatTableDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export function formatCurrencyCompact(amount: number): string {
