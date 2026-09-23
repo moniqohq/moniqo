@@ -24,15 +24,19 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/httpx"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+	"github.com/moniqohq/moniqo/apps/backend/internal/money"
 )
 
 const (
@@ -40,21 +44,35 @@ const (
 	fieldBody            = "body"
 	fieldBudgetID        = "budget_id"
 	fieldTransactionID   = "id"
-	errInvalidJSON       = "invalid JSON"
-	errInvalidID         = "must be a positive integer"
-	errAmountNonZero     = "amount must be non-zero"
-	errEnvelopeRequired  = "budget_envelope_id is required for non-transfer transactions"
-	errTransferConflict  = "transfer_account_id and budget_envelope_id are mutually exclusive"
-	errSelfTransfer      = "transfer_account_id must differ from account_id"
-	errValidationFailed  = "validation failed"
 
-	fieldAmount        = "amount"
-	fieldEnvelopeID    = "budget_envelope_id"
-	fieldStatus        = "status"
-	fieldAccountID     = "account_id"
-	errInvalidStatus   = "must be one of uncleared, cleared, reconciled"
-	errAccountArchived = "account is archived and cannot accept new transactions"
-	errAccountLocked   = "account has transaction locking enabled; unlock the account to delete this transaction"
+	fieldAccountID         = "account_id"
+	fieldTransferAccountID = "transfer_account_id"
+	fieldEnvelopeID        = "budget_envelope_id"
+	fieldAmount            = "amount"
+	fieldDate              = "date"
+	fieldStatus            = "status"
+	fieldMemo              = "memo"
+	fieldSpentAmt          = "spent_amt"
+
+	errInvalidID        = "must be a positive integer"
+	errAmountNonZero    = "amount must be non-zero; use a negative value for outflows and a positive value for inflows"
+	errInvalidDate      = "must be an RFC 3339 timestamp, e.g. 2026-03-01T00:00:00Z"
+	errEnvelopeRequired = "budget_envelope_id is required for non-transfer transactions; " +
+		"omit it only when transfer_account_id is set"
+	errTransferConflict = "budget_envelope_id must be omitted when transfer_account_id is set; " +
+		"a transfer moves money between accounts and cannot be assigned to an envelope"
+	errTransferAccountRequired = "transfer_account_id is required when creating a transfer"
+	errSelfTransfer            = "transfer_account_id must differ from account_id; a transfer requires two distinct accounts"
+	errInvalidStatus           = "must be one of uncleared, cleared, reconciled"
+	errAccountArchived         = "account is archived and cannot accept new transactions"
+	errAccountLocked           = "account has transaction locking enabled; unlock the account to delete this transaction"
+	errPatchBodyEmpty          = "request body must contain at least one updatable field: " +
+		"account_id, transfer_account_id, budget_envelope_id, amount, date, status, memo"
+	errSpentAmtReadOnly = "spent_amt is read-only and derived from transactions; remove it from the request body"
+	errBodyUnreadable   = "must be readable"
+	errValidationFailed = "validation failed"
+
+	receivedValueMaxLen = 40
 
 	defaultPageSize = 20
 )
@@ -74,6 +92,30 @@ func membershipFromContext(c echo.Context) (models.BudgetUser, bool) {
 	v := c.Get(membershipContextKey)
 	m, ok := v.(models.BudgetUser)
 	return m, ok
+}
+
+// truncateValue strips control characters and shortens s for safe, readable
+// inclusion inside a validation message.
+func truncateValue(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(s))
+	if len(s) > receivedValueMaxLen {
+		return s[:receivedValueMaxLen] + "..."
+	}
+	return s
+}
+
+// paramFieldError builds a field error for an invalid path parameter, naming
+// the raw value the client sent.
+func paramFieldError(field, value string) httpx.FieldError {
+	return httpx.FieldError{
+		Field: field,
+		Error: fmt.Sprintf("%s (received %q)", errInvalidID, truncateValue(value)),
+	}
 }
 
 func parseBudgetID(c echo.Context) (int64, error) {
@@ -137,7 +179,7 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 		errs = append(errs, httpx.FieldError{Field: fieldAmount, Error: errAmountNonZero})
 	}
 	if req.Date.IsZero() {
-		errs = append(errs, httpx.FieldError{Field: "date", Error: "must be a valid date"})
+		errs = append(errs, httpx.FieldError{Field: fieldDate, Error: errInvalidDate})
 	}
 	if req.TransferAccountID != nil {
 		// Transfer: envelope must be absent, no self-transfer
@@ -145,7 +187,7 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 			errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errTransferConflict})
 		}
 		if *req.TransferAccountID == req.AccountID {
-			errs = append(errs, httpx.FieldError{Field: "transfer_account_id", Error: errSelfTransfer})
+			errs = append(errs, httpx.FieldError{Field: fieldTransferAccountID, Error: errSelfTransfer})
 		}
 	} else if req.EnvelopeID == nil {
 		// Standard: envelope required
@@ -164,13 +206,13 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 		errs = append(errs, httpx.FieldError{Field: fieldAmount, Error: errAmountNonZero})
 	}
 	if req.Date.IsZero() {
-		errs = append(errs, httpx.FieldError{Field: "date", Error: "must be a valid date"})
+		errs = append(errs, httpx.FieldError{Field: fieldDate, Error: errInvalidDate})
 	}
 	if req.TransferAccountID != nil && req.EnvelopeID != nil {
 		errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errTransferConflict})
 	}
 	if req.TransferAccountID != nil && *req.TransferAccountID == req.AccountID {
-		errs = append(errs, httpx.FieldError{Field: "transfer_account_id", Error: errSelfTransfer})
+		errs = append(errs, httpx.FieldError{Field: fieldTransferAccountID, Error: errSelfTransfer})
 	}
 	return appendStatusError(errs, req.Status)
 }
@@ -179,17 +221,19 @@ func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 //
 //nolint:revive
 func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
-	if req.AccountID == nil && req.TransferAccountID == nil && req.EnvelopeID == nil &&
-		req.Amount == nil && req.Date == nil && req.Status == nil && req.Memo == nil {
-		return []httpx.FieldError{{Field: fieldBody, Error: "request body must contain at least one field"}}
-	}
-
-	// Reject explicit spend_amt key.
+	// Reject explicit spent_amt key before the empty-body check, since a body
+	// containing only spent_amt decodes to an all-nil PatchRequest and the
+	// spent_amt-specific message is more actionable than "body is empty".
 	var raw map[string]json.RawMessage
 	if json.Unmarshal(rawBody, &raw) == nil {
-		if _, ok := raw["spent_amt"]; ok {
-			return []httpx.FieldError{{Field: "spent_amt", Error: "spent_amt is read-only"}}
+		if _, ok := raw[fieldSpentAmt]; ok {
+			return []httpx.FieldError{{Field: fieldSpentAmt, Error: errSpentAmtReadOnly}}
 		}
+	}
+
+	if req.AccountID == nil && req.TransferAccountID == nil && req.EnvelopeID == nil &&
+		req.Amount == nil && req.Date == nil && req.Status == nil && req.Memo == nil {
+		return []httpx.FieldError{{Field: fieldBody, Error: errPatchBodyEmpty}}
 	}
 
 	var errs []httpx.FieldError
@@ -202,11 +246,120 @@ func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
 	return errs
 }
 
+// decodeFieldProbe decodes a single known JSON key into its expected Go type,
+// used to attribute a bind failure to the specific field that caused it.
+type decodeFieldProbe struct {
+	field  string
+	decode func(raw json.RawMessage) error
+	expect string
+}
+
+// transactionDecodeProbes covers every JSON key shared by CreateRequest,
+// ReplaceRequest and PatchRequest, in request-body declaration order.
+//
+//nolint:gochecknoglobals // read-only lookup table, not mutable state.
+var transactionDecodeProbes = []decodeFieldProbe{
+	{
+		field:  fieldAccountID,
+		decode: func(raw json.RawMessage) error { var v int64; return json.Unmarshal(raw, &v) },
+		expect: "must be a JSON integer",
+	},
+	{
+		field:  fieldTransferAccountID,
+		decode: func(raw json.RawMessage) error { var v *int64; return json.Unmarshal(raw, &v) },
+		expect: "must be a JSON integer or null",
+	},
+	{
+		field:  fieldEnvelopeID,
+		decode: func(raw json.RawMessage) error { var v *int64; return json.Unmarshal(raw, &v) },
+		expect: "must be a JSON integer or null",
+	},
+	{
+		field:  fieldAmount,
+		decode: func(raw json.RawMessage) error { var v money.Amount; return json.Unmarshal(raw, &v) },
+		expect: "must be a JSON number in major units, e.g. 12.34",
+	},
+	{
+		field:  fieldDate,
+		decode: func(raw json.RawMessage) error { var v time.Time; return json.Unmarshal(raw, &v) },
+		expect: errInvalidDate,
+	},
+	{
+		field:  fieldStatus,
+		decode: func(raw json.RawMessage) error { var v *models.TransactionStatus; return json.Unmarshal(raw, &v) },
+		expect: errInvalidStatus,
+	},
+	{
+		field:  fieldMemo,
+		decode: func(raw json.RawMessage) error { var v *string; return json.Unmarshal(raw, &v) },
+		expect: "must be a string or null",
+	},
+}
+
+// decodeFieldErrors is used when c.Bind fails on a transaction write request.
+// It re-inspects the raw body key-by-key so the response names every field
+// that failed to decode, along with the value that was received, instead of
+// collapsing everything into a single "invalid JSON" message.
+func decodeFieldErrors(rawBody []byte) []httpx.FieldError {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(rawBody, &raw); err != nil {
+		return []httpx.FieldError{{
+			Field: fieldBody,
+			Error: "malformed JSON: " + truncateValue(err.Error()),
+		}}
+	}
+
+	var errs []httpx.FieldError
+	for _, probe := range transactionDecodeProbes {
+		value, present := raw[probe.field]
+		if !present {
+			continue
+		}
+		if err := probe.decode(value); err != nil {
+			errs = append(errs, httpx.FieldError{
+				Field: probe.field,
+				Error: fmt.Sprintf("%s (received %s)", probe.expect, truncateValue(string(value))),
+			})
+		}
+	}
+	if len(errs) == 0 {
+		// Bind failed for a structural reason none of the known-key probes caught
+		// (e.g. the body is not a JSON object at all).
+		errs = []httpx.FieldError{{Field: fieldBody, Error: "must be a JSON object"}}
+	}
+	return errs
+}
+
+// bufferBody reads and restores the request body so it can be read twice:
+// once for field-level decode diagnostics, once by c.Bind.
+func bufferBody(c echo.Context) ([]byte, error) {
+	raw, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return nil, err //nolint:wrapcheck
+	}
+	c.Request().Body = io.NopCloser(bytes.NewBuffer(raw))
+	return raw, nil
+}
+
+// serviceErrorFields maps a FieldViolationError returned by the service layer
+// onto the matching HTTP response, preserving the field/reason detail the
+// service attached. Returns false if err is not a FieldViolationError.
+func serviceErrorFields(c echo.Context, err error) (bool, error) {
+	var fv *FieldViolationError
+	if !errors.As(err, &fv) {
+		return false, nil
+	}
+	if errors.Is(fv.Sentinel, ErrConflict) {
+		return true, httpx.Conflict(c, fv.Reason)
+	}
+	return true, httpx.ValidationError(c, []httpx.FieldError{{Field: fv.Field, Error: fv.Reason}})
+}
+
 // ListTransactions handles GET /api/v1/budgets/:budget_id/transactions.
 func (h *Handler) ListTransactions(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldBudgetID, c.Param("budget_id"))})
 	}
 
 	f := ListFilters{
@@ -236,12 +389,12 @@ func (h *Handler) ListTransactions(c echo.Context) error {
 func (h *Handler) GetTransaction(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldBudgetID, c.Param("budget_id"))})
 	}
 
 	id, err := parseTransactionID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldTransactionID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldTransactionID, c.Param("id"))})
 	}
 
 	txn, err := h.svc.GetByID(c.Request().Context(), id, budgetID)
@@ -263,16 +416,21 @@ func (h *Handler) GetTransaction(c echo.Context) error {
 // CreateTransaction handles POST /api/v1/budgets/:budget_id/transactions.
 // Routes to CreateTransfer when transfer_account_id is present.
 //
-//nolint:revive,cyclop
+//nolint:revive
 func (h *Handler) CreateTransaction(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldBudgetID, c.Param("budget_id"))})
+	}
+
+	rawBody, err := bufferBody(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errBodyUnreadable}})
 	}
 
 	var req CreateRequest
 	if err := c.Bind(&req); err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+		return httpx.ValidationError(c, decodeFieldErrors(rawBody))
 	}
 
 	if errs := validateCreateRequest(req); len(errs) > 0 {
@@ -286,20 +444,7 @@ func (h *Handler) CreateTransaction(c echo.Context) error {
 		txn, err = h.svc.Create(c.Request().Context(), budgetID, req)
 	}
 	if err != nil {
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "transaction business rule violation")
-		}
-		if errors.Is(err, ErrValidation) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
-		}
-		if errors.Is(err, ErrAccountArchived) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
-		}
-		h.log.Error("Create transaction failed",
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return httpx.InternalError(c)
+		return h.handleCreateTransactionError(c, err, budgetID)
 	}
 
 	return httpx.Created(c, txn, "transaction created successfully")
@@ -311,17 +456,22 @@ func (h *Handler) CreateTransaction(c echo.Context) error {
 func (h *Handler) ReplaceTransaction(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldBudgetID, c.Param("budget_id"))})
 	}
 
 	id, err := parseTransactionID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldTransactionID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldTransactionID, c.Param("id"))})
+	}
+
+	rawBody, err := bufferBody(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errBodyUnreadable}})
 	}
 
 	var req ReplaceRequest
 	if err := c.Bind(&req); err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+		return httpx.ValidationError(c, decodeFieldErrors(rawBody))
 	}
 
 	if errs := validateReplaceRequest(req); len(errs) > 0 {
@@ -330,24 +480,7 @@ func (h *Handler) ReplaceTransaction(c echo.Context) error {
 
 	txn, err := h.svc.Replace(c.Request().Context(), id, budgetID, req)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "transaction not found")
-		}
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "transaction business rule violation")
-		}
-		if errors.Is(err, ErrValidation) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
-		}
-		if errors.Is(err, ErrAccountArchived) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
-		}
-		h.log.Error("Replace transaction failed",
-			zap.Int64("transaction_id", id),
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return httpx.InternalError(c)
+		return h.handleReplaceTransactionError(c, err, id, budgetID)
 	}
 
 	return httpx.OK(c, txn, "transaction updated successfully")
@@ -359,23 +492,22 @@ func (h *Handler) ReplaceTransaction(c echo.Context) error {
 func (h *Handler) PatchTransaction(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldBudgetID, c.Param("budget_id"))})
 	}
 
 	id, err := parseTransactionID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldTransactionID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldTransactionID, c.Param("id"))})
 	}
 
-	rawBytes, err := io.ReadAll(c.Request().Body)
+	rawBytes, err := bufferBody(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errBodyUnreadable}})
 	}
-	c.Request().Body = io.NopCloser(bytes.NewBuffer(rawBytes))
 
 	var req PatchRequest
 	if err := c.Bind(&req); err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+		return httpx.ValidationError(c, decodeFieldErrors(rawBytes))
 	}
 
 	if errs := validatePatchRequest(req, rawBytes); len(errs) > 0 {
@@ -384,24 +516,7 @@ func (h *Handler) PatchTransaction(c echo.Context) error {
 
 	txn, err := h.svc.Patch(c.Request().Context(), id, budgetID, req)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "transaction not found")
-		}
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "transaction business rule violation")
-		}
-		if errors.Is(err, ErrValidation) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
-		}
-		if errors.Is(err, ErrAccountArchived) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
-		}
-		h.log.Error("Patch transaction failed",
-			zap.Int64("transaction_id", id),
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return httpx.InternalError(c)
+		return h.handlePatchTransactionError(c, err, id, budgetID)
 	}
 
 	return httpx.OK(c, txn, "transaction updated successfully")
@@ -411,12 +526,12 @@ func (h *Handler) PatchTransaction(c echo.Context) error {
 func (h *Handler) DeleteTransaction(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldBudgetID, c.Param("budget_id"))})
 	}
 
 	id, err := parseTransactionID(c)
 	if err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldTransactionID, Error: errInvalidID}})
+		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldTransactionID, c.Param("id"))})
 	}
 
 	membership, ok := membershipFromContext(c)
@@ -439,6 +554,74 @@ func (h *Handler) handleDeleteTransactionError(c echo.Context, err error, id, bu
 		return httpx.Conflict(c, errAccountLocked)
 	}
 	h.log.Error("Delete transaction failed",
+		zap.Int64("transaction_id", id),
+		zap.Int64("budget_id", budgetID),
+		zap.Error(err),
+	)
+	return httpx.InternalError(c)
+}
+
+func (h *Handler) handleCreateTransactionError(c echo.Context, err error, budgetID int64) error {
+	if ok, resp := serviceErrorFields(c, err); ok {
+		return resp
+	}
+	if errors.Is(err, ErrConflict) {
+		return httpx.Conflict(c, "transaction business rule violation")
+	}
+	if errors.Is(err, ErrValidation) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
+	}
+	if errors.Is(err, ErrAccountArchived) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	}
+	h.log.Error("Create transaction failed",
+		zap.Int64("budget_id", budgetID),
+		zap.Error(err),
+	)
+	return httpx.InternalError(c)
+}
+
+func (h *Handler) handleReplaceTransactionError(c echo.Context, err error, id, budgetID int64) error {
+	if ok, resp := serviceErrorFields(c, err); ok {
+		return resp
+	}
+	if errors.Is(err, ErrNotFound) {
+		return httpx.NotFound(c, "transaction not found")
+	}
+	if errors.Is(err, ErrConflict) {
+		return httpx.Conflict(c, "transaction business rule violation")
+	}
+	if errors.Is(err, ErrValidation) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
+	}
+	if errors.Is(err, ErrAccountArchived) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	}
+	h.log.Error("Replace transaction failed",
+		zap.Int64("transaction_id", id),
+		zap.Int64("budget_id", budgetID),
+		zap.Error(err),
+	)
+	return httpx.InternalError(c)
+}
+
+func (h *Handler) handlePatchTransactionError(c echo.Context, err error, id, budgetID int64) error {
+	if ok, resp := serviceErrorFields(c, err); ok {
+		return resp
+	}
+	if errors.Is(err, ErrNotFound) {
+		return httpx.NotFound(c, "transaction not found")
+	}
+	if errors.Is(err, ErrConflict) {
+		return httpx.Conflict(c, "transaction business rule violation")
+	}
+	if errors.Is(err, ErrValidation) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
+	}
+	if errors.Is(err, ErrAccountArchived) {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	}
+	h.log.Error("Patch transaction failed",
 		zap.Int64("transaction_id", id),
 		zap.Int64("budget_id", budgetID),
 		zap.Error(err),
