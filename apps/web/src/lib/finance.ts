@@ -45,9 +45,7 @@ export function computeNetWorth(accounts: Account[]): NetWorthBreakdown {
   const totalAssets = cashAndSavings.reduce((s, a) => s + a.balance, 0);
 
   const creditAccounts = active.filter((a) => a.type === "credit");
-  const totalLiabilities = Math.abs(
-    creditAccounts.reduce((s, a) => s + Math.min(0, a.balance), 0),
-  );
+  const totalLiabilities = Math.abs(creditAccounts.reduce((s, a) => s + Math.min(0, a.balance), 0));
 
   const netWorth = totalAssets - totalLiabilities;
 
