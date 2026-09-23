@@ -380,13 +380,6 @@ function ArchiveSuccessDialog({
 
 /* ── Main View ───────────────────────────────────────────── */
 
-interface ChecklistItem {
-  id: string;
-  label: string;
-  description: string;
-  checked: boolean;
-}
-
 interface Props {
   budgetId: number;
   accountId: number;
@@ -412,26 +405,6 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const rawAccount = legacyAccountMap.get(accountId);
   const [transferOpen, setTransferOpen] = useState(false);
 
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([
-    {
-      id: "transfer",
-      label: "Transfer Remaining Balance",
-      description: "Move funds to another account",
-      checked: true,
-    },
-    {
-      id: "pending",
-      label: "Clear Pending Transactions",
-      description: "Resolve any uncleared items",
-      checked: false,
-    },
-    {
-      id: "reconcile",
-      label: "Reconcile Account",
-      description: "Make sure account is up to date",
-      checked: false,
-    },
-  ]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
@@ -451,9 +424,50 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
   const archiveStatus = hasBalance ? "Archive Recommended" : "Ready to Archive";
   const riskDotColor = ({ Low: "#22C55E", Medium: "#F59E0B", High: "#EF4444" } as const)[riskLevel];
 
-  function toggleCheck(id: string) {
-    setChecklist((prev) => prev.map((c) => (c.id === id ? { ...c, checked: !c.checked } : c)));
-  }
+  const uncoveredPendingCount = accountTransactions.filter(
+    (tx) => tx.status === "uncleared",
+  ).length;
+  const pendingCleared = uncoveredPendingCount === 0;
+  const isReconciled =
+    Boolean(rawAccount?.last_reconciled_at) &&
+    (!lastActivityDate ||
+      new Date(rawAccount!.last_reconciled_at!).getTime() >= new Date(lastActivityDate).getTime());
+
+  const checklist: {
+    id: string;
+    label: string;
+    description: string;
+    met: boolean;
+    action?: { label: string; onClick: () => void };
+  }[] = [
+    {
+      id: "transfer",
+      label: "Transfer Remaining Balance",
+      description: hasBalance ? `Move ${formatCurrency(balance)} to another account` : "Balance is zero",
+      met: !hasBalance,
+      action: hasBalance ? { label: "Transfer", onClick: () => setTransferOpen(true) } : undefined,
+    },
+    {
+      id: "pending",
+      label: "Clear Pending Transactions",
+      description: pendingCleared
+        ? "No uncleared items"
+        : `${uncoveredPendingCount} uncleared transaction${uncoveredPendingCount === 1 ? "" : "s"}`,
+      met: pendingCleared,
+    },
+    {
+      id: "reconcile",
+      label: "Reconcile Account",
+      description: isReconciled ? `Reconciled ${lastReconciled}` : "Account is not up to date",
+      met: isReconciled,
+      action: !isReconciled
+        ? {
+            label: "Reconcile",
+            onClick: () => router.push(`/budgets/${budgetId}/accounts/${accountId}/reconcile`),
+          }
+        : undefined,
+    },
+  ];
 
   async function handleArchiveConfirmed() {
     setArchiveError(null);
@@ -786,34 +800,46 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
                     key={item.id}
                     className={cn(
                       "flex items-center gap-3 rounded-xl border p-3 transition-all",
-                      item.checked
+                      item.met
                         ? "border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.04)]"
-                        : "border-[#1E2B42] bg-[#080C14]",
+                        : "border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.04)]",
                     )}
                   >
-                    <button
-                      onClick={() => toggleCheck(item.id)}
+                    <div
+                      title={item.met ? "Requirement met" : "Requirement not yet met"}
                       className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all",
-                        item.checked
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
+                        item.met
                           ? "border-[#22C55E] bg-[#22C55E]"
-                          : "border-[#2A3A54] bg-transparent hover:border-[#5A6A85]",
+                          : "border-[#F59E0B] bg-transparent",
                       )}
                     >
-                      {item.checked && <CheckCircle2 size={11} className="text-[#080C14]" />}
-                    </button>
+                      {item.met ? (
+                        <CheckCircle2 size={11} className="text-[#080C14]" />
+                      ) : (
+                        <AlertTriangle size={10} className="text-[#F59E0B]" />
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p
                         className={cn(
                           "text-[12px] font-semibold",
-                          item.checked ? "text-[#22C55E]" : "text-[#E8EEF8]",
+                          item.met ? "text-[#22C55E]" : "text-[#E8EEF8]",
                         )}
                       >
                         {item.label}
                       </p>
                       <p className="mt-0.5 text-[11px] text-[#5A6A85]">{item.description}</p>
                     </div>
-                    <ChevronRight size={14} className="shrink-0 text-[#5A6A85]" />
+                    {!item.met && item.action && (
+                      <button
+                        onClick={item.action.onClick}
+                        className="flex shrink-0 items-center gap-1 rounded-lg border border-[#2A3A54] px-2.5 py-1.5 text-[11px] font-semibold text-[#A8B4CC] transition-all hover:border-[#6C3AED] hover:text-[#E8EEF8]"
+                      >
+                        {item.action.label}
+                        <ChevronRight size={12} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
