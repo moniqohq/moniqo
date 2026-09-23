@@ -60,7 +60,7 @@ import { ArchiveEnvelopeModal } from "./ArchiveEnvelopeModal";
 import { ForceDeleteEnvelopeDialog } from "./ForceDeleteEnvelopeDialog";
 
 /* ── Types ───────────────────────────────────────────────── */
-type TxStatus = "Cleared" | "Pending" | "Reconciled";
+type TxStatus = "Cleared" | "Uncleared" | "Reconciled";
 type TxType = "Expense" | "Income" | "Transfer";
 
 interface EnvelopeTx {
@@ -73,7 +73,7 @@ interface EnvelopeTx {
   amount: number;
   type: TxType;
   runningImpact: number;
-  status: TxStatus;
+  status?: TxStatus;
 }
 
 /* ── TX type badge ───────────────────────────────────────── */
@@ -115,11 +115,14 @@ function HealthBadge({ pct }: { pct: number }) {
 }
 
 /* ── TX status badge ─────────────────────────────────────── */
-function TxStatusBadge({ status }: { status: TxStatus }) {
+function TxStatusBadge({ status }: { status?: TxStatus }) {
+  if (!status) {
+    return <span className="text-sm text-[#2A3A54] select-none">—</span>;
+  }
   const cfg: Record<TxStatus, { bg: string; text: string; border: string }> = {
     Cleared: { bg: "rgba(34,197,94,0.12)", text: "#4ADE80", border: "rgba(34,197,94,0.25)" },
-    Pending: { bg: "rgba(245,158,11,0.12)", text: "#FCD34D", border: "rgba(245,158,11,0.25)" },
-    Reconciled: { bg: "rgba(59,130,246,0.12)", text: "#60A5FA", border: "rgba(59,130,246,0.25)" },
+    Uncleared: { bg: "rgba(245,158,11,0.12)", text: "#FCD34D", border: "rgba(245,158,11,0.25)" },
+    Reconciled: { bg: "rgba(139,92,246,0.15)", text: "#8B5CF6", border: "rgba(139,92,246,0.3)" },
   };
   const c = cfg[status];
   return (
@@ -376,7 +379,7 @@ export function EnvelopeDetails({
   };
   const statusLabel: Record<string, TxStatus> = {
     cleared: "Cleared",
-    uncleared: "Pending",
+    uncleared: "Uncleared",
     reconciled: "Reconciled",
   };
 
@@ -409,7 +412,7 @@ export function EnvelopeDetails({
     amount: t.type === "expense" ? -t.amount : t.amount,
     type: typeLabel[t.type] ?? "Expense",
     runningImpact: runningImpactById.get(t.id) ?? 0,
-    status: statusLabel[t.status ?? "cleared"] ?? "Cleared",
+    status: t.status ? statusLabel[t.status] : undefined,
   }));
 
   /* Filter + sort transactions */

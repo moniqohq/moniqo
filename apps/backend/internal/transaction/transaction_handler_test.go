@@ -625,6 +625,23 @@ func TestHandler_ReplaceTransaction(t *testing.T) {
 		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "account_id")
 		assert.Equal(t, "account does not belong to this budget", fe.Error)
 	})
+
+	t.Run("invalid status returns 400", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			ReplaceFn: func(_ context.Context, _, _ int64, _ transaction.ReplaceRequest) (models.Transaction, error) {
+				t.Fatal("service should not be called when status is invalid")
+				return models.Transaction{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPut, "/",
+			`{"account_id":5,"budget_envelope_id":3,"amount":-2000.00,"date":"2026-03-01T00:00:00Z","status":"pending"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ReplaceTransaction(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
 }
 
 // ---------------------------------------------------------------------------

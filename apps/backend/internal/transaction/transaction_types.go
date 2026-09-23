@@ -147,6 +147,7 @@ type UpdateParams struct {
 	EnvelopeID        *int64
 	Amount            money.Amount
 	Date              time.Time
+	Status            models.TransactionStatus
 	Memo              *string
 }
 

@@ -20,11 +20,13 @@
 "use client";
 
 import { Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useUIStore } from "@/stores/ui.store";
 import { useEnvelopes } from "@/hooks/use-envelopes";
 import { formatCurrency } from "@/lib/utils";
 
 export function BudgetOverview() {
+  const router = useRouter();
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const { summary, isLoading } = useEnvelopes(activeBudgetId);
 
@@ -107,6 +109,7 @@ export function BudgetOverview() {
       {/* CTA */}
       <div className="px-4 pt-4 pb-5">
         <button
+          onClick={() => router.push("/envelopes")}
           className="w-full rounded-xl py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-80"
           style={{ background: "rgba(108,58,237,0.55)", border: "1px solid rgba(108,58,237,0.3)" }}
         >

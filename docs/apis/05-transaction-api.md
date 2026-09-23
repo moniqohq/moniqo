@@ -148,7 +148,8 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
     "budget_envelope_id": 5,
     "transfer_account_id": null,
     "amount": -1500.00,
-    "date": "2026-03-01T00:00:00Z"
+    "date": "2026-03-01T00:00:00Z",
+    "status": "uncleared"
   },
   "msg": "transaction created successfully"
 }
@@ -208,7 +209,8 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
       "account_id": 10,
       "budget_envelope_id": 5,
       "amount": -1500.00,
-      "date": "2026-03-01T00:00:00Z"
+      "date": "2026-03-01T00:00:00Z",
+      "status": "uncleared"
     }
   ],
   "meta": {
@@ -245,7 +247,8 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
     "account_id": 10,
     "budget_envelope_id": 5,
     "amount": -1500.00,
-    "date": "2026-03-01T00:00:00Z"
+    "date": "2026-03-01T00:00:00Z",
+    "status": "uncleared"
   },
   "msg": "transaction fetched successfully"
 }
@@ -290,6 +293,9 @@ Idempotent operation.
 - Full representation required.
 - Financial impact must be recalculated.
 - Transfer rules enforced.
+- `status` follows full-replace semantics: omitting it resets the transaction to `uncleared`, even if it
+  was previously `cleared` or `reconciled`. Send the current `status` explicitly to preserve it.
+- For transfers, `status` is applied to both legs so they never disagree on clearing state.
 
 **Side Effects**
 

@@ -342,6 +342,8 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		}
 	}
 
+	status := statusOrDefault(req.Status)
+
 	updated, err := s.repo.Update(ctx, UpdateParams{
 		ID:                id,
 		BudgetID:          budgetID,
@@ -350,6 +352,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		EnvelopeID:        req.EnvelopeID,
 		Amount:            req.Amount,
 		Date:              req.Date,
+		Status:            status,
 		Memo:              req.Memo,
 	})
 	if err != nil {
@@ -380,6 +383,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 				EnvelopeID:        nil,
 				Amount:            negated,
 				Date:              req.Date,
+				Status:            status,
 				Memo:              req.Memo,
 			}); err != nil {
 				s.log.Error("repo.Update (mirror leg) failed",
@@ -466,8 +470,8 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 		return models.Transaction{}, fmt.Errorf("patch transaction: %w", err)
 	}
 
-	// Keep mirror leg consistent when amount or date changed.
-	if existing.TransferGroupID != nil && (req.Amount != nil || req.Date != nil) {
+	// Keep mirror leg consistent when amount, date, or status changed.
+	if existing.TransferGroupID != nil && (req.Amount != nil || req.Date != nil || req.Status != nil) {
 		legs, err := s.repo.GetByGroupID(ctx, *existing.TransferGroupID, budgetID)
 		if err != nil {
 			return models.Transaction{}, fmt.Errorf("get transfer legs: %w", err)
@@ -480,6 +484,7 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 				ID:       leg.ID,
 				BudgetID: budgetID,
 				Date:     req.Date,
+				Status:   req.Status,
 				Memo:     req.Memo,
 			}
 			if req.Amount != nil {
