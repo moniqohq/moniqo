@@ -74,7 +74,7 @@ Allowed values: `CHECKING`, `SAVINGS`, `CREDIT_CARD`, `CASH`, `LOAN`
 - `is_on_budget` determines whether account affects budget allocations.
 - Credit card accounts may require special allocation logic.
 - Deleting an account performs cascade delete and soft deletes the associated transactions.
-- Archiving is distinct from deletion: an archived account keeps its full transaction history, is frozen (read-only), and is hidden from active selection, but remains visible in reports.
+- Archiving is distinct from deletion: an archived account keeps its full transaction history and is frozen (read-only). It is hidden from active selection, from the main Transaction List, from global search, and from dashboard/report aggregates (net worth, monthly income/expense, envelope spend). Its history remains fully accessible via the account's own detail view (`?account_id=<archived>` on the transactions endpoint, or `?status=archived`/`all` on the accounts endpoint) and via direct transaction lookup by ID.
 - An account's `balance` must be exactly zero before it can be archived.
 - Archived accounts cannot receive new or updated transactions; attempting to do so is rejected.
 - Only `OWNER` or `ADMIN` may archive or unarchive an account.
@@ -549,8 +549,8 @@ You cannot delete an account with history. You must close it, zero the balance, 
 | Transactions | Remain intact |
 | Balance | Frozen |
 | New Transactions | Not allowed |
-| UI | Hidden from active selection |
-| Reports | Still included |
+| UI | Hidden from active selection, main Transaction List, search, and dashboard/report aggregates |
+| Account detail / direct lookup | Still accessible |
 
 **Before archiving:**
 

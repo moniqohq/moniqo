@@ -70,6 +70,8 @@ export interface ApiAccount {
   account_number?: string | null;
   institution?: string | null;
   last_reconciled_at?: string | null;
+  is_archived: boolean;
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 }

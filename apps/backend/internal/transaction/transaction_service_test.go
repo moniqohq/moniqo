@@ -125,7 +125,7 @@ func TestSvc_Create(t *testing.T) {
 		repo.AssertNotCalled(t, "Create")
 	})
 
-	t.Run("missing envelope returns ErrValidation", func(t *testing.T) {
+	t.Run("missing envelope on expense returns ErrValidation", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.TransactionRepository{}
 		svc := transaction.NewSvc(repo, log)
@@ -137,6 +137,29 @@ func TestSvc_Create(t *testing.T) {
 		assert.ErrorIs(t, err, transaction.ErrValidation)
 		fv := fieldViolation(t, err)
 		assert.Equal(t, "budget_envelope_id", fv.Field)
+	})
+
+	t.Run("income without envelope succeeds", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", transaction.CreateParams{
+			BudgetID:  testBudgetID,
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(100000),
+			Date:      testDate,
+			Status:    models.TransactionStatusUncleared,
+		}).Return(makeTxn(100000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(100000),
+			Date:      testDate,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(100000), txn.Amount)
+		repo.AssertExpectations(t)
 	})
 }
 
@@ -235,6 +258,22 @@ func TestSvc_GetByID(t *testing.T) {
 		_, err := svc.GetByID(context.Background(), testTransactionID, testBudgetID)
 		assert.ErrorIs(t, err, transaction.ErrNotFound)
 	})
+
+	// Direct-by-ID access is deliberately unfiltered by archived state: deep links
+	// and audit trails must never 404 just because the owning account was later
+	// archived. GetByID has no AccountChecker dependency at all, so this test
+	// pins the pass-through behaviour rather than exercising any guard.
+	t.Run("resolves a transaction belonging to an archived account", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		archivedAccountTxn := makeTxn(-7500)
+		archivedAccountTxn.AccountID = testAccount2ID
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(archivedAccountTxn, nil)
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.GetByID(context.Background(), testTransactionID, testBudgetID)
+		require.NoError(t, err)
+		assert.Equal(t, testAccount2ID, txn.AccountID)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +311,57 @@ func TestSvc_List(t *testing.T) {
 		assert.NotNil(t, txns)
 		assert.Empty(t, txns)
 		assert.Equal(t, 0, total)
+	})
+
+	// The default zero-value ListFilters excludes archived-account transactions
+	// (the SQL-layer predicate defaults to exclusion; see repo/DB-level tests for
+	// the actual filtering behaviour). This test guards that the service passes
+	// IncludeArchived through unmodified rather than silently dropping it.
+	t.Run("excludes archived by default (IncludeArchived not forced true)", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		f := transaction.ListFilters{Page: 1, PageSize: 20}
+		repo.On("List", testBudgetID, f).Return([]models.Transaction{}, nil)
+		repo.On("Count", testBudgetID, f).Return(0, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, _, err := svc.List(context.Background(), testBudgetID, f)
+		require.NoError(t, err)
+		repo.AssertCalled(t, "List", testBudgetID, transaction.ListFilters{Page: 1, PageSize: 20, IncludeArchived: false})
+	})
+
+	t.Run("IncludeArchived override is passed through to the repo unmodified", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		f := transaction.ListFilters{Page: 1, PageSize: 20, IncludeArchived: true}
+		repo.On("List", testBudgetID, f).Return([]models.Transaction{makeTxnWithEnvelope(-5000)}, nil)
+		repo.On("Count", testBudgetID, f).Return(1, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txns, total, err := svc.List(context.Background(), testBudgetID, f)
+		require.NoError(t, err)
+		assert.Len(t, txns, 1)
+		assert.Equal(t, 1, total)
+		repo.AssertCalled(t, "List", testBudgetID, f)
+		repo.AssertCalled(t, "Count", testBudgetID, f)
+	})
+
+	// An explicit AccountID filter is the mechanism account-detail views use to
+	// list an archived account's history; it must reach the repo untouched even
+	// though IncludeArchived stays false.
+	t.Run("explicit AccountID filter for an archived account is passed through", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		archivedAccountID := testAccount2ID
+		f := transaction.ListFilters{AccountID: &archivedAccountID, Page: 1, PageSize: 20}
+		repo.On("List", testBudgetID, f).Return([]models.Transaction{makeTxn(-2500)}, nil)
+		repo.On("Count", testBudgetID, f).Return(1, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txns, total, err := svc.List(context.Background(), testBudgetID, f)
+		require.NoError(t, err)
+		assert.Len(t, txns, 1)
+		assert.Equal(t, 1, total)
 	})
 }
 

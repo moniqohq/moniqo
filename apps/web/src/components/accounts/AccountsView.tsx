@@ -521,7 +521,7 @@ export function AccountsView() {
             <div key={i} className="h-28 animate-pulse rounded-2xl bg-[#0F1623]" />
           ))}
         </div>
-        <div className="grid grid-cols-[220px_1fr_280px] gap-4">
+        <div className="grid grid-cols-[300px_1fr_280px] gap-4">
           <div className="h-[520px] animate-pulse rounded-2xl bg-[#0F1623]" />
           <div className="h-[520px] animate-pulse rounded-2xl bg-[#0F1623]" />
           <div className="h-[520px] animate-pulse rounded-2xl bg-[#0F1623]" />
@@ -661,7 +661,7 @@ export function AccountsView() {
       {filteredAccounts.length === 0 ? (
         <EmptyState status={statusFilter} hasTypeFilter={typeFilter !== "all" || !!search} />
       ) : (
-        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[260px_1fr_256px]">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[300px_1fr_256px]">
           <AccountNavPanel
             accounts={filteredAccounts}
             selectedId={selectedAccount?.id ?? 0}

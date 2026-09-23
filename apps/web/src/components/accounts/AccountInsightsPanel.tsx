@@ -52,7 +52,11 @@ interface Props {
 
 export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }: Props) {
   const router = useRouter();
-  const { accountMap, accounts } = useAccounts(budgetId);
+  // "all" so an archived account still resolves — otherwise `account` below
+  // is always undefined for an archived account, disabling Reconcile for the
+  // wrong reason and hiding the real archived state from this panel entirely.
+  const { accountMap, accounts } = useAccounts(budgetId, "all");
+  const account = accountMap.get(accountId);
   const { envelopeMap, envelopes } = useEnvelopes(budgetId);
   const { transactions: txns } = useTransactions(budgetId, accountMap, envelopeMap, { accountId });
   const unarchiveAccount = useUnarchiveAccount();
@@ -66,6 +70,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(108,58,237,0.15)",
       title: "Create Transaction",
       desc: "Record a new transaction",
+      disabled: isArchived,
     },
     {
       icon: <ArrowLeftRight size={16} />,
@@ -73,6 +78,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(59,130,246,0.15)",
       title: "Record Transfer",
       desc: "Move money between accounts",
+      disabled: isArchived,
     },
     {
       icon: <CheckCircle size={16} />,
@@ -80,6 +86,7 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       bg: "rgba(34,197,94,0.15)",
       title: "Reconcile Balance",
       desc: "Verify cleared transactions",
+      disabled: !account?.requires_recon || isArchived,
     },
     {
       icon: <Download size={16} />,
@@ -120,9 +127,13 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
   const outflows = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const net = inflows - outflows;
 
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
   const largestExpense = txns
-    .filter((t) => t.type === "expense")
-    .sort((a, b) => b.amount - a.amount)[0];
+    .filter((t) => t.type === "expense" && new Date(t.date) >= monthStart)
+    .sort((a, b) => a.amount - b.amount)[0];
 
   const categoryTotals = txns
     .filter((t) => t.type === "expense" && t.envelopeName)
@@ -134,7 +145,9 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
     }, {});
   const topCategory = Object.values(categoryTotals).sort((a, b) => b.total - a.total)[0];
 
-  const lastTxn = txns.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  const lastTxn = [...txns].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  )[0];
   /* eslint-disable react-hooks/purity */
   const daysSinceLast = lastTxn
     ? Math.floor((Date.now() - new Date(lastTxn.date).getTime()) / 86_400_000)
@@ -183,7 +196,15 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
                 key={title}
                 onClick={isDisabled ? undefined : onClick}
                 disabled={isDisabled}
-                title={disabled ? "Coming soon" : undefined}
+                title={
+                  disabled
+                    ? isArchived && title !== "Export Transactions"
+                      ? "Archived accounts are read-only"
+                      : title === "Reconcile Balance"
+                        ? "Reconciliation is not enabled for this account"
+                        : "Coming soon"
+                    : undefined
+                }
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-all",
                   isDisabled
@@ -314,43 +335,45 @@ export function AccountInsightsPanel({ accountId, budgetId, isArchived = false }
       </div>
 
       {/* Immutable notice */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-[rgba(108,58,237,0.2)] bg-[rgba(108,58,237,0.06)] p-5 shadow-[0_0_20px_rgba(108,58,237,0.06)]">
-        {/* Icon + title */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[rgba(108,58,237,0.18)] shadow-[0_0_12px_rgba(108,58,237,0.25)]">
-            <Lock size={16} className="text-[#A78BFA]" />
+      {account?.is_immutable && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-[rgba(108,58,237,0.2)] bg-[rgba(108,58,237,0.06)] p-5 shadow-[0_0_20px_rgba(108,58,237,0.06)]">
+          {/* Icon + title */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[rgba(108,58,237,0.18)] shadow-[0_0_12px_rgba(108,58,237,0.25)]">
+              <Lock size={16} className="text-[#A78BFA]" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#C4B5FD]">Immutable Transactions</p>
+              <p className="mt-0.5 text-[10px] text-[#5A6A85]">Audit-safe ledger protection</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-[#C4B5FD]">Immutable Transactions</p>
-            <p className="mt-0.5 text-[10px] text-[#5A6A85]">Audit-safe ledger protection</p>
+
+          {/* Divider */}
+          <div className="h-px bg-[rgba(108,58,237,0.15)]" />
+
+          {/* Body */}
+          <p className="text-xs leading-relaxed text-[#6A7A95]">
+            Transaction immutability is <span className="font-medium text-[#A78BFA]">enabled</span>{" "}
+            for this account.
+          </p>
+
+          <div className="space-y-2">
+            <div className="flex items-start gap-2.5">
+              <div className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#6C3AED]" />
+              <p className="text-[11px] leading-snug text-[#5A6A85]">
+                Use a <span className="font-medium text-[#C4B5FD]">reversing transaction</span> to
+                correct a mistake.
+              </p>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <div className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#6C3AED]" />
+              <p className="text-[11px] leading-snug text-[#5A6A85]">
+                This can be changed in <span className="font-medium text-[#C4B5FD]">Settings</span>.
+              </p>
+            </div>
           </div>
         </div>
-
-        {/* Divider */}
-        <div className="h-px bg-[rgba(108,58,237,0.15)]" />
-
-        {/* Body */}
-        <p className="text-xs leading-relaxed text-[#6A7A95]">
-          Transaction immutability is <span className="font-medium text-[#A78BFA]">enabled</span>{" "}
-          for this account.
-        </p>
-
-        <div className="space-y-2">
-          <div className="flex items-start gap-2.5">
-            <div className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#6C3AED]" />
-            <p className="text-[11px] leading-snug text-[#5A6A85]">
-              Use a <span className="font-medium text-[#C4B5FD]">reversing transaction</span> to
-              correct a mistake.
-            </p>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <div className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#6C3AED]" />
-            <p className="text-[11px] leading-snug text-[#5A6A85]">
-              This can be changed in <span className="font-medium text-[#C4B5FD]">Settings</span>.
-            </p>
-          </div>
-        </div>
-      </div>
+      )}
 
       <AddTransactionModal
         open={addTxOpen}

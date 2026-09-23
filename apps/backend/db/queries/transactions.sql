@@ -24,9 +24,16 @@ SELECT EXISTS (
 
 -- name: SumEnvelopeSpent :one
 -- Returns spend as a positive magnitude; outflows are stored as negative amounts.
-SELECT COALESCE(-SUM(amount), 0)::BIGINT AS spent
-FROM transactions
-WHERE envelope_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+-- Excludes transactions belonging to archived accounts: archived-account activity
+-- must not affect an envelope's available-to-spend figure (would misreport spend).
+SELECT COALESCE(-SUM(t.amount), 0)::BIGINT AS spent
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.envelope_id = $1
+  AND t.budget_id   = $2
+  AND t.deleted_at  IS NULL
+  AND a.deleted_at  IS NULL
+  AND a.archived_at IS NULL;
 
 -- name: EnvelopeHasTransactions :one
 SELECT EXISTS (
@@ -43,10 +50,11 @@ WHERE envelope_id = $1 AND budget_id = $2;
 SELECT COALESCE(SUM(t.amount), 0)::BIGINT AS total_balance
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
-WHERE t.budget_id    = $1
-  AND a.is_on_budget = true
-  AND a.deleted_at   IS NULL
-  AND t.deleted_at   IS NULL;
+WHERE t.budget_id     = $1
+  AND a.is_on_budget  = true
+  AND a.deleted_at    IS NULL
+  AND a.archived_at   IS NULL
+  AND t.deleted_at    IS NULL;
 
 -- name: CreateFullTransaction :one
 INSERT INTO transactions (budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status)
@@ -59,26 +67,48 @@ FROM transactions
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: ListTransactions :many
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
-FROM transactions
-WHERE budget_id = $1
-  AND deleted_at IS NULL
-  AND (account_id    = sqlc.narg(account_id)  OR sqlc.narg(account_id)  IS NULL)
-  AND (envelope_id   = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
-  AND (date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
-  AND (date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL)
-ORDER BY date DESC, id DESC
+-- Archived-account transactions are excluded by default (main list = active accounts
+-- only). Two escape hatches, both required to keep account-detail history working:
+--   - an explicit account_id filter always returns that account's rows regardless of
+--     archived state (this is how the account-detail view lists archived history)
+--   - include_archived=true bypasses the exclusion budget-wide
+-- ListTransactions and CountTransactions must stay predicate-identical or pagination
+-- totals will desync.
+SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id, t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND (t.account_id  = sqlc.narg(account_id)  OR sqlc.narg(account_id)  IS NULL)
+  AND (t.envelope_id = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
+  AND (t.date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
+  AND (t.date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL)
+  AND (
+    sqlc.narg(include_archived)::bool IS TRUE
+    OR sqlc.narg(account_id) IS NOT NULL
+    OR a.archived_at IS NULL
+  )
+ORDER BY t.date DESC, t.id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CountTransactions :one
+-- Must mirror ListTransactions' WHERE clause exactly (see note there).
 SELECT COUNT(*)::BIGINT AS total
-FROM transactions
-WHERE budget_id = $1
-  AND deleted_at IS NULL
-  AND (account_id    = sqlc.narg(account_id)  OR sqlc.narg(account_id)  IS NULL)
-  AND (envelope_id   = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
-  AND (date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
-  AND (date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL);
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND (t.account_id  = sqlc.narg(account_id)  OR sqlc.narg(account_id)  IS NULL)
+  AND (t.envelope_id = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
+  AND (t.date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
+  AND (t.date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL)
+  AND (
+    sqlc.narg(include_archived)::bool IS TRUE
+    OR sqlc.narg(account_id) IS NOT NULL
+    OR a.archived_at IS NULL
+  );
 
 -- name: UpdateTransaction :one
 UPDATE transactions
@@ -122,6 +152,7 @@ SET deleted_at = now()
 WHERE transfer_group_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
 -- name: GetAccountTypeBalances :many
+-- Excludes archived accounts: archived-account balances must not affect net worth.
 SELECT
     a.type,
     COALESCE(SUM(t.amount), 0)::BIGINT AS balance
@@ -132,29 +163,36 @@ LEFT JOIN transactions t
       AND t.deleted_at IS NULL
 WHERE a.budget_id  = $1
   AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
 GROUP BY a.type;
 
 -- name: GetMonthlyStats :one
 SELECT
-    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
-    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
-FROM transactions
-WHERE budget_id  = $1
-  AND deleted_at IS NULL
-  AND date >= date_trunc('month', $2::timestamptz)
-  AND date <  date_trunc('month', $2::timestamptz) + interval '1 month';
+    COALESCE(SUM(CASE WHEN t.amount > 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN t.amount < 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
+  AND t.date >= date_trunc('month', $2::timestamptz)
+  AND t.date <  date_trunc('month', $2::timestamptz) + interval '1 month';
 
 -- name: GetMonthlySparkline :many
 SELECT
-    date_trunc('month', date)::date AS month,
-    COALESCE(SUM(CASE WHEN amount > 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END), 0)::BIGINT AS income,
-    COALESCE(ABS(SUM(CASE WHEN amount < 0 AND transfer_account_id IS NULL THEN amount ELSE 0 END)), 0)::BIGINT AS expenses
-FROM transactions
-WHERE budget_id  = $1
-  AND deleted_at IS NULL
-  AND date >= date_trunc('month', now()) - interval '5 months'
-  AND date <  date_trunc('month', now()) + interval '1 month'
-GROUP BY date_trunc('month', date)
+    date_trunc('month', t.date)::date AS month,
+    COALESCE(SUM(CASE WHEN t.amount > 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END), 0)::BIGINT AS income,
+    COALESCE(ABS(SUM(CASE WHEN t.amount < 0 AND t.transfer_account_id IS NULL THEN t.amount ELSE 0 END)), 0)::BIGINT AS expenses
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.budget_id  = $1
+  AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
+  AND t.date >= date_trunc('month', now()) - interval '5 months'
+  AND t.date <  date_trunc('month', now()) + interval '1 month'
+GROUP BY date_trunc('month', t.date)
 ORDER BY month ASC;
 
 -- name: GetAccountTypeBalanceHistory :many

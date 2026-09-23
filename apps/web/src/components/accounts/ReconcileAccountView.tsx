@@ -607,7 +607,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
       <ReconciliationSuccessDialog
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
-        onViewAccount={() => router.push(`/accounts`)}
+        onViewAccount={() => router.push(`/accounts?account=${accountId}`)}
         clearedCount={clearedCount}
         totalCount={totalCount}
         clearedBalance={clearedBalance}

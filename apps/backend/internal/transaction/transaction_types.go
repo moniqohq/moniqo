@@ -116,13 +116,19 @@ type PatchRequest struct {
 }
 
 // ListFilters carries optional filter/pagination parameters for ListTransactions.
+//
+// Archived-account transactions are excluded by default. An explicit AccountID
+// always returns that account's rows regardless of archived state (this is how
+// account-detail views list archived history); IncludeArchived bypasses the
+// exclusion budget-wide.
 type ListFilters struct {
-	AccountID  *int64
-	EnvelopeID *int64
-	DateFrom   *time.Time
-	DateTo     *time.Time
-	Page       int
-	PageSize   int
+	AccountID       *int64
+	EnvelopeID      *int64
+	DateFrom        *time.Time
+	DateTo          *time.Time
+	IncludeArchived bool
+	Page            int
+	PageSize        int
 }
 
 // CreateParams carries repository-layer arguments for inserting a new transaction.

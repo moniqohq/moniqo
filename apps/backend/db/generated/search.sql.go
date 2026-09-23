@@ -34,8 +34,9 @@ import (
 const searchAccounts = `-- name: SearchAccounts :many
 SELECT id, budget_id, name, type, institution
 FROM accounts
-WHERE budget_id  = $1
-  AND deleted_at IS NULL
+WHERE budget_id    = $1
+  AND deleted_at   IS NULL
+  AND archived_at  IS NULL
   AND (name        ILIKE ('%' || $2::text || '%')
     OR institution ILIKE ('%' || $2::text || '%')
     OR notes       ILIKE ('%' || $2::text || '%'))
@@ -57,6 +58,8 @@ type SearchAccountsRow struct {
 	Institution *string
 }
 
+// Archived accounts are excluded so the global palette matches the "hidden from
+// active selection" rule; use the Accounts page's archived filter to find them.
 func (q *Queries) SearchAccounts(ctx context.Context, arg SearchAccountsParams) ([]SearchAccountsRow, error) {
 	rows, err := q.db.Query(ctx, searchAccounts, arg.BudgetID, arg.Query, arg.Lim)
 	if err != nil {
@@ -194,6 +197,8 @@ JOIN accounts a       ON a.id = t.account_id
 LEFT JOIN envelopes e ON e.id = t.envelope_id
 WHERE t.budget_id  = $1
   AND t.deleted_at IS NULL
+  AND a.deleted_at IS NULL
+  AND a.archived_at IS NULL
   AND t.memo ILIKE ('%' || $2::text || '%')
 ORDER BY t.date DESC, t.id DESC
 LIMIT $3
@@ -220,6 +225,7 @@ type SearchTransactionsRow struct {
 
 // Case-insensitive substring match over transaction memos within a budget.
 // Joins account (always present) and envelope (optional) for display-ready hits.
+// Archived accounts are excluded, matching the main transaction list.
 func (q *Queries) SearchTransactions(ctx context.Context, arg SearchTransactionsParams) ([]SearchTransactionsRow, error) {
 	rows, err := q.db.Query(ctx, searchTransactions, arg.BudgetID, arg.Query, arg.Lim)
 	if err != nil {

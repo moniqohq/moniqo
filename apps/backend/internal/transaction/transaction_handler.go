@@ -161,6 +161,17 @@ func parseOptionalPage(s string, defaultVal int) int {
 	return v
 }
 
+// parseOptionalBool parses a boolean query param, defaulting to false for
+// missing or malformed values (consistent with the lenient handling of the
+// other list query params above).
+func parseOptionalBool(s string) bool {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return false
+	}
+	return v
+}
+
 // appendStatusError appends a field error to errs if status is set but invalid.
 func appendStatusError(errs []httpx.FieldError, status *models.TransactionStatus) []httpx.FieldError {
 	if status != nil && !status.IsValid() {
@@ -191,8 +202,9 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 		if *req.TransferAccountID == req.AccountID {
 			errs = append(errs, httpx.FieldError{Field: fieldTransferAccountID, Error: errSelfTransfer})
 		}
-	} else if req.EnvelopeID == nil {
-		// Standard: envelope required
+	} else if req.EnvelopeID == nil && req.Amount.Int64() < 0 {
+		// Standard expense: envelope required. Income (positive amount) is
+		// unallocated and flows into "To Be Budgeted" instead.
 		errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeRequired})
 	}
 	return appendStatusError(errs, req.Status)
@@ -365,12 +377,13 @@ func (h *Handler) ListTransactions(c echo.Context) error {
 	}
 
 	f := ListFilters{
-		AccountID:  parseOptionalInt64(c.QueryParam("account_id")),
-		EnvelopeID: parseOptionalInt64(c.QueryParam("budget_envelope_id")),
-		DateFrom:   parseOptionalTime(c.QueryParam("date_from")),
-		DateTo:     parseOptionalTime(c.QueryParam("date_to")),
-		Page:       parseOptionalPage(c.QueryParam("page"), 1),
-		PageSize:   parseOptionalPage(c.QueryParam("page_size"), defaultPageSize),
+		AccountID:       parseOptionalInt64(c.QueryParam("account_id")),
+		EnvelopeID:      parseOptionalInt64(c.QueryParam("budget_envelope_id")),
+		DateFrom:        parseOptionalTime(c.QueryParam("date_from")),
+		DateTo:          parseOptionalTime(c.QueryParam("date_to")),
+		IncludeArchived: parseOptionalBool(c.QueryParam("include_archived")),
+		Page:            parseOptionalPage(c.QueryParam("page"), 1),
+		PageSize:        parseOptionalPage(c.QueryParam("page_size"), defaultPageSize),
 	}
 
 	txns, total, err := h.svc.List(c.Request().Context(), budgetID, f)
