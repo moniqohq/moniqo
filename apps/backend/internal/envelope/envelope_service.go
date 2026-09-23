@@ -47,6 +47,9 @@ type Service interface {
 	ForceDelete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 	GetBudgetSummary(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
 	GetDashboardStats(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error)
+	Reallocate(
+		ctx context.Context, budgetID int64, req ReallocateRequest, callerRole models.Role,
+	) (models.ReallocateResult, error)
 }
 
 // Svc is the concrete implementation of Service.
@@ -221,8 +224,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 		return models.BudgetEnvelope{}, fmt.Errorf("update envelope: %w", err)
 	}
 
-	env.SpentAmt = spent
-	env.IsOverspent = spent.Int64() > env.AllocatedAmt.Int64()
+	env = withSpent(env, spent)
 
 	s.log.Info("envelope replaced", zap.Int64("envelope_id", env.ID), zap.Int64("budget_id", budgetID))
 	return env, nil
@@ -467,13 +469,61 @@ func (s *Svc) GetBudgetSummary(ctx context.Context, budgetID int64) (models.Budg
 	}
 
 	totalAllocated := money.FromMinorUnits(summaryRow.TotalAllocated)
-	tbb := money.FromMinorUnits(onBudgetBalance.Int64() - totalAllocated.Int64())
+	totalSpent := money.FromMinorUnits(summaryRow.TotalSpent)
+
+	// Envelope available = allocated - spent. TBB is the on-budget cash not held
+	// by any envelope, so categorized spending is TBB-neutral: it lowers cash and
+	// envelope available by the same amount. TBB = cash - sum(allocated - spent).
+	tbb := money.FromMinorUnits(onBudgetBalance.Int64() - totalAllocated.Int64() + totalSpent.Int64())
 
 	return models.BudgetSummary{
 		ToBeBudgeted:       tbb,
 		TotalAllocated:     totalAllocated,
-		TotalSpent:         money.FromMinorUnits(summaryRow.TotalSpent),
+		TotalSpent:         totalSpent,
 		OverspentEnvelopes: summaryRow.OverspentCount,
+	}, nil
+}
+
+// Reallocate atomically moves req.Amount between two envelopes, or between an
+// envelope and To Be Budgeted (see ReallocateRequest). Only EDITOR or above
+// may reallocate, matching the other mutating envelope endpoints.
+func (s *Svc) Reallocate(
+	ctx context.Context,
+	budgetID int64,
+	req ReallocateRequest,
+	callerRole models.Role,
+) (models.ReallocateResult, error) {
+	if callerRole.Rank() < models.RoleEditor.Rank() {
+		return models.ReallocateResult{}, ErrForbidden
+	}
+
+	s.log.Debug("reallocating",
+		zap.Int64("budget_id", budgetID),
+		zap.Int64p("from_envelope_id", req.FromEnvelopeID),
+		zap.Int64p("to_envelope_id", req.ToEnvelopeID),
+	)
+
+	fromEnv, toEnv, err := s.repo.Reallocate(ctx, budgetID, req)
+	if err != nil {
+		if !errors.Is(err, ErrNotFound) && !errors.Is(err, ErrValidation) {
+			s.log.Error("repo.Reallocate failed",
+				zap.Int64("budget_id", budgetID),
+				zap.Error(err),
+			)
+		}
+		return models.ReallocateResult{}, err //nolint:wrapcheck
+	}
+
+	summary, err := s.GetBudgetSummary(ctx, budgetID)
+	if err != nil {
+		return models.ReallocateResult{}, fmt.Errorf("get budget summary: %w", err)
+	}
+
+	s.log.Info("envelopes reallocated", zap.Int64("budget_id", budgetID))
+	return models.ReallocateResult{
+		FromEnvelope: fromEnv,
+		ToEnvelope:   toEnv,
+		Summary:      summary,
 	}, nil
 }
 
@@ -483,7 +533,13 @@ func (s *Svc) attachSpent(ctx context.Context, e models.BudgetEnvelope) (models.
 	if err != nil {
 		return models.BudgetEnvelope{}, fmt.Errorf("sum spent: %w", err)
 	}
+	return withSpent(e, spent), nil
+}
+
+// withSpent sets SpentAmt and IsOverspent on e from an already-known spent amount.
+// spent is a positive magnitude (see SumSpent).
+func withSpent(e models.BudgetEnvelope, spent money.Amount) models.BudgetEnvelope {
 	e.SpentAmt = spent
 	e.IsOverspent = spent.Int64() > e.AllocatedAmt.Int64()
-	return e, nil
+	return e
 }

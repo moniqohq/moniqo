@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -56,6 +57,7 @@ type Repository interface {
 	GetNetWorth(ctx context.Context, budgetID int64) (money.Amount, error)
 	GetMonthlyStats(ctx context.Context, budgetID int64, month time.Time) (db.GetMonthlyStatsRow, error)
 	GetMonthlySparkline(ctx context.Context, budgetID int64) ([]db.GetMonthlySparklineRow, error)
+	Reallocate(ctx context.Context, budgetID int64, req ReallocateRequest) (fromEnv, toEnv *models.BudgetEnvelope, err error)
 }
 
 // Repo is the sqlc-backed implementation of Repository.
@@ -169,14 +171,45 @@ func (r *Repo) ListByBudget(ctx context.Context, budgetID int64, archived *bool)
 }
 
 // Update performs a full replacement of all mutable envelope fields.
-// Returns ErrNotFound if the envelope does not exist or is soft-deleted.
+// Locks the envelope row and re-checks allocated_amt >= spent inside the same
+// transaction as the write, closing the TOCTOU window between reading spent
+// and applying the update. Returns ErrNotFound if the envelope does not exist
+// or is soft-deleted, ErrValidation if the new allocated_amt would fall below
+// what has already been spent.
+//
+//nolint:revive
 func (r *Repo) Update(ctx context.Context, p UpdateParams) (models.BudgetEnvelope, error) {
 	r.log.Debug("executing UpdateEnvelope query",
 		zap.Int64("envelope_id", p.ID),
 		zap.Int64("budget_id", p.BudgetID),
 	)
 
-	q := db.New(r.pool)
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return models.BudgetEnvelope{}, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
+	if _, err := q.GetEnvelopeForUpdate(ctx, db.GetEnvelopeForUpdateParams{
+		ID:       p.ID,
+		BudgetID: p.BudgetID,
+	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.BudgetEnvelope{}, ErrNotFound
+		}
+		return models.BudgetEnvelope{}, fmt.Errorf("lock envelope: %w", err)
+	}
+
+	spent, err := sumSpentTx(ctx, q, p.ID, p.BudgetID)
+	if err != nil {
+		return models.BudgetEnvelope{}, err
+	}
+	if !CanDecreaseAllocatedAmt(p.AllocatedAmt, spent) {
+		return models.BudgetEnvelope{}, ErrValidation
+	}
+
 	row, err := q.UpdateEnvelope(ctx, db.UpdateEnvelopeParams{
 		ID:           p.ID,
 		BudgetID:     p.BudgetID,
@@ -196,28 +229,63 @@ func (r *Repo) Update(ctx context.Context, p UpdateParams) (models.BudgetEnvelop
 		return models.BudgetEnvelope{}, fmt.Errorf("update envelope: %w", err)
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		return models.BudgetEnvelope{}, fmt.Errorf("commit transaction: %w", err)
+	}
+
 	r.log.Info("envelope updated",
 		zap.Int64("envelope_id", row.ID),
 		zap.Int64("budget_id", row.BudgetID),
 	)
-	return toModel(row), nil
+	return withSpent(toModel(row), spent), nil
 }
 
 // Patch applies only the non-nil fields from p to the envelope row.
-// Returns ErrNotFound if the envelope does not exist or is soft-deleted.
+// When p.AllocatedAmt is non-nil, locks the envelope row and re-checks
+// allocated_amt >= spent inside the same transaction as the write, closing the
+// TOCTOU window between reading spent and applying the patch. Returns
+// ErrNotFound if the envelope does not exist or is soft-deleted, ErrValidation
+// if the new allocated_amt would fall below what has already been spent.
+//
+//nolint:revive,funlen
 func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.BudgetEnvelope, error) {
 	r.log.Debug("executing PatchEnvelope query",
 		zap.Int64("envelope_id", p.ID),
 		zap.Int64("budget_id", p.BudgetID),
 	)
 
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return models.BudgetEnvelope{}, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
+	if _, err := q.GetEnvelopeForUpdate(ctx, db.GetEnvelopeForUpdateParams{
+		ID:       p.ID,
+		BudgetID: p.BudgetID,
+	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.BudgetEnvelope{}, ErrNotFound
+		}
+		return models.BudgetEnvelope{}, fmt.Errorf("lock envelope: %w", err)
+	}
+
+	spent, err := sumSpentTx(ctx, q, p.ID, p.BudgetID)
+	if err != nil {
+		return models.BudgetEnvelope{}, err
+	}
+
 	var allocatedAmt *int64
 	if p.AllocatedAmt != nil {
+		if !CanDecreaseAllocatedAmt(*p.AllocatedAmt, spent) {
+			return models.BudgetEnvelope{}, ErrValidation
+		}
 		v := p.AllocatedAmt.Int64()
 		allocatedAmt = &v
 	}
 
-	q := db.New(r.pool)
 	row, err := q.PatchEnvelope(ctx, db.PatchEnvelopeParams{
 		ID:           p.ID,
 		BudgetID:     p.BudgetID,
@@ -237,11 +305,167 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.BudgetEnvelope,
 		return models.BudgetEnvelope{}, fmt.Errorf("patch envelope: %w", err)
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		return models.BudgetEnvelope{}, fmt.Errorf("commit transaction: %w", err)
+	}
+
 	r.log.Info("envelope patched",
 		zap.Int64("envelope_id", row.ID),
 		zap.Int64("budget_id", row.BudgetID),
 	)
-	return toModel(row), nil
+	return withSpent(toModel(row), spent), nil
+}
+
+// sumSpentTx returns the positive-magnitude spent amount for envelopeID within
+// the given queryable (pool or transaction).
+func sumSpentTx(ctx context.Context, q *db.Queries, envelopeID, budgetID int64) (money.Amount, error) {
+	total, err := q.SumEnvelopeSpent(ctx, db.SumEnvelopeSpentParams{
+		EnvelopeID: &envelopeID,
+		BudgetID:   budgetID,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("sum envelope spent: %w", err)
+	}
+	return money.FromMinorUnits(total), nil
+}
+
+// lockEnvelope locks and returns the envelope row for id/budgetID within tx.
+// Returns ErrNotFound if the envelope does not exist or is soft-deleted.
+func lockEnvelope(ctx context.Context, q *db.Queries, id, budgetID int64) (db.Envelope, error) {
+	row, err := q.GetEnvelopeForUpdate(ctx, db.GetEnvelopeForUpdateParams{
+		ID:       id,
+		BudgetID: budgetID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.Envelope{}, ErrNotFound
+		}
+		return db.Envelope{}, fmt.Errorf("lock envelope: %w", err)
+	}
+	return row, nil
+}
+
+// tbbTx computes To Be Budgeted within tx: on-budget cash minus the sum of
+// envelope available (allocated - spent) across all live envelopes in budgetID.
+func tbbTx(ctx context.Context, q *db.Queries, budgetID int64) (money.Amount, error) {
+	cash, err := q.SumOnBudgetAccountBalances(ctx, budgetID)
+	if err != nil {
+		return 0, fmt.Errorf("sum on-budget account balances: %w", err)
+	}
+	summary, err := q.GetBudgetEnvelopeSummary(ctx, budgetID)
+	if err != nil {
+		return 0, fmt.Errorf("get budget envelope summary: %w", err)
+	}
+	return money.FromMinorUnits(cash - summary.TotalAllocated + summary.TotalSpent), nil
+}
+
+// Reallocate atomically moves amount between two envelopes, or between an
+// envelope and To Be Budgeted (a nil FromEnvelopeID/ToEnvelopeID means TBB).
+// Both envelope rows involved are locked in ascending id order to avoid
+// deadlocking against a concurrent, opposite reallocation. Returns
+// ErrNotFound if either envelope does not exist, ErrValidation if the source
+// does not have enough available balance to cover the amount.
+//
+//nolint:funlen,cyclop,revive
+func (r *Repo) Reallocate(
+	ctx context.Context,
+	budgetID int64,
+	req ReallocateRequest,
+) (fromEnv, toEnv *models.BudgetEnvelope, err error) {
+	r.log.Debug("executing Reallocate",
+		zap.Int64("budget_id", budgetID),
+		zap.Int64p("from_envelope_id", req.FromEnvelopeID),
+		zap.Int64p("to_envelope_id", req.ToEnvelopeID),
+	)
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
+	const maxReallocateEnvelopes = 2
+	ids := make([]int64, 0, maxReallocateEnvelopes)
+	if req.FromEnvelopeID != nil {
+		ids = append(ids, *req.FromEnvelopeID)
+	}
+	if req.ToEnvelopeID != nil {
+		ids = append(ids, *req.ToEnvelopeID)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+
+	rows := make(map[int64]db.Envelope, len(ids))
+	spent := make(map[int64]money.Amount, len(ids))
+	for _, id := range ids {
+		row, err := lockEnvelope(ctx, q, id, budgetID)
+		if err != nil {
+			return nil, nil, err
+		}
+		s, err := sumSpentTx(ctx, q, id, budgetID)
+		if err != nil {
+			return nil, nil, err
+		}
+		rows[id] = row
+		spent[id] = s
+	}
+
+	amount := req.Amount.Int64()
+
+	if req.FromEnvelopeID != nil {
+		src := rows[*req.FromEnvelopeID]
+		available := src.AllocatedAmt - spent[*req.FromEnvelopeID].Int64()
+		if amount > available || src.AllocatedAmt-amount < 0 {
+			return nil, nil, ErrValidation
+		}
+	} else {
+		tbb, err := tbbTx(ctx, q, budgetID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if amount > tbb.Int64() {
+			return nil, nil, ErrValidation
+		}
+	}
+
+	if req.FromEnvelopeID != nil {
+		row, err := q.AdjustEnvelopeAllocated(ctx, db.AdjustEnvelopeAllocatedParams{
+			ID:           *req.FromEnvelopeID,
+			BudgetID:     budgetID,
+			AllocatedAmt: -amount,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("adjust source envelope: %w", err)
+		}
+		e := withSpent(toModel(row), spent[*req.FromEnvelopeID])
+		fromEnv = &e
+	}
+
+	if req.ToEnvelopeID != nil {
+		row, err := q.AdjustEnvelopeAllocated(ctx, db.AdjustEnvelopeAllocatedParams{
+			ID:           *req.ToEnvelopeID,
+			BudgetID:     budgetID,
+			AllocatedAmt: amount,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("adjust destination envelope: %w", err)
+		}
+		e := withSpent(toModel(row), spent[*req.ToEnvelopeID])
+		toEnv = &e
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, nil, fmt.Errorf("commit transaction: %w", err)
+	}
+
+	r.log.Info("envelopes reallocated",
+		zap.Int64("budget_id", budgetID),
+		zap.Int64p("from_envelope_id", req.FromEnvelopeID),
+		zap.Int64p("to_envelope_id", req.ToEnvelopeID),
+		zap.Int64("amount", amount),
+	)
+	return fromEnv, toEnv, nil
 }
 
 // SoftDelete marks the envelope as deleted. Idempotent: re-deleting an already
@@ -406,27 +630,24 @@ func (r *Repo) HasTransactions(ctx context.Context, id, budgetID int64) (bool, e
 	return has, nil
 }
 
-// SumSpent returns the total amount spent (from transactions) linked to the envelope.
+// SumSpent returns the total amount spent (from transactions) linked to the
+// envelope, as a positive magnitude.
 func (r *Repo) SumSpent(ctx context.Context, id, budgetID int64) (money.Amount, error) {
 	r.log.Debug("executing SumEnvelopeSpent query",
 		zap.Int64("envelope_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
 
-	q := db.New(r.pool)
-	total, err := q.SumEnvelopeSpent(ctx, db.SumEnvelopeSpentParams{
-		EnvelopeID: &id,
-		BudgetID:   budgetID,
-	})
+	spent, err := sumSpentTx(ctx, db.New(r.pool), id, budgetID)
 	if err != nil {
 		r.log.Error("SumEnvelopeSpent query failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
 			zap.Error(err),
 		)
-		return 0, fmt.Errorf("sum envelope spent: %w", err)
+		return 0, err
 	}
-	return money.FromMinorUnits(total), nil
+	return spent, nil
 }
 
 // SumOnBudgetBalances returns the sum of all transaction amounts for on-budget

@@ -29,6 +29,36 @@ import (
 	"context"
 )
 
+const adjustEnvelopeAllocated = `-- name: AdjustEnvelopeAllocated :one
+UPDATE envelopes
+SET allocated_amt = allocated_amt + $3,
+    updated_at    = now()
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+RETURNING id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+`
+
+type AdjustEnvelopeAllocatedParams struct {
+	ID           int64
+	BudgetID     int64
+	AllocatedAmt int64
+}
+
+func (q *Queries) AdjustEnvelopeAllocated(ctx context.Context, arg AdjustEnvelopeAllocatedParams) (Envelope, error) {
+	row := q.db.QueryRow(ctx, adjustEnvelopeAllocated, arg.ID, arg.BudgetID, arg.AllocatedAmt)
+	var i Envelope
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.Title,
+		&i.AllocatedAmt,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const createEnvelope = `-- name: CreateEnvelope :one
 INSERT INTO envelopes (budget_id, title, allocated_amt, description)
 VALUES ($1, $2, $3, $4)
@@ -111,12 +141,12 @@ func (q *Queries) EnvelopeExistsByTitleExcluding(ctx context.Context, arg Envelo
 
 const getBudgetEnvelopeSummary = `-- name: GetBudgetEnvelopeSummary :one
 SELECT
-    COALESCE(SUM(e.allocated_amt), 0)::BIGINT                                                  AS total_allocated,
-    COALESCE(SUM(COALESCE(t.spent, 0)), 0)::BIGINT                                             AS total_spent,
-    COUNT(*) FILTER (WHERE COALESCE(t.spent, 0) > e.allocated_amt)::BIGINT                    AS overspent_count
+    COALESCE(SUM(e.allocated_amt), 0)::BIGINT                                  AS total_allocated,
+    COALESCE(SUM(COALESCE(t.spent, 0)), 0)::BIGINT                             AS total_spent,
+    COUNT(*) FILTER (WHERE COALESCE(t.spent, 0) > e.allocated_amt)::BIGINT     AS overspent_count
 FROM envelopes e
 LEFT JOIN (
-    SELECT envelope_id, SUM(amount) AS spent
+    SELECT envelope_id, -SUM(amount) AS spent
     FROM transactions tr
     WHERE tr.budget_id   = $1
       AND tr.envelope_id IS NOT NULL
@@ -132,6 +162,7 @@ type GetBudgetEnvelopeSummaryRow struct {
 	OverspentCount int64
 }
 
+// t.spent is a positive magnitude; outflows are stored as negative amounts.
 func (q *Queries) GetBudgetEnvelopeSummary(ctx context.Context, budgetID int64) (GetBudgetEnvelopeSummaryRow, error) {
 	row := q.db.QueryRow(ctx, getBudgetEnvelopeSummary, budgetID)
 	var i GetBudgetEnvelopeSummaryRow
@@ -152,6 +183,34 @@ type GetEnvelopeByIDParams struct {
 
 func (q *Queries) GetEnvelopeByID(ctx context.Context, arg GetEnvelopeByIDParams) (Envelope, error) {
 	row := q.db.QueryRow(ctx, getEnvelopeByID, arg.ID, arg.BudgetID)
+	var i Envelope
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.Title,
+		&i.AllocatedAmt,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getEnvelopeForUpdate = `-- name: GetEnvelopeForUpdate :one
+SELECT id, budget_id, title, allocated_amt, description, created_at, updated_at, deleted_at
+FROM envelopes
+WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+FOR UPDATE
+`
+
+type GetEnvelopeForUpdateParams struct {
+	ID       int64
+	BudgetID int64
+}
+
+func (q *Queries) GetEnvelopeForUpdate(ctx context.Context, arg GetEnvelopeForUpdateParams) (Envelope, error) {
+	row := q.db.QueryRow(ctx, getEnvelopeForUpdate, arg.ID, arg.BudgetID)
 	var i Envelope
 	err := row.Scan(
 		&i.ID,

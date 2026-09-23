@@ -23,7 +23,8 @@ SELECT EXISTS (
 ) AS exists;
 
 -- name: SumEnvelopeSpent :one
-SELECT COALESCE(SUM(amount), 0)::BIGINT AS spent
+-- Returns spend as a positive magnitude; outflows are stored as negative amounts.
+SELECT COALESCE(-SUM(amount), 0)::BIGINT AS spent
 FROM transactions
 WHERE envelope_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 

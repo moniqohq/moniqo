@@ -47,6 +47,9 @@ type EnvelopeService struct {
 	ForceDeleteFn       func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
 	GetBudgetSummaryFn  func(ctx context.Context, budgetID int64) (models.BudgetSummary, error)
 	GetDashboardStatsFn func(ctx context.Context, budgetID int64, month time.Time) (models.DashboardStats, error)
+	ReallocateFn        func(
+		ctx context.Context, budgetID int64, req envelope.ReallocateRequest, callerRole models.Role,
+	) (models.ReallocateResult, error)
 }
 
 // Create delegates to CreateFn.
@@ -95,6 +98,16 @@ func (m *EnvelopeService) GetDashboardStats(ctx context.Context, budgetID int64,
 		return m.GetDashboardStatsFn(ctx, budgetID, month)
 	}
 	return models.DashboardStats{}, nil
+}
+
+// Reallocate delegates to ReallocateFn.
+func (m *EnvelopeService) Reallocate(
+	ctx context.Context,
+	budgetID int64,
+	req envelope.ReallocateRequest,
+	callerRole models.Role,
+) (models.ReallocateResult, error) {
+	return m.ReallocateFn(ctx, budgetID, req, callerRole)
 }
 
 // -----------------------------------------------------------------------------
@@ -244,4 +257,20 @@ func (m *EnvelopeRepository) GetMonthlySparkline(_ context.Context, budgetID int
 		return nil, args.Error(1)
 	}
 	return r, args.Error(1)
+}
+
+// Reallocate records the call and returns the configured stub values.
+func (m *EnvelopeRepository) Reallocate(
+	_ context.Context,
+	budgetID int64,
+	req envelope.ReallocateRequest,
+) (fromEnv, toEnv *models.BudgetEnvelope, err error) {
+	args := m.Called(budgetID, req)
+	if v, ok := args.Get(0).(*models.BudgetEnvelope); ok {
+		fromEnv = v
+	}
+	if v, ok := args.Get(1).(*models.BudgetEnvelope); ok {
+		toEnv = v
+	}
+	return fromEnv, toEnv, args.Error(2) //nolint:mnd
 }
