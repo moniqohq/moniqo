@@ -40,26 +40,12 @@ import {
   ArrowRight,
   Save,
 } from "lucide-react";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, formatTableDate, cn } from "@/lib/utils";
 import type { Transaction, TransactionType, AccountType } from "@/types";
 import type { ApiAccount, ApiEnvelope } from "@/lib/api-types";
 import { API_TO_UI, type ApiAccountType } from "@/lib/adapters/account.adapter";
 import { apiFetch } from "@/lib/api";
 import { invalidateBudgetData } from "@/lib/query-keys";
-
-/* ── helpers ──────────────────────────────────────────────── */
-
-function formatInputDate(dateStr: string): string {
-  const d = new Date(dateStr + "T09:42:00");
-  return d.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
 
 const ACCOUNT_TYPE_META: Record<AccountType, { icon: React.ReactNode; color: string }> = {
   checking: { icon: <Building2 size={13} />, color: "#3B82F6" },
@@ -166,7 +152,6 @@ export function EditTransactionModal({
   const queryClient = useQueryClient();
   /* form state */
   const [txType, setTxType] = useState<TransactionType>("expense");
-  const [date, setDate] = useState("");
   const [payee, setPayee] = useState("");
   const [accountId, setAccountId] = useState<number | null>(null);
   const [envId, setEnvId] = useState<number | null>(null);
@@ -186,7 +171,6 @@ export function EditTransactionModal({
   useEffect(() => {
     if (!tx) return;
     setTxType(tx.type);
-    setDate(formatInputDate(tx.date));
     setPayee(tx.payee);
     setAccountId(tx.accountId);
     setEnvId(tx.envelopeId ?? null);
@@ -377,7 +361,7 @@ export function EditTransactionModal({
                 <div className="mb-5 flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-1.5 text-sm text-[#7A8BA8]">
                     <Calendar size={13} className="text-[#3A4A60]" />
-                    <span>{formatInputDate(tx.date)}</span>
+                    <span>{formatTableDate(tx.date)}</span>
                   </div>
                   <span className="text-[#1E2B42] select-none">|</span>
                   <span
@@ -470,7 +454,7 @@ export function EditTransactionModal({
                         <button type="button" className={selectTriggerCls}>
                           <Calendar size={13} className="shrink-0 text-[#5A6A85]" />
                           <span className="flex-1 text-left text-sm text-white">
-                            {date || formatInputDate(tx.date)}
+                            {formatTableDate(tx.date)}
                           </span>
                           <ChevronDown size={13} className="shrink-0 text-[#5A6A85]" />
                         </button>
