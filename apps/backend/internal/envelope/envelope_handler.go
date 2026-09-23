@@ -25,7 +25,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -54,9 +56,11 @@ const (
 	errInvalidJSON  = "invalid JSON"
 	errInvalidID    = "must be a positive integer"
 
+	errTitleRequired    = "title is required"
 	errTitleLen         = "must be between 3 and 80 characters"
 	errMustBeNonNeg     = "must be non-negative"
 	errAllocatedLtSpent = "cannot be less than the amount already spent"
+	errAmountNotNumber  = "must be a number"
 	fieldTitle          = "title"
 	fieldAllocatedAmt   = "allocated_amt"
 )
@@ -82,12 +86,60 @@ func parseEnvelopeID(c echo.Context) (int64, error) {
 	return strconv.ParseInt(c.Param("id"), 10, 64) //nolint:wrapcheck
 }
 
+// bindError converts a failed request-body bind into a field-specific httpx.FieldError,
+// naming the offending field and why it was rejected when that information is available,
+// and falling back to a generic body error otherwise.
+func bindError(err error) httpx.FieldError {
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &typeErr) && typeErr.Field != "" {
+		return httpx.FieldError{Field: typeErr.Field, Error: "must be a " + friendlyJSONType(typeErr.Type)}
+	}
+	// money.Amount has a custom UnmarshalJSON, so a bad allocated_amt value surfaces as a
+	// plain error rather than a *json.UnmarshalTypeError; allocated_amt is the only
+	// money.Amount field on these request payloads.
+	if strings.Contains(err.Error(), "money: amount must be a JSON number") {
+		return httpx.FieldError{Field: fieldAllocatedAmt, Error: errAmountNotNumber}
+	}
+	return httpx.FieldError{Field: fieldBody, Error: errInvalidJSON}
+}
+
+// friendlyJSONType maps a Go type used during JSON decoding to a user-friendly name.
+//
+//nolint:exhaustive
+func friendlyJSONType(t reflect.Type) string {
+	switch t.Kind() {
+	case reflect.String:
+		return "string"
+	case reflect.Bool:
+		return "boolean"
+	case reflect.Float32, reflect.Float64,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "number"
+	default:
+		return t.String()
+	}
+}
+
+// validateTitle checks title length constraints, distinguishing a missing title
+// from one that is merely too short or too long.
+func validateTitle(title string) *httpx.FieldError {
+	n := utf8.RuneCountInString(title)
+	switch {
+	case n == 0:
+		return &httpx.FieldError{Field: fieldTitle, Error: errTitleRequired}
+	case n < minTitleLen || n > maxTitleLen:
+		return &httpx.FieldError{Field: fieldTitle, Error: errTitleLen}
+	default:
+		return nil
+	}
+}
+
 // validateCreateRequest validates the payload for POST (create).
 func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 	var errs []httpx.FieldError
-	n := utf8.RuneCountInString(req.Title)
-	if n < minTitleLen || n > maxTitleLen {
-		errs = append(errs, httpx.FieldError{Field: fieldTitle, Error: errTitleLen})
+	if fe := validateTitle(req.Title); fe != nil {
+		errs = append(errs, *fe)
 	}
 	if req.AllocatedAmt.Int64() < 0 {
 		errs = append(errs, httpx.FieldError{Field: fieldAllocatedAmt, Error: errMustBeNonNeg})
@@ -98,9 +150,8 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 // validateReplaceRequest validates the payload for PUT (full replace).
 func validateReplaceRequest(req ReplaceRequest) []httpx.FieldError {
 	var errs []httpx.FieldError
-	n := utf8.RuneCountInString(req.Title)
-	if n < minTitleLen || n > maxTitleLen {
-		errs = append(errs, httpx.FieldError{Field: fieldTitle, Error: errTitleLen})
+	if fe := validateTitle(req.Title); fe != nil {
+		errs = append(errs, *fe)
 	}
 	if req.AllocatedAmt.Int64() < 0 {
 		errs = append(errs, httpx.FieldError{Field: fieldAllocatedAmt, Error: errMustBeNonNeg})
@@ -126,9 +177,8 @@ func validatePatchRequest(req PatchRequest, rawBody []byte) []httpx.FieldError {
 
 	var errs []httpx.FieldError
 	if req.Title != nil {
-		n := utf8.RuneCountInString(*req.Title)
-		if n < minTitleLen || n > maxTitleLen {
-			errs = append(errs, httpx.FieldError{Field: fieldTitle, Error: errTitleLen})
+		if fe := validateTitle(*req.Title); fe != nil {
+			errs = append(errs, *fe)
 		}
 	}
 	if req.AllocatedAmt != nil && req.AllocatedAmt.Int64() < 0 {
@@ -212,7 +262,7 @@ func (h *Handler) CreateEnvelope(c echo.Context) error {
 
 	var req CreateRequest
 	if err := c.Bind(&req); err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+		return httpx.ValidationError(c, []httpx.FieldError{bindError(err)})
 	}
 
 	if errs := validateCreateRequest(req); len(errs) > 0 {
@@ -251,7 +301,7 @@ func (h *Handler) ReplaceEnvelope(c echo.Context) error {
 
 	var req ReplaceRequest
 	if err := c.Bind(&req); err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+		return httpx.ValidationError(c, []httpx.FieldError{bindError(err)})
 	}
 
 	if errs := validateReplaceRequest(req); len(errs) > 0 {
@@ -304,7 +354,7 @@ func (h *Handler) PatchEnvelope(c echo.Context) error {
 
 	var req PatchRequest
 	if err := c.Bind(&req); err != nil {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
+		return httpx.ValidationError(c, []httpx.FieldError{bindError(err)})
 	}
 
 	if errs := validatePatchRequest(req, rawBytes); len(errs) > 0 {
