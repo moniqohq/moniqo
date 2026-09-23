@@ -227,7 +227,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
                 <CheckCircle2 size={32} className="text-[#34D399]" />
                 <p className="text-sm font-medium text-white">Password updated</p>
                 <p className="text-xs text-[#5A6A85]">
-                  For your security, you've been signed out everywhere. Redirecting to sign in…
+                  For your security, you&apos;ve been signed out everywhere. Redirecting to sign in…
                 </p>
               </div>
             ) : (
