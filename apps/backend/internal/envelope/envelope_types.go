@@ -24,7 +24,6 @@ package envelope
 
 import (
 	"errors"
-	"unicode/utf8"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/money"
 )
@@ -53,18 +52,6 @@ type CreateRequest struct {
 	Description  *string      `json:"description"`
 }
 
-// Validate checks all field-level constraints on a CreateRequest.
-func (r CreateRequest) Validate() error {
-	n := utf8.RuneCountInString(r.Title)
-	if n < minTitleLen || n > maxTitleLen {
-		return ErrValidation
-	}
-	if r.AllocatedAmt.Int64() < 0 {
-		return ErrValidation
-	}
-	return nil
-}
-
 // ReplaceRequest is the request payload for PUT /api/v1/budgets/:budget_id/envelopes/:id.
 // All fields are required; spent_amt must never appear here.
 type ReplaceRequest struct {
@@ -73,43 +60,12 @@ type ReplaceRequest struct {
 	Description  *string      `json:"description"`
 }
 
-// Validate checks all field-level constraints on a ReplaceRequest.
-func (r ReplaceRequest) Validate() error {
-	n := utf8.RuneCountInString(r.Title)
-	if n < minTitleLen || n > maxTitleLen {
-		return ErrValidation
-	}
-	if r.AllocatedAmt.Int64() < 0 {
-		return ErrValidation
-	}
-	return nil
-}
-
 // PatchRequest is the request payload for PATCH /api/v1/budgets/:budget_id/envelopes/:id.
 // All fields are optional; any nil field is left unchanged. spent_amt must never appear here.
 type PatchRequest struct {
 	Title        *string       `json:"title"`
 	AllocatedAmt *money.Amount `json:"allocated_amt"`
 	Description  *string       `json:"description"`
-}
-
-// Validate checks constraints on a PatchRequest. Rejects empty bodies.
-//
-//nolint:revive
-func (r PatchRequest) Validate() error {
-	if r.Title == nil && r.AllocatedAmt == nil && r.Description == nil {
-		return ErrValidation
-	}
-	if r.Title != nil {
-		n := utf8.RuneCountInString(*r.Title)
-		if n < minTitleLen || n > maxTitleLen {
-			return ErrValidation
-		}
-	}
-	if r.AllocatedAmt != nil && r.AllocatedAmt.Int64() < 0 {
-		return ErrValidation
-	}
-	return nil
 }
 
 // CreateParams carries the repository-layer arguments for inserting a new envelope.

@@ -114,6 +114,27 @@ This API supports full CRUD operations for Budget Envelopes.
 - `budget_id` must exist.
 - User must have write permission.
 
+**Validation Error Format**
+
+Validation failures return `400` with field-level details:
+
+```json
+{
+  "success": false,
+  "data": {
+    "fields": [
+      { "field": "title", "error": "must be between 3 and 80 characters" },
+      { "field": "allocated_amt", "error": "must be non-negative" }
+    ]
+  },
+  "msg": "validation failed"
+}
+```
+
+All field errors are aggregated and returned in a single response. This format applies to every
+`400 VALIDATION_ERROR` response across the Budget Envelope API (create, replace, patch, list, and
+path-parameter validation), not just envelope creation.
+
 **Side Effects**
 
 - New envelope row created.
@@ -123,7 +144,7 @@ This API supports full CRUD operations for Budget Envelopes.
 
 | HTTP | Code | Description |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Invalid payload |
+| 400 | `VALIDATION_ERROR` | Invalid payload; `data.fields` contains per-field errors |
 | 401 | `UNAUTHORIZED` | Not authenticated |
 | 403 | `FORBIDDEN` | Insufficient role |
 | 404 | `NOT_FOUND` | Budget not found |
@@ -226,6 +247,9 @@ This API supports full CRUD operations for Budget Envelopes.
 | 404 | `NOT_FOUND` |
 | 500 | `INTERNAL_ERROR` |
 
+> `400 VALIDATION_ERROR` responses use the field-level `data.fields` format described under
+> [Create Budget Envelope](#create-budget-envelope) above.
+
 ---
 
 ### Replace Budget Envelope (Full Update)
@@ -291,6 +315,9 @@ Idempotent operation.
 | 409 | `CONFLICT` |
 | 500 | `INTERNAL_ERROR` |
 
+> `400 VALIDATION_ERROR` responses use the field-level `data.fields` format described under
+> [Create Budget Envelope](#create-budget-envelope) above.
+
 ---
 
 ### Partial Update Budget Envelope
@@ -332,6 +359,9 @@ Idempotent operation.
 | 404 | `NOT_FOUND` |
 | 409 | `CONFLICT` |
 | 500 | `INTERNAL_ERROR` |
+
+> `400 VALIDATION_ERROR` responses use the field-level `data.fields` format described under
+> [Create Budget Envelope](#create-budget-envelope) above.
 
 ---
 
@@ -377,6 +407,9 @@ Idempotent operation.
 | 403 | `FORBIDDEN` |
 | 404 | `NOT_FOUND` |
 | 500 | `INTERNAL_ERROR` |
+
+> `400 VALIDATION_ERROR` responses use the field-level `data.fields` format described under
+> [Create Budget Envelope](#create-budget-envelope) above.
 
 ---
 
@@ -427,6 +460,9 @@ Idempotent operation.
 | 403 | `FORBIDDEN` |
 | 404 | `NOT_FOUND` |
 | 500 | `INTERNAL_ERROR` |
+
+> `400 VALIDATION_ERROR` responses use the field-level `data.fields` format described under
+> [Create Budget Envelope](#create-budget-envelope) above.
 
 ---
 
