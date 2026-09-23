@@ -495,10 +495,17 @@ export function AccountDetails({ accountId, budgetId }: Props) {
               <StatCell label="Last Reconciled" value={meta.lastReconciled} valueSize="text-sm" />
             </div>
             <div className="flex flex-shrink-0 flex-col items-end gap-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.1)] px-2.5 py-1 text-xs font-semibold text-[#4ADE80]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-                Reconciled
-              </span>
+              {account?.last_reconciled_at ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(34,197,94,0.2)] bg-[rgba(34,197,94,0.1)] px-2.5 py-1 text-xs font-semibold text-[#4ADE80]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+                  Reconciled
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(245,158,11,0.2)] bg-[rgba(245,158,11,0.1)] px-2.5 py-1 text-xs font-semibold text-[#FCD34D]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />
+                  Uncleared
+                </span>
+              )}
               <p className="text-[10px] text-[#3A4A60]">Up to {meta.lastReconciled}</p>
             </div>
           </div>
