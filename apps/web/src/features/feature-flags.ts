@@ -42,7 +42,7 @@ export const FeatureFlags = {
   settingsPreferences: false,
   settingsNotifications: false,
   settingsSecurity: false,
-  settingsDataPrivacy: false,
+  settingsDataPrivacy: true,
   settingsMembersPermissions: false,
   topbarNotifications: false,
   topbarHelp: false,

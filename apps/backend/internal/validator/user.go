@@ -105,7 +105,7 @@ func hasRequiredPasswordChars(password string) bool {
 
 func validateEmail(email string) *httpx.FieldError {
 	if email == "" {
-		return &httpx.FieldError{Field: fieldEmail, Error: "required"}
+		return &httpx.FieldError{Field: fieldEmail, Error: errRequired}
 	}
 	if len(email) > maxEmailLen {
 		return &httpx.FieldError{Field: fieldEmail, Error: "must not exceed 254 characters"}
@@ -246,4 +246,23 @@ func ValidatePatchProfile(in PatchProfileInput) []httpx.FieldError {
 	}
 	errs := validatePatchProfileFields(in)
 	return append(errs, validatePatchPasswordFields(in)...)
+}
+
+// DeleteAccountInput holds the re-authentication field for
+// DELETE /api/v1/users/{id}.
+type DeleteAccountInput struct {
+	CurrentPassword *string
+}
+
+// ValidateDeleteAccount requires current_password to be present, non-empty,
+// and within the bcrypt length bound — the same check used at login, since
+// this re-verifies an existing password rather than setting a new one.
+func ValidateDeleteAccount(in DeleteAccountInput) []httpx.FieldError {
+	if in.CurrentPassword == nil || *in.CurrentPassword == "" {
+		return []httpx.FieldError{{Field: "current_password", Error: errRequired}}
+	}
+	if fe := validatePassword("current_password", *in.CurrentPassword); fe != nil {
+		return []httpx.FieldError{*fe}
+	}
+	return nil
 }
