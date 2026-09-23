@@ -1509,7 +1509,9 @@ export function TransactionsView() {
                     index={i}
                     accounts={accounts}
                     selected={selected.has(tx.id)}
-                    isImmutable={Boolean(accountMap.get(tx.accountId)?.is_immutable) || isBudgetArchived}
+                    isImmutable={
+                      Boolean(accountMap.get(tx.accountId)?.is_immutable) || isBudgetArchived
+                    }
                     onSelect={() => toggleRow(tx.id)}
                     onRowClick={() => {
                       setDetailTx(tx);
@@ -1616,9 +1618,9 @@ export function TransactionsView() {
         tx={detailTx}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        isLocked={Boolean(
-          detailTx && accountMap.get(detailTx.accountId)?.is_immutable,
-        ) || isBudgetArchived}
+        isLocked={
+          Boolean(detailTx && accountMap.get(detailTx.accountId)?.is_immutable) || isBudgetArchived
+        }
         envelope={detailTx?.envelopeId != null ? envelopeMap.get(detailTx.envelopeId) : undefined}
         onDelete={() => {
           if (!detailTx) return;

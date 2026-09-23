@@ -121,7 +121,12 @@ export interface ChangeEmailDialogProps {
   onChanged: (user: ApiUser) => void;
 }
 
-export function ChangeEmailDialog({ open, onOpenChange, newEmail, onChanged }: ChangeEmailDialogProps) {
+export function ChangeEmailDialog({
+  open,
+  onOpenChange,
+  newEmail,
+  onChanged,
+}: ChangeEmailDialogProps) {
   const userId = useAuthStore((s) => s.user?.id);
   const hasPassword = useAuthStore((s) => s.user?.has_password ?? true);
 
@@ -283,7 +288,8 @@ export function ChangeEmailDialog({ open, onOpenChange, newEmail, onChanged }: C
             {phase === "confirm" && (
               <form onSubmit={handleSubmit(onSubmitConfirm)} className="space-y-4 px-6 py-5">
                 <p className="text-sm text-[#A8B4CC]">
-                  We&apos;ll send a 6-digit code to <strong className="text-white">{newEmail}</strong>.
+                  We&apos;ll send a 6-digit code to{" "}
+                  <strong className="text-white">{newEmail}</strong>.
                 </p>
 
                 {hasPassword && (

@@ -30,7 +30,10 @@ import type { ApiUser } from "@/lib/api-types";
  * that stability right after a mutation, so the browser doesn't keep
  * showing a cached, now-stale image.
  */
-export function avatarSrc(user: Pick<ApiUser, "picture"> | null | undefined, version?: number): string | null {
+export function avatarSrc(
+  user: Pick<ApiUser, "picture"> | null | undefined,
+  version?: number,
+): string | null {
   if (!user?.picture) return null;
   if (version === undefined) return user.picture;
   const separator = user.picture.includes("?") ? "&" : "?";

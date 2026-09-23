@@ -123,8 +123,7 @@ export function DeleteBudgetDialog({
                   <div className="mx-5 mt-4 flex items-start gap-3 rounded-xl border border-[rgba(239,68,68,0.2)] bg-[rgba(239,68,68,0.08)] px-4 py-3">
                     <AlertTriangle size={16} className="mt-0.5 flex-shrink-0 text-[#EF4444]" />
                     <p className="text-xs leading-relaxed text-[#FCA5A5]">
-                      At least one budget is required. Create a new budget before deleting this
-                      one.
+                      At least one budget is required. Create a new budget before deleting this one.
                     </p>
                   </div>
 

@@ -227,8 +227,8 @@ function ResetPasswordPageInner() {
           <div>
             <h2 className="mb-2 text-2xl font-bold text-white">Invalid reset link</h2>
             <p className="text-sm leading-relaxed text-[#5A6A85]">
-              This password reset link is invalid, malformed, or has expired. Please request a
-              new one.
+              This password reset link is invalid, malformed, or has expired. Please request a new
+              one.
             </p>
           </div>
           <Link
@@ -264,8 +264,7 @@ function ResetPasswordPageInner() {
           <div>
             <h2 className="mb-2 text-2xl font-bold text-white">Password reset</h2>
             <p className="text-sm leading-relaxed text-[#5A6A85]">
-              Your password has been reset successfully. You can now log in with your new
-              password.
+              Your password has been reset successfully. You can now log in with your new password.
             </p>
           </div>
           <Link
@@ -362,14 +361,10 @@ function ResetPasswordPageInner() {
                 border: `1px solid ${errors.confirmPassword ? "#EF4444" : "#1E2B42"}`,
               }}
               onFocus={(e) =>
-                (e.currentTarget.style.borderColor = errors.confirmPassword
-                  ? "#EF4444"
-                  : "#6C3AED")
+                (e.currentTarget.style.borderColor = errors.confirmPassword ? "#EF4444" : "#6C3AED")
               }
               onBlur={(e) =>
-                (e.currentTarget.style.borderColor = errors.confirmPassword
-                  ? "#EF4444"
-                  : "#1E2B42")
+                (e.currentTarget.style.borderColor = errors.confirmPassword ? "#EF4444" : "#1E2B42")
               }
             />
           </div>

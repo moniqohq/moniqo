@@ -476,9 +476,12 @@ export default function SignupPage() {
       if (!accessToken) return; // visitor dismissed the popup — silent no-op
       const tokens = await loginWithFacebookToken(accessToken, "signup");
 
-      const user = await apiFetch<ApiUser>(`/api/v1/users/${parseUserIdFromToken(tokens.access_token)}`, {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      });
+      const user = await apiFetch<ApiUser>(
+        `/api/v1/users/${parseUserIdFromToken(tokens.access_token)}`,
+        {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        },
+      );
       setAuth(user, tokens.access_token);
 
       try {
@@ -1002,11 +1005,7 @@ export default function SignupPage() {
                       className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                       style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
                     >
-                      {oauthPending === id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        icon
-                      )}
+                      {oauthPending === id ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
                       <span>{label}</span>
                     </button>
                   ))}

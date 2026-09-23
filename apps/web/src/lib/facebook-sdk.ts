@@ -29,7 +29,10 @@ declare global {
   interface Window {
     FB?: {
       init(params: { appId: string; cookie: boolean; xfbml: boolean; version: string }): void;
-      login(callback: (response: FacebookLoginStatusResponse) => void, options?: { scope?: string }): void;
+      login(
+        callback: (response: FacebookLoginStatusResponse) => void,
+        options?: { scope?: string },
+      ): void;
     };
   }
 }
@@ -96,7 +99,9 @@ export async function facebookLogin(): Promise<string | null> {
   return new Promise((resolve) => {
     window.FB!.login(
       (response) => {
-        resolve(response.status === "connected" ? (response.authResponse?.accessToken ?? null) : null);
+        resolve(
+          response.status === "connected" ? (response.authResponse?.accessToken ?? null) : null,
+        );
       },
       { scope: "email,public_profile" },
     );

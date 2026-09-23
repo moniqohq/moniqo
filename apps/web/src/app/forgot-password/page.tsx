@@ -162,8 +162,8 @@ export default function ForgotPasswordPage() {
               <div>
                 <h2 className="mb-2 text-2xl font-bold text-white">Check your email</h2>
                 <p className="text-sm leading-relaxed text-[#5A6A85]">
-                  If an account exists for that email address, we&apos;ve sent a link to reset
-                  your password.
+                  If an account exists for that email address, we&apos;ve sent a link to reset your
+                  password.
                 </p>
               </div>
               <Link
@@ -177,7 +177,13 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               {/* Heading */}
-              <motion.div custom={1} initial="hidden" animate="show" variants={fadeUp} className="mb-8">
+              <motion.div
+                custom={1}
+                initial="hidden"
+                animate="show"
+                variants={fadeUp}
+                className="mb-8"
+              >
                 <h2 className="mb-1.5 text-2xl font-bold text-white lg:text-3xl">
                   Forgot your password?
                 </h2>

@@ -72,7 +72,11 @@ export async function resizeImageToWebP(file: File, opts: ResizeOptions = {}): P
   }
 }
 
-function scaledDimensions(width: number, height: number, maxSize: number): { width: number; height: number } {
+function scaledDimensions(
+  width: number,
+  height: number,
+  maxSize: number,
+): { width: number; height: number } {
   const longestEdge = Math.max(width, height);
   if (longestEdge <= maxSize) return { width, height }; // never upscale
   const scale = maxSize / longestEdge;

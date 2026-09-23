@@ -168,7 +168,6 @@ function BudgetSwitcher({
                           </span>
                         )}
                       </div>
-
                     </button>
 
                     {isActive && (
@@ -179,7 +178,7 @@ function BudgetSwitcher({
                       />
                     )}
 
-                    <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 transition-all group-hover:opacity-100 group-focus-within:opacity-100">
+                    <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 transition-all group-focus-within:opacity-100 group-hover:opacity-100">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

@@ -819,11 +819,7 @@ function LoginPageInner() {
                       border: "1px solid #1E2B42",
                     }}
                   >
-                    {oauthPending === id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      icon
-                    )}
+                    {oauthPending === id ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
                     <span>{label}</span>
                   </button>
                 ))}

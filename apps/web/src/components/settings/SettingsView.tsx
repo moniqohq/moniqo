@@ -596,7 +596,7 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                         user={storeUser}
                         src={preview ?? undefined}
                         size={96}
-                        className="ring-4 ring-[rgba(108,58,237,0.2)] text-[28px]"
+                        className="text-[28px] ring-4 ring-[rgba(108,58,237,0.2)]"
                       />
                       <button
                         className="absolute right-0 bottom-0 flex h-7 w-7 items-center justify-center rounded-full border border-[#2A3A54] bg-[#1E2B42] transition-colors hover:bg-[#2A3A54] disabled:cursor-not-allowed disabled:opacity-50"
@@ -671,7 +671,9 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                     <FormField
                       label="Email address"
                       helperText={
-                        isEditing ? "Changing your email requires verifying the new address." : undefined
+                        isEditing
+                          ? "Changing your email requires verifying the new address."
+                          : undefined
                       }
                     >
                       {isEditing ? (
