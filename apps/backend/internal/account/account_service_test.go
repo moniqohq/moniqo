@@ -778,6 +778,30 @@ func TestSvc_BalanceHistory(t *testing.T) {
 		assert.Equal(t, money.FromMinorUnits(0), history.Credit[0].Balance)
 	})
 
+	t.Run("loan balances reduce net worth without affecting cash/credit/savings", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("BalanceHistory", testBudgetID, 1).Return([]db.GetAccountTypeBalanceHistoryRow{
+			{Month: month(2026, time.January), Type: db.AccountTypeCHECKING, Balance: 50000},
+			{Month: month(2026, time.January), Type: db.AccountTypeSAVINGS, Balance: 100000},
+			{Month: month(2026, time.January), Type: db.AccountTypeCREDITCARD, Balance: -20000},
+			{Month: month(2026, time.January), Type: db.AccountTypeLOAN, Balance: -80000},
+		}, nil)
+
+		svc := account.NewSvc(repo, log)
+		history, err := svc.BalanceHistory(context.Background(), testBudgetID, 1)
+
+		require.NoError(t, err)
+		require.Len(t, history.NetWorth, 1)
+		// Net worth includes the loan: 50000 + 100000 - 20000 - 80000 = 50000.
+		assert.Equal(t, money.FromMinorUnits(50000), history.NetWorth[0].Balance)
+		// Cash, credit, and savings summary cards are unaffected by loans.
+		assert.Equal(t, money.FromMinorUnits(50000), history.Cash[0].Balance)
+		assert.Equal(t, money.FromMinorUnits(20000), history.Credit[0].Balance)
+		assert.Equal(t, money.FromMinorUnits(100000), history.Savings[0].Balance)
+		repo.AssertExpectations(t)
+	})
+
 	t.Run("repo error is wrapped", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.AccountRepository{}
