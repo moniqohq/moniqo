@@ -24,11 +24,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/email"
 	internalmock "github.com/moniqohq/moniqo/apps/backend/internal/mock"
@@ -186,5 +189,98 @@ func TestUserService_Register(t *testing.T) {
 
 		require.Error(t, err)
 		repo.AssertNotCalled(t, "Create")
+	})
+}
+
+func TestUserService_Delete(t *testing.T) {
+	t.Parallel()
+
+	log := zap.NewNop()
+	const password = "CorrectPass1"
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 4)
+	require.NoError(t, err)
+
+	validParams := user.DeleteAccountParams{
+		UserID:          testUserID,
+		CurrentPassword: password,
+		JTI:             uuid.New(),
+		ExpiresAt:       time.Now().Add(time.Hour),
+	}
+
+	t.Run("wrong password stops before any mutation", func(t *testing.T) {
+		t.Parallel()
+
+		repo := &internalmock.UserRepository{}
+		repo.On("GetHashByID", testUserID).Return(string(hash), nil)
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		p := validParams
+		p.CurrentPassword = "wrong-password"
+		err := svc.Delete(context.Background(), p)
+
+		assert.ErrorIs(t, err, user.ErrWrongPassword)
+		repo.AssertNotCalled(t, "DeleteAccount", mock.Anything)
+	})
+
+	t.Run("already-deleted user is a no-op success", func(t *testing.T) {
+		t.Parallel()
+
+		repo := &internalmock.UserRepository{}
+		repo.On("GetHashByID", testUserID).Return("", user.ErrNotFound)
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		err := svc.Delete(context.Background(), validParams)
+
+		require.NoError(t, err)
+		repo.AssertNotCalled(t, "DeleteAccount", mock.Anything)
+	})
+
+	t.Run("OIDC-only account without a password credential is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		repo := &internalmock.UserRepository{}
+		repo.On("GetHashByID", testUserID).Return("", nil)
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		err := svc.Delete(context.Background(), validParams)
+
+		assert.ErrorIs(t, err, user.ErrNoPasswordCredential)
+		repo.AssertNotCalled(t, "DeleteAccount", mock.Anything)
+	})
+
+	t.Run("last-owner error is propagated", func(t *testing.T) {
+		t.Parallel()
+
+		lastOwnerErr := &user.LastOwnerError{Budgets: []user.BlockingBudget{{ID: 1, Title: "Family"}}}
+		repo := &internalmock.UserRepository{}
+		repo.On("GetHashByID", testUserID).Return(string(hash), nil)
+		repo.On("DeleteAccount", mock.AnythingOfType("DeleteAccountParams")).Return(lastOwnerErr)
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		err := svc.Delete(context.Background(), validParams)
+
+		assert.ErrorIs(t, err, user.ErrLastOwner)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("success forwards the caller's jti and expiry to the repo", func(t *testing.T) {
+		t.Parallel()
+
+		repo := &internalmock.UserRepository{}
+		repo.On("GetHashByID", testUserID).Return(string(hash), nil)
+		repo.On("DeleteAccount", mock.AnythingOfType("DeleteAccountParams")).Return(nil).
+			Run(func(args mock.Arguments) {
+				p, ok := args.Get(0).(user.DeleteAccountParams)
+				require.True(t, ok)
+				assert.Equal(t, validParams.UserID, p.UserID)
+				assert.Equal(t, validParams.JTI, p.JTI)
+				assert.Equal(t, validParams.ExpiresAt, p.ExpiresAt)
+			})
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		err := svc.Delete(context.Background(), validParams)
+
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
 	})
 }

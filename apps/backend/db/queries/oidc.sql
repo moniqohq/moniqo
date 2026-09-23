@@ -20,3 +20,9 @@ WHERE user_id = $1 AND provider = $2;
 
 -- name: CountUserIdentitiesByUserID :one
 SELECT COUNT(*) FROM user_identities WHERE user_id = $1;
+
+-- name: DeleteAllUserIdentities :exec
+-- Used on account deletion: hard-deleted so the provider+subject unique index
+-- frees up and a future re-signup with the same identity does not resolve to
+-- the soft-deleted user row.
+DELETE FROM user_identities WHERE user_id = $1;

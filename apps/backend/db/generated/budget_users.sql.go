@@ -97,6 +97,55 @@ func (q *Queries) GetMembership(ctx context.Context, arg GetMembershipParams) (B
 	return i, err
 }
 
+const listBlockingSoleOwnedBudgets = `-- name: ListBlockingSoleOwnedBudgets :many
+SELECT b.id, b.title
+FROM budgets b
+JOIN budget_users bu
+  ON bu.budget_id  = b.id
+ AND bu.user_id    = $1
+ AND bu.deleted_at IS NULL
+ AND bu.role       = 'OWNER'
+WHERE b.deleted_at IS NULL
+  AND (
+    SELECT COUNT(*) FROM budget_users o
+    WHERE o.budget_id = b.id AND o.deleted_at IS NULL AND o.role = 'OWNER'
+  ) = 1
+  AND EXISTS (
+    SELECT 1 FROM budget_users m
+    WHERE m.budget_id = b.id AND m.deleted_at IS NULL AND m.user_id != $1
+  )
+ORDER BY b.id
+`
+
+type ListBlockingSoleOwnedBudgetsRow struct {
+	ID    int64
+	Title string
+}
+
+// Budgets where the user is the only active OWNER and other active members
+// exist. These block account deletion until ownership is transferred or the
+// other members are removed -- deleting the account must never silently
+// destroy a shared budget's data.
+func (q *Queries) ListBlockingSoleOwnedBudgets(ctx context.Context, userID int64) ([]ListBlockingSoleOwnedBudgetsRow, error) {
+	rows, err := q.db.Query(ctx, listBlockingSoleOwnedBudgets, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBlockingSoleOwnedBudgetsRow
+	for rows.Next() {
+		var i ListBlockingSoleOwnedBudgetsRow
+		if err := rows.Scan(&i.ID, &i.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMembersForBudget = `-- name: ListMembersForBudget :many
 SELECT id, budget_id, user_id, role, joined_at, deleted_at
 FROM budget_users
@@ -132,6 +181,44 @@ func (q *Queries) ListMembersForBudget(ctx context.Context, budgetID int64) ([]B
 	return items, nil
 }
 
+const listSoloOwnedBudgets = `-- name: ListSoloOwnedBudgets :many
+SELECT b.id
+FROM budgets b
+JOIN budget_users bu
+  ON bu.budget_id  = b.id
+ AND bu.user_id    = $1
+ AND bu.deleted_at IS NULL
+ AND bu.role       = 'OWNER'
+WHERE b.deleted_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM budget_users m
+    WHERE m.budget_id = b.id AND m.deleted_at IS NULL AND m.user_id != $1
+  )
+ORDER BY b.id
+`
+
+// Budgets where the user is OWNER and the only active member -- safe to
+// cascade-delete as part of account deletion since no one else is affected.
+func (q *Queries) ListSoloOwnedBudgets(ctx context.Context, userID int64) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listSoloOwnedBudgets, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const softDeleteAllMembershipsForBudget = `-- name: SoftDeleteAllMembershipsForBudget :exec
 UPDATE budget_users
 SET deleted_at = now()
@@ -141,6 +228,20 @@ WHERE budget_id  = $1
 
 func (q *Queries) SoftDeleteAllMembershipsForBudget(ctx context.Context, budgetID int64) error {
 	_, err := q.db.Exec(ctx, softDeleteAllMembershipsForBudget, budgetID)
+	return err
+}
+
+const softDeleteAllMembershipsForUser = `-- name: SoftDeleteAllMembershipsForUser :exec
+UPDATE budget_users
+SET deleted_at = now()
+WHERE user_id    = $1
+  AND deleted_at IS NULL
+`
+
+// Used on account deletion for budgets that survive (i.e. the user was not
+// their sole owner) so the deleted user leaves no active membership behind.
+func (q *Queries) SoftDeleteAllMembershipsForUser(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, softDeleteAllMembershipsForUser, userID)
 	return err
 }
 

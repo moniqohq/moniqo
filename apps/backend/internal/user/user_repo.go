@@ -187,11 +187,20 @@ func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error 
 	return nil
 }
 
-// SoftDelete soft-deletes the user and atomically revokes all their refresh
-// tokens with reason "account_deletion". Idempotent — re-deleting a deleted
-// user matches zero rows and no error is returned.
-func (r *Repo) SoftDelete(ctx context.Context, id int64) error {
-	r.log.Debug("beginning soft-delete transaction", zap.Int64("user_id", id))
+// DeleteAccount soft-deletes the user and, in the same transaction: blocks the
+// operation if the user is the sole OWNER of a budget that still has other
+// active members (ErrLastOwner, wrapped in *LastOwnerError with the offending
+// budgets); revokes all refresh tokens and blocklists the caller's live
+// access token; invalidates pending password-reset tokens; hard-deletes OIDC
+// identity links (so a future re-signup with the same provider account
+// creates a fresh user rather than resolving to this soft-deleted row);
+// cascade-soft-deletes budgets the user solely owns (with their memberships);
+// and soft-deletes the user's remaining memberships in budgets that survive.
+//
+// Idempotent — re-deleting an already-deleted user matches zero rows at every
+// step and commits cleanly with no error.
+func (r *Repo) DeleteAccount(ctx context.Context, p DeleteAccountParams) error {
+	r.log.Debug("beginning account-deletion transaction", zap.Int64("user_id", p.UserID))
 
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -201,24 +210,103 @@ func (r *Repo) SoftDelete(ctx context.Context, id int64) error {
 
 	q := db.New(tx)
 
-	if err := q.SoftDeleteUser(ctx, id); err != nil {
-		r.log.Error("SoftDeleteUser query failed", zap.Int64("user_id", id), zap.Error(err))
-		return fmt.Errorf("soft delete user: %w", err)
+	if err := checkNotLastOwner(ctx, q, p.UserID); err != nil {
+		return err
 	}
-
-	reason := "account_deletion"
-	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
-		UserID:        id,
-		RevokedReason: &reason,
-	}); err != nil {
-		r.log.Error("RevokeAllUserRefreshTokens query failed", zap.Int64("user_id", id), zap.Error(err))
-		return fmt.Errorf("revoke user refresh tokens: %w", err)
+	if err := softDeleteUserAndCredentials(ctx, q, p); err != nil {
+		return err
+	}
+	soloOwned, err := cascadeSoloOwnedBudgets(ctx, q, p.UserID)
+	if err != nil {
+		return err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
+
+	r.log.Info(
+		"account deleted",
+		zap.Int64("user_id", p.UserID),
+		zap.Int("budgets_cascaded", len(soloOwned)),
+	)
 	return nil
+}
+
+// checkNotLastOwner returns *LastOwnerError if the user is the sole OWNER of
+// a budget that still has other active members, blocking deletion.
+func checkNotLastOwner(ctx context.Context, q *db.Queries, userID int64) error {
+	blocking, err := q.ListBlockingSoleOwnedBudgets(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("list blocking sole-owned budgets: %w", err)
+	}
+	if len(blocking) == 0 {
+		return nil
+	}
+	budgets := make([]BlockingBudget, len(blocking))
+	for i, b := range blocking {
+		budgets[i] = BlockingBudget{ID: b.ID, Title: b.Title}
+	}
+	return &LastOwnerError{Budgets: budgets}
+}
+
+// softDeleteUserAndCredentials soft-deletes the user row and invalidates
+// every credential that could otherwise keep the account usable: refresh
+// tokens, the caller's live access token, pending password-reset tokens, and
+// OIDC identity links (hard-deleted so a future re-signup with the same
+// provider account does not resolve to this soft-deleted row).
+func softDeleteUserAndCredentials(ctx context.Context, q *db.Queries, p DeleteAccountParams) error {
+	if err := q.SoftDeleteUser(ctx, p.UserID); err != nil {
+		return fmt.Errorf("soft delete user: %w", err)
+	}
+
+	reason := "account_deletion"
+	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
+		UserID:        p.UserID,
+		RevokedReason: &reason,
+	}); err != nil {
+		return fmt.Errorf("revoke user refresh tokens: %w", err)
+	}
+
+	if err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
+		Jti:       pgtype.UUID{Bytes: p.JTI, Valid: true},
+		UserID:    p.UserID,
+		ExpiresAt: pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
+	}); err != nil {
+		return fmt.Errorf("revoke access token: %w", err)
+	}
+
+	if err := q.InvalidateUserPasswordResetTokens(ctx, p.UserID); err != nil {
+		return fmt.Errorf("invalidate password reset tokens: %w", err)
+	}
+
+	if err := q.DeleteAllUserIdentities(ctx, p.UserID); err != nil {
+		return fmt.Errorf("delete user identities: %w", err)
+	}
+	return nil
+}
+
+// cascadeSoloOwnedBudgets soft-deletes every budget the user solely owns
+// (with their memberships) and then clears the user's remaining memberships
+// in budgets that survive. It returns the ids of the budgets cascaded.
+func cascadeSoloOwnedBudgets(ctx context.Context, q *db.Queries, userID int64) ([]int64, error) {
+	soloOwned, err := q.ListSoloOwnedBudgets(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list solo-owned budgets: %w", err)
+	}
+	for _, budgetID := range soloOwned {
+		if err := q.SoftDeleteBudget(ctx, budgetID); err != nil {
+			return nil, fmt.Errorf("soft delete budget %d: %w", budgetID, err)
+		}
+		if err := q.SoftDeleteAllMembershipsForBudget(ctx, budgetID); err != nil {
+			return nil, fmt.Errorf("soft delete memberships for budget %d: %w", budgetID, err)
+		}
+	}
+
+	if err := q.SoftDeleteAllMembershipsForUser(ctx, userID); err != nil {
+		return nil, fmt.Errorf("soft delete memberships for user: %w", err)
+	}
+	return soloOwned, nil
 }
 
 // GetHashByID returns the bcrypt hash for the given user, or "" if the account
