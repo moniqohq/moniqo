@@ -579,27 +579,35 @@ func (h *Handler) handleDeleteTransactionError(c echo.Context, err error, id, bu
 	return httpx.InternalError(c)
 }
 
+// mapCommonTransactionError maps the error cases shared by create, replace,
+// and patch — everything except the not-found case, which only replace and
+// patch have — into their HTTP response. Returns ok=false if err doesn't
+// match any of them.
+func mapCommonTransactionError(c echo.Context, err error) (ok bool, resp error) {
+	switch {
+	case errors.Is(err, ErrConflict):
+		return true, httpx.Conflict(c, "transaction business rule violation")
+	case errors.Is(err, ErrValidation):
+		return true, httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
+	case errors.Is(err, ErrAccountArchived):
+		return true, httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
+	case errors.Is(err, ErrBudgetArchived):
+		return true, httpx.Conflict(c, "budget is archived")
+	case errors.Is(err, ErrEnvelopeArchived):
+		return true, httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
+	case errors.Is(err, ErrEnvelopeNotFound):
+		return true, httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeNotFound}})
+	default:
+		return false, nil
+	}
+}
+
 func (h *Handler) handleCreateTransactionError(c echo.Context, err error, budgetID int64) error {
 	if ok, resp := serviceErrorFields(c, err); ok {
 		return resp
 	}
-	if errors.Is(err, ErrConflict) {
-		return httpx.Conflict(c, "transaction business rule violation")
-	}
-	if errors.Is(err, ErrValidation) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
-	}
-	if errors.Is(err, ErrAccountArchived) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
-	}
-	if errors.Is(err, ErrBudgetArchived) {
-		return httpx.Conflict(c, "budget is archived")
-	}
-	if errors.Is(err, ErrEnvelopeArchived) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
-	}
-	if errors.Is(err, ErrEnvelopeNotFound) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeNotFound}})
+	if ok, resp := mapCommonTransactionError(c, err); ok {
+		return resp
 	}
 	h.log.Error("Create transaction failed",
 		zap.Int64("budget_id", budgetID),
@@ -615,23 +623,8 @@ func (h *Handler) handleReplaceTransactionError(c echo.Context, err error, id, b
 	if errors.Is(err, ErrNotFound) {
 		return httpx.NotFound(c, "transaction not found")
 	}
-	if errors.Is(err, ErrConflict) {
-		return httpx.Conflict(c, "transaction business rule violation")
-	}
-	if errors.Is(err, ErrValidation) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
-	}
-	if errors.Is(err, ErrAccountArchived) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
-	}
-	if errors.Is(err, ErrBudgetArchived) {
-		return httpx.Conflict(c, "budget is archived")
-	}
-	if errors.Is(err, ErrEnvelopeArchived) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
-	}
-	if errors.Is(err, ErrEnvelopeNotFound) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeNotFound}})
+	if ok, resp := mapCommonTransactionError(c, err); ok {
+		return resp
 	}
 	h.log.Error("Replace transaction failed",
 		zap.Int64("transaction_id", id),
@@ -648,23 +641,8 @@ func (h *Handler) handlePatchTransactionError(c echo.Context, err error, id, bud
 	if errors.Is(err, ErrNotFound) {
 		return httpx.NotFound(c, "transaction not found")
 	}
-	if errors.Is(err, ErrConflict) {
-		return httpx.Conflict(c, "transaction business rule violation")
-	}
-	if errors.Is(err, ErrValidation) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errValidationFailed}})
-	}
-	if errors.Is(err, ErrAccountArchived) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errAccountArchived}})
-	}
-	if errors.Is(err, ErrBudgetArchived) {
-		return httpx.Conflict(c, "budget is archived")
-	}
-	if errors.Is(err, ErrEnvelopeArchived) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeArchived}})
-	}
-	if errors.Is(err, ErrEnvelopeNotFound) {
-		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldEnvelopeID, Error: errEnvelopeNotFound}})
+	if ok, resp := mapCommonTransactionError(c, err); ok {
+		return resp
 	}
 	h.log.Error("Patch transaction failed",
 		zap.Int64("transaction_id", id),

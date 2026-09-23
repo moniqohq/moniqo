@@ -280,6 +280,8 @@ func (h *Handler) Logout(c echo.Context) error {
 // cookie is issued without Max-Age so browsers treat it as a session cookie
 // and discard it on close, even though the underlying token still carries its
 // normal server-side expiry.
+//
+//nolint:revive // rememberMe toggles one cookie attribute; splitting would duplicate the cookie struct
 func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time, rememberMe bool) {
 	maxAge := 0
 	if rememberMe {

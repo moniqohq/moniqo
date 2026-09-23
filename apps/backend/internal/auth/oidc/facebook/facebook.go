@@ -96,17 +96,20 @@ func New(cfg Config) *Verifier {
 // Name returns the registry key "facebook".
 func (*Verifier) Name() string { return "facebook" }
 
+// debugTokenData is the "data" payload of a successful GET /debug_token response.
+type debugTokenData struct {
+	AppID     string   `json:"app_id"`
+	Type      string   `json:"type"`
+	IsValid   bool     `json:"is_valid"`
+	UserID    string   `json:"user_id"`
+	ExpiresAt int64    `json:"expires_at"`
+	Scopes    []string `json:"scopes"`
+}
+
 // debugTokenResponse is the shape of a successful GET /debug_token response.
 type debugTokenResponse struct {
-	Data struct {
-		AppID     string   `json:"app_id"`
-		Type      string   `json:"type"`
-		IsValid   bool     `json:"is_valid"`
-		UserID    string   `json:"user_id"`
-		ExpiresAt int64    `json:"expires_at"`
-		Scopes    []string `json:"scopes"`
-	} `json:"data"`
-	Error *graphError `json:"error"`
+	Data  debugTokenData `json:"data"`
+	Error *graphError    `json:"error"`
 }
 
 // graphError is Graph API's shared error shape, returned at top level (not
@@ -126,10 +129,12 @@ type meResponse struct {
 	Error   *graphError `json:"error"`
 }
 
+type pictureURLData struct {
+	URL string `json:"url"`
+}
+
 type pictureData struct {
-	Data struct {
-		URL string `json:"url"`
-	} `json:"data"`
+	Data pictureURLData `json:"data"`
 }
 
 // VerifyAccessToken validates accessToken via Graph's debug_token endpoint

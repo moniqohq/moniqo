@@ -84,21 +84,6 @@ func (s *Svc) SetBudgetChecker(budget BudgetChecker) {
 	s.budget = budget
 }
 
-// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
-func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
-	if s.budget == nil {
-		return nil
-	}
-	archived, err := s.budget.IsArchived(ctx, budgetID)
-	if err != nil {
-		return fmt.Errorf("check budget archived: %w", err)
-	}
-	if archived {
-		return ErrBudgetArchived
-	}
-	return nil
-}
-
 // isOnBudgetDefault returns the canonical is_on_budget default for the given
 // account type: false for liability types (CREDIT_CARD, LOAN), true for all others.
 func isOnBudgetDefault(t models.AccountType) bool {
@@ -591,6 +576,8 @@ func (s *Svc) Archive(ctx context.Context, id, budgetID int64, callerRole models
 // budgetID, restoring it to active use. Only OWNER or ADMIN callers may
 // unarchive accounts. The operation is idempotent: unarchiving an already
 // active account returns it unchanged.
+//
+//nolint:revive
 func (s *Svc) Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error) {
 	if callerRole != models.RoleOwner && callerRole != models.RoleAdmin {
 		return models.Account{}, ErrForbidden
@@ -724,4 +711,19 @@ func (s *Svc) BalanceHistory(ctx context.Context, budgetID int64, months int) (m
 	}
 
 	return history, nil
+}
+
+// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
+func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
+	if s.budget == nil {
+		return nil
+	}
+	archived, err := s.budget.IsArchived(ctx, budgetID)
+	if err != nil {
+		return fmt.Errorf("check budget archived: %w", err)
+	}
+	if archived {
+		return ErrBudgetArchived
+	}
+	return nil
 }

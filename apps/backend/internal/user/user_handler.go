@@ -321,22 +321,6 @@ func (h *Handler) VerifyEmail(c echo.Context) error {
 	return c.Redirect(http.StatusFound, h.appBaseURL+"/login?verified=true")
 }
 
-// mapDeleteErr translates a Delete error into the matching HTTP response.
-func (h *Handler) mapDeleteErr(c echo.Context, userID int64, err error) error {
-	if errors.Is(err, ErrWrongPassword) {
-		return httpx.Forbidden(c, "current password is incorrect")
-	}
-	if errors.Is(err, ErrNoPasswordCredential) {
-		return httpx.Conflict(c, "set a password before deleting your account")
-	}
-	var lastOwner *LastOwnerError
-	if errors.As(err, &lastOwner) {
-		return httpx.Conflict(c, lastOwnerMessage(lastOwner.Budgets))
-	}
-	h.log.Error("delete profile failed", zap.Int64("user_id", userID), zap.Error(err))
-	return httpx.InternalError(c)
-}
-
 // lastOwnerMessage names the budgets blocking deletion so the caller knows
 // exactly which ones need an ownership transfer (or member removal) first.
 func lastOwnerMessage(budgets []BlockingBudget) string {
@@ -544,6 +528,22 @@ func (h *Handler) readAndSniffAvatar(c echo.Context, userID int64) (data []byte,
 	}
 
 	return data, sniffed, true
+}
+
+// mapDeleteErr translates a Delete error into the matching HTTP response.
+func (h *Handler) mapDeleteErr(c echo.Context, userID int64, err error) error {
+	if errors.Is(err, ErrWrongPassword) {
+		return httpx.Forbidden(c, "current password is incorrect")
+	}
+	if errors.Is(err, ErrNoPasswordCredential) {
+		return httpx.Conflict(c, "set a password before deleting your account")
+	}
+	var lastOwner *LastOwnerError
+	if errors.As(err, &lastOwner) {
+		return httpx.Conflict(c, lastOwnerMessage(lastOwner.Budgets))
+	}
+	h.log.Error("delete profile failed", zap.Int64("user_id", userID), zap.Error(err))
+	return httpx.InternalError(c)
 }
 
 // resolveOwnership extracts the authenticated user id from the JWT claims and

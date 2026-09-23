@@ -140,21 +140,6 @@ func (s *Svc) SetBudgetChecker(budget BudgetChecker) {
 	s.budget = budget
 }
 
-// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
-func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
-	if s.budget == nil {
-		return nil
-	}
-	archived, err := s.budget.IsArchived(ctx, budgetID)
-	if err != nil {
-		return fmt.Errorf("check budget archived: %w", err)
-	}
-	if archived {
-		return ErrBudgetArchived
-	}
-	return nil
-}
-
 // Create persists a standard (non-transfer) transaction.
 // Requires budget_envelope_id for expenses (negative amount); income
 // (positive amount) is unallocated and flows into "To Be Budgeted" instead.
@@ -615,6 +600,21 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		zap.Int64("transaction_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
+	return nil
+}
+
+// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
+func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
+	if s.budget == nil {
+		return nil
+	}
+	archived, err := s.budget.IsArchived(ctx, budgetID)
+	if err != nil {
+		return fmt.Errorf("check budget archived: %w", err)
+	}
+	if archived {
+		return ErrBudgetArchived
+	}
 	return nil
 }
 

@@ -389,6 +389,31 @@ func (h *Handler) GetEnvelope(c echo.Context) error {
 }
 
 // CreateEnvelope handles POST /api/v1/budgets/:budget_id/envelopes.
+// mapEnvelopeServiceError maps the envelope-service sentinel errors shared
+// across Create/Replace/Patch/Delete/ForceDelete into their HTTP response.
+// Returns ok=false if err doesn't match any of them.
+func mapEnvelopeServiceError(c echo.Context, err error) (ok bool, resp error) {
+	var belowSpent *AllocatedBelowSpentError
+	if errors.As(err, &belowSpent) {
+		return true, validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: belowSpent.Error()}})
+	}
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return true, httpx.NotFound(c, "budget envelope not found")
+	case errors.Is(err, ErrConflict):
+		return true, httpx.Conflict(c, "envelope title already in use")
+	case errors.Is(err, ErrForbidden):
+		return true, httpx.Forbidden(c, "insufficient role")
+	case errors.Is(err, ErrBudgetArchived):
+		return true, httpx.Conflict(c, "budget is archived")
+	case errors.Is(err, ErrValidation):
+		return true, validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: errMustBeNonNeg}})
+	default:
+		return false, nil
+	}
+}
+
+// CreateEnvelope handles POST /api/v1/budgets/:budget_id/envelopes.
 func (h *Handler) CreateEnvelope(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
 	if err != nil {
@@ -413,11 +438,8 @@ func (h *Handler) CreateEnvelope(c echo.Context) error {
 
 	env, err := h.svc.Create(c.Request().Context(), budgetID, req)
 	if err != nil {
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "envelope title already in use")
-		}
-		if errors.Is(err, ErrBudgetArchived) {
-			return httpx.Conflict(c, "budget is archived")
+		if ok, resp := mapEnvelopeServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Create envelope failed",
 			zap.Int64("budget_id", budgetID),
@@ -463,21 +485,8 @@ func (h *Handler) ReplaceEnvelope(c echo.Context) error {
 
 	env, err := h.svc.Replace(c.Request().Context(), id, budgetID, req)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "budget envelope not found")
-		}
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "envelope title already in use")
-		}
-		var belowSpent *AllocatedBelowSpentError
-		if errors.As(err, &belowSpent) {
-			return validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: belowSpent.Error()}})
-		}
-		if errors.Is(err, ErrValidation) {
-			return validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: errMustBeNonNeg}})
-		}
-		if errors.Is(err, ErrBudgetArchived) {
-			return httpx.Conflict(c, "budget is archived")
+		if ok, resp := mapEnvelopeServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Replace envelope failed",
 			zap.Int64("envelope_id", id),
@@ -523,21 +532,8 @@ func (h *Handler) PatchEnvelope(c echo.Context) error {
 
 	env, err := h.svc.Patch(c.Request().Context(), id, budgetID, req)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "budget envelope not found")
-		}
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "envelope title already in use")
-		}
-		var belowSpent *AllocatedBelowSpentError
-		if errors.As(err, &belowSpent) {
-			return validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: belowSpent.Error()}})
-		}
-		if errors.Is(err, ErrValidation) {
-			return validationError(c, []httpx.FieldError{{Field: fieldAllocatedAmt, Error: errMustBeNonNeg}})
-		}
-		if errors.Is(err, ErrBudgetArchived) {
-			return httpx.Conflict(c, "budget is archived")
+		if ok, resp := mapEnvelopeServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Patch envelope failed",
 			zap.Int64("envelope_id", id),
@@ -568,11 +564,8 @@ func (h *Handler) DeleteEnvelope(c echo.Context) error {
 	}
 
 	if err := h.svc.Delete(c.Request().Context(), id, budgetID, membership.Role); err != nil {
-		if errors.Is(err, ErrForbidden) {
-			return httpx.Forbidden(c, "insufficient role")
-		}
-		if errors.Is(err, ErrBudgetArchived) {
-			return httpx.Conflict(c, "budget is archived")
+		if ok, resp := mapEnvelopeServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Delete envelope failed",
 			zap.Int64("envelope_id", id),
@@ -603,11 +596,8 @@ func (h *Handler) ForceDeleteEnvelope(c echo.Context) error {
 	}
 
 	if err := h.svc.ForceDelete(c.Request().Context(), id, budgetID, membership.Role); err != nil {
-		if errors.Is(err, ErrForbidden) {
-			return httpx.Forbidden(c, "insufficient role")
-		}
-		if errors.Is(err, ErrBudgetArchived) {
-			return httpx.Conflict(c, "budget is archived")
+		if ok, resp := mapEnvelopeServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Force delete envelope failed",
 			zap.Int64("envelope_id", id),

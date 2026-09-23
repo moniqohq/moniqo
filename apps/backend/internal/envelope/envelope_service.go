@@ -82,21 +82,6 @@ func (s *Svc) SetBudgetChecker(budget BudgetChecker) {
 	s.budget = budget
 }
 
-// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
-func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
-	if s.budget == nil {
-		return nil
-	}
-	archived, err := s.budget.IsArchived(ctx, budgetID)
-	if err != nil {
-		return fmt.Errorf("check budget archived: %w", err)
-	}
-	if archived {
-		return ErrBudgetArchived
-	}
-	return nil
-}
-
 // Create inserts a new envelope into budgetID.
 func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (models.BudgetEnvelope, error) {
 	s.log.Debug("creating envelope", zap.Int64("budget_id", budgetID), zap.String("title", req.Title))
@@ -580,6 +565,21 @@ func (s *Svc) Reallocate(
 		ToEnvelope:   toEnv,
 		Summary:      summary,
 	}, nil
+}
+
+// checkBudgetNotArchived returns ErrBudgetArchived if budgetID refers to an archived budget.
+func (s *Svc) checkBudgetNotArchived(ctx context.Context, budgetID int64) error {
+	if s.budget == nil {
+		return nil
+	}
+	archived, err := s.budget.IsArchived(ctx, budgetID)
+	if err != nil {
+		return fmt.Errorf("check budget archived: %w", err)
+	}
+	if archived {
+		return ErrBudgetArchived
+	}
+	return nil
 }
 
 // attachSpent fetches the spent amount for e, sets SpentAmt and IsOverspent, and returns the updated envelope.
