@@ -443,7 +443,9 @@ export function ArchiveAccountView({ budgetId, accountId }: Props) {
     {
       id: "transfer",
       label: "Transfer Remaining Balance",
-      description: hasBalance ? `Move ${formatCurrency(balance)} to another account` : "Balance is zero",
+      description: hasBalance
+        ? `Move ${formatCurrency(balance)} to another account`
+        : "Balance is zero",
       met: !hasBalance,
       action: hasBalance ? { label: "Transfer", onClick: () => setTransferOpen(true) } : undefined,
     },

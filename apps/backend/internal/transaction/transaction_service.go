@@ -139,12 +139,9 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
 	}
-	if req.EnvelopeID != nil {
-		if err := s.checkEnvelopeUsable(ctx, *req.EnvelopeID, budgetID); err != nil {
-			return models.Transaction{}, err
-		}
+	if err := s.checkEnvelopeUsableIfSet(ctx, req.EnvelopeID, budgetID); err != nil {
+		return models.Transaction{}, err
 	}
-
 	txn, err := s.repo.Create(ctx, CreateParams{
 		BudgetID:   budgetID,
 		AccountID:  req.AccountID,
@@ -585,6 +582,15 @@ func (s *Svc) checkNotArchived(ctx context.Context, accountID, budgetID int64) e
 		return ErrAccountArchived
 	}
 	return nil
+}
+
+// checkEnvelopeUsableIfSet calls checkEnvelopeUsable when envelopeID is non-nil, and
+// no-ops otherwise — income transactions may omit the envelope entirely.
+func (s *Svc) checkEnvelopeUsableIfSet(ctx context.Context, envelopeID *int64, budgetID int64) error {
+	if envelopeID == nil {
+		return nil
+	}
+	return s.checkEnvelopeUsable(ctx, *envelopeID, budgetID)
 }
 
 // checkEnvelopeUsable returns ErrEnvelopeNotFound if envelopeID does not exist

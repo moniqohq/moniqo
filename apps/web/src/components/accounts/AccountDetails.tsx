@@ -330,8 +330,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
         <div className="flex items-center gap-2.5 rounded-xl border border-[#3A2E1A] bg-[#1A140A] px-4 py-3 text-sm text-[#E9C46A]">
           <Info size={16} className="flex-shrink-0" />
           <span>
-            Archived — read-only. Unarchive this account to record new transactions or make
-            changes.
+            Archived — read-only. Unarchive this account to record new transactions or make changes.
           </span>
         </div>
       )}
@@ -431,7 +430,7 @@ export function AccountDetails({ accountId, budgetId }: Props) {
             ).map(({ icon, label, onClick, disabled, disabledReason }) => (
               <button
                 key={label}
-                title={disabled ? disabledReason ?? label : label}
+                title={disabled ? (disabledReason ?? label) : label}
                 onClick={disabled ? undefined : onClick}
                 disabled={disabled}
                 className={cn(
