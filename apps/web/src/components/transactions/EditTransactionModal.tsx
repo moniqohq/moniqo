@@ -624,7 +624,9 @@ export function EditTransactionModal({
                                     <p className="text-sm leading-tight text-white">{env.title}</p>
                                     <p className="text-xs text-[#5A6A85]">
                                       Available:{" "}
-                                      {formatCurrency(Number(env.allocated_amt) - Number(env.spent_amt))}
+                                      {formatCurrency(
+                                        Number(env.allocated_amt) - Number(env.spent_amt),
+                                      )}
                                     </p>
                                   </div>
                                 </button>
