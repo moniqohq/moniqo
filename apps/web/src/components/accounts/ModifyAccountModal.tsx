@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -268,6 +269,7 @@ export function ModifyAccountModal({
   accountId,
   budgetId,
 }: ModifyAccountModalProps) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data: accounts } = useAccounts(budgetId);
   const account = accounts.find((a) => a.id === accountId);
@@ -299,6 +301,7 @@ export function ModifyAccountModal({
       setNotes(account.notes ?? "");
       setError(null);
       setNameError(false);
+      setSaving(false);
     }
   }, [open, account]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -352,13 +355,14 @@ export function ModifyAccountModal({
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
       setSaving(false);
     }
   };
 
   const handleArchive = () => {
-    // TODO: wire to archive action (PATCH archived: true)
     onClose();
+    router.push(`/budgets/${budgetId}/accounts/${accountId}/archive`);
   };
 
   const TypeIcon = TYPE_META[accountType]?.icon ?? Building2;
