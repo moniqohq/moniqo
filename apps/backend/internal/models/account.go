@@ -58,6 +58,29 @@ func (t AccountType) IsLiability() bool {
 	return t == AccountTypeCreditCard || t == AccountTypeLoan
 }
 
+// TypeBalance is a signed balance total for one account type.
+type TypeBalance struct {
+	Type    AccountType
+	Balance money.Amount
+}
+
+// NetWorth returns total assets minus total liabilities across balances,
+// one per account type. Balances are signed: liability accounts (CREDIT_CARD,
+// LOAN) carry a negative balance when money is owed, so their debt is the
+// negation of their balance. An account type with no accounts or transactions
+// contributes zero.
+func NetWorth(balances []TypeBalance) money.Amount {
+	var assets, liabilities int64
+	for _, b := range balances {
+		if b.Type.IsLiability() {
+			liabilities += -b.Balance.Int64()
+		} else {
+			assets += b.Balance.Int64()
+		}
+	}
+	return money.FromMinorUnits(assets - liabilities)
+}
+
 // Account is the API-facing representation of a financial account.
 // Balance and ClearedBalance are computed values derived from transactions, never stored directly.
 type Account struct {
