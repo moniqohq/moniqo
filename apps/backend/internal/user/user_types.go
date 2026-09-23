@@ -42,11 +42,17 @@ type RegisterRequest struct {
 
 // ReplaceProfileRequest is the HTTP request body for PUT /api/v1/users/{id}.
 // All editable fields are required; absent fields become zero values (null/empty).
+// Currency, Timezone, and DateFormat are display preferences and stay
+// pointer-typed even on a full replace: absent means "no preference set" and
+// nulls the column, matching Name's existing optional-pointer treatment.
 type ReplaceProfileRequest struct {
-	Name     *string `json:"name"`
-	Username string  `json:"username"`
-	Email    string  `json:"email"`
-	Picture  string  `json:"picture"`
+	Name       *string `json:"name"`
+	Username   string  `json:"username"`
+	Email      string  `json:"email"`
+	Picture    string  `json:"picture"`
+	Currency   *string `json:"currency"`
+	Timezone   *string `json:"timezone"`
+	DateFormat *string `json:"date_format"`
 }
 
 // PatchProfileRequest is the HTTP request body for PATCH /api/v1/users/{id}.
@@ -57,6 +63,9 @@ type PatchProfileRequest struct {
 	Username        *string `json:"username"`
 	Email           *string `json:"email"`
 	Picture         *string `json:"picture"`
+	Currency        *string `json:"currency"`
+	Timezone        *string `json:"timezone"`
+	DateFormat      *string `json:"date_format"`
 	CurrentPassword *string `json:"current_password"`
 	NewPassword     *string `json:"new_password"`
 }
@@ -138,9 +147,12 @@ type CreateParams struct {
 
 // UpdateProfileParams holds the values for a full or partial profile update.
 type UpdateProfileParams struct {
-	ID       int64
-	Name     *string
-	Username string
-	Email    string
-	Picture  string
+	ID         int64
+	Name       *string
+	Username   string
+	Email      string
+	Picture    string
+	Currency   *string
+	Timezone   *string
+	DateFormat *string
 }

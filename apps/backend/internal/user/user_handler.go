@@ -142,10 +142,13 @@ func (h *Handler) ReplaceProfile(c echo.Context) error {
 	}
 
 	if errs := validator.ValidateReplaceProfile(validator.ReplaceProfileInput{
-		Name:     req.Name,
-		Username: req.Username,
-		Email:    req.Email,
-		Picture:  req.Picture,
+		Name:       req.Name,
+		Username:   req.Username,
+		Email:      req.Email,
+		Picture:    req.Picture,
+		Currency:   req.Currency,
+		Timezone:   req.Timezone,
+		DateFormat: req.DateFormat,
 	}); len(errs) > 0 {
 		return httpx.ValidationError(c, errs)
 	}
@@ -185,6 +188,9 @@ func (h *Handler) PatchProfile(c echo.Context) error {
 		Username:        req.Username,
 		Email:           req.Email,
 		Picture:         req.Picture,
+		Currency:        req.Currency,
+		Timezone:        req.Timezone,
+		DateFormat:      req.DateFormat,
 		CurrentPassword: req.CurrentPassword,
 		NewPassword:     req.NewPassword,
 	}); len(errs) > 0 {

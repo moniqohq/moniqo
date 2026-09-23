@@ -47,6 +47,7 @@ type User struct {
 	Status                UserStatus `json:"status"`
 	Currency              *string    `json:"currency"`
 	Timezone              *string    `json:"timezone"`
+	DateFormat            *string    `json:"date_format"`
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at"`
 	LastLogin             *time.Time `json:"last_login"`
 	CreatedAt             time.Time  `json:"created_at"`

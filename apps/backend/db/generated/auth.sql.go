@@ -66,7 +66,7 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, hash, name, picture, status, currency, timezone, onboarding_completed_at, last_login, created_at
+SELECT id, username, email, hash, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at
 FROM users
 WHERE lower(email) = lower($1)
   AND deleted_at IS NULL
@@ -82,6 +82,7 @@ type GetUserByEmailRow struct {
 	Status                UserStatus
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
@@ -100,6 +101,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, lower string) (GetUserByEm
 		&i.Status,
 		&i.Currency,
 		&i.Timezone,
+		&i.DateFormat,
 		&i.OnboardingCompletedAt,
 		&i.LastLogin,
 		&i.CreatedAt,

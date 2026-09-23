@@ -106,6 +106,9 @@ Represents an authenticated identity. A user may belong to multiple budgets.
 | `picture` | String | No | Stored avatar reference (URL or server UUID) |
 | `last_login` | Time | No | Timestamp of most recent successful authentication |
 | `status` | Enum | Yes | User lifecycle state (`ACTIVE`, `SUSPENDED`, `DELETED`) |
+| `currency` | String | No | Display currency, ISO-4217 code; `null` until set |
+| `timezone` | String | No | Display timezone, IANA name; `null` until set |
+| `date_format` | String | No | Display date format token; `null` until set |
 | `created_at` | Time | Yes | Creation timestamp |
 | `updated_at` | Time | Yes | Last updated timestamp |
 

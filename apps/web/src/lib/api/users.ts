@@ -19,6 +19,7 @@
  */
 
 import { apiFetch } from "./client";
+import type { ApiUser } from "@/lib/api-types";
 
 // Permanently soft-deletes the authenticated user's account. Requires the
 // current password for re-authentication; the backend rejects OIDC-only
@@ -27,5 +28,27 @@ export async function deleteAccount(userId: number, currentPassword: string): Pr
   await apiFetch<null>(`/api/v1/users/${userId}`, {
     method: "DELETE",
     body: JSON.stringify({ current_password: currentPassword }),
+  });
+}
+
+export function getUser(id: number): Promise<ApiUser> {
+  return apiFetch<ApiUser>(`/api/v1/users/${id}`);
+}
+
+export interface PatchUserRequest {
+  name?: string | null;
+  email?: string;
+  picture?: string;
+  currency?: string;
+  timezone?: string;
+  date_format?: string;
+  current_password?: string;
+  new_password?: string;
+}
+
+export function patchUser(id: number, req: PatchUserRequest): Promise<ApiUser> {
+  return apiFetch<ApiUser>(`/api/v1/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(req),
   });
 }

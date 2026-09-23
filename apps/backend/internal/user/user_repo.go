@@ -59,6 +59,7 @@ type publicUserRow struct {
 	Status                db.UserStatus
 	Currency              *string
 	Timezone              *string
+	DateFormat            *string
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
@@ -85,6 +86,7 @@ func toPublicUser(row publicUserRow) models.User {
 		Status:                models.UserStatus(row.Status),
 		Currency:              row.Currency,
 		Timezone:              row.Timezone,
+		DateFormat:            row.DateFormat,
 		OnboardingCompletedAt: oc,
 		LastLogin:             ll,
 		CreatedAt:             row.CreatedAt.Time,
@@ -121,7 +123,7 @@ func (r *Repo) Create(ctx context.Context, p CreateParams) (models.User, error) 
 func rowToPublic(row db.CreateUserRow) models.User {
 	return toPublicUser(publicUserRow{
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
-		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 	})
 }
@@ -141,22 +143,26 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (models.User, error) {
 	}
 	return toPublicUser(publicUserRow{
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
-		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 	}), nil
 }
 
-// UpdateProfile updates name, username, email and picture for the given user.
+// UpdateProfile updates name, username, email, picture, and display
+// preferences (currency, timezone, date format) for the given user.
 // Returns ErrNotFound if the user is gone, ErrConflict on a unique violation.
 func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models.User, error) {
 	r.log.Debug("executing UpdateUserProfile query", zap.Int64("user_id", p.ID))
 	q := db.New(r.pool)
 	row, err := q.UpdateUserProfile(ctx, db.UpdateUserProfileParams{
-		ID:       p.ID,
-		Name:     p.Name,
-		Username: p.Username,
-		Email:    p.Email,
-		Picture:  p.Picture,
+		ID:         p.ID,
+		Name:       p.Name,
+		Username:   p.Username,
+		Email:      p.Email,
+		Picture:    p.Picture,
+		Currency:   p.Currency,
+		Timezone:   p.Timezone,
+		DateFormat: p.DateFormat,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -172,7 +178,7 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 	}
 	return toPublicUser(publicUserRow{
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
-		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 	}), nil
 }

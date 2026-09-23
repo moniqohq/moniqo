@@ -97,6 +97,44 @@ func TestHandler_UpdateProfile_MissingCurrencyReturns400(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
+func TestHandler_UpdateProfile_UnsupportedCurrencyReturns400(t *testing.T) {
+	t.Parallel()
+	e := echo.New()
+
+	svc := &internalmock.OnboardingService{
+		UpdateProfileFn: func(_ context.Context, _ int64, _ onboarding.ProfileRequest) (models.User, error) {
+			t.Fatal("service should not be called for an unsupported currency")
+			return models.User{}, nil
+		},
+	}
+
+	// JPY was previously accepted by the inline non-empty check; it must now
+	// be rejected by the shared currency allowlist (internal/money.Amount is
+	// hardcoded to 2 decimal places and can't represent a zero-decimal
+	// currency like JPY).
+	c, rec := newOnboardingCtx(e, http.MethodPatch, "/", `{"currency":"JPY","timezone":"America/New_York"}`, true)
+	require.NoError(t, onboarding.NewHandler(svc, zap.NewNop()).UpdateProfile(c))
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestHandler_UpdateProfile_InvalidTimezoneReturns400(t *testing.T) {
+	t.Parallel()
+	e := echo.New()
+
+	svc := &internalmock.OnboardingService{
+		UpdateProfileFn: func(_ context.Context, _ int64, _ onboarding.ProfileRequest) (models.User, error) {
+			t.Fatal("service should not be called for an invalid timezone")
+			return models.User{}, nil
+		},
+	}
+
+	// The old inline check only rejected an empty string; any non-empty
+	// garbage timezone passed through. It must now fail IANA validation.
+	c, rec := newOnboardingCtx(e, http.MethodPatch, "/", `{"currency":"USD","timezone":"Not/A_Zone"}`, true)
+	require.NoError(t, onboarding.NewHandler(svc, zap.NewNop()).UpdateProfile(c))
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
 func TestHandler_UpdateProfile_MissingUserReturns401(t *testing.T) {
 	t.Parallel()
 	e := echo.New()

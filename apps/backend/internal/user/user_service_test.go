@@ -284,3 +284,99 @@ func TestUserService_Delete(t *testing.T) {
 		repo.AssertExpectations(t)
 	})
 }
+
+func TestUserService_PatchProfile_Preferences(t *testing.T) {
+	t.Parallel()
+
+	log := zap.NewNop()
+
+	t.Run("patching only currency preserves other fields", func(t *testing.T) {
+		t.Parallel()
+
+		current := makeUser("saqibtest", "saqib@example.com")
+		current.Timezone = ptr("Asia/Kolkata")
+		current.DateFormat = ptr("YYYY-MM-DD")
+
+		repo := &internalmock.UserRepository{}
+		repo.On("GetByID", int64(1)).Return(current, nil)
+		repo.On("UpdateProfile", mock.AnythingOfType("UpdateProfileParams")).
+			Return(current, nil).
+			Run(func(args mock.Arguments) {
+				p := args.Get(0).(user.UpdateProfileParams)
+				require.NotNil(t, p.Currency)
+				assert.Equal(t, "USD", *p.Currency)
+				// unrelated preferences must be carried over from the current profile, not nulled
+				require.NotNil(t, p.Timezone)
+				assert.Equal(t, "Asia/Kolkata", *p.Timezone)
+				require.NotNil(t, p.DateFormat)
+				assert.Equal(t, "YYYY-MM-DD", *p.DateFormat)
+				assert.Equal(t, current.Username, p.Username)
+				assert.Equal(t, current.Email, p.Email)
+			})
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		_, err := svc.PatchProfile(context.Background(), 1, user.PatchProfileRequest{Currency: ptr("USD")})
+
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("patching all three preference fields at once", func(t *testing.T) {
+		t.Parallel()
+
+		current := makeUser("saqibtest", "saqib@example.com")
+		repo := &internalmock.UserRepository{}
+		repo.On("GetByID", int64(1)).Return(current, nil)
+		repo.On("UpdateProfile", mock.AnythingOfType("UpdateProfileParams")).
+			Return(current, nil).
+			Run(func(args mock.Arguments) {
+				p := args.Get(0).(user.UpdateProfileParams)
+				require.NotNil(t, p.Currency)
+				require.NotNil(t, p.Timezone)
+				require.NotNil(t, p.DateFormat)
+				assert.Equal(t, "EUR", *p.Currency)
+				assert.Equal(t, "Europe/Berlin", *p.Timezone)
+				assert.Equal(t, "DD/MM/YYYY", *p.DateFormat)
+			})
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		_, err := svc.PatchProfile(context.Background(), 1, user.PatchProfileRequest{
+			Currency:   ptr("EUR"),
+			Timezone:   ptr("Europe/Berlin"),
+			DateFormat: ptr("DD/MM/YYYY"),
+		})
+
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("nil preference fields leave existing values untouched", func(t *testing.T) {
+		t.Parallel()
+
+		current := makeUser("saqibtest", "saqib@example.com")
+		current.Currency = ptr("GBP")
+		current.Timezone = ptr("Europe/London")
+		current.DateFormat = ptr("MM/DD/YYYY")
+
+		repo := &internalmock.UserRepository{}
+		repo.On("GetByID", int64(1)).Return(current, nil)
+		repo.On("UpdateProfile", mock.AnythingOfType("UpdateProfileParams")).
+			Return(current, nil).
+			Run(func(args mock.Arguments) {
+				p := args.Get(0).(user.UpdateProfileParams)
+				require.NotNil(t, p.Currency)
+				require.NotNil(t, p.Timezone)
+				require.NotNil(t, p.DateFormat)
+				assert.Equal(t, "GBP", *p.Currency)
+				assert.Equal(t, "Europe/London", *p.Timezone)
+				assert.Equal(t, "MM/DD/YYYY", *p.DateFormat)
+			})
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		// Patch only the name; preferences must be forwarded unchanged.
+		_, err := svc.PatchProfile(context.Background(), 1, user.PatchProfileRequest{Name: ptr("New Name")})
+
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+}
