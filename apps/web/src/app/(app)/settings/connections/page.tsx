@@ -18,32 +18,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 import { Suspense } from "react";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { ConnectedAccountsView } from "@/components/settings/ConnectedAccountsView";
+import { SettingsView } from "@/components/settings/SettingsView";
 
 export const metadata = { title: "Connected accounts — Moniqo" };
 
 export default function ConnectionsPage() {
   return (
-    <div className="layout-page space-y-6 py-6">
-      <PageHeader
-        title="Connected accounts"
-        description="Manage the third-party accounts linked to your Moniqo login."
-        actions={
-          <Link
-            href="/settings"
-            className="flex items-center gap-1 text-[13px] font-medium text-[#8B5CF6] hover:text-[#A78BFA]"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Back to settings
-          </Link>
-        }
-      />
-      <Suspense>
-        <ConnectedAccountsView />
-      </Suspense>
-    </div>
+    <Suspense>
+      <SettingsView initialNav="connections" />
+    </Suspense>
   );
 }
