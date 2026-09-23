@@ -18,6 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { WireNature } from "@/lib/envelope-nature";
+
 export type ApiResponse<T> = {
   success: boolean;
   data: T;
@@ -59,6 +61,7 @@ export type ApiEnvelope = {
   spent_amt: number;
   is_overspent: boolean;
   description: string | null;
+  nature: WireNature | null;
   is_archived: boolean;
   created_at: string;
 };

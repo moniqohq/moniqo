@@ -195,3 +195,14 @@ func (m *AccountChecker) IsImmutable(_ context.Context, id, budgetID int64) (boo
 	args := m.Called(id, budgetID)
 	return args.Bool(0), args.Error(1)
 }
+
+// EnvelopeChecker is a testify mock for transaction.EnvelopeChecker.
+type EnvelopeChecker struct {
+	mock.Mock
+}
+
+// ArchivedState records the call and returns the configured stub values.
+func (m *EnvelopeChecker) ArchivedState(_ context.Context, id, budgetID int64) (exists, archived bool, err error) {
+	args := m.Called(id, budgetID)
+	return args.Bool(0), args.Bool(1), args.Error(2) //nolint:mnd
+}

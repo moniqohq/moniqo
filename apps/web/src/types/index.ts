@@ -18,6 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { Nature } from "@/lib/envelope-nature";
+
 export type Role = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
 
 export type AccountType = "checking" | "savings" | "credit" | "cash" | "loan";
@@ -63,6 +65,7 @@ export interface BudgetEnvelope {
   budgetId: number;
   name: string;
   description?: string;
+  nature?: Nature;
   allocated: number;
   spent: number;
   available: number;

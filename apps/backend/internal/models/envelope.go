@@ -36,6 +36,7 @@ type BudgetEnvelope struct {
 	SpentAmt     money.Amount `json:"spent_amt"`
 	IsOverspent  bool         `json:"is_overspent"`
 	Description  *string      `json:"description"`
+	Nature       *string      `json:"nature"`
 	IsArchived   bool         `json:"is_archived"`
 	CreatedAt    time.Time    `json:"created_at"`
 }

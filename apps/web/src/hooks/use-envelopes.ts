@@ -25,15 +25,18 @@ import { listEnvelopes, getBudgetSummary, type EnvelopeStatusParam } from "@/lib
 import { qk } from "@/lib/query-keys";
 import type { BudgetEnvelope, BudgetSummary } from "@/types";
 import type { ApiEnvelope, ApiBudgetSummary } from "@/lib/api/types";
+import { fromWireNature } from "@/lib/envelope-nature";
 
 export function apiEnvelopeToUI(e: ApiEnvelope): BudgetEnvelope {
   const spent = e.spent_amt;
   const available = e.allocated_amt - spent;
+  const nature = fromWireNature(e.nature);
   return {
     id: e.id,
     budgetId: e.budget_id,
     name: e.title,
     description: e.description ?? undefined,
+    nature: nature || undefined,
     allocated: e.allocated_amt,
     spent,
     available,

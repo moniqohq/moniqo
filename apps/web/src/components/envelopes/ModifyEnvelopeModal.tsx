@@ -40,10 +40,10 @@ import {
 import { cn } from "@/lib/utils";
 import { patchEnvelope } from "@/lib/api/envelopes";
 import { invalidateBudgetData } from "@/lib/query-keys";
+import { envelopeErrorBanner, envelopeFieldErrors } from "@/lib/envelope-errors";
+import type { Nature } from "@/lib/envelope-nature";
 
-/* ── types ───────────────────────────────────────────────── */
-
-type Nature = "Want" | "Should" | "Need" | "Must";
+const KNOWN_FIELDS = new Set(["title", "allocated_amt"]);
 
 import type { BudgetEnvelope } from "@/types";
 
@@ -131,62 +131,55 @@ const NATURE_OPTIONS: {
   },
 ];
 
-/* ── NatureCard ──────────────────────────────────────────── */
+/* ── ReadOnlyNatureBadge ─────────────────────────────────── */
+// Nature is set once at creation and is immutable thereafter, so Modify only
+// ever displays it — there is no click handler here by design.
 
-function NatureCard({
-  option,
-  selected,
-  onClick,
-}: {
-  option: (typeof NATURE_OPTIONS)[number];
-  selected: boolean;
-  onClick: () => void;
-}) {
+function ReadOnlyNatureBadge({ nature }: { nature: Nature | "" }) {
+  const option = NATURE_OPTIONS.find((o) => o.value === nature);
+
+  if (!option) {
+    return (
+      <div className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3 py-3">
+        <span className="text-sm font-medium text-[#5A6A85]">Unclassified</span>
+      </div>
+    );
+  }
+
   const Icon = option.icon;
   return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileHover={{ y: -1 }}
-      transition={{ duration: 0.15 }}
-      aria-pressed={selected}
-      className="flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-3 transition-all duration-200 focus:outline-none"
-      style={
-        selected
-          ? {
-              borderColor: option.selectedBorder,
-              backgroundColor: option.selectedBg,
-              boxShadow: option.selectedShadow,
-            }
-          : {
-              borderColor: "#1E2B42",
-              backgroundColor: "#0D1525",
-            }
-      }
+    <div
+      className="flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-3"
+      style={{
+        borderColor: option.selectedBorder,
+        backgroundColor: option.selectedBg,
+        boxShadow: option.selectedShadow,
+      }}
     >
       <div
-        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md transition-all duration-200"
-        style={{
-          backgroundColor: option.iconBg,
-          color: option.iconColor,
-          opacity: selected ? 1 : 0.55,
-        }}
+        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md"
+        style={{ backgroundColor: option.iconBg, color: option.iconColor }}
       >
-        <Icon size={13} strokeWidth={selected ? 2 : 1.8} />
+        <Icon size={13} strokeWidth={2} />
       </div>
-      <span
-        className="text-sm font-medium whitespace-nowrap transition-all duration-200"
-        style={{ color: option.iconColor, opacity: selected ? 1 : 0.6 }}
-      >
+      <span className="text-sm font-medium whitespace-nowrap" style={{ color: option.iconColor }}>
         {option.label}
       </span>
-    </motion.button>
+    </div>
   );
 }
 
 /* ── AllocationInput ─────────────────────────────────────── */
 
-function AllocationInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function AllocationInput({
+  value,
+  onChange,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+}) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const step = () => {
@@ -279,7 +272,11 @@ function AllocationInput({ value, onChange }: { value: string; onChange: (v: str
         </div>
       </div>
 
-      <p className="mt-1.5 text-xs text-[#7A8BA8]">Money assigned from To Be Budgeted.</p>
+      {error ? (
+        <p className="mt-1.5 text-xs text-[#F87171]">{error}</p>
+      ) : (
+        <p className="mt-1.5 text-xs text-[#7A8BA8]">Money assigned from To Be Budgeted.</p>
+      )}
     </div>
   );
 }
@@ -538,10 +535,13 @@ export function ModifyEnvelopeModal({
       envelope.allocated,
     ),
   );
-  const [nature, setNature] = useState<Nature | "">("");
+  // Nature is set once at creation and is immutable thereafter — Modify only
+  // ever displays the envelope's existing value, never a local, editable copy.
+  const nature: Nature | "" = envelope.nature ?? "";
   const [description, setDescription] = useState(envelope.description ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
 
   const allocatedNum = parseAmount(allocatedRaw);
@@ -563,6 +563,7 @@ export function ModifyEnvelopeModal({
   const handleSave = async () => {
     setLoading(true);
     setError(null);
+    setFieldErrors({});
     try {
       await patchEnvelope(budgetId, envelope.id, {
         title: title.trim(),
@@ -578,7 +579,14 @@ export function ModifyEnvelopeModal({
         onClose();
       }, 1800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unexpected error.");
+      const fields = envelopeFieldErrors(err);
+      setFieldErrors(fields);
+      const leftover = Object.entries(fields).filter(([field]) => !KNOWN_FIELDS.has(field));
+      if (leftover.length > 0) {
+        setError(leftover.map(([, msg]) => msg).join(" "));
+      } else if (Object.keys(fields).length === 0) {
+        setError(envelopeErrorBanner(err));
+      }
       setLoading(false);
     }
   };
@@ -656,43 +664,29 @@ export function ModifyEnvelopeModal({
                         placeholder="e.g., Groceries"
                         className="w-full rounded-xl border border-[#1E2B42] bg-[#0D1525] px-3.5 py-3 text-sm text-white transition-all placeholder:text-[#4A5A75] focus:border-[#6C3AED] focus:ring-2 focus:ring-[#6C3AED]/40 focus:outline-none"
                       />
-                      <p className="mt-1.5 text-xs text-[#7A8BA8]">
-                        A clear name for this spending category.
-                      </p>
+                      {fieldErrors.title ? (
+                        <p className="mt-1.5 text-xs text-[#F87171]">{fieldErrors.title}</p>
+                      ) : (
+                        <p className="mt-1.5 text-xs text-[#7A8BA8]">
+                          A clear name for this spending category.
+                        </p>
+                      )}
                     </div>
 
                     {/* Allocated amount */}
-                    <AllocationInput value={allocatedRaw} onChange={setAllocatedRaw} />
+                    <AllocationInput
+                      value={allocatedRaw}
+                      onChange={setAllocatedRaw}
+                      error={fieldErrors.allocated_amt}
+                    />
 
-                    {/* Nature */}
+                    {/* Nature (read-only — set at creation, cannot be changed) */}
                     <div>
-                      <label className="mb-3 block text-sm font-semibold text-white">
-                        Nature <span className="font-normal text-[#5A6A85]">(optional)</span>
-                      </label>
-
-                      {/* Cards */}
-                      <div className="grid grid-cols-4 gap-2">
-                        {NATURE_OPTIONS.map((opt) => (
-                          <NatureCard
-                            key={opt.value}
-                            option={opt}
-                            selected={nature === opt.value}
-                            onClick={() => setNature(nature === opt.value ? "" : opt.value)}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Descriptions row */}
-                      <div className="mt-2 grid grid-cols-4 gap-2">
-                        {NATURE_OPTIONS.map((opt) => (
-                          <p
-                            key={opt.value}
-                            className="px-1 text-center text-[11px] leading-snug text-[#5A6A85]"
-                          >
-                            {opt.description}
-                          </p>
-                        ))}
-                      </div>
+                      <label className="mb-3 block text-sm font-semibold text-white">Nature</label>
+                      <ReadOnlyNatureBadge nature={nature} />
+                      <p className="mt-1.5 text-xs text-[#7A8BA8]">
+                        Set at creation and cannot be changed.
+                      </p>
                     </div>
 
                     {/* Description */}

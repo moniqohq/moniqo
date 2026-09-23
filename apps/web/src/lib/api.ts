@@ -25,7 +25,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public fields?: Array<{ field: string; message: string }>,
+    public fields?: Array<{ field: string; error: string }>,
   ) {
     super(message);
   }
@@ -48,7 +48,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   if (!res.ok) {
     const fields = (
-      body as unknown as { data?: { fields?: Array<{ field: string; message: string }> } }
+      body as unknown as { data?: { fields?: Array<{ field: string; error: string }> } }
     ).data?.fields;
     throw new ApiError(res.status, body.msg, fields);
   }
@@ -76,7 +76,7 @@ export async function apiFetchPaginated<T>(
 
   if (!res.ok) {
     const fields = (
-      body as unknown as { data?: { fields?: Array<{ field: string; message: string }> } }
+      body as unknown as { data?: { fields?: Array<{ field: string; error: string }> } }
     ).data?.fields;
     throw new ApiError(res.status, body.msg, fields);
   }
