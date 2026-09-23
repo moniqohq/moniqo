@@ -22,6 +22,7 @@ package transaction_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -36,6 +37,15 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/money"
 	"github.com/moniqohq/moniqo/apps/backend/internal/transaction"
 )
+
+// fieldViolation extracts the *transaction.FieldViolationError carried by err,
+// failing the test if err does not wrap one.
+func fieldViolation(tb testing.TB, err error) *transaction.FieldViolationError {
+	tb.Helper()
+	var fv *transaction.FieldViolationError
+	require.True(tb, errors.As(err, &fv), "expected a *transaction.FieldViolationError, got %v", err)
+	return fv
+}
 
 const (
 	testBudgetID      int64 = 10
@@ -110,6 +120,8 @@ func TestSvc_Create(t *testing.T) {
 			Date:       testDate,
 		})
 		assert.ErrorIs(t, err, transaction.ErrValidation)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "amount", fv.Field)
 		repo.AssertNotCalled(t, "Create")
 	})
 
@@ -123,6 +135,8 @@ func TestSvc_Create(t *testing.T) {
 			Date:      testDate,
 		})
 		assert.ErrorIs(t, err, transaction.ErrValidation)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "budget_envelope_id", fv.Field)
 	})
 }
 
@@ -174,6 +188,8 @@ func TestSvc_CreateTransfer(t *testing.T) {
 			Date:              testDate,
 		})
 		assert.ErrorIs(t, err, transaction.ErrConflict)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "budget_envelope_id", fv.Field)
 	})
 
 	t.Run("self-transfer returns ErrConflict", func(t *testing.T) {
@@ -188,6 +204,8 @@ func TestSvc_CreateTransfer(t *testing.T) {
 			Date:              testDate,
 		})
 		assert.ErrorIs(t, err, transaction.ErrConflict)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "transfer_account_id", fv.Field)
 	})
 }
 
@@ -258,6 +276,66 @@ func TestSvc_List(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestSvc_Replace
+// ---------------------------------------------------------------------------
+
+func TestSvc_Replace(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("zero amount returns ErrValidation naming amount", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(0),
+			Date:      testDate,
+		})
+		assert.ErrorIs(t, err, transaction.ErrValidation)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "amount", fv.Field)
+		repo.AssertNotCalled(t, "GetByID")
+	})
+
+	t.Run("transfer with envelope returns ErrConflict naming budget_envelope_id", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		acc2 := testAccount2ID
+		eid := testEnvelopeID
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID:         testAccountID,
+			TransferAccountID: &acc2,
+			EnvelopeID:        &eid,
+			Amount:            money.FromMinorUnits(-150000),
+			Date:              testDate,
+		})
+		assert.ErrorIs(t, err, transaction.ErrConflict)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "budget_envelope_id", fv.Field)
+	})
+
+	t.Run("self-transfer returns ErrConflict naming transfer_account_id", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		same := testAccountID
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID:         testAccountID,
+			TransferAccountID: &same,
+			Amount:            money.FromMinorUnits(-150000),
+			Date:              testDate,
+		})
+		assert.ErrorIs(t, err, transaction.ErrConflict)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "transfer_account_id", fv.Field)
+	})
+}
+
+// ---------------------------------------------------------------------------
 // TestSvc_Patch
 // ---------------------------------------------------------------------------
 
@@ -271,6 +349,8 @@ func TestSvc_Patch(t *testing.T) {
 		svc := transaction.NewSvc(repo, log)
 		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{})
 		assert.ErrorIs(t, err, transaction.ErrValidation)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "body", fv.Field)
 	})
 
 	t.Run("zero amount returns ErrValidation", func(t *testing.T) {
@@ -280,6 +360,8 @@ func TestSvc_Patch(t *testing.T) {
 		svc := transaction.NewSvc(repo, log)
 		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Amount: &zero})
 		assert.ErrorIs(t, err, transaction.ErrValidation)
+		fv := fieldViolation(t, err)
+		assert.Equal(t, "amount", fv.Field)
 	})
 
 	t.Run("partial update succeeds", func(t *testing.T) {
