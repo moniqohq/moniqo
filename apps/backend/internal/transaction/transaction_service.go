@@ -97,10 +97,10 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	)
 
 	if req.Amount.Int64() == 0 {
-		return models.Transaction{}, ErrValidation
+		return models.Transaction{}, validationViolation(fieldAmount, errAmountNonZero)
 	}
 	if req.EnvelopeID == nil {
-		return models.Transaction{}, ErrValidation
+		return models.Transaction{}, validationViolation(fieldEnvelopeID, errEnvelopeRequired)
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
@@ -141,16 +141,16 @@ func (s *Svc) CreateTransfer(ctx context.Context, budgetID int64, req CreateRequ
 	)
 
 	if req.Amount.Int64() == 0 {
-		return models.Transaction{}, ErrValidation
+		return models.Transaction{}, validationViolation(fieldAmount, errAmountNonZero)
 	}
 	if req.TransferAccountID == nil {
-		return models.Transaction{}, ErrValidation
+		return models.Transaction{}, validationViolation(fieldTransferAccountID, errTransferAccountRequired)
 	}
 	if req.EnvelopeID != nil {
-		return models.Transaction{}, ErrConflict
+		return models.Transaction{}, conflictViolation(fieldEnvelopeID, errTransferConflict)
 	}
 	if *req.TransferAccountID == req.AccountID {
-		return models.Transaction{}, ErrConflict
+		return models.Transaction{}, conflictViolation(fieldTransferAccountID, errSelfTransfer)
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
@@ -270,7 +270,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 	)
 
 	if req.Amount.Int64() == 0 {
-		return models.Transaction{}, ErrValidation
+		return models.Transaction{}, validationViolation(fieldAmount, errAmountNonZero)
 	}
 
 	existing, err := s.repo.GetByID(ctx, id, budgetID)
@@ -287,10 +287,10 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 
 	// Re-validate transfer/envelope mutual exclusion.
 	if req.TransferAccountID != nil && req.EnvelopeID != nil {
-		return models.Transaction{}, ErrConflict
+		return models.Transaction{}, conflictViolation(fieldEnvelopeID, errTransferConflict)
 	}
 	if req.TransferAccountID != nil && *req.TransferAccountID == req.AccountID {
-		return models.Transaction{}, ErrConflict
+		return models.Transaction{}, conflictViolation(fieldTransferAccountID, errSelfTransfer)
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
@@ -371,10 +371,10 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (
 	// Reject empty body.
 	if req.AccountID == nil && req.TransferAccountID == nil && req.EnvelopeID == nil &&
 		req.Amount == nil && req.Date == nil && req.Status == nil && req.Memo == nil {
-		return models.Transaction{}, ErrValidation
+		return models.Transaction{}, validationViolation(fieldBody, errPatchBodyEmpty)
 	}
 	if req.Amount != nil && req.Amount.Int64() == 0 {
-		return models.Transaction{}, ErrValidation
+		return models.Transaction{}, validationViolation(fieldAmount, errAmountNonZero)
 	}
 	if req.AccountID != nil {
 		if err := s.checkNotArchived(ctx, *req.AccountID, budgetID); err != nil {
