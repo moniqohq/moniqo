@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,6 +50,7 @@ const testUserID = int64(7)
 func withClaims(c echo.Context, userID int64) {
 	claims := &auth.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uuid.NewString(),
 			Subject:   fmt.Sprintf("%d", userID),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		},
@@ -418,10 +420,13 @@ func TestHandler_DeleteProfile(t *testing.T) {
 	log := zap.NewNop()
 	e := echo.New()
 
+	const validBody = `{"current_password":"CorrectPass1"}`
+
 	tests := []struct {
 		name        string
 		pathID      string
 		authedAs    int64
+		body        string
 		svc         user.Service
 		wantStatus  int
 		wantSuccess bool
@@ -431,6 +436,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:        "no auth claims returns 401",
 			pathID:      "7",
 			authedAs:    0,
+			body:        validBody,
 			svc:         &mock.UserService{},
 			wantStatus:  http.StatusUnauthorized,
 			wantSuccess: false,
@@ -439,16 +445,70 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:        "id mismatch returns 403",
 			pathID:      "99",
 			authedAs:    testUserID,
+			body:        validBody,
 			svc:         &mock.UserService{},
 			wantStatus:  http.StatusForbidden,
 			wantSuccess: false,
 		},
 		{
+			name:        "missing current_password returns 400",
+			pathID:      "7",
+			authedAs:    testUserID,
+			body:        `{}`,
+			svc:         &mock.UserService{},
+			wantStatus:  http.StatusBadRequest,
+			wantSuccess: false,
+			wantMsg:     "validation failed",
+		},
+		{
+			name:     "wrong password returns 403",
+			pathID:   "7",
+			authedAs: testUserID,
+			body:     validBody,
+			svc: &mock.UserService{
+				DeleteFn: func(_ context.Context, _ user.DeleteAccountParams) error {
+					return user.ErrWrongPassword
+				},
+			},
+			wantStatus:  http.StatusForbidden,
+			wantSuccess: false,
+			wantMsg:     "current password is incorrect",
+		},
+		{
+			name:     "no password credential returns 409",
+			pathID:   "7",
+			authedAs: testUserID,
+			body:     validBody,
+			svc: &mock.UserService{
+				DeleteFn: func(_ context.Context, _ user.DeleteAccountParams) error {
+					return user.ErrNoPasswordCredential
+				},
+			},
+			wantStatus:  http.StatusConflict,
+			wantSuccess: false,
+			wantMsg:     "set a password before deleting your account",
+		},
+		{
+			name:     "sole owner of shared budget returns 409 naming the budget",
+			pathID:   "7",
+			authedAs: testUserID,
+			body:     validBody,
+			svc: &mock.UserService{
+				DeleteFn: func(_ context.Context, _ user.DeleteAccountParams) error {
+					return &user.LastOwnerError{Budgets: []user.BlockingBudget{{ID: 1, Title: "Family"}}}
+				},
+			},
+			wantStatus:  http.StatusConflict,
+			wantSuccess: false,
+			wantMsg:     `transfer ownership of shared budget(s) "Family" before deleting your account`,
+		},
+		{
 			name:     "service error returns 500",
 			pathID:   "7",
 			authedAs: testUserID,
+			body:     validBody,
 			svc: &mock.UserService{
-				DeleteFn: func(_ context.Context, _ int64) error {
+				DeleteFn: func(_ context.Context, _ user.DeleteAccountParams) error {
 					return errors.New("db failure")
 				},
 			},
@@ -459,8 +519,9 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:     "success returns 200",
 			pathID:   "7",
 			authedAs: testUserID,
+			body:     validBody,
 			svc: &mock.UserService{
-				DeleteFn: func(_ context.Context, _ int64) error {
+				DeleteFn: func(_ context.Context, _ user.DeleteAccountParams) error {
 					return nil
 				},
 			},
@@ -472,8 +533,9 @@ func TestHandler_DeleteProfile(t *testing.T) {
 			name:     "already-deleted user returns 200 (idempotent)",
 			pathID:   "7",
 			authedAs: testUserID,
+			body:     validBody,
 			svc: &mock.UserService{
-				DeleteFn: func(_ context.Context, _ int64) error {
+				DeleteFn: func(_ context.Context, _ user.DeleteAccountParams) error {
 					return nil
 				},
 			},
@@ -487,7 +549,7 @@ func TestHandler_DeleteProfile(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			c, rec := newProfileCtx(e, http.MethodDelete, tc.pathID, "", tc.authedAs)
+			c, rec := newProfileCtx(e, http.MethodDelete, tc.pathID, tc.body, tc.authedAs)
 			h := user.NewHandler(tc.svc, "http://localhost:3000", log)
 			require.NoError(t, h.DeleteProfile(c))
 			assert.Equal(t, tc.wantStatus, rec.Code)
