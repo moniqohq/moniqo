@@ -88,6 +88,7 @@ SET account_id         = $3,
     amount             = $6,
     date               = $7,
     memo               = $8,
+    status             = $9,
     updated_at         = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
 RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at;

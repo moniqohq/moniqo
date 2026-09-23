@@ -27,38 +27,32 @@ import { useUIStore } from "@/stores/ui.store";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
+import type { TransactionStatus } from "@/types";
 
-type Status = "Done" | "Reconciled" | "Pending";
+const STATUS_LABELS: Record<TransactionStatus, string> = {
+  uncleared: "Uncleared",
+  cleared: "Cleared",
+  reconciled: "Reconciled",
+};
 
-const STATUSES: Status[] = [
-  "Done",
-  "Reconciled",
-  "Pending",
-  "Done",
-  "Done",
-  "Reconciled",
-  "Pending",
-  "Done",
-  "Reconciled",
-  "Pending",
-  "Done",
-  "Reconciled",
-];
+const STATUS_STYLES: Record<TransactionStatus, string> = {
+  uncleared: "bg-[rgba(245,158,11,0.12)] text-[#FCD34D]",
+  cleared: "bg-[rgba(34,197,94,0.12)] text-[#4ADE80]",
+  reconciled: "bg-[rgba(139,92,246,0.15)] text-[#8B5CF6]",
+};
 
-function StatusBadge({ status }: { status: Status }) {
-  const styles: Record<Status, string> = {
-    Done: "bg-[rgba(34,197,94,0.12)] text-[#4ADE80]",
-    Reconciled: "bg-[rgba(99,179,237,0.12)] text-[#7DD3FC]",
-    Pending: "bg-[rgba(245,158,11,0.12)] text-[#FBB74B]",
-  };
+function StatusBadge({ status }: { status?: TransactionStatus }) {
+  if (!status) {
+    return <span className="text-sm text-[#2A3A54] select-none">—</span>;
+  }
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium tracking-wide",
-        styles[status],
+        STATUS_STYLES[status],
       )}
     >
-      {status}
+      {STATUS_LABELS[status]}
     </span>
   );
 }
@@ -162,7 +156,7 @@ export function RecentTransactions() {
 
                     {/* Status */}
                     <td className="px-5 py-3 text-right">
-                      <StatusBadge status={STATUSES[i % STATUSES.length]} />
+                      <StatusBadge status={tx.status} />
                     </td>
                   </motion.tr>
                 );

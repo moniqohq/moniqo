@@ -18,6 +18,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { ApiTransactionStatus } from "./api/types";
+
+export type { ApiTransactionStatus };
+
 export interface ApiUser {
   id: number;
   name: string | null;
@@ -47,6 +51,7 @@ export interface ApiTransaction {
   amount: number;
   date: string;
   memo?: string | null;
+  status: ApiTransactionStatus;
   created_at: string;
 }
 
