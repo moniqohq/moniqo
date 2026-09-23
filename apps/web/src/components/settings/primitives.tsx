@@ -66,7 +66,13 @@ export function SectionHeader({
 
 // ── Card container ────────────────────────────────────────────────
 
-export function PrefCard({ children, className }: { children: React.ReactNode; className?: string }) {
+export function PrefCard({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cn("rounded-xl border border-[#1A2640] bg-[#0A1020] p-4", className)}>
       {children}
@@ -76,7 +82,13 @@ export function PrefCard({ children, className }: { children: React.ReactNode; c
 
 // ── Toggle switch ─────────────────────────────────────────────────
 
-export function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <button
       role="switch"

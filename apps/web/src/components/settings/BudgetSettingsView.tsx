@@ -55,7 +55,12 @@ export function BudgetSettingsView() {
 
   if (isLoading) {
     return (
-      <SectionCard title="Budget Settings" icon={Wallet2} iconColor="#34D399" iconBg="rgba(34,197,94,0.12)">
+      <SectionCard
+        title="Budget Settings"
+        icon={Wallet2}
+        iconColor="#34D399"
+        iconBg="rgba(34,197,94,0.12)"
+      >
         <p className="text-[13px] text-[#5A6A85]">Loading budget…</p>
       </SectionCard>
     );
@@ -63,7 +68,12 @@ export function BudgetSettingsView() {
 
   if (!activeBudget) {
     return (
-      <SectionCard title="Budget Settings" icon={Wallet2} iconColor="#34D399" iconBg="rgba(34,197,94,0.12)">
+      <SectionCard
+        title="Budget Settings"
+        icon={Wallet2}
+        iconColor="#34D399"
+        iconBg="rgba(34,197,94,0.12)"
+      >
         <p className="text-[13px] text-[#5A6A85]">No budget selected yet.</p>
       </SectionCard>
     );
@@ -129,13 +139,21 @@ export function BudgetSettingsView() {
                 <Label className="text-[12px] font-medium tracking-wider text-[#5A6A85] uppercase">
                   Budget name
                 </Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} className="text-[13px]" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="text-[13px]"
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-[12px] font-medium tracking-wider text-[#5A6A85] uppercase">
                   Notes
                 </Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="text-[13px]" />
+                <Input
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="text-[13px]"
+                />
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-[#5A6A85]">
                 <span>Created {formatDate(activeBudget.createdAt, "medium")}</span>
@@ -183,11 +201,17 @@ export function BudgetSettingsView() {
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-[13px] text-[#A8B4CC]">
-              Are you sure you want to delete <span className="font-semibold text-white">{activeBudget.name}</span>?
-              This cannot be undone from the UI.
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-white">{activeBudget.name}</span>? This cannot be
+              undone from the UI.
             </p>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+              >
                 Cancel
               </Button>
               <Button

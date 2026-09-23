@@ -62,6 +62,12 @@ export function useFormatters() {
       return formatWithToken(dateFormat, d);
     };
 
-    return { formatCurrency, formatCurrencyCompact, formatTableDate, formatDate, currencySymbol: symbol };
+    return {
+      formatCurrency,
+      formatCurrencyCompact,
+      formatTableDate,
+      formatDate,
+      currencySymbol: symbol,
+    };
   }, [currencyCode, dateFormat]);
 }

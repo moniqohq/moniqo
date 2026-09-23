@@ -86,9 +86,7 @@ export function CurrencySettingsView() {
               <p className="text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
                 Preview
               </p>
-              <p className="text-[15px] font-semibold text-white">
-                {preview.symbol} 1,23,456
-              </p>
+              <p className="text-[15px] font-semibold text-white">{preview.symbol} 1,23,456</p>
             </div>
           </div>
         </PrefCard>

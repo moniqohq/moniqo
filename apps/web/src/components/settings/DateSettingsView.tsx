@@ -109,7 +109,12 @@ export function DateSettingsView() {
               onValueChange={(v) => setDraftFormat(v as DateFormatToken)}
               options={options}
             />
-            <PrefSelect label="Timezone" value={draftTz} onValueChange={setDraftTz} options={tzOptions} />
+            <PrefSelect
+              label="Timezone"
+              value={draftTz}
+              onValueChange={setDraftTz}
+              options={tzOptions}
+            />
           </div>
         </PrefCard>
 
@@ -117,7 +122,9 @@ export function DateSettingsView() {
           <p className="mb-2 text-[11px] font-medium tracking-wider text-[#5A6A85] uppercase">
             Preview
           </p>
-          <p className="text-[15px] font-semibold text-white">{formatWithToken(draftFormat, now)}</p>
+          <p className="text-[15px] font-semibold text-white">
+            {formatWithToken(draftFormat, now)}
+          </p>
         </PrefCard>
 
         <div className="flex items-center justify-end gap-3 border-t border-[#1E2B42] pt-4">
