@@ -125,7 +125,7 @@ func TestSvc_Create(t *testing.T) {
 		repo.AssertNotCalled(t, "Create")
 	})
 
-	t.Run("missing envelope returns ErrValidation", func(t *testing.T) {
+	t.Run("missing envelope on expense returns ErrValidation", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.TransactionRepository{}
 		svc := transaction.NewSvc(repo, log)
@@ -137,6 +137,29 @@ func TestSvc_Create(t *testing.T) {
 		assert.ErrorIs(t, err, transaction.ErrValidation)
 		fv := fieldViolation(t, err)
 		assert.Equal(t, "budget_envelope_id", fv.Field)
+	})
+
+	t.Run("income without envelope succeeds", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", transaction.CreateParams{
+			BudgetID:  testBudgetID,
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(100000),
+			Date:      testDate,
+			Status:    models.TransactionStatusUncleared,
+		}).Return(makeTxn(100000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(100000),
+			Date:      testDate,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(100000), txn.Amount)
+		repo.AssertExpectations(t)
 	})
 }
 

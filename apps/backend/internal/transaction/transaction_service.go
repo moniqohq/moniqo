@@ -122,7 +122,8 @@ func (s *Svc) SetEnvelopeChecker(envelopes EnvelopeChecker) {
 }
 
 // Create persists a standard (non-transfer) transaction.
-// Requires budget_envelope_id for non-transfer transactions.
+// Requires budget_envelope_id for expenses (negative amount); income
+// (positive amount) is unallocated and flows into "To Be Budgeted" instead.
 func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Transaction, error) {
 	s.log.Debug("creating transaction",
 		zap.Int64("budget_id", budgetID),
@@ -132,14 +133,16 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	if req.Amount.Int64() == 0 {
 		return models.Transaction{}, validationViolation(fieldAmount, errAmountNonZero)
 	}
-	if req.EnvelopeID == nil {
+	if req.Amount.Int64() < 0 && req.EnvelopeID == nil {
 		return models.Transaction{}, validationViolation(fieldEnvelopeID, errEnvelopeRequired)
 	}
 	if err := s.checkNotArchived(ctx, req.AccountID, budgetID); err != nil {
 		return models.Transaction{}, err
 	}
-	if err := s.checkEnvelopeUsable(ctx, *req.EnvelopeID, budgetID); err != nil {
-		return models.Transaction{}, err
+	if req.EnvelopeID != nil {
+		if err := s.checkEnvelopeUsable(ctx, *req.EnvelopeID, budgetID); err != nil {
+			return models.Transaction{}, err
+		}
 	}
 
 	txn, err := s.repo.Create(ctx, CreateParams{

@@ -357,7 +357,7 @@ func TestHandler_CreateTransaction(t *testing.T) {
 		assert.Contains(t, fe.Error, "non-zero")
 	})
 
-	t.Run("missing envelope for non-transfer returns 400", func(t *testing.T) {
+	t.Run("missing envelope for non-transfer expense returns 400", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.TransactionService{}
 		c, rec := newCtx(e, http.MethodPost, "/",
@@ -370,6 +370,22 @@ func TestHandler_CreateTransaction(t *testing.T) {
 
 		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "budget_envelope_id")
 		assert.Contains(t, fe.Error, "required for non-transfer transactions")
+	})
+
+	t.Run("income without envelope returns 201", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{
+			CreateFn: func(_ context.Context, _ int64, _ transaction.CreateRequest) (models.Transaction, error) {
+				return makeTxn(150000), nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodPost, "/",
+			`{"account_id":5,"amount":1500.00,"date":"2026-03-01T00:00:00Z"}`)
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).CreateTransaction(c))
+		assert.Equal(t, http.StatusCreated, rec.Code)
 	})
 
 	t.Run("transfer with envelope returns 400", func(t *testing.T) {

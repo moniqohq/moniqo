@@ -202,8 +202,9 @@ func validateCreateRequest(req CreateRequest) []httpx.FieldError {
 		if *req.TransferAccountID == req.AccountID {
 			errs = append(errs, httpx.FieldError{Field: fieldTransferAccountID, Error: errSelfTransfer})
 		}
-	} else if req.EnvelopeID == nil {
-		// Standard: envelope required
+	} else if req.EnvelopeID == nil && req.Amount.Int64() < 0 {
+		// Standard expense: envelope required. Income (positive amount) is
+		// unallocated and flows into "To Be Budgeted" instead.
 		errs = append(errs, httpx.FieldError{Field: fieldEnvelopeID, Error: errEnvelopeRequired})
 	}
 	return appendStatusError(errs, req.Status)

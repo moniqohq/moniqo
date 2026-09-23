@@ -73,6 +73,8 @@ Allowed values: `uncleared`, `cleared`, `reconciled`
 - Transfer transactions must:
   - Not have `budget_envelope_id`
   - Create a mirrored transaction internally (optional implementation detail)
+- Non-transfer transactions with a negative `amount` (expenses) require `budget_envelope_id`.
+- Non-transfer transactions with a positive `amount` (income) do not require `budget_envelope_id`; unallocated income flows into "To Be Budgeted".
 - Amount cannot be zero.
 - Date must be valid.
 - Editing a transaction must recalculate:
@@ -159,7 +161,8 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 
 - Amount cannot be zero.
 - If `transfer_account_id` provided: `budget_envelope_id` must be `null`.
-- If not a transfer: `budget_envelope_id` required.
+- If not a transfer and `amount` is negative (expense): `budget_envelope_id` required.
+- If not a transfer and `amount` is positive (income): `budget_envelope_id` optional — unallocated income increases "To Be Budgeted".
 - Rejected if `account_id` (or, for transfers, either leg's account) refers to an archived account — archived accounts are read-only.
 
 **Validation Rules**
