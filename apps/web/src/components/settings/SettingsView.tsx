@@ -546,7 +546,7 @@ export function SettingsView({ initialNav = "profile" }: { initialNav?: string }
                     <p className="mt-1 text-[11px] leading-relaxed text-[#5A6A85]">
                       {activeNav === "members"
                         ? "You're in control. Add members and manage their access at any time."
-                        : "We use military-grade encryption and never share your financial data."}
+                        : "We encrypt your data and never share your financial information."}
                     </p>
                     {activeNav === "members" && (
                       <button className="mt-2 text-[11px] font-medium text-[#6C3AED] transition-colors hover:text-[#A78BFA]">
