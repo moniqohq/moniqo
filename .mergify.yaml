@@ -24,11 +24,9 @@ pull_request_rules:
     actions:
       merge:
         method: squash
-        commit_message_template: |
-          {{ title }} (#{{ number }})
-
-          {{ body }}
-      delete_head_branch: {}
+        commit_message_format:
+          title: pr-title
+          body: pr-body
 
   # Remove "queued" label when a new commit is pushed so CI must re-pass before merge
   - name: Remove queue label on new commits
@@ -51,18 +49,9 @@ pull_request_rules:
     actions:
       merge:
         method: squash
-        commit_message_template: |
-          {{ title }} (#{{ number }})
-
-          {{ body }}
-      delete_head_branch: {}
-
-  # Delete branch after merge
-  - name: Delete head branch after merge
-    conditions:
-      - merged
-    actions:
-      delete_head_branch: {}
+        commit_message_format:
+          title: pr-title
+          body: pr-body
 
   # Automatically update PR branch when main changes
   - name: Keep PR branch up to date with main
