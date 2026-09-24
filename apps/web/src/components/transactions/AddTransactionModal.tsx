@@ -235,7 +235,7 @@ export function AddTransactionModal({
       } else {
         payload.account_id = selectedAccount?.id;
         // Envelopes only apply to expenses; income must omit/clear the field.
-        payload.budget_envelope_id = isExpense ? selectedEnvelope?.id ?? null : null;
+        payload.budget_envelope_id = isExpense ? (selectedEnvelope?.id ?? null) : null;
         payload.amount = isIncome ? absAmount : -absAmount;
       }
       await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/transactions`, {
