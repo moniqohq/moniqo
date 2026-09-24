@@ -454,7 +454,6 @@ export default function SignupPage() {
     window.location.assign(`/api/v1/auth/login/${provider}?intent=signup`);
   }
 
-
   async function onSubmit(data: SignupFields) {
     setBannerError(null);
     if (!agreed) {
