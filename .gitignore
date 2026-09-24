@@ -18,6 +18,9 @@
 
 ### Go ###
 
+# Local build output / scratch dirs
+tmp/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
