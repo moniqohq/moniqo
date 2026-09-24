@@ -22,7 +22,8 @@ pull_request_rules:
       - "check-success=Validate Pull Request / DCO"
       - "author!=dependabot[bot]"
     actions:
-      squash:
+      merge:
+        method: squash
         commit_message_template: |
           {{ title }} (#{{ number }})
 
@@ -48,7 +49,8 @@ pull_request_rules:
       - "check-success=CI / summary"
       - "label=dependencies"
     actions:
-      squash:
+      merge:
+        method: squash
         commit_message_template: |
           {{ title }} (#{{ number }})
 
@@ -139,8 +141,8 @@ pull_request_rules:
   - name: Label documentation-only PRs
     conditions:
       - "files~=^(docs/|.*\\.md$|CONTRIBUTING\\.md|README\\.md|ROADMAP\\.md|SECURITY\\.md|CODE_OF_CONDUCT\\.md)"
-      - "files!~=^apps/"
-      - "files!~=^packages/"
+      - "-files~=^apps/"
+      - "-files~=^packages/"
     actions:
       label:
         add:
