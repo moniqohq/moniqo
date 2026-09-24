@@ -57,28 +57,20 @@ type OIDCRepository interface {
 // OIDCSvc implements the OIDC login/link/unlink business logic. It composes
 // the existing auth Svc to reuse JWT issuance, refresh-token issuance, and
 // last-login bookkeeping rather than duplicating them.
-//
-// It also hosts the Facebook token-verification login/link methods (see
-// facebook_service.go): Facebook is not a redirect provider, but it shares
-// every account-linking policy helper below (findOrCreateForLogin,
-// linkToUser, issueTokens), so splitting it into a separate service would
-// duplicate that policy rather than reuse it.
 type OIDCSvc struct {
 	repo        OIDCRepository
 	registry    oidc.ProviderRegistry
-	fbVerifier  oidc.TokenVerifier // nil when Facebook is unconfigured
 	authSvc     *Svc
 	stateSecret []byte
 	log         *zap.Logger
 }
 
-// NewOIDCSvc returns an OIDCSvc wired to the given dependencies. fbVerifier
-// may be nil, in which case Facebook login/link is unavailable.
+// NewOIDCSvc returns an OIDCSvc wired to the given dependencies.
 func NewOIDCSvc(
 	repo OIDCRepository, registry oidc.ProviderRegistry, authSvc *Svc,
-	stateSecret []byte, fbVerifier oidc.TokenVerifier, log *zap.Logger,
+	stateSecret []byte, log *zap.Logger,
 ) *OIDCSvc {
-	return &OIDCSvc{repo: repo, registry: registry, fbVerifier: fbVerifier, authSvc: authSvc, stateSecret: stateSecret, log: log}
+	return &OIDCSvc{repo: repo, registry: registry, authSvc: authSvc, stateSecret: stateSecret, log: log}
 }
 
 // InitiateLogin resolves the provider and returns its authorization URL
@@ -160,15 +152,11 @@ func (s *OIDCSvc) Unlink(ctx context.Context, userID int64, providerName string)
 }
 
 // knownProvider reports whether providerName is any provider Moniqo
-// recognizes — a redirect IdentityProvider or the configured Facebook
-// TokenVerifier. Unlink uses this instead of s.registry.Provider directly
-// because Facebook is never in the redirect registry; without this, a user
-// could link Facebook (via LinkFacebookToken) but never unlink it.
+// recognizes. Unlink uses this instead of calling s.registry.Provider
+// directly for symmetry with the rest of the unlink path.
 func (s *OIDCSvc) knownProvider(providerName string) bool {
-	if _, err := s.registry.Provider(providerName); err == nil {
-		return true
-	}
-	return s.fbVerifier != nil && s.fbVerifier.Name() == providerName
+	_, err := s.registry.Provider(providerName)
+	return err == nil
 }
 
 func (s *OIDCSvc) completeCallback(ctx context.Context, st flowState, identity oidc.Identity) (OIDCCallbackResult, error) {

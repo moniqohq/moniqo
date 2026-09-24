@@ -42,9 +42,7 @@ import {
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth.store";
 import { useUIStore } from "@/stores/ui.store";
-import { OIDC_PROVIDERS, type OidcProvider } from "@/components/icons/ProviderIcons";
-import { loginWithFacebookToken } from "@/lib/api/auth";
-import { facebookLogin } from "@/lib/facebook-sdk";
+import { OIDC_PROVIDERS } from "@/components/icons/ProviderIcons";
 import { parseUserIdFromToken } from "@/lib/jwt";
 import type { ApiAuthTokens, ApiUser, ApiListResponse, ApiBudget } from "@/lib/api-types";
 
@@ -382,7 +380,6 @@ function LoginPageInner() {
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [oauthPending, setOauthPending] = useState<OidcProvider | null>(null);
   const [bannerMsg, setBannerMsg] = useState<{
     type: "error" | "info" | "success";
     text: string;
@@ -454,25 +451,6 @@ function LoginPageInner() {
       } else {
         setBannerMsg({ type: "error", text: "Something went wrong. Please try again." });
       }
-    }
-  }
-
-  async function handleFacebookLogin() {
-    setBannerMsg(null);
-    setOauthPending("facebook");
-    try {
-      const accessToken = await facebookLogin();
-      if (!accessToken) return; // visitor dismissed the popup — silent no-op
-      const tokens = await loginWithFacebookToken(accessToken, "login");
-      await completeLogin(tokens.access_token);
-    } catch (err) {
-      const text =
-        err instanceof ApiError && err.status === 401
-          ? "No account found for that sign-in. Please sign up first."
-          : "Sign-in with Facebook failed. Please try again.";
-      setBannerMsg({ type: "error", text });
-    } finally {
-      setOauthPending(null);
     }
   }
 
@@ -806,20 +784,19 @@ function LoginPageInner() {
               </div>
 
               {/* Social buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                {OIDC_PROVIDERS.map(({ id, label, icon, kind }) => (
+              <div className="grid grid-cols-1 gap-3">
+                {OIDC_PROVIDERS.map(({ id, label, icon }) => (
                   <button
                     key={id}
                     type="button"
-                    disabled={oauthPending === id}
-                    onClick={() => (kind === "sdk" ? handleFacebookLogin() : loginWithProvider(id))}
+                    onClick={() => loginWithProvider(id)}
                     className="flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium text-[#A8B4CC] transition-all duration-200 hover:bg-[#1E2B42]/70 hover:text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                     style={{
                       background: "#0A0E1A",
                       border: "1px solid #1E2B42",
                     }}
                   >
-                    {oauthPending === id ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+                    {icon}
                     <span>{label}</span>
                   </button>
                 ))}

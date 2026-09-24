@@ -47,7 +47,6 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/account"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
-	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/facebook"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/google"
 	"github.com/moniqohq/moniqo/apps/backend/internal/authz"
 	"github.com/moniqohq/moniqo/apps/backend/internal/budget"
@@ -270,7 +269,6 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodGet, path: "/api/v1/auth/login/", prefix: true},           // oidc login redirect
 		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google)
 		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (response_mode=form_post providers)
-		{method: http.MethodPost, path: "/api/v1/auth/facebook/login"},                // facebook token login, no redirect
 		{method: http.MethodGet, re: avatarPathRe},                                    // profile picture: <img> can't send Authorization
 	}
 	return func(c echo.Context) bool {
@@ -422,17 +420,8 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 	oidcRegistry := buildOIDCRegistry(cfg, log)
 	oidcRepo := auth.NewOIDCRepo(pool, log)
 
-	var fbVerifier oidc.TokenVerifier
-	if cfg.OIDC.Facebook.ClientID != "" {
-		fbVerifier = facebook.New(facebook.Config{
-			ClientID:     cfg.OIDC.Facebook.ClientID,
-			ClientSecret: cfg.OIDC.Facebook.ClientSecret,
-		})
-	}
-
-	oidcSvc := auth.NewOIDCSvc(oidcRepo, oidcRegistry, authSvc, []byte(cfg.OIDC.StateSecret), fbVerifier, log)
+	oidcSvc := auth.NewOIDCSvc(oidcRepo, oidcRegistry, authSvc, []byte(cfg.OIDC.StateSecret), log)
 	oidcHandler := auth.NewOIDCHandler(oidcSvc, log, cfg.Env != envDevelopment, cfg.AppBaseURL)
-	facebookHandler := auth.NewFacebookHandler(oidcSvc, log, cfg.Env != envDevelopment)
 
 	oidcPublicGroup := e.Group("/api/v1/auth")
 	oidcPublicGroup.Use(appmw.LoginRateLimiter())
@@ -446,22 +435,11 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 
 	oidcAuthedGroup := e.Group("/api/v1/auth") // requires JWT — not in newAuthSkipper
 	oidcAuthedGroup.GET("/identities", oidcHandler.ListIdentities)
-
-	// Facebook has no redirect flow (see internal/auth/oidc/facebook) — the
-	// browser obtains an access token via the JS SDK and POSTs it here.
-	// Login is public (added to newAuthSkipper) and rate-limited like any
-	// other public auth endpoint; Link requires JWT and is rate-limited too,
-	// since it drives an outbound Graph API call per request.
-	facebookGroup := e.Group("/api/v1/auth/facebook")
-	facebookGroup.Use(appmw.LoginRateLimiter())
-	facebookGroup.POST("/login", facebookHandler.Login)
-	facebookGroup.POST("/link", facebookHandler.Link) // requires JWT — not in newAuthSkipper
 }
 
 // anyOIDCProviderConfigured reports whether at least one redirect OIDC
 // provider has a ClientID set, in which case OIDC_STATE_SECRET becomes a
-// required setting. Facebook is excluded: its token flow has no redirect
-// and never touches the state-cookie machinery OIDC_STATE_SECRET signs.
+// required setting.
 func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
 	return cfg.Google.ClientID != ""
 }
@@ -473,8 +451,7 @@ func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
 // one provider (e.g. Google) first and adding another later works: env
 // vars only, no code changes. A provider whose discovery call fails at
 // startup is logged and skipped rather than treated as fatal — OIDC being
-// unavailable must never take down password login. Facebook is not a
-// redirect provider and is never registered here — see registerOIDCRoutes.
+// unavailable must never take down password login.
 func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
 	ctx := context.Background()
 	reg := oidc.NewRegistry()
