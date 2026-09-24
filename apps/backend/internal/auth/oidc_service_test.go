@@ -36,19 +36,12 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 )
 
-// newTestOIDCSvc builds an OIDCSvc for tests. fbVerifier is optional
-// (variadic so the ~20 existing call sites that don't care about Facebook
-// stay unchanged); pass one to exercise LoginWithFacebookToken/
-// LinkFacebookToken/Unlink-with-Facebook-configured behavior.
-func newTestOIDCSvc(t *testing.T, oidcRepo auth.OIDCRepository, registry oidc.ProviderRegistry, authRepo auth.Repository, fbVerifier ...oidc.TokenVerifier) *auth.OIDCSvc {
+// newTestOIDCSvc builds an OIDCSvc for tests.
+func newTestOIDCSvc(t *testing.T, oidcRepo auth.OIDCRepository, registry oidc.ProviderRegistry, authRepo auth.Repository) *auth.OIDCSvc {
 	t.Helper()
 	log := zap.NewNop()
 	authSvc := auth.NewSvc(authRepo, testSecret, 15*time.Minute, 168*time.Hour, 720*time.Hour, log)
-	var fb oidc.TokenVerifier
-	if len(fbVerifier) > 0 {
-		fb = fbVerifier[0]
-	}
-	return auth.NewOIDCSvc(oidcRepo, registry, authSvc, []byte("oidc-state-secret"), fb, log)
+	return auth.NewOIDCSvc(oidcRepo, registry, authSvc, []byte("oidc-state-secret"), log)
 }
 
 func stubRegistry(name string, p oidc.IdentityProvider) *internalmock.ProviderRegistry {
@@ -58,16 +51,6 @@ func stubRegistry(name string, p oidc.IdentityProvider) *internalmock.ProviderRe
 				return nil, oidc.ErrUnknownProvider
 			}
 			return p, nil
-		},
-	}
-}
-
-func stubFacebookVerifier(identity oidc.Identity) *internalmock.TokenVerifier {
-	return &internalmock.TokenVerifier{
-		NameFn: func() string { return "facebook" },
-		VerifyAccessTokenFn: func(_ context.Context, _ string) (*oidc.Identity, error) {
-			id := identity
-			return &id, nil
 		},
 	}
 }
@@ -487,26 +470,12 @@ func TestOIDCSvc_Unlink(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("unlinks facebook even though it is not a registry provider", func(t *testing.T) {
-		t.Parallel()
-		registry := stubRegistry("google", nil)
-		fb := stubFacebookVerifier(oidc.Identity{})
-
-		oidcRepo := &internalmock.OIDCRepository{}
-		oidcRepo.On("CountIdentitiesAndHash", int64(1)).Return(2, false, nil)
-		oidcRepo.On("UnlinkIdentity", int64(1), "facebook").Return(nil)
-
-		svc := newTestOIDCSvc(t, oidcRepo, registry, &internalmock.AuthRepository{}, fb)
-		err := svc.Unlink(context.Background(), 1, "facebook")
-		require.NoError(t, err)
-	})
-
-	t.Run("rejects facebook when it is not configured", func(t *testing.T) {
+	t.Run("rejects an unknown provider", func(t *testing.T) {
 		t.Parallel()
 		registry := stubRegistry("google", nil)
 		svc := newTestOIDCSvc(t, &internalmock.OIDCRepository{}, registry, &internalmock.AuthRepository{})
 
-		err := svc.Unlink(context.Background(), 1, "facebook")
+		err := svc.Unlink(context.Background(), 1, "unknown")
 		assert.ErrorIs(t, err, auth.ErrUnknownProvider)
 	})
 }

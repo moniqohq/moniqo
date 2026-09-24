@@ -82,17 +82,11 @@ type UploadConfig struct {
 	MaxAvatarBytes int64  // AVATAR_MAX_BYTES, default 2MB
 }
 
-// OIDCConfig groups OpenID Connect third-party login settings. Each provider
-// sub-struct is independent; a provider with an empty ClientID is simply not
-// registered at startup, so shipping Google first and adding another
-// provider later requires only setting their env vars — no code changes.
-// Facebook is not an OIDC redirect provider (see internal/auth/oidc/facebook)
-// but its app credentials live here too since they're still "third-party
-// login config".
+// OIDCConfig groups OpenID Connect third-party login settings. A provider
+// with an empty ClientID is simply not registered at startup.
 type OIDCConfig struct {
 	StateSecret string // OIDC_STATE_SECRET — HMAC key signing the OIDC flow cookie
 	Google      GoogleOIDCConfig
-	Facebook    FacebookOIDCConfig
 }
 
 // GoogleOIDCConfig holds Google OAuth client settings.
@@ -100,15 +94,6 @@ type GoogleOIDCConfig struct {
 	ClientID     string // OIDC_GOOGLE_CLIENT_ID
 	ClientSecret string // OIDC_GOOGLE_CLIENT_SECRET
 	RedirectURL  string // OIDC_GOOGLE_REDIRECT_URL
-}
-
-// FacebookOIDCConfig holds Facebook app credentials. There is no
-// RedirectURL: Facebook login goes through the client-side JS SDK
-// (FB.login()), not a server redirect, so there is nothing to register one
-// for.
-type FacebookOIDCConfig struct {
-	ClientID     string // OIDC_FACEBOOK_CLIENT_ID — the Facebook App ID
-	ClientSecret string // OIDC_FACEBOOK_CLIENT_SECRET — the Facebook App Secret
 }
 
 // EmailConfig groups all email-related settings.
@@ -182,10 +167,6 @@ func loadOIDCConfig() OIDCConfig {
 			ClientID:     os.Getenv("OIDC_GOOGLE_CLIENT_ID"),
 			ClientSecret: os.Getenv("OIDC_GOOGLE_CLIENT_SECRET"),
 			RedirectURL:  os.Getenv("OIDC_GOOGLE_REDIRECT_URL"),
-		},
-		Facebook: FacebookOIDCConfig{
-			ClientID:     os.Getenv("OIDC_FACEBOOK_CLIENT_ID"),
-			ClientSecret: os.Getenv("OIDC_FACEBOOK_CLIENT_SECRET"),
 		},
 	}
 }

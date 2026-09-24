@@ -508,7 +508,7 @@ Uploads and replaces the authenticated user's profile picture.
 Returns the raw image bytes for a user's profile picture.
 
 **`GET /api/v1/users/{id}/picture`**
-**Authentication:** **Not required.** This is the only unauthenticated endpoint in this API besides registration and login. An `<img>` tag cannot attach an `Authorization` header, and the client's access token is memory-only (never stored in a cookie), so there is no mechanism by which a browser-rendered `<img>` could authenticate this request. The accepted trade-off is that a picture is fetchable by anyone who can guess a user id — the same exposure that an OIDC-hosted avatar URL (e.g. a Google or Facebook CDN link) already has. This endpoint is rate-limited per IP to bound scraping.
+**Authentication:** **Not required.** This is the only unauthenticated endpoint in this API besides registration and login. An `<img>` tag cannot attach an `Authorization` header, and the client's access token is memory-only (never stored in a cookie), so there is no mechanism by which a browser-rendered `<img>` could authenticate this request. The accepted trade-off is that a picture is fetchable by anyone who can guess a user id — the same exposure that an OIDC-hosted avatar URL (e.g. a Google CDN link) already has. This endpoint is rate-limited per IP to bound scraping.
 
 **Responses**
 
@@ -778,7 +778,7 @@ account, never another user's.
 - All refresh tokens revoked and the caller's current access token
   blocklisted — no existing session or token remains usable.
 - Pending password-reset tokens invalidated.
-- Linked OIDC identities (Google/Apple/Facebook) removed, so a future
+- Linked OIDC identities (Google) removed, so a future
   sign-in with the same provider account creates a new user rather than
   resolving to this deleted row.
 - Budgets solely owned by the user are soft-deleted along with their

@@ -44,8 +44,8 @@ const (
 )
 
 // bearerTokenType is the "token_type" value returned alongside every access
-// token, regardless of how the session was established (password, OIDC
-// redirect, or Facebook token login).
+// token, regardless of how the session was established (password or OIDC
+// redirect).
 const bearerTokenType = "Bearer"
 
 // Service is the service contract required by Handler.

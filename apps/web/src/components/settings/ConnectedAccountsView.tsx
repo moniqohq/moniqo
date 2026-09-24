@@ -25,8 +25,7 @@ import { Link2, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { Button } from "@/components/ui/button";
 import { OIDC_PROVIDERS, type OidcProvider } from "@/components/icons/ProviderIcons";
-import { listIdentities, linkProvider, linkFacebookToken, unlinkProvider } from "@/lib/api/auth";
-import { facebookLogin } from "@/lib/facebook-sdk";
+import { listIdentities, linkProvider, unlinkProvider } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -70,30 +69,7 @@ export function ConnectedAccountsView() {
   function handleLink(provider: OidcProvider) {
     if (!accessToken) return;
     setBanner(null);
-    if (provider === "facebook") {
-      void handleFacebookLink();
-      return;
-    }
     linkProvider(provider, accessToken);
-  }
-
-  // Facebook has no redirect flow, so unlike linkProvider above this never
-  // navigates away — it links in place and updates the list directly.
-  async function handleFacebookLink() {
-    setPending("facebook");
-    try {
-      const token = await facebookLogin();
-      if (!token) return; // visitor dismissed the popup — silent no-op
-      await linkFacebookToken(token);
-      setLinked((prev) => new Set(prev).add("facebook"));
-      setBanner({ type: "success", text: "Facebook account linked." });
-    } catch (err) {
-      const message =
-        err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
-      setBanner({ type: "error", text: message });
-    } finally {
-      setPending(null);
-    }
   }
 
   async function handleUnlink(provider: OidcProvider) {

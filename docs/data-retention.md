@@ -15,7 +15,7 @@ immediate soft delete with no grace period:
 - All refresh tokens are revoked and the caller's current access token is
   blocklisted — no session or token survives deletion.
 - Pending password-reset tokens are invalidated.
-- Linked OIDC identities (Google/Apple/Facebook) are removed.
+- Linked OIDC identities (Google) are removed.
 - Budgets the user solely owns (no other active members) are soft-deleted
   along with their memberships — mirroring ordinary budget deletion. Their
   accounts, envelopes, and transactions are left in place, matching the
