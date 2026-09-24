@@ -359,9 +359,7 @@ export function TransactionDetailsModal({
                     {isExpense && (
                       <div className="mt-6 pr-6">
                         <div className="mb-4 h-px bg-[#141F32]" />
-                        <h3 className="mb-4 text-sm font-semibold text-[#E8EEF8]">
-                          Budget Impact
-                        </h3>
+                        <h3 className="mb-4 text-sm font-semibold text-[#E8EEF8]">Budget Impact</h3>
 
                         <div className="flex items-center gap-3">
                           {envelopeAfter != null && envelopeBefore != null ? (
@@ -375,9 +373,7 @@ export function TransactionDetailsModal({
                               <span className="shrink-0 text-xl font-bold text-[#3A4A60]">+</span>
 
                               <ImpactCard label="Transaction Amount">
-                                <span
-                                  className={cn("text-xl font-bold tabular-nums", amountColor)}
-                                >
+                                <span className={cn("text-xl font-bold tabular-nums", amountColor)}>
                                   {tx.amount >= 0
                                     ? `+${formatCurrency(tx.amount)}`
                                     : formatCurrency(tx.amount)}

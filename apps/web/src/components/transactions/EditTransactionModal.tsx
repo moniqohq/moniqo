@@ -233,8 +233,7 @@ export function EditTransactionModal({
   // this transaction isn't in it yet, so that account's current balance already IS
   // the "before" figure.
   const isOriginalAccount = selectedAccount?.id === tx.accountId;
-  const accountBefore =
-    Number(selectedAccount?.balance ?? 0) - (isOriginalAccount ? tx.amount : 0);
+  const accountBefore = Number(selectedAccount?.balance ?? 0) - (isOriginalAccount ? tx.amount : 0);
   const accountAfter = accountBefore + signedAmount;
 
   // Envelope "available" is allocated minus spent, not spent alone. spent_amt already
