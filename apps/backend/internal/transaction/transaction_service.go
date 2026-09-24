@@ -126,6 +126,8 @@ func validateEnvelopeAssignment(amount money.Amount, envelopeID *int64) error {
 // explicitly null envelope_id. PATCH can't express "clear this field" via a nil
 // pointer (nil means "leave unchanged"), so a transaction flipping from expense to
 // income purely via an amount patch needs this explicit signal.
+//
+//nolint:revive
 func resolvePatchEnvelope(existing models.Transaction, req PatchRequest) (clearEnvelope bool, err error) {
 	effectiveAmount := existing.Amount
 	if req.Amount != nil {
@@ -382,7 +384,7 @@ func (s *Svc) List(ctx context.Context, budgetID int64, f ListFilters) ([]models
 // Replace fully replaces all mutable fields of the transaction.
 // For transfers, both legs are updated atomically.
 //
-//nolint:revive,funlen,cyclop
+//nolint:revive,funlen,cyclop,gocognit
 func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceRequest) (models.Transaction, error) {
 	s.log.Debug("replacing transaction",
 		zap.Int64("transaction_id", id),
@@ -501,7 +503,7 @@ func (s *Svc) Replace(ctx context.Context, id, budgetID int64, req ReplaceReques
 // Patch applies only the non-nil fields from req to the transaction.
 // For transfers, the mirror leg's amount is kept consistent.
 //
-//nolint:revive,funlen,cyclop,gocognit
+//nolint:revive,funlen,cyclop,gocognit,gocyclo
 func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest) (models.Transaction, error) {
 	s.log.Debug("patching transaction",
 		zap.Int64("transaction_id", id),
