@@ -251,6 +251,63 @@ func TestHandler_Login_InputForwarding(t *testing.T) {
 	assert.Equal(t, "SecurePass1", captured.Password)
 }
 
+// TestHandler_Login_RefreshCookiePersistence verifies that the refresh cookie's
+// Max-Age reflects RememberMe: a session cookie (no Max-Age) when false, a
+// persistent cookie when true.
+func TestHandler_Login_RefreshCookiePersistence(t *testing.T) {
+	t.Parallel()
+
+	log := zap.NewNop()
+	e := echo.New()
+
+	tests := []struct {
+		name           string
+		rememberMe     bool
+		wantMaxAgeZero bool
+	}{
+		{name: "remember me true sets persistent cookie", rememberMe: true, wantMaxAgeZero: false},
+		{name: "remember me false sets session cookie", rememberMe: false, wantMaxAgeZero: true},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc := &mock.AuthService{
+				LoginFn: func(_ context.Context, req auth.LoginRequest) (auth.LoginResult, error) {
+					return auth.LoginResult{
+						AccessToken:           "t",
+						TokenType:             "Bearer",
+						RefreshToken:          "raw-refresh-token",
+						RefreshTokenExpiresAt: time.Now().Add(30 * 24 * time.Hour),
+						RememberMe:            req.RememberMe,
+					}, nil
+				},
+			}
+
+			body := `{"email":"user@example.com","password":"SecurePass1","remember_me":false}`
+			if tc.rememberMe {
+				body = `{"email":"user@example.com","password":"SecurePass1","remember_me":true}`
+			}
+
+			c, rec := newLoginCtx(e, body)
+			h := auth.NewHandler(svc, log, false)
+			require.NoError(t, h.Login(c))
+
+			var cookie *http.Cookie
+			for _, ck := range rec.Result().Cookies() {
+				if ck.Name == "moniqo_refresh" {
+					cookie = ck
+					break
+				}
+			}
+			require.NotNil(t, cookie, "expected refresh cookie to be set")
+			assert.Equal(t, tc.wantMaxAgeZero, cookie.MaxAge == 0)
+		})
+	}
+}
+
 func TestHandler_Logout(t *testing.T) {
 	t.Parallel()
 
@@ -358,12 +415,17 @@ func TestHandler_Logout_ParamsForwarding(t *testing.T) {
 // --- Password reset handler tests ---
 
 type funcPasswordResetService struct {
-	requestErr error
-	confirmErr error
+	requestErr  error
+	validateErr error
+	confirmErr  error
 }
 
 func (s *funcPasswordResetService) RequestReset(_ context.Context, _ auth.RequestResetRequest) error {
 	return s.requestErr
+}
+
+func (s *funcPasswordResetService) ValidateResetToken(_ context.Context, _ string) error {
+	return s.validateErr
 }
 
 func (s *funcPasswordResetService) ConfirmReset(_ context.Context, _ auth.ConfirmResetRequest) error {
@@ -372,6 +434,10 @@ func (s *funcPasswordResetService) ConfirmReset(_ context.Context, _ auth.Confir
 
 func passwordResetServiceFunc(requestErr, confirmErr error) auth.PasswordResetService {
 	return &funcPasswordResetService{requestErr: requestErr, confirmErr: confirmErr}
+}
+
+func passwordResetServiceFuncWithValidate(requestErr, validateErr, confirmErr error) auth.PasswordResetService {
+	return &funcPasswordResetService{requestErr: requestErr, validateErr: validateErr, confirmErr: confirmErr}
 }
 
 func newResetCtx(e *echo.Echo, path, body string) (echo.Context, *httptest.ResponseRecorder) {
@@ -430,6 +496,70 @@ func TestPasswordResetHandler_RequestReset(t *testing.T) {
 		c, rec := newResetCtx(e, "/api/v1/auth/password-reset", `{"email":"user@example.com"}`)
 
 		_ = h.RequestReset(c)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
+func newResetValidateCtx(e *echo.Echo, token string) (echo.Context, *httptest.ResponseRecorder) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/password-reset/validate?token="+token, nil)
+	rec := httptest.NewRecorder()
+	return e.NewContext(req, rec), rec
+}
+
+func TestPasswordResetHandler_ValidateToken(t *testing.T) {
+	t.Parallel()
+
+	e := echo.New()
+	validToken := strings.Repeat("a", 64)
+
+	t.Run("valid token returns 200", func(t *testing.T) {
+		t.Parallel()
+
+		h := auth.NewPasswordResetHandler(passwordResetServiceFuncWithValidate(nil, nil, nil), zap.NewNop())
+		c, rec := newResetValidateCtx(e, validToken)
+
+		require.NoError(t, h.ValidateToken(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		resp, _ := parseEnvelope(t, rec.Body.String())
+		assert.True(t, resp.Success)
+	})
+
+	t.Run("invalid token format returns 400", func(t *testing.T) {
+		t.Parallel()
+
+		h := auth.NewPasswordResetHandler(passwordResetServiceFuncWithValidate(nil, nil, nil), zap.NewNop())
+		c, rec := newResetValidateCtx(e, "bad")
+
+		_ = h.ValidateToken(c)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("ErrInvalidResetToken returns 401 with generic message", func(t *testing.T) {
+		t.Parallel()
+
+		h := auth.NewPasswordResetHandler(
+			passwordResetServiceFuncWithValidate(nil, auth.ErrInvalidResetToken, nil), zap.NewNop(),
+		)
+		c, rec := newResetValidateCtx(e, validToken)
+
+		_ = h.ValidateToken(c)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+		resp, _ := parseEnvelope(t, rec.Body.String())
+		assert.False(t, resp.Success)
+		assert.Equal(t, "unauthorized", resp.Msg)
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		t.Parallel()
+
+		h := auth.NewPasswordResetHandler(
+			passwordResetServiceFuncWithValidate(nil, errors.New("db down"), nil), zap.NewNop(),
+		)
+		c, rec := newResetValidateCtx(e, validToken)
+
+		_ = h.ValidateToken(c)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
 }

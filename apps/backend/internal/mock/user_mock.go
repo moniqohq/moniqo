@@ -22,7 +22,9 @@ package mock
 
 import (
 	"context"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
@@ -31,11 +33,18 @@ import (
 
 // UserService is a test double for user.Service.
 type UserService struct {
-	RegisterFn       func(ctx context.Context, req user.RegisterRequest) (models.User, error)
-	GetByIDFn        func(ctx context.Context, id int64) (models.User, error)
-	ReplaceProfileFn func(ctx context.Context, id int64, req user.ReplaceProfileRequest) (models.User, error)
-	PatchProfileFn   func(ctx context.Context, id int64, req user.PatchProfileRequest) (models.User, error)
-	DeleteFn         func(ctx context.Context, p user.DeleteAccountParams) error
+	RegisterFn             func(ctx context.Context, req user.RegisterRequest) (models.User, error)
+	GetByIDFn              func(ctx context.Context, id int64) (models.User, error)
+	ReplaceProfileFn       func(ctx context.Context, id int64, req user.ReplaceProfileRequest) (models.User, error)
+	PatchProfileFn         func(ctx context.Context, id int64, req user.PatchProfileRequest) (models.User, error)
+	DeleteFn               func(ctx context.Context, p user.DeleteAccountParams) error
+	SetPictureFn           func(ctx context.Context, id int64, in user.PictureUpload) (models.User, error)
+	DeletePictureFn        func(ctx context.Context, id int64) (models.User, error)
+	OpenPictureFn          func(ctx context.Context, id int64) (user.PictureResult, error)
+	RequestEmailChangeFn   func(ctx context.Context, id int64, req user.RequestEmailChangeRequest) (user.EmailChangeStatus, error)
+	VerifyEmailChangeFn    func(ctx context.Context, id int64, req user.VerifyEmailChangeRequest) (models.User, error)
+	CancelEmailChangeFn    func(ctx context.Context, id int64) error
+	GetEmailChangeStatusFn func(ctx context.Context, id int64) (user.EmailChangeStatus, error)
 }
 
 // Register delegates to RegisterFn.
@@ -66,6 +75,43 @@ func (m *UserService) Delete(ctx context.Context, p user.DeleteAccountParams) er
 // VerifyEmail records the call and returns the configured stub error.
 func (*UserService) VerifyEmail(_ context.Context, _ string) error {
 	return nil
+}
+
+// SetPicture delegates to SetPictureFn.
+func (m *UserService) SetPicture(ctx context.Context, id int64, in user.PictureUpload) (models.User, error) {
+	return m.SetPictureFn(ctx, id, in)
+}
+
+// DeletePicture delegates to DeletePictureFn.
+func (m *UserService) DeletePicture(ctx context.Context, id int64) (models.User, error) {
+	return m.DeletePictureFn(ctx, id)
+}
+
+// OpenPicture delegates to OpenPictureFn.
+func (m *UserService) OpenPicture(ctx context.Context, id int64) (user.PictureResult, error) {
+	return m.OpenPictureFn(ctx, id)
+}
+
+// RequestEmailChange delegates to RequestEmailChangeFn.
+func (m *UserService) RequestEmailChange(
+	ctx context.Context, id int64, req user.RequestEmailChangeRequest,
+) (user.EmailChangeStatus, error) {
+	return m.RequestEmailChangeFn(ctx, id, req)
+}
+
+// VerifyEmailChange delegates to VerifyEmailChangeFn.
+func (m *UserService) VerifyEmailChange(ctx context.Context, id int64, req user.VerifyEmailChangeRequest) (models.User, error) {
+	return m.VerifyEmailChangeFn(ctx, id, req)
+}
+
+// CancelEmailChange delegates to CancelEmailChangeFn.
+func (m *UserService) CancelEmailChange(ctx context.Context, id int64) error {
+	return m.CancelEmailChangeFn(ctx, id)
+}
+
+// GetEmailChangeStatus delegates to GetEmailChangeStatusFn.
+func (m *UserService) GetEmailChangeStatus(ctx context.Context, id int64) (user.EmailChangeStatus, error) {
+	return m.GetEmailChangeStatusFn(ctx, id)
 }
 
 // UserRepository is a testify mock for user.Repository.
@@ -124,5 +170,109 @@ func (m *UserRepository) GetHashByID(_ context.Context, id int64) (string, error
 // Activate records the call and returns the configured stub error.
 func (m *UserRepository) Activate(_ context.Context, id int64) error {
 	args := m.Called(id)
+	return args.Error(0)
+}
+
+// GetAvatarMeta records the call and returns the configured stub values.
+func (m *UserRepository) GetAvatarMeta(_ context.Context, id int64) (user.AvatarMeta, string, error) {
+	args := m.Called(id)
+	meta, ok := args.Get(0).(user.AvatarMeta)
+	if !ok {
+		meta = user.AvatarMeta{}
+	}
+	return meta, args.String(1), args.Error(2) //nolint:mnd
+}
+
+// SetAvatar records the call and returns the configured stub values.
+func (m *UserRepository) SetAvatar(_ context.Context, p user.SetAvatarParams) (models.User, error) {
+	args := m.Called(p)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
+	return u, args.Error(1)
+}
+
+// ClearAvatar records the call and returns the configured stub values.
+func (m *UserRepository) ClearAvatar(_ context.Context, id int64) (models.User, error) {
+	args := m.Called(id)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
+	return u, args.Error(1)
+}
+
+// EmailTaken records the call and returns the configured stub values.
+func (m *UserRepository) EmailTaken(_ context.Context, emailAddr string) (bool, error) {
+	args := m.Called(emailAddr)
+	return args.Bool(0), args.Error(1)
+}
+
+// GetLiveEmailChange records the call and returns the configured stub values.
+func (m *UserRepository) GetLiveEmailChange(_ context.Context, userID int64) (user.EmailChangeRequest, error) {
+	args := m.Called(userID)
+	r, ok := args.Get(0).(user.EmailChangeRequest)
+	if !ok {
+		return user.EmailChangeRequest{}, args.Error(1)
+	}
+	return r, args.Error(1)
+}
+
+// GetEmailChangeLockout records the call and returns the configured stub values.
+func (m *UserRepository) GetEmailChangeLockout(_ context.Context, userID int64) (time.Time, bool, error) {
+	args := m.Called(userID)
+	t, ok := args.Get(0).(time.Time)
+	if !ok {
+		t = time.Time{}
+	}
+	return t, args.Bool(1), args.Error(2) //nolint:mnd
+}
+
+// CreateEmailChange records the call and returns the configured stub values.
+func (m *UserRepository) CreateEmailChange(_ context.Context, p user.CreateEmailChangeParams) (user.EmailChangeRequest, error) {
+	args := m.Called(p)
+	r, ok := args.Get(0).(user.EmailChangeRequest)
+	if !ok {
+		return user.EmailChangeRequest{}, args.Error(1)
+	}
+	return r, args.Error(1)
+}
+
+// IncrementEmailChangeAttempt records the call and returns the configured stub values.
+func (m *UserRepository) IncrementEmailChangeAttempt(_ context.Context, requestID uuid.UUID) (int32, error) {
+	args := m.Called(requestID)
+	count, ok := args.Get(0).(int32)
+	if !ok {
+		count = 0
+	}
+	return count, args.Error(1)
+}
+
+// FailEmailChange records the call and returns the configured stub error.
+func (m *UserRepository) FailEmailChange(_ context.Context, requestID uuid.UUID) error {
+	args := m.Called(requestID)
+	return args.Error(0)
+}
+
+// CancelEmailChanges records the call and returns the configured stub error.
+func (m *UserRepository) CancelEmailChanges(_ context.Context, userID int64) error {
+	args := m.Called(userID)
+	return args.Error(0)
+}
+
+// CompleteEmailChange records the call and returns the configured stub values.
+func (m *UserRepository) CompleteEmailChange(_ context.Context, requestID uuid.UUID, userID int64, newEmail string) (models.User, error) {
+	args := m.Called(requestID, userID, newEmail)
+	u, ok := args.Get(0).(models.User)
+	if !ok {
+		return models.User{}, args.Error(1)
+	}
+	return u, args.Error(1)
+}
+
+// DeleteStaleEmailChangeRequests records the call and returns the configured stub error.
+func (m *UserRepository) DeleteStaleEmailChangeRequests(_ context.Context) error {
+	args := m.Called()
 	return args.Error(0)
 }

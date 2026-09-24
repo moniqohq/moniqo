@@ -51,5 +51,10 @@ type User struct {
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at"`
 	LastLogin             *time.Time `json:"last_login"`
 	CreatedAt             time.Time  `json:"created_at"`
-	TokensInvalidBefore   *time.Time `json:"-"`
+	// HasPassword reports whether the account has a password credential
+	// (false for OIDC-only signups, users.hash IS NULL). The client uses this
+	// to decide whether to render a current-password field when the user
+	// requests a sensitive change, e.g. an email address change.
+	HasPassword         bool       `json:"has_password"`
+	TokensInvalidBefore *time.Time `json:"-"`
 }

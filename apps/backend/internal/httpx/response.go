@@ -121,10 +121,17 @@ func NotFound(c echo.Context, msg string) error {
 
 // TooManyRequests writes a 429 JSON response with a generic rate-limit message.
 func TooManyRequests(c echo.Context) error {
+	return TooManyRequestsMsg(c, "too many requests")
+}
+
+// TooManyRequestsMsg writes a 429 JSON response with a caller-supplied
+// message, so a client can distinguish a per-user lockout (e.g. too many
+// wrong verification codes) from a generic per-IP throttle.
+func TooManyRequestsMsg(c echo.Context, msg string) error {
 	return c.JSON(http.StatusTooManyRequests, Response{
 		Success: false,
 		Data:    nil,
-		Msg:     "too many requests",
+		Msg:     msg,
 	})
 }
 

@@ -21,6 +21,7 @@
 package user
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -31,50 +32,105 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/email"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+	"github.com/moniqohq/moniqo/apps/backend/internal/storage"
+	"github.com/moniqohq/moniqo/apps/backend/internal/storage/local"
 )
 
 // Repository is the persistence contract required by Svc.
+//
+//nolint:interfacebloat
 type Repository interface {
 	Create(ctx context.Context, p CreateParams) (models.User, error)
 	GetByID(ctx context.Context, id int64) (models.User, error)
 	UpdateProfile(ctx context.Context, p UpdateProfileParams) (models.User, error)
+	EmailTaken(ctx context.Context, emailAddr string) (bool, error)
 	UpdatePassword(ctx context.Context, id int64, hash string) error
 	DeleteAccount(ctx context.Context, p DeleteAccountParams) error
 	GetHashByID(ctx context.Context, id int64) (string, error)
 	Activate(ctx context.Context, id int64) error
+	GetAvatarMeta(ctx context.Context, id int64) (AvatarMeta, string, error)
+	SetAvatar(ctx context.Context, p SetAvatarParams) (models.User, error)
+	ClearAvatar(ctx context.Context, id int64) (models.User, error)
+
+	// Verified-email-change (OTP), see user_emailchange_repo.go.
+	GetLiveEmailChange(ctx context.Context, userID int64) (EmailChangeRequest, error)
+	GetEmailChangeLockout(ctx context.Context, userID int64) (time.Time, bool, error)
+	CreateEmailChange(ctx context.Context, p CreateEmailChangeParams) (EmailChangeRequest, error)
+	IncrementEmailChangeAttempt(ctx context.Context, requestID uuid.UUID) (int32, error)
+	FailEmailChange(ctx context.Context, requestID uuid.UUID) error
+	CancelEmailChanges(ctx context.Context, userID int64) error
+	CompleteEmailChange(ctx context.Context, requestID uuid.UUID, userID int64, newEmail string) (models.User, error)
+	DeleteStaleEmailChangeRequests(ctx context.Context) error
 }
 
 const (
 	verificationTokenTTL = 24 * time.Hour
 	tokenPartsCount      = 2
 	payloadFieldsCount   = 3
+
+	// avatarKeySuffixBytes is the length, in random bytes, of the unique
+	// suffix in a minted avatar storage key (see newAvatarKey).
+	avatarKeySuffixBytes = 8
+	// avatarKeyShardModulus buckets avatar keys into 256 shard directories
+	// (see the key layout convention documented in internal/storage/storage.go).
+	avatarKeyShardModulus = 256
+
+	// defaultEmailChangeTTL and defaultEmailChangeLockout back SetEmailChangePolicy
+	// until it is called; callers that never call it (mainly tests) still get
+	// sane, non-zero durations rather than an OTP that expires immediately.
+	defaultEmailChangeTTL     = 15 * time.Minute
+	defaultEmailChangeLockout = 30 * time.Minute
 )
 
 // Svc implements the business logic for user operations.
 type Svc struct {
-	repo        Repository
-	mailer      email.Enqueuer
-	bcryptCost  int
-	appBaseURL  string
-	tokenSecret []byte
-	log         *zap.Logger
+	repo               Repository
+	mailer             email.Enqueuer
+	bcryptCost         int
+	appBaseURL         string
+	tokenSecret        []byte
+	log                *zap.Logger
+	store              storage.Storage
+	emailChangeTTL     time.Duration
+	emailChangeLockout time.Duration
 }
 
 // NewSvc returns a Svc wired to the given repository, mailer, and configuration.
 func NewSvc(repo Repository, mailer email.Enqueuer, bcryptCost int, appBaseURL string, tokenSecret []byte, log *zap.Logger) *Svc {
 	return &Svc{
-		repo:        repo,
-		mailer:      mailer,
-		bcryptCost:  bcryptCost,
-		appBaseURL:  appBaseURL,
-		tokenSecret: tokenSecret,
-		log:         log,
+		repo:               repo,
+		mailer:             mailer,
+		bcryptCost:         bcryptCost,
+		appBaseURL:         appBaseURL,
+		tokenSecret:        tokenSecret,
+		log:                log,
+		emailChangeTTL:     defaultEmailChangeTTL,
+		emailChangeLockout: defaultEmailChangeLockout,
 	}
+}
+
+// SetEmailChangePolicy overrides the OTP lifetime and the post-lockout
+// cooldown for the verified-email-change flow (see
+// user_emailchange_service.go). Follows the same optional-setter pattern as
+// SetStorage / Handler.SetAvatarLimit, so no NewSvc call site — including
+// every existing test — needs to change to pick up a non-default policy.
+func (s *Svc) SetEmailChangePolicy(ttl, lockout time.Duration) {
+	s.emailChangeTTL = ttl
+	s.emailChangeLockout = lockout
+}
+
+// SetStorage wires the object store used for uploaded avatars. When unset,
+// the picture upload/get/delete endpoints return an internal error rather
+// than failing at startup — this mirrors how OIDC provider registration
+// degrades when a provider is unconfigured.
+func (s *Svc) SetStorage(store storage.Storage) {
+	s.store = store
 }
 
 // Register hashes the password, persists the new user, and enqueues a
@@ -125,15 +181,35 @@ func (s *Svc) GetByID(ctx context.Context, id int64) (models.User, error) {
 }
 
 // ReplaceProfile performs a full profile replacement (PUT semantics).
-// Absent name becomes nil; absent picture becomes "".
+// Absent name becomes nil. picture is server-managed (see PictureUpload /
+// SetPicture) and is never accepted from the request body — the current
+// value is always carried forward, so a PUT can never desync users.picture
+// from a stored avatar or blank one out from under it.
+//
+// email is likewise read-only here, but unlike picture it is a required
+// field on this endpoint (for a full round-trip of a previously-fetched
+// profile), so the validator cannot statically reject it — instead it must
+// match the current value exactly, checked here where the current value is
+// known. Any other value returns ErrEmailReadOnly; changing an email
+// requires the OTP-verified flow in user_emailchange_service.go.
 func (s *Svc) ReplaceProfile(ctx context.Context, id int64, req ReplaceProfileRequest) (models.User, error) {
 	s.log.Info("replacing user profile", zap.Int64("user_id", id))
+
+	current, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return models.User{}, fmt.Errorf("get user by id: %w", err)
+	}
+
+	if !strings.EqualFold(req.Email, current.Email) {
+		return models.User{}, ErrEmailReadOnly
+	}
+
 	u, err := s.repo.UpdateProfile(ctx, UpdateProfileParams{
 		ID:         id,
 		Name:       req.Name,
 		Username:   req.Username,
 		Email:      req.Email,
-		Picture:    req.Picture,
+		Picture:    current.Picture,
 		Currency:   req.Currency,
 		Timezone:   req.Timezone,
 		DateFormat: req.DateFormat,
@@ -170,7 +246,14 @@ func (s *Svc) PatchProfile(ctx context.Context, id int64, req PatchProfileReques
 }
 
 // mergeProfileFields overlays the non-nil patch fields onto the current profile
-// and returns an UpdateProfileParams ready for the repository.
+// and returns an UpdateProfileParams ready for the repository. picture is
+// server-managed (see PictureUpload / SetPicture) and is never taken from
+// req — the validator rejects a non-nil req.Picture before this is reached,
+// but the current value is carried forward here regardless, defense in depth
+// against picture ever desyncing from a stored avatar. email is likewise
+// read-only over PATCH (the validator rejects a non-nil req.Email) and is
+// always carried forward from current for the same reason — changing an
+// email requires the OTP-verified flow in user_emailchange_service.go.
 func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) UpdateProfileParams {
 	name := current.Name
 	if req.Name != nil {
@@ -183,10 +266,6 @@ func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) 
 	emailAddr := current.Email
 	if req.Email != nil {
 		emailAddr = *req.Email
-	}
-	picture := current.Picture
-	if req.Picture != nil {
-		picture = *req.Picture
 	}
 	currency := current.Currency
 	if req.Currency != nil {
@@ -205,7 +284,7 @@ func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) 
 		Name:       name,
 		Username:   username,
 		Email:      emailAddr,
-		Picture:    picture,
+		Picture:    current.Picture,
 		Currency:   currency,
 		Timezone:   timezone,
 		DateFormat: dateFormat,
@@ -221,12 +300,28 @@ func mergeProfileFields(id int64, current models.User, req PatchProfileRequest) 
 // active members gets ErrLastOwner (via *LastOwnerError) and nothing is
 // deleted — the caller must transfer ownership or remove the other members
 // first.
+//
+// If the user has a stored avatar, its DB reference is cleared before the
+// soft delete (so ClearAvatar's deleted_at IS NULL guard still matches) and
+// the underlying object is removed on a best-effort basis afterward — the
+// avatar GET endpoint is public, so leaving bytes reachable after account
+// deletion would be a real (if minor) data-retention issue.
+//
+//nolint:revive // the avatar cleanup steps are sequential and read more clearly inline than split up
 func (s *Svc) Delete(ctx context.Context, p DeleteAccountParams) error {
 	s.log.Info("account deletion requested", zap.Int64("user_id", p.UserID))
 
 	deleted, err := s.reauthenticateForDelete(ctx, p)
 	if deleted || err != nil {
 		return err
+	}
+
+	meta, _, metaErr := s.repo.GetAvatarMeta(ctx, p.UserID)
+	hasAvatar := metaErr == nil && meta.Key != ""
+	if hasAvatar {
+		if _, err := s.repo.ClearAvatar(ctx, p.UserID); err != nil {
+			s.log.Error("failed to clear avatar before delete", zap.Int64("user_id", p.UserID), zap.Error(err))
+		}
 	}
 
 	if err := s.repo.DeleteAccount(ctx, p); err != nil {
@@ -243,8 +338,175 @@ func (s *Svc) Delete(ctx context.Context, p DeleteAccountParams) error {
 		return fmt.Errorf("delete account: %w", err)
 	}
 
+	if hasAvatar && s.store != nil {
+		if err := s.store.Delete(ctx, meta.Key); err != nil {
+			s.log.Error("failed to delete avatar object after soft delete", zap.Int64("user_id", p.UserID), zap.Error(err))
+		}
+	}
+
 	s.log.Info("account deletion succeeded", zap.Int64("user_id", p.UserID))
 	return nil
+}
+
+// SetPicture validates the caller's provided image bytes are already
+// sniffed/allowlisted (see the handler layer) and stores them, replacing any
+// existing avatar. Ordering matters for crash-safety: the new object is
+// written before the DB is updated, and the old object is only removed after
+// the DB commit succeeds — so a crash can leave an orphaned file, but never a
+// users.picture URL that fails to resolve.
+//
+//nolint:revive // the write-then-commit-then-cleanup ordering is the point of this function and is clearer inline
+func (s *Svc) SetPicture(ctx context.Context, id int64, in PictureUpload) (models.User, error) {
+	if s.store == nil {
+		return models.User{}, ErrStorageUnavailable
+	}
+
+	oldMeta, _, err := s.repo.GetAvatarMeta(ctx, id)
+	if err != nil {
+		return models.User{}, fmt.Errorf("get avatar meta: %w", err)
+	}
+
+	// Re-uploading identical bytes is a no-op: skip the write and deletion churn.
+	if oldMeta.Key != "" && oldMeta.ETag == in.ETag {
+		u, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return models.User{}, fmt.Errorf("get user by id: %w", err)
+		}
+		return u, nil
+	}
+
+	newKey, err := newAvatarKey(id, in.ContentType)
+	if err != nil {
+		return models.User{}, fmt.Errorf("generate avatar key: %w", err)
+	}
+
+	if err := s.store.Put(ctx, newKey, bytes.NewReader(in.Data), storage.ObjectMeta{
+		ContentType: in.ContentType,
+		Size:        int64(len(in.Data)),
+		ETag:        in.ETag,
+	}); err != nil {
+		return models.User{}, fmt.Errorf("put avatar: %w", err)
+	}
+
+	updated, err := s.repo.SetAvatar(ctx, SetAvatarParams{
+		ID:          id,
+		Key:         newKey,
+		ContentType: in.ContentType,
+		ETag:        in.ETag,
+		Size:        int64(len(in.Data)),
+		PublicURL:   picturePublicURL(id),
+	})
+	if err != nil {
+		if delErr := s.store.Delete(ctx, newKey); delErr != nil {
+			s.log.Error("failed to clean up new avatar object after DB failure", zap.Int64("user_id", id), zap.Error(delErr))
+		}
+		return models.User{}, fmt.Errorf("set avatar: %w", err)
+	}
+
+	if oldMeta.Key != "" && oldMeta.Key != newKey {
+		if err := s.store.Delete(ctx, oldMeta.Key); err != nil {
+			s.log.Error("failed to delete replaced avatar object", zap.Int64("user_id", id), zap.Error(err))
+		}
+	}
+
+	return updated, nil
+}
+
+// DeletePicture clears the user's avatar (both the stored file, if any, and
+// an inherited OIDC picture URL). It is idempotent. The DB is cleared before
+// the object is deleted, so a crash never leaves users.picture pointing at
+// bytes that were removed.
+func (s *Svc) DeletePicture(ctx context.Context, id int64) (models.User, error) {
+	oldMeta, _, err := s.repo.GetAvatarMeta(ctx, id)
+	if err != nil {
+		return models.User{}, fmt.Errorf("get avatar meta: %w", err)
+	}
+
+	updated, err := s.repo.ClearAvatar(ctx, id)
+	if err != nil {
+		return models.User{}, fmt.Errorf("clear avatar: %w", err)
+	}
+
+	if oldMeta.Key != "" && s.store != nil {
+		if err := s.store.Delete(ctx, oldMeta.Key); err != nil {
+			s.log.Error("failed to delete avatar object", zap.Int64("user_id", id), zap.Error(err))
+		}
+	}
+
+	return updated, nil
+}
+
+// OpenPicture resolves how (and whether) to serve the user's profile
+// picture: a stored file to stream, an external URL to redirect to, or
+// ErrNoPicture. Returns ErrNotFound if the user is gone or soft-deleted.
+//
+//nolint:revive // the stored/external/none decision tree is clearer as one function than split up
+func (s *Svc) OpenPicture(ctx context.Context, id int64) (PictureResult, error) {
+	meta, pictureURL, err := s.repo.GetAvatarMeta(ctx, id)
+	if err != nil {
+		return PictureResult{}, fmt.Errorf("get avatar meta: %w", err)
+	}
+
+	if meta.Key != "" {
+		if s.store == nil {
+			return PictureResult{}, ErrStorageUnavailable
+		}
+		body, _, err := s.store.Get(ctx, meta.Key)
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				// The DB references a key the store no longer has — treat as
+				// absent rather than surfacing a 500 to the client.
+				s.log.Error("avatar key referenced in DB but missing from storage",
+					zap.Int64("user_id", id), zap.String("key", meta.Key))
+				return PictureResult{}, ErrNoPicture
+			}
+			return PictureResult{}, fmt.Errorf("open avatar: %w", err)
+		}
+		return PictureResult{Kind: PictureStored, Body: body, Meta: meta}, nil
+	}
+
+	if pictureURL != "" {
+		return PictureResult{Kind: PictureExternal, ExternalURL: pictureURL}, nil
+	}
+
+	return PictureResult{}, ErrNoPicture
+}
+
+// picturePublicURL returns the stable, server-relative URL clients should
+// use to fetch a user's profile picture, regardless of whether it is backed
+// by local storage, a future S3 backend, or (indirectly, via redirect) an
+// external OIDC provider.
+func picturePublicURL(id int64) string {
+	return fmt.Sprintf("/api/v1/users/%d/picture", id)
+}
+
+// newAvatarKey mints a fresh, collision-resistant storage key for a new
+// avatar upload. Keys are never reused across uploads (even for the same
+// user), which is what makes replacing an avatar safe: the new object is
+// written under a new key before the old one is deleted.
+func newAvatarKey(id int64, contentType string) (string, error) {
+	suffix, err := local.RandomKeySuffix(avatarKeySuffixBytes)
+	if err != nil {
+		return "", fmt.Errorf("generate avatar key suffix: %w", err)
+	}
+	shard := uint8(id % avatarKeyShardModulus) //nolint:gosec // id is always non-negative
+	return fmt.Sprintf("avatars/%02x/%d/%s.%s", shard, id, suffix, avatarExtension(contentType)), nil
+}
+
+// avatarExtension returns a human-debuggable file extension for an
+// allowlisted content type. It is never used to determine what gets served
+// back to the client — that always comes from the stored ContentType.
+func avatarExtension(contentType string) string {
+	switch contentType {
+	case "image/jpeg":
+		return "jpg"
+	case "image/png":
+		return "png"
+	case "image/webp":
+		return "webp"
+	default:
+		return "bin"
+	}
 }
 
 // VerifyEmail validates the token from the verification email and, if valid,
@@ -326,7 +588,10 @@ func (s *Svc) verificationToken(userID int64) string {
 }
 
 // changePassword verifies currentPwd against the stored hash and, if it
-// matches, replaces it with a bcrypt hash of newPwd.
+// matches, replaces it with a bcrypt hash of newPwd. This also invalidates
+// every existing session for the user (see Repository.UpdatePassword), so the
+// caller's own access token stops working once it expires and its refresh
+// token is revoked — the client must treat a successful change as a logout.
 func (s *Svc) changePassword(ctx context.Context, id int64, currentPwd, newPwd string) error {
 	hash, err := s.repo.GetHashByID(ctx, id)
 	if err != nil {
@@ -384,9 +649,9 @@ func (s *Svc) enqueueVerification(ctx context.Context, u models.User) {
 		To:             u.Email,
 		ToName:         name,
 		Payload: map[string]any{
-			"Name":            name,
-			"VerificationURL": verURL,
-			"ExpiresIn":       "24 hours",
+			payloadKeyName:      name,
+			"VerificationURL":   verURL,
+			payloadKeyExpiresIn: "24 hours",
 		},
 	})
 	if err != nil {

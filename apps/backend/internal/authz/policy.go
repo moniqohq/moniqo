@@ -36,6 +36,9 @@ const (
 	BudgetEdit
 	// BudgetDelete allows soft-deleting a budget and all its memberships.
 	BudgetDelete
+	// BudgetArchive allows archiving a budget (OWNER and ADMIN only). Archiving
+	// is one-way: there is no unarchive.
+	BudgetArchive
 	// ManageMembers allows adding, updating, and removing budget members.
 	ManageMembers
 	// TransferOwnership allows transferring the OWNER role to another member.
@@ -72,6 +75,7 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetView:        true,
 			BudgetEdit:        true,
 			BudgetDelete:      true,
+			BudgetArchive:     true,
 			ManageMembers:     true,
 			TransferOwnership: true,
 			AccountView:       true,
@@ -88,6 +92,7 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetView:        true,
 			BudgetEdit:        true,
 			BudgetDelete:      false,
+			BudgetArchive:     true,
 			ManageMembers:     false,
 			TransferOwnership: false,
 			AccountView:       true,
@@ -104,6 +109,7 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetView:        true,
 			BudgetEdit:        false,
 			BudgetDelete:      false,
+			BudgetArchive:     false,
 			ManageMembers:     false,
 			TransferOwnership: false,
 			AccountView:       true,
@@ -120,6 +126,7 @@ func policyTable() map[models.Role]rolePolicy {
 			BudgetView:        true,
 			BudgetEdit:        false,
 			BudgetDelete:      false,
+			BudgetArchive:     false,
 			ManageMembers:     false,
 			TransferOwnership: false,
 			AccountView:       true,

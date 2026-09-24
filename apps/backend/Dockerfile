@@ -35,7 +35,13 @@ WORKDIR /app
 
 COPY --from=builder /app/server .
 
-RUN chown appuser:appuser /app/server
+# /app/data is where local avatar storage (STORAGE_DRIVER=local, the
+# default) writes uploaded profile pictures; see internal/storage/local.
+# Declared as a VOLUME so it survives container recreation even if the
+# compose file's named volume mount is ever forgotten.
+RUN mkdir -p /app/data/avatars && \
+    chown -R appuser:appuser /app/data /app/server
+VOLUME ["/app/data"]
 
 USER appuser
 

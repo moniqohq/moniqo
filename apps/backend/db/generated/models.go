@@ -268,12 +268,13 @@ type Account struct {
 }
 
 type Budget struct {
-	ID        int64
-	Title     string
-	Notes     *string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID         int64
+	Title      string
+	Notes      *string
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+	ArchivedAt pgtype.Timestamptz
 }
 
 type BudgetUser struct {
@@ -283,6 +284,18 @@ type BudgetUser struct {
 	Role      BudgetRole
 	JoinedAt  pgtype.Timestamptz
 	DeletedAt pgtype.Timestamptz
+}
+
+type EmailChangeRequest struct {
+	ID           pgtype.UUID
+	UserID       int64
+	NewEmail     string
+	CodeHash     string
+	AttemptCount int32
+	ExpiresAt    pgtype.Timestamptz
+	ConsumedAt   pgtype.Timestamptz
+	FailedAt     pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
 }
 
 type EmailJob struct {
@@ -347,6 +360,7 @@ type RefreshToken struct {
 	UsedAt            pgtype.Timestamptz
 	RevokedAt         pgtype.Timestamptz
 	RevokedReason     *string
+	RememberMe        bool
 }
 
 type RevokedAccessToken struct {
@@ -388,6 +402,11 @@ type User struct {
 	Currency              *string
 	Timezone              *string
 	DateFormat            *string
+	AvatarKey             string
+	AvatarContentType     string
+	AvatarSizeBytes       int64
+	AvatarEtag            string
+	AvatarUpdatedAt       pgtype.Timestamptz
 }
 
 type UserIdentity struct {

@@ -28,7 +28,7 @@ interface UIStore {
   searchOpen: boolean;
   toggleSidebar: () => void;
   setMobileSidebar: (open: boolean) => void;
-  setActiveBudget: (id: number) => void;
+  setActiveBudget: (id: number | null) => void;
   setSearchOpen: (open: boolean) => void;
 }
 

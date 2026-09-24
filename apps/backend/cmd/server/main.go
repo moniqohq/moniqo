@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -46,7 +47,6 @@ import (
 	"github.com/moniqohq/moniqo/apps/backend/internal/account"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
-	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/apple"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/facebook"
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc/google"
 	"github.com/moniqohq/moniqo/apps/backend/internal/authz"
@@ -59,11 +59,17 @@ import (
 	appmw "github.com/moniqohq/moniqo/apps/backend/internal/middleware"
 	"github.com/moniqohq/moniqo/apps/backend/internal/onboarding"
 	"github.com/moniqohq/moniqo/apps/backend/internal/search"
+	"github.com/moniqohq/moniqo/apps/backend/internal/storage/local"
 	"github.com/moniqohq/moniqo/apps/backend/internal/transaction"
 	"github.com/moniqohq/moniqo/apps/backend/internal/user"
 )
 
 const envDevelopment = "development"
+
+// avatarPathRe matches exactly "GET /api/v1/users/{id}/picture", anchored and
+// digit-only so it cannot also match "/api/v1/users/{id}" (the full profile,
+// which must stay authenticated).
+var avatarPathRe = regexp.MustCompile(`^/api/v1/users/\d+/picture$`)
 
 func main() {
 	cfg := config.Load()
@@ -154,38 +160,42 @@ func buildServer(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger) *echo.E
 	go emailWorker.Run(workerCtx)
 
 	authRepo := auth.NewRepo(pool, log)
-	go runTokenCleanup(workerCtx, authRepo, log)
+	userRepo := user.NewRepo(pool, log)
+	go runStaleDataCleanup(workerCtx, authRepo, userRepo, log)
 
 	e.Server.RegisterOnShutdown(func() {
 		workerCancel()
 		emailWorker.Wait()
 	})
 
-	registerRoutes(e, cfg, pool, emailSvc, log)
+	registerRoutes(e, cfg, pool, emailSvc, userRepo, log)
 	return e
 }
 
-// runTokenCleanup periodically removes expired rows from revoked_access_tokens
-// and password_reset_tokens.
-func runTokenCleanup(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
+// runStaleDataCleanup periodically removes expired rows from
+// revoked_access_tokens, password_reset_tokens, and email_change_requests.
+func runStaleDataCleanup(ctx context.Context, authRepo *auth.Repo, userRepo *user.Repo, log *zap.Logger) {
 	ticker := time.NewTicker(tokenCleanupInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			cleanExpiredTokens(ctx, repo, log)
+			cleanExpiredTokens(ctx, authRepo, userRepo, log)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func cleanExpiredTokens(ctx context.Context, repo *auth.Repo, log *zap.Logger) {
-	if err := repo.DeleteExpiredRevokedTokens(ctx); err != nil {
-		log.Error("token cleanup: revoked access tokens failed", zap.Error(err))
+func cleanExpiredTokens(ctx context.Context, authRepo *auth.Repo, userRepo *user.Repo, log *zap.Logger) {
+	if err := authRepo.DeleteExpiredRevokedTokens(ctx); err != nil {
+		log.Error("cleanup: revoked access tokens failed", zap.Error(err))
 	}
-	if err := repo.DeleteExpiredPasswordResetTokens(ctx); err != nil {
-		log.Error("token cleanup: password reset tokens failed", zap.Error(err))
+	if err := authRepo.DeleteExpiredPasswordResetTokens(ctx); err != nil {
+		log.Error("cleanup: password reset tokens failed", zap.Error(err))
+	}
+	if err := userRepo.DeleteStaleEmailChangeRequests(ctx); err != nil {
+		log.Error("cleanup: email change requests failed", zap.Error(err))
 	}
 }
 
@@ -220,17 +230,24 @@ func buildEmailSubsystem(cfg config.Config, pool *pgxpool.Pool, log *zap.Logger)
 
 // publicRoute identifies a route that bypasses JWT authentication. A prefix
 // route matches any path that begins with path (used for wildcard groups like
-// the password-reset flow); otherwise path must match exactly.
+// the password-reset flow); a re route matches via regexp (used where a
+// prefix would be too broad, e.g. the avatar GET endpoint — a prefix of
+// "/api/v1/users/" would also expose the full-profile GET); otherwise path
+// must match exactly.
 type publicRoute struct {
 	method string
 	path   string
 	prefix bool
+	re     *regexp.Regexp
 }
 
 // matches reports whether the route covers the given request method and path.
 func (r publicRoute) matches(method, path string) bool {
 	if r.method != method {
 		return false
+	}
+	if r.re != nil {
+		return r.re.MatchString(path)
 	}
 	if r.prefix {
 		return strings.HasPrefix(path, r.path)
@@ -248,10 +265,13 @@ func newAuthSkipper() echomw.Skipper {
 		{method: http.MethodPost, path: "/api/v1/auth/refresh"},                       // cookie-based refresh
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset"},                // request reset
 		{method: http.MethodPost, path: "/api/v1/auth/password-reset/", prefix: true}, // confirm reset + subpaths
+		{method: http.MethodGet, path: "/api/v1/auth/password-reset/", prefix: true},  // validate reset token
 		{method: http.MethodGet, path: "/api/v1/users/verify"},                        // email verification
 		{method: http.MethodGet, path: "/api/v1/auth/login/", prefix: true},           // oidc login redirect
-		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google/facebook)
-		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (apple form_post)
+		{method: http.MethodGet, path: "/api/v1/auth/callback/", prefix: true},        // oidc callback (google)
+		{method: http.MethodPost, path: "/api/v1/auth/callback/", prefix: true},       // oidc callback (response_mode=form_post providers)
+		{method: http.MethodPost, path: "/api/v1/auth/facebook/login"},                // facebook token login, no redirect
+		{method: http.MethodGet, re: avatarPathRe},                                    // profile picture: <img> can't send Authorization
 	}
 	return func(c echo.Context) bool {
 		req := c.Request()
@@ -267,12 +287,36 @@ func newAuthSkipper() echomw.Skipper {
 	}
 }
 
-func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, log *zap.Logger) {
+// wireAvatarStorage constructs the storage.Storage backend named by
+// cfg.Driver and, on success, wires it into userSvc via the setter
+// (user.Svc.SetStorage) rather than a constructor parameter — matching the
+// pattern used by other slices' optional cross-cutting dependencies (e.g.
+// account.Svc's SetBudgetChecker). A construction failure is logged, not
+// fatal: it degrades to the picture endpoints returning 500 rather than the
+// whole server failing to start, the same philosophy as an unconfigured
+// OIDC provider.
+func wireAvatarStorage(userSvc *user.Svc, cfg config.UploadConfig, log *zap.Logger) {
+	switch cfg.Driver {
+	case "local":
+		store, err := local.New(cfg.LocalRoot, log)
+		if err != nil {
+			log.Error("failed to initialize local avatar storage; picture endpoints will return errors", zap.Error(err))
+			return
+		}
+		userSvc.SetStorage(store)
+	default:
+		log.Error("unknown STORAGE_DRIVER; picture endpoints will return errors", zap.String("driver", cfg.Driver))
+	}
+}
+
+func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSvc *email.Service, userRepo *user.Repo, log *zap.Logger) {
 	jwtSecret := []byte(cfg.JWTSecret)
 
-	userRepo := user.NewRepo(pool, log)
 	userSvc := user.NewSvc(userRepo, emailSvc, cfg.BcryptCost, cfg.APIBaseURL, jwtSecret, log)
+	userSvc.SetEmailChangePolicy(cfg.EmailChangeCodeTTL, cfg.EmailChangeLockout)
 	userHandler := user.NewHandler(userSvc, cfg.AppBaseURL, log)
+	userHandler.SetAvatarLimit(cfg.Uploads.MaxAvatarBytes)
+	wireAvatarStorage(userSvc, cfg.Uploads, log)
 
 	authRepo := auth.NewRepo(pool, log)
 	authSvc := auth.NewSvc(authRepo, jwtSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.RefreshTokenMaxAge, log)
@@ -306,18 +350,11 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	passwordResetGroup := e.Group("/api/v1/auth/password-reset")
 	passwordResetGroup.Use(appmw.PasswordResetRateLimiter())
 	passwordResetGroup.POST("", passwordResetHandler.RequestReset)
+	passwordResetGroup.GET("/validate", passwordResetHandler.ValidateToken)
 	passwordResetGroup.POST("/confirm", passwordResetHandler.ConfirmReset)
 
-	verifyGroup := e.Group("/api/v1/users")
-	verifyGroup.GET("/verify", userHandler.VerifyEmail)
-
 	registerOIDCRoutes(e, cfg, pool, authSvc, log)
-
-	usersGroup := e.Group("/api/v1/users")
-	usersGroup.GET("/:id", userHandler.GetProfile)
-	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
-	usersGroup.PATCH("/:id", userHandler.PatchProfile)
-	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
+	registerUserRoutes(e, userHandler)
 
 	registerBudgetRoutes(e, pool, log)
 	registerAccountRoutes(e, pool, log)
@@ -325,6 +362,38 @@ func registerRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, emailSv
 	registerTransactionRoutes(e, pool, log)
 	registerSearchRoutes(e, pool, log)
 	registerOnboardingRoutes(e, pool, log)
+}
+
+// registerUserRoutes wires the profile CRUD and profile-picture endpoints
+// under /api/v1/users. The avatar GET route is registered as its own group
+// (rather than under the shared usersGroup) purely so its rate limiter only
+// applies to that one unauthenticated route — see avatarPathRe in
+// newAuthSkipper for why it must be public.
+func registerUserRoutes(e *echo.Echo, userHandler *user.Handler) {
+	verifyGroup := e.Group("/api/v1/users")
+	verifyGroup.GET("/verify", userHandler.VerifyEmail)
+
+	usersGroup := e.Group("/api/v1/users")
+	usersGroup.GET("/:id", userHandler.GetProfile)
+	usersGroup.PUT("/:id", userHandler.ReplaceProfile)
+	usersGroup.PATCH("/:id", userHandler.PatchProfile)
+	usersGroup.DELETE("/:id", userHandler.DeleteProfile)
+	usersGroup.PUT("/:id/picture", userHandler.UploadPicture)
+	usersGroup.DELETE("/:id/picture", userHandler.DeletePicture)
+
+	avatarGroup := e.Group("/api/v1/users")
+	avatarGroup.Use(appmw.AvatarRateLimiter())
+	avatarGroup.GET("/:id/picture", userHandler.GetPicture)
+
+	// Verified-email-change (OTP). All four are authenticated (ownership is
+	// enforced the same way as usersGroup above), so unlike the password-reset
+	// group there is no newAuthSkipper entry.
+	emailChangeGroup := e.Group("/api/v1/users/:id/email-change")
+	emailChangeGroup.Use(appmw.EmailChangeRateLimiter())
+	emailChangeGroup.GET("", userHandler.GetEmailChangeStatus)
+	emailChangeGroup.POST("", userHandler.RequestEmailChange)
+	emailChangeGroup.POST("/verify", userHandler.VerifyEmailChange)
+	emailChangeGroup.DELETE("", userHandler.CancelEmailChange)
 }
 
 // registerOnboardingRoutes wires the onboarding domain (first-time setup
@@ -341,6 +410,7 @@ func registerOnboardingRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger)
 	onboardingGroup.PATCH("/profile", onboardingHandler.UpdateProfile)
 	onboardingGroup.PUT("/income-sources", onboardingHandler.SaveIncomeSources)
 	onboardingGroup.POST("/steps/:step/complete", onboardingHandler.CompleteStep)
+	onboardingGroup.POST("/steps/:step/back", onboardingHandler.RewindStep)
 	onboardingGroup.POST("/complete", onboardingHandler.Complete)
 }
 
@@ -351,14 +421,24 @@ func registerOnboardingRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger)
 func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, authSvc *auth.Svc, log *zap.Logger) {
 	oidcRegistry := buildOIDCRegistry(cfg, log)
 	oidcRepo := auth.NewOIDCRepo(pool, log)
-	oidcSvc := auth.NewOIDCSvc(oidcRepo, oidcRegistry, authSvc, []byte(cfg.OIDC.StateSecret), log)
+
+	var fbVerifier oidc.TokenVerifier
+	if cfg.OIDC.Facebook.ClientID != "" {
+		fbVerifier = facebook.New(facebook.Config{
+			ClientID:     cfg.OIDC.Facebook.ClientID,
+			ClientSecret: cfg.OIDC.Facebook.ClientSecret,
+		})
+	}
+
+	oidcSvc := auth.NewOIDCSvc(oidcRepo, oidcRegistry, authSvc, []byte(cfg.OIDC.StateSecret), fbVerifier, log)
 	oidcHandler := auth.NewOIDCHandler(oidcSvc, log, cfg.Env != envDevelopment, cfg.AppBaseURL)
+	facebookHandler := auth.NewFacebookHandler(oidcSvc, log, cfg.Env != envDevelopment)
 
 	oidcPublicGroup := e.Group("/api/v1/auth")
 	oidcPublicGroup.Use(appmw.LoginRateLimiter())
 	oidcPublicGroup.GET("/login/:provider", oidcHandler.LoginRedirect)
 	oidcPublicGroup.GET("/callback/:provider", oidcHandler.Callback)
-	oidcPublicGroup.POST("/callback/:provider", oidcHandler.Callback) // Apple's response_mode=form_post
+	oidcPublicGroup.POST("/callback/:provider", oidcHandler.Callback) // for providers using response_mode=form_post
 
 	oidcLinkGroup := e.Group("/api/v1/auth/link") // requires JWT — not in newAuthSkipper
 	oidcLinkGroup.POST("/:provider", oidcHandler.Link)
@@ -366,22 +446,35 @@ func registerOIDCRoutes(e *echo.Echo, cfg config.Config, pool *pgxpool.Pool, aut
 
 	oidcAuthedGroup := e.Group("/api/v1/auth") // requires JWT — not in newAuthSkipper
 	oidcAuthedGroup.GET("/identities", oidcHandler.ListIdentities)
+
+	// Facebook has no redirect flow (see internal/auth/oidc/facebook) — the
+	// browser obtains an access token via the JS SDK and POSTs it here.
+	// Login is public (added to newAuthSkipper) and rate-limited like any
+	// other public auth endpoint; Link requires JWT and is rate-limited too,
+	// since it drives an outbound Graph API call per request.
+	facebookGroup := e.Group("/api/v1/auth/facebook")
+	facebookGroup.Use(appmw.LoginRateLimiter())
+	facebookGroup.POST("/login", facebookHandler.Login)
+	facebookGroup.POST("/link", facebookHandler.Link) // requires JWT — not in newAuthSkipper
 }
 
-// anyOIDCProviderConfigured reports whether at least one OIDC provider has a
-// ClientID set, in which case OIDC_STATE_SECRET becomes a required setting.
+// anyOIDCProviderConfigured reports whether at least one redirect OIDC
+// provider has a ClientID set, in which case OIDC_STATE_SECRET becomes a
+// required setting. Facebook is excluded: its token flow has no redirect
+// and never touches the state-cookie machinery OIDC_STATE_SECRET signs.
 func anyOIDCProviderConfigured(cfg config.OIDCConfig) bool {
-	return cfg.Google.ClientID != "" || cfg.Apple.ClientID != "" || cfg.Facebook.ClientID != ""
+	return cfg.Google.ClientID != ""
 }
 
-// buildOIDCRegistry constructs the OIDC provider registry, registering only
-// providers whose ClientID is configured. A provider left unconfigured is
-// simply absent from the registry — registry.Provider(name) then returns
-// ErrUnknownProvider at request time — which is how shipping one provider
-// (e.g. Google) first and adding Apple/Facebook later works: env vars only,
-// no code changes. A provider whose discovery call fails at startup is
-// logged and skipped rather than treated as fatal — OIDC being unavailable
-// must never take down password login.
+// buildOIDCRegistry constructs the redirect OIDC provider registry,
+// registering only providers whose ClientID is configured. A provider left
+// unconfigured is simply absent from the registry — registry.Provider(name)
+// then returns ErrUnknownProvider at request time — which is how shipping
+// one provider (e.g. Google) first and adding another later works: env
+// vars only, no code changes. A provider whose discovery call fails at
+// startup is logged and skipped rather than treated as fatal — OIDC being
+// unavailable must never take down password login. Facebook is not a
+// redirect provider and is never registered here — see registerOIDCRoutes.
 func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
 	ctx := context.Background()
 	reg := oidc.NewRegistry()
@@ -397,29 +490,6 @@ func buildOIDCRegistry(cfg config.Config, log *zap.Logger) *oidc.Registry {
 		} else {
 			reg.Register(p)
 		}
-	}
-
-	if cfg.OIDC.Apple.ClientID != "" {
-		p, err := apple.New(ctx, apple.Config{
-			ClientID:    cfg.OIDC.Apple.ClientID,
-			TeamID:      cfg.OIDC.Apple.TeamID,
-			KeyID:       cfg.OIDC.Apple.KeyID,
-			PrivateKey:  cfg.OIDC.Apple.PrivateKey,
-			RedirectURL: cfg.OIDC.Apple.RedirectURL,
-		})
-		if err != nil {
-			log.Error("apple oidc provider init failed; apple login disabled", zap.Error(err))
-		} else {
-			reg.Register(p)
-		}
-	}
-
-	if cfg.OIDC.Facebook.ClientID != "" {
-		reg.Register(facebook.New(facebook.Config{
-			ClientID:     cfg.OIDC.Facebook.ClientID,
-			ClientSecret: cfg.OIDC.Facebook.ClientSecret,
-			RedirectURL:  cfg.OIDC.Facebook.RedirectURL,
-		}))
 	}
 
 	return reg
@@ -449,6 +519,8 @@ func registerBudgetRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 		budget.RequireBudgetAccess(membershipRepo, authz.BudgetEdit, log))
 	budgetsGroup.DELETE("/:id", budgetHandler.Delete,
 		budget.RequireBudgetAccess(membershipRepo, authz.BudgetDelete, log))
+	budgetsGroup.POST("/:id/archive", budgetHandler.Archive,
+		budget.RequireBudgetAccess(membershipRepo, authz.BudgetArchive, log))
 
 	// Membership routes — all require ManageMembers (OWNER only).
 	membersGroup := e.Group("/api/v1/budgets")
@@ -469,6 +541,7 @@ func registerAccountRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 
 	accountRepo := account.NewRepo(pool, log)
 	accountSvc := account.NewSvc(accountRepo, log)
+	accountSvc.SetBudgetChecker(budget.NewRepo(pool, log))
 	accountHandler := account.NewHandler(accountSvc, log)
 
 	// Account routes are nested under a budget; budget_id is the membership scope.
@@ -500,6 +573,7 @@ func registerEnvelopeRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger) {
 
 	envelopeRepo := envelope.NewRepo(pool, log)
 	envelopeSvc := envelope.NewSvc(envelopeRepo, log)
+	envelopeSvc.SetBudgetChecker(budget.NewRepo(pool, log))
 	envelopeHandler := envelope.NewHandler(envelopeSvc, log)
 
 	// Envelope routes are nested under a budget; budget_id is the membership scope.
@@ -537,6 +611,7 @@ func registerTransactionRoutes(e *echo.Echo, pool *pgxpool.Pool, log *zap.Logger
 	txnSvc := transaction.NewSvc(txnRepo, log)
 	txnSvc.SetAccountChecker(account.NewRepo(pool, log))
 	txnSvc.SetEnvelopeChecker(envelope.NewRepo(pool, log))
+	txnSvc.SetBudgetChecker(budget.NewRepo(pool, log))
 	txnHandler := transaction.NewHandler(txnSvc, log)
 
 	txnGroup := e.Group("/api/v1/budgets/:budget_id/transactions")

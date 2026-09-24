@@ -51,6 +51,11 @@ WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 DELETE FROM envelopes
 WHERE id = $1 AND budget_id = $2;
 
+-- name: SoftDeleteEnvelopesByBudget :exec
+UPDATE envelopes
+SET deleted_at = now()
+WHERE budget_id = $1 AND deleted_at IS NULL;
+
 -- name: EnvelopeExistsByTitle :one
 SELECT EXISTS (
     SELECT 1

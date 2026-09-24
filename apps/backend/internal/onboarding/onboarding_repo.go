@@ -40,6 +40,7 @@ import (
 type Repository interface {
 	GetOrCreate(ctx context.Context, userID int64) (models.OnboardingProgress, error)
 	CompleteStep(ctx context.Context, userID int64, step int16, budgetID *int64) (models.OnboardingProgress, error)
+	RewindStep(ctx context.Context, userID int64, step int16) (models.OnboardingProgress, error)
 	SaveIncomeSources(ctx context.Context, userID int64, sources []IncomeSource) (models.OnboardingProgress, error)
 	Complete(ctx context.Context, userID int64) error
 	UpdateProfile(ctx context.Context, userID int64, name *string, currency, timezone string) (models.User, error)
@@ -123,6 +124,23 @@ func (r *Repo) CompleteStep(ctx context.Context, userID int64, step int16, budge
 	if err != nil {
 		r.log.Error("CompleteOnboardingStep query failed", zap.Int64("user_id", userID), zap.Error(err))
 		return models.OnboardingProgress{}, fmt.Errorf("complete onboarding step: %w", err)
+	}
+	return toModel(row), nil
+}
+
+// RewindStep moves current_step back to step and drops any completed step
+// >= step, since the user is redoing that part of the wizard (used by the
+// wizard's Back button).
+func (r *Repo) RewindStep(ctx context.Context, userID int64, step int16) (models.OnboardingProgress, error) {
+	r.log.Debug("executing RewindOnboardingStep query", zap.Int64("user_id", userID), zap.Int16("step", step))
+	q := db.New(r.pool)
+	row, err := q.RewindOnboardingStep(ctx, db.RewindOnboardingStepParams{
+		UserID: userID,
+		Step:   step,
+	})
+	if err != nil {
+		r.log.Error("RewindOnboardingStep query failed", zap.Int64("user_id", userID), zap.Error(err))
+		return models.OnboardingProgress{}, fmt.Errorf("rewind onboarding step: %w", err)
 	}
 	return toModel(row), nil
 }

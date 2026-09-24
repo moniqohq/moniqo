@@ -30,12 +30,12 @@ SELECT EXISTS (
 ) AS revoked;
 
 -- name: InsertRefreshToken :one
-INSERT INTO refresh_tokens (family_id, user_id, token_hash, expires_at, absolute_expires_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO refresh_tokens (family_id, user_id, token_hash, expires_at, absolute_expires_at, remember_me)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id;
 
 -- name: GetRefreshTokenByHash :one
-SELECT id, family_id, user_id, token_hash, issued_at, expires_at, absolute_expires_at, used_at, revoked_at, revoked_reason
+SELECT id, family_id, user_id, token_hash, issued_at, expires_at, absolute_expires_at, used_at, revoked_at, revoked_reason, remember_me
 FROM refresh_tokens
 WHERE token_hash = $1;
 

@@ -110,7 +110,7 @@ func (m *OIDCRepository) ActivateUser(_ context.Context, userID int64) error {
 
 // OIDCService is a test double for auth.OIDCService.
 type OIDCService struct {
-	InitiateLoginFn  func(providerName string) (redirectURL, flowToken string, err error)
+	InitiateLoginFn  func(providerName, intent string) (redirectURL, flowToken string, err error)
 	InitiateLinkFn   func(providerName string, userID int64) (redirectURL, flowToken string, err error)
 	CallbackFn       func(ctx context.Context, providerName, code, stateParam, flowCookieRaw string) (auth.OIDCCallbackResult, error)
 	ListIdentitiesFn func(ctx context.Context, userID int64) ([]auth.UserIdentity, error)
@@ -118,8 +118,8 @@ type OIDCService struct {
 }
 
 // InitiateLogin delegates to InitiateLoginFn.
-func (m *OIDCService) InitiateLogin(providerName string) (redirectURL, flowToken string, err error) {
-	return m.InitiateLoginFn(providerName)
+func (m *OIDCService) InitiateLogin(providerName, intent string) (redirectURL, flowToken string, err error) {
+	return m.InitiateLoginFn(providerName, intent)
 }
 
 // InitiateLink delegates to InitiateLinkFn.
@@ -178,4 +178,34 @@ type ProviderRegistry struct {
 //nolint:ireturn // mirrors oidc.ProviderRegistry, which returns the Strategy interface by design
 func (m *ProviderRegistry) Provider(name string) (oidc.IdentityProvider, error) {
 	return m.ProviderFn(name)
+}
+
+// TokenVerifier is a test double for oidc.TokenVerifier.
+type TokenVerifier struct {
+	NameFn              func() string
+	VerifyAccessTokenFn func(ctx context.Context, accessToken string) (*oidc.Identity, error)
+}
+
+// Name delegates to NameFn.
+func (m *TokenVerifier) Name() string { return m.NameFn() }
+
+// VerifyAccessToken delegates to VerifyAccessTokenFn.
+func (m *TokenVerifier) VerifyAccessToken(ctx context.Context, accessToken string) (*oidc.Identity, error) {
+	return m.VerifyAccessTokenFn(ctx, accessToken)
+}
+
+// FacebookService is a test double for auth.FacebookService.
+type FacebookService struct {
+	LoginWithFacebookTokenFn func(ctx context.Context, accessToken, intent string) (auth.OIDCCallbackResult, error)
+	LinkFacebookTokenFn      func(ctx context.Context, userID int64, accessToken string) error
+}
+
+// LoginWithFacebookToken delegates to LoginWithFacebookTokenFn.
+func (m *FacebookService) LoginWithFacebookToken(ctx context.Context, accessToken, intent string) (auth.OIDCCallbackResult, error) {
+	return m.LoginWithFacebookTokenFn(ctx, accessToken, intent)
+}
+
+// LinkFacebookToken delegates to LinkFacebookTokenFn.
+func (m *FacebookService) LinkFacebookToken(ctx context.Context, userID int64, accessToken string) error {
+	return m.LinkFacebookTokenFn(ctx, userID, accessToken)
 }

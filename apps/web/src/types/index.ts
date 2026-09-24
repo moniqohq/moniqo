@@ -40,6 +40,7 @@ export interface Budget {
   name: string;
   notes?: string;
   createdAt: string;
+  isArchived: boolean;
 }
 
 export interface Account {

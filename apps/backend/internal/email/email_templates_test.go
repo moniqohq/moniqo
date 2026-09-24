@@ -102,4 +102,82 @@ func TestRenderTemplate(t *testing.T) {
 		_, err := renderTemplate("nonexistent", map[string]any{})
 		assert.Error(t, err)
 	})
+
+	t.Run("EmailChangeCode", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{
+			"Name":        "Carol",
+			"Code":        "483920",
+			"NewEmail":    "new@example.com",
+			"ExpiresIn":   "15 minutes",
+			"MaxAttempts": 3,
+		}
+
+		out, err := renderTemplate(TemplateEmailChangeCode, data)
+		require.NoError(t, err)
+
+		assert.Equal(t, "Confirm your new Moniqo email address", out.Subject)
+		assert.True(t, strings.Contains(out.HTMLBody, "Carol"))
+		assert.True(t, strings.Contains(out.HTMLBody, "483920"))
+		assert.True(t, strings.Contains(out.HTMLBody, "new@example.com"))
+		assert.True(t, strings.Contains(out.HTMLBody, "<!doctype html"), "HTML body should be a full HTML document")
+		assert.True(t, strings.Contains(out.TextBody, "483920"))
+		assert.True(t, strings.Contains(out.TextBody, "new@example.com"))
+	})
+
+	t.Run("EmailChangeCodeNoName", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{
+			"Name":        "",
+			"Code":        "111111",
+			"NewEmail":    "new@example.com",
+			"ExpiresIn":   "15 minutes",
+			"MaxAttempts": 3,
+		}
+
+		out, err := renderTemplate(TemplateEmailChangeCode, data)
+		require.NoError(t, err)
+		assert.False(t, strings.Contains(out.HTMLBody, ", !"), "should not render ', !' when name is empty")
+	})
+
+	t.Run("EmailChangeRequested", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{
+			"Name":         "Dave",
+			"NewEmail":     "new@example.com",
+			"ExpiresIn":    "15 minutes",
+			"SupportEmail": "support@moniqo.in",
+		}
+
+		out, err := renderTemplate(TemplateEmailChangeRequested, data)
+		require.NoError(t, err)
+
+		assert.Equal(t, "An email change was requested on your Moniqo account", out.Subject)
+		assert.True(t, strings.Contains(out.HTMLBody, "Dave"))
+		assert.True(t, strings.Contains(out.HTMLBody, "new@example.com"))
+		assert.True(t, strings.Contains(out.HTMLBody, "support@moniqo.in"))
+		assert.True(t, strings.Contains(out.TextBody, "new@example.com"))
+		assert.True(t, strings.Contains(out.TextBody, "support@moniqo.in"))
+	})
+
+	t.Run("EmailChangeCompleted", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]any{
+			"Name":         "Erin",
+			"NewEmail":     "new@example.com",
+			"SupportEmail": "support@moniqo.in",
+		}
+
+		out, err := renderTemplate(TemplateEmailChangeCompleted, data)
+		require.NoError(t, err)
+
+		assert.Equal(t, "Your Moniqo email address was changed", out.Subject)
+		assert.True(t, strings.Contains(out.HTMLBody, "Erin"))
+		assert.True(t, strings.Contains(out.HTMLBody, "new@example.com"))
+		assert.True(t, strings.Contains(out.TextBody, "new@example.com"))
+	})
 }

@@ -254,6 +254,7 @@ func TestUserService_Delete(t *testing.T) {
 		lastOwnerErr := &user.LastOwnerError{Budgets: []user.BlockingBudget{{ID: 1, Title: "Family"}}}
 		repo := &internalmock.UserRepository{}
 		repo.On("GetHashByID", testUserID).Return(string(hash), nil)
+		repo.On("GetAvatarMeta", testUserID).Return(user.AvatarMeta{}, "", nil)
 		repo.On("DeleteAccount", mock.AnythingOfType("DeleteAccountParams")).Return(lastOwnerErr)
 		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
 
@@ -268,6 +269,7 @@ func TestUserService_Delete(t *testing.T) {
 
 		repo := &internalmock.UserRepository{}
 		repo.On("GetHashByID", testUserID).Return(string(hash), nil)
+		repo.On("GetAvatarMeta", testUserID).Return(user.AvatarMeta{}, "", nil)
 		repo.On("DeleteAccount", mock.AnythingOfType("DeleteAccountParams")).Return(nil).
 			Run(func(args mock.Arguments) {
 				p, ok := args.Get(0).(user.DeleteAccountParams)

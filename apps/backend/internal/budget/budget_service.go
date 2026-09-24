@@ -38,7 +38,9 @@ type Repository interface {
 	Update(ctx context.Context, p UpdateParams) (models.Budget, error)
 	Patch(ctx context.Context, p PatchParams) (models.Budget, error)
 	SoftDeleteCascade(ctx context.Context, budgetID int64) error
+	Archive(ctx context.Context, budgetID int64) (models.Budget, error)
 	TitleExistsForUser(ctx context.Context, userID int64, title string, excludeBudgetID int64) (bool, error)
+	CountActiveBudgetsForUser(ctx context.Context, userID int64) (int64, error)
 }
 
 // Svc implements business logic for budget operations.
@@ -144,10 +146,37 @@ func (s *Svc) Patch(ctx context.Context, ownerID, budgetID int64, req PatchReque
 	return b, nil
 }
 
+// Archive marks the budget as archived. Once archived, all modifying
+// operations on the budget's accounts, envelopes, and transactions are
+// rejected; there is no way to unarchive. Idempotent — archiving an
+// already-archived budget returns it unchanged.
+func (s *Svc) Archive(ctx context.Context, budgetID int64) (models.Budget, error) {
+	s.log.Info("archiving budget", zap.Int64("budget_id", budgetID))
+
+	b, err := s.repo.Archive(ctx, budgetID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return models.Budget{}, ErrNotFound
+		}
+		return models.Budget{}, fmt.Errorf("archive budget: %w", err)
+	}
+	return b, nil
+}
+
 // SoftDelete soft-deletes the budget and its memberships. Idempotent — deleting
-// an already-deleted budget returns success.
-func (s *Svc) SoftDelete(ctx context.Context, budgetID int64) error {
+// an already-deleted budget returns success. Rejects deletion with ErrLastBudget
+// if userID would be left with no active budgets.
+func (s *Svc) SoftDelete(ctx context.Context, userID, budgetID int64) error {
 	s.log.Info("soft-deleting budget", zap.Int64("budget_id", budgetID))
+
+	count, err := s.repo.CountActiveBudgetsForUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("count active budgets: %w", err)
+	}
+	if count <= 1 {
+		return ErrLastBudget
+	}
+
 	if err := s.repo.SoftDeleteCascade(ctx, budgetID); err != nil {
 		return fmt.Errorf("soft delete budget: %w", err)
 	}

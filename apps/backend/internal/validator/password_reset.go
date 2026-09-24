@@ -54,8 +54,8 @@ type ConfirmResetInput struct {
 func ValidateConfirmReset(in ConfirmResetInput) []httpx.FieldError {
 	var errs []httpx.FieldError
 
-	if len(in.Token) != resetTokenLen || !hexRe.MatchString(in.Token) {
-		errs = append(errs, httpx.FieldError{Field: "token", Error: "must be a 64-character hex string"})
+	if fe := validateResetTokenFormat(in.Token); fe != nil {
+		errs = append(errs, *fe)
 	}
 
 	if fe := validatePasswordStrength("new_password", in.NewPassword); fe != nil {
@@ -63,4 +63,21 @@ func ValidateConfirmReset(in ConfirmResetInput) []httpx.FieldError {
 	}
 
 	return errs
+}
+
+// ValidateResetTokenParam validates the token query parameter for
+// GET /api/v1/auth/password-reset/validate.
+func ValidateResetTokenParam(token string) []httpx.FieldError {
+	var errs []httpx.FieldError
+	if fe := validateResetTokenFormat(token); fe != nil {
+		errs = append(errs, *fe)
+	}
+	return errs
+}
+
+func validateResetTokenFormat(token string) *httpx.FieldError {
+	if len(token) != resetTokenLen || !hexRe.MatchString(token) {
+		return &httpx.FieldError{Field: "token", Error: "must be a 64-character hex string"}
+	}
+	return nil
 }

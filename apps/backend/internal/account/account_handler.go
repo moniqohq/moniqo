@@ -268,6 +268,26 @@ func (h *Handler) GetAccount(c echo.Context) error {
 	return httpx.OK(c, acc, "account fetched successfully")
 }
 
+// mapAccountServiceError maps the account-service sentinel errors shared
+// across Create/Replace/Patch/Delete/Reconcile/Archive/Unarchive into their
+// HTTP response. Returns ok=false if err doesn't match any of them.
+func mapAccountServiceError(c echo.Context, err error) (ok bool, resp error) {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return true, httpx.NotFound(c, "account not found")
+	case errors.Is(err, ErrConflict):
+		return true, httpx.Conflict(c, "account name already in use")
+	case errors.Is(err, ErrForbidden):
+		return true, httpx.Forbidden(c, "insufficient role")
+	case errors.Is(err, ErrArchiveNonZeroBalance):
+		return true, httpx.ValidationError(c, []httpx.FieldError{{Field: "balance", Error: "must be zero before archiving"}})
+	case errors.Is(err, ErrBudgetArchived):
+		return true, httpx.Conflict(c, "budget is archived")
+	default:
+		return false, nil
+	}
+}
+
 // CreateAccount handles POST /api/v1/budgets/:budget_id/accounts.
 func (h *Handler) CreateAccount(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
@@ -286,8 +306,8 @@ func (h *Handler) CreateAccount(c echo.Context) error {
 
 	acc, err := h.svc.Create(c.Request().Context(), budgetID, req)
 	if err != nil {
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "account name already in use")
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Create account failed",
 			zap.Int64("budget_id", budgetID),
@@ -325,11 +345,8 @@ func (h *Handler) ReplaceAccount(c echo.Context) error {
 
 	acc, err := h.svc.Replace(c.Request().Context(), id, budgetID, req)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "account not found")
-		}
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "account name already in use")
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Replace account failed",
 			zap.Int64("account_id", id),
@@ -372,17 +389,8 @@ func (h *Handler) PatchAccount(c echo.Context) error {
 
 	acc, err := h.svc.Patch(c.Request().Context(), id, budgetID, req, membership.Role)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "account not found")
-		}
-		if errors.Is(err, ErrConflict) {
-			return httpx.Conflict(c, "account name already in use")
-		}
-		if errors.Is(err, ErrForbidden) {
-			return httpx.Forbidden(c, "insufficient role")
-		}
-		if errors.Is(err, ErrArchiveNonZeroBalance) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: "balance", Error: "must be zero before archiving"}})
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Patch account failed",
 			zap.Int64("account_id", id),
@@ -413,8 +421,8 @@ func (h *Handler) DeleteAccount(c echo.Context) error {
 	}
 
 	if err := h.svc.Delete(c.Request().Context(), id, budgetID, membership.Role); err != nil {
-		if errors.Is(err, ErrForbidden) {
-			return httpx.Forbidden(c, "insufficient role")
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Delete account failed",
 			zap.Int64("account_id", id),
@@ -441,8 +449,8 @@ func (h *Handler) ReconcileAccount(c echo.Context) error {
 
 	acc, err := h.svc.Reconcile(c.Request().Context(), id, budgetID)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "account not found")
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Reconcile account failed",
 			zap.Int64("account_id", id),
@@ -476,14 +484,8 @@ func (h *Handler) ArchiveAccount(c echo.Context) error {
 
 	acc, err := h.svc.Archive(c.Request().Context(), id, budgetID, membership.Role)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "account not found")
-		}
-		if errors.Is(err, ErrForbidden) {
-			return httpx.Forbidden(c, "insufficient role")
-		}
-		if errors.Is(err, ErrArchiveNonZeroBalance) {
-			return httpx.ValidationError(c, []httpx.FieldError{{Field: "balance", Error: "must be zero before archiving"}})
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Archive account failed",
 			zap.Int64("account_id", id),
@@ -517,11 +519,8 @@ func (h *Handler) UnarchiveAccount(c echo.Context) error {
 
 	acc, err := h.svc.Unarchive(c.Request().Context(), id, budgetID, membership.Role)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return httpx.NotFound(c, "account not found")
-		}
-		if errors.Is(err, ErrForbidden) {
-			return httpx.Forbidden(c, "insufficient role")
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
 		}
 		h.log.Error("Unarchive account failed",
 			zap.Int64("account_id", id),

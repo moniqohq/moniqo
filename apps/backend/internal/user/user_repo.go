@@ -63,6 +63,7 @@ type publicUserRow struct {
 	OnboardingCompletedAt pgtype.Timestamptz
 	LastLogin             pgtype.Timestamptz
 	CreatedAt             pgtype.Timestamptz
+	HasPassword           bool
 }
 
 // toPublicUser converts a scanned row into a public-safe model.
@@ -90,6 +91,7 @@ func toPublicUser(row publicUserRow) models.User {
 		OnboardingCompletedAt: oc,
 		LastLogin:             ll,
 		CreatedAt:             row.CreatedAt.Time,
+		HasPassword:           row.HasPassword,
 	}
 }
 
@@ -125,6 +127,7 @@ func rowToPublic(row db.CreateUserRow) models.User {
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	})
 }
 
@@ -145,6 +148,7 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (models.User, error) {
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	}), nil
 }
 
@@ -180,15 +184,63 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
 	}), nil
 }
 
-// UpdatePassword replaces the bcrypt hash for the given user.
-func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error {
-	r.log.Debug("executing UpdateUserPassword query", zap.Int64("user_id", id))
+// EmailTaken reports whether emailAddr is already in use, case-insensitively,
+// including by a soft-deleted account — this matches the scope of the
+// underlying users_email_key unique index, so a caller relying on this check
+// to avoid a doomed insert/update never gets a false negative.
+func (r *Repo) EmailTaken(ctx context.Context, emailAddr string) (bool, error) {
 	q := db.New(r.pool)
+	count, err := q.CountUsersByEmail(ctx, emailAddr)
+	if err != nil {
+		r.log.Error("CountUsersByEmail query failed", zap.Error(err))
+		return false, fmt.Errorf("count users by email: %w", err)
+	}
+	return count > 0, nil
+}
+
+// UpdatePassword replaces the bcrypt hash for the given user and, in the same
+// transaction, invalidates every existing session (access tokens issued
+// before now, and all refresh tokens) with reason "password_changed" — an
+// authenticated password change must not leave other devices signed in.
+func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error {
+	r.log.Debug("beginning password update transaction", zap.Int64("user_id", id))
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
 	if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{ID: id, Hash: &hash}); err != nil {
+		r.log.Error("UpdateUserPassword query failed", zap.Int64("user_id", id), zap.Error(err))
 		return fmt.Errorf("update user password: %w", err)
+	}
+
+	if err := q.SetTokensInvalidBefore(ctx, db.SetTokensInvalidBeforeParams{
+		ID:                  id,
+		TokensInvalidBefore: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}); err != nil {
+		r.log.Error("SetTokensInvalidBefore query failed", zap.Int64("user_id", id), zap.Error(err))
+		return fmt.Errorf("set tokens invalid before: %w", err)
+	}
+
+	reason := "password_changed"
+	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
+		UserID:        id,
+		RevokedReason: &reason,
+	}); err != nil {
+		r.log.Error("RevokeAllUserRefreshTokens query failed", zap.Int64("user_id", id), zap.Error(err))
+		return fmt.Errorf("revoke user refresh tokens: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
 }
@@ -345,6 +397,84 @@ func (r *Repo) Activate(ctx context.Context, id int64) error {
 		return fmt.Errorf("activate user: %w", err)
 	}
 	return nil
+}
+
+// GetAvatarMeta returns the stored-avatar metadata and the raw picture value
+// (which may be an external OIDC URL) for the given user.
+// Returns ErrNotFound if the user is gone or soft-deleted.
+func (r *Repo) GetAvatarMeta(ctx context.Context, id int64) (AvatarMeta, string, error) {
+	r.log.Debug("executing GetUserAvatarMeta query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	row, err := q.GetUserAvatarMeta(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return AvatarMeta{}, "", ErrNotFound
+		}
+		r.log.Error("GetUserAvatarMeta query failed", zap.Int64("user_id", id), zap.Error(err))
+		return AvatarMeta{}, "", fmt.Errorf("get user avatar meta: %w", err)
+	}
+	var updatedAt *time.Time
+	if row.AvatarUpdatedAt.Valid {
+		t := row.AvatarUpdatedAt.Time
+		updatedAt = &t
+	}
+	return AvatarMeta{
+		Key:         row.AvatarKey,
+		ContentType: row.AvatarContentType,
+		Size:        row.AvatarSizeBytes,
+		ETag:        row.AvatarEtag,
+		UpdatedAt:   updatedAt,
+	}, row.Picture, nil
+}
+
+// SetAvatar persists the given avatar metadata and points picture at
+// p.PublicURL. Returns ErrNotFound if the user is gone or soft-deleted.
+func (r *Repo) SetAvatar(ctx context.Context, p SetAvatarParams) (models.User, error) {
+	r.log.Debug("executing SetUserAvatar query", zap.Int64("user_id", p.ID))
+	q := db.New(r.pool)
+	row, err := q.SetUserAvatar(ctx, db.SetUserAvatarParams{
+		ID:                p.ID,
+		AvatarKey:         p.Key,
+		AvatarContentType: p.ContentType,
+		AvatarSizeBytes:   p.Size,
+		AvatarEtag:        p.ETag,
+		Picture:           p.PublicURL,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.User{}, ErrNotFound
+		}
+		r.log.Error("SetUserAvatar query failed", zap.Int64("user_id", p.ID), zap.Error(err))
+		return models.User{}, fmt.Errorf("set user avatar: %w", err)
+	}
+	return toPublicUser(publicUserRow{
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
+		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
+	}), nil
+}
+
+// ClearAvatar clears both the stored-avatar columns and picture. Idempotent:
+// clearing an already-empty avatar is a success.
+// Returns ErrNotFound if the user is gone or soft-deleted.
+func (r *Repo) ClearAvatar(ctx context.Context, id int64) (models.User, error) {
+	r.log.Debug("executing ClearUserAvatar query", zap.Int64("user_id", id))
+	q := db.New(r.pool)
+	row, err := q.ClearUserAvatar(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.User{}, ErrNotFound
+		}
+		r.log.Error("ClearUserAvatar query failed", zap.Int64("user_id", id), zap.Error(err))
+		return models.User{}, fmt.Errorf("clear user avatar: %w", err)
+	}
+	return toPublicUser(publicUserRow{
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
+		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
+		HasPassword: row.HasPassword,
+	}), nil
 }
 
 // insertWithTx inserts a user row within the provided transaction and returns the

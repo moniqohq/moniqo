@@ -741,6 +741,17 @@ func (q *Queries) SoftDeleteTransaction(ctx context.Context, arg SoftDeleteTrans
 	return err
 }
 
+const softDeleteTransactionsByBudget = `-- name: SoftDeleteTransactionsByBudget :exec
+UPDATE transactions
+SET deleted_at = now()
+WHERE budget_id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteTransactionsByBudget(ctx context.Context, budgetID int64) error {
+	_, err := q.db.Exec(ctx, softDeleteTransactionsByBudget, budgetID)
+	return err
+}
+
 const softDeleteTransactionsByGroupID = `-- name: SoftDeleteTransactionsByGroupID :exec
 UPDATE transactions
 SET deleted_at = now()

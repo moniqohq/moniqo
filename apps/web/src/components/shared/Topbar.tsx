@@ -33,17 +33,24 @@ import {
   Settings,
   LogOut,
   User,
+  Trash2,
+  Pencil,
+  Archive,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/use-envelopes";
 import { useAuthStore } from "@/stores/auth.store";
 import { logout as apiLogout } from "@/lib/api/auth";
-import { getInitials, formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/shared/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { Budget } from "@/types";
 import { CreateBudgetModal } from "@/components/budget/CreateBudgetModal";
+import { DeleteBudgetDialog } from "@/components/budget/DeleteBudgetDialog";
+import { EditBudgetDialog } from "@/components/budget/EditBudgetDialog";
+import { ArchiveBudgetDialog } from "@/components/budget/ArchiveBudgetDialog";
 import { isFeatureEnabled } from "@/features/feature-flags";
 
 function BudgetSwitcher({
@@ -57,6 +64,9 @@ function BudgetSwitcher({
 }) {
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
+  const [editTarget, setEditTarget] = useState<Budget | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Budget | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeBudgetId = useUIStore((s) => s.activeBudgetId);
   const setActiveBudget = useUIStore((s) => s.setActiveBudget);
@@ -105,7 +115,7 @@ function BudgetSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="absolute top-full left-0 z-50 mt-1.5 w-64 overflow-hidden rounded-xl border border-[#1A2640] bg-[#0A1120] shadow-2xl shadow-black/40"
+            className="absolute top-full left-0 z-50 mt-1.5 w-80 overflow-hidden rounded-xl border border-[#1A2640] bg-[#0A1120] shadow-2xl shadow-black/40"
           >
             <div className="px-3 pt-3 pb-2">
               <p className="text-[10px] font-semibold tracking-widest text-[#3A4A60] uppercase">
@@ -117,47 +127,92 @@ function BudgetSwitcher({
               {budgets.map((budget) => {
                 const isActive = budget.id === activeBudgetId;
                 return (
-                  <button
-                    key={budget.id}
-                    onClick={() => {
-                      setActiveBudget(budget.id);
-                      setOpen(false);
-                    }}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors",
-                      isActive
-                        ? "bg-[#6C3AED]/20 text-white"
-                        : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
-                    )}
-                  >
-                    <span
+                  <div key={budget.id} className="group relative flex items-center">
+                    <button
+                      onClick={() => {
+                        setActiveBudget(budget.id);
+                        setOpen(false);
+                      }}
                       className={cn(
-                        "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
-                        isActive ? "bg-[#6C3AED]" : "bg-[#131C2E]",
+                        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 pr-24 text-left transition-colors",
+                        isActive
+                          ? "bg-[#6C3AED]/20 text-white"
+                          : "text-[#7A8BA8] hover:bg-[#131C2E] hover:text-white",
                       )}
                     >
-                      <Wallet
-                        size={15}
-                        className={isActive ? "text-white" : "text-[#5A6A85]"}
-                        strokeWidth={1.8}
-                      />
-                    </span>
-
-                    <div className="min-w-0 flex-1">
-                      <p
+                      <span
                         className={cn(
-                          "truncate text-sm leading-tight font-medium",
-                          isActive ? "text-white" : "text-[#A8B4CC]",
+                          "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors",
+                          isActive ? "bg-[#6C3AED]" : "bg-[#131C2E]",
                         )}
                       >
-                        {budget.name}
-                      </p>
-                    </div>
+                        <Wallet
+                          size={15}
+                          className={isActive ? "text-white" : "text-[#5A6A85]"}
+                          strokeWidth={1.8}
+                        />
+                      </span>
+
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <p
+                          className={cn(
+                            "truncate text-sm leading-tight font-medium",
+                            isActive ? "text-white" : "text-[#A8B4CC]",
+                          )}
+                        >
+                          {budget.name}
+                        </p>
+                        {budget.isArchived && (
+                          <span className="flex-shrink-0 rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#F59E0B] uppercase">
+                            Archived
+                          </span>
+                        )}
+                      </div>
+                    </button>
 
                     {isActive && (
-                      <Check size={14} className="flex-shrink-0 text-[#7C5AFF]" strokeWidth={2.5} />
+                      <Check
+                        size={14}
+                        className="pointer-events-none absolute right-3 flex-shrink-0 text-[#7C5AFF] transition-opacity group-hover:opacity-0"
+                        strokeWidth={2.5}
+                      />
                     )}
-                  </button>
+
+                    <div className="absolute right-1.5 flex items-center gap-0.5 opacity-0 transition-all group-focus-within:opacity-100 group-hover:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditTarget(budget);
+                        }}
+                        title="Edit budget"
+                        className="flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] transition-colors hover:bg-[#6C3AED]/15 hover:text-[#8B6CFF] focus:outline-none"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      {!budget.isArchived && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setArchiveTarget(budget);
+                          }}
+                          title="Archive budget"
+                          className="flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] transition-colors hover:bg-[#F59E0B]/15 hover:text-[#F59E0B] focus:outline-none"
+                        >
+                          <Archive size={14} />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(budget);
+                        }}
+                        title="Delete budget"
+                        className="flex-shrink-0 rounded-lg p-1.5 text-[#5A6A85] transition-colors hover:bg-[#EF4444]/15 hover:text-[#EF4444] focus:outline-none"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -186,6 +241,50 @@ function BudgetSwitcher({
         onClose={() => setCreateOpen(false)}
         onCreated={onBudgetCreated}
       />
+
+      {deleteTarget && (
+        <DeleteBudgetDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => {
+            if (!o) setDeleteTarget(null);
+          }}
+          budget={deleteTarget}
+          isOnlyBudget={budgets.length <= 1}
+          onDeleted={(deletedId) => {
+            if (deletedId === activeBudgetId) {
+              const next = budgets.find((b) => b.id !== deletedId);
+              setActiveBudget(next?.id ?? null);
+            }
+            onBudgetCreated();
+          }}
+        />
+      )}
+
+      {editTarget && (
+        <EditBudgetDialog
+          open={!!editTarget}
+          onOpenChange={(o) => {
+            if (!o) setEditTarget(null);
+          }}
+          budget={editTarget}
+          onSaved={() => {
+            onBudgetCreated();
+          }}
+        />
+      )}
+
+      {archiveTarget && (
+        <ArchiveBudgetDialog
+          open={!!archiveTarget}
+          onOpenChange={(o) => {
+            if (!o) setArchiveTarget(null);
+          }}
+          budget={archiveTarget}
+          onArchived={() => {
+            onBudgetCreated();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -221,9 +320,7 @@ function UserMenu() {
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2.5 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-[#131C2E] focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
       >
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
-          {getInitials(user?.name ?? user?.username ?? "")}
-        </div>
+        <UserAvatar user={user} size={36} className="text-[13px]" />
         <div className="hidden text-left sm:block">
           <div className="text-[15px] leading-tight font-medium text-white">
             {user?.name ?? user?.username ?? ""}
@@ -250,9 +347,7 @@ function UserMenu() {
           >
             {/* User info header */}
             <div className="flex items-center gap-3 px-3 py-3">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#6C3AED] to-[#4F46E5] text-[13px] font-bold text-white">
-                {getInitials(user?.name ?? user?.username ?? "")}
-              </div>
+              <UserAvatar user={user} size={36} className="text-[13px]" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">
                   {user?.name ?? user?.username ?? ""}

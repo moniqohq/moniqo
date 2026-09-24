@@ -19,13 +19,15 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { StepCard } from "@/components/onboarding/StepCard";
-import { createEnvelope } from "@/lib/api/envelopes";
+import { createEnvelope, deleteEnvelope, listEnvelopes } from "@/lib/api/envelopes";
+import type { ApiEnvelope } from "@/lib/api/types";
 import { completeOnboardingStep } from "@/lib/api/onboarding";
 import { useOnboardingStore } from "@/stores/onboarding.store";
+import { goToOnboardingStep } from "@/lib/onboarding/navigation";
 import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_GROUPS } from "@/lib/onboarding/default-categories";
 
 export function StepCategories() {
@@ -35,8 +37,32 @@ export function StepCategories() {
   const [accepted, setAccepted] = useState<Set<string>>(
     () => new Set(DEFAULT_CATEGORIES.map((c) => c.title)),
   );
+  const [existing, setExisting] = useState<ApiEnvelope[]>([]);
+  const [loaded, setLoaded] = useState(() => !budgetId);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!budgetId) return;
+    let cancelled = false;
+    listEnvelopes(budgetId, "active")
+      .then((envelopes) => {
+        if (cancelled) return;
+        setExisting(envelopes);
+        if (envelopes.length > 0) {
+          setAccepted(new Set(envelopes.map((e) => e.title)));
+        }
+      })
+      .catch(() => {
+        // No prior envelopes to reconcile against — proceed with defaults.
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [budgetId]);
 
   function toggle(title: string) {
     setAccepted((prev) => {
@@ -55,13 +81,22 @@ export function StepCategories() {
     setSubmitError(null);
     setSubmitting(true);
     try {
+      const existingByTitle = new Map(existing.map((e) => [e.title, e]));
       const chosen = DEFAULT_CATEGORIES.filter((c) => accepted.has(c.title));
+      const chosenTitles = new Set(chosen.map((c) => c.title));
+
       for (const category of chosen) {
+        if (existingByTitle.has(category.title)) continue;
         await createEnvelope(budgetId, {
           title: category.title,
           allocated_amt: 0,
           description: category.description,
         });
+      }
+      for (const envelope of existing) {
+        if (!chosenTitles.has(envelope.title)) {
+          await deleteEnvelope(budgetId, envelope.id);
+        }
       }
       await completeOnboardingStep(5);
       markStepComplete(5);
@@ -77,11 +112,11 @@ export function StepCategories() {
     <StepCard
       title="Create your categories"
       description="Accept the defaults or uncheck anything you don't need — you can add more later."
-      onBack={() => router.push("/onboarding/4")}
+      onBack={() => goToOnboardingStep(router, 4)}
       onNext={handleNext}
       submitting={submitting}
       error={submitError}
-      nextDisabled={accepted.size === 0}
+      nextDisabled={accepted.size === 0 || !loaded}
     >
       <div className="max-h-96 space-y-5 overflow-y-auto pr-1">
         {DEFAULT_CATEGORY_GROUPS.map((group) => (

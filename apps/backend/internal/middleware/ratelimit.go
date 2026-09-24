@@ -33,9 +33,13 @@ const (
 	authRatePerMin         = 10.0
 	authBurst              = 10
 	secondsPerMin          = 60
-	passwordResetRate15Min = 5.0
+	passwordResetRate15Min = 15.0
 	passwordReset15Min     = 15 * 60.0 // 15 minutes in seconds
-	passwordResetBurst     = 5
+	passwordResetBurst     = 15
+	avatarRatePerMin       = 120.0
+	avatarBurst            = 120
+	emailChangeRate15Min   = 20.0
+	emailChangeBurst       = 20
 )
 
 // RegisterRateLimiter returns a rate limiter middleware scoped to the registration
@@ -51,9 +55,29 @@ func LoginRateLimiter() echo.MiddlewareFunc {
 }
 
 // PasswordResetRateLimiter returns a rate limiter middleware scoped to the
-// password reset endpoints: 5 requests per IP per 15 minutes.
+// password reset endpoints: 15 requests per IP per 15 minutes.
 func PasswordResetRateLimiter() echo.MiddlewareFunc {
 	return newIPRateLimiter(passwordResetRate15Min/passwordReset15Min, passwordResetBurst)
+}
+
+// AvatarRateLimiter returns a rate limiter middleware scoped to the profile
+// picture GET endpoint: 120 requests per IP per minute. This is the only
+// unauthenticated read endpoint in the API (an <img> tag cannot attach an
+// Authorization header), so it is the one most exposed to scraping/abuse via
+// user-id enumeration.
+func AvatarRateLimiter() echo.MiddlewareFunc {
+	return newIPRateLimiter(avatarRatePerMin/secondsPerMin, avatarBurst)
+}
+
+// EmailChangeRateLimiter returns a rate limiter middleware scoped to the
+// verified-email-change endpoints: 20 requests per IP per 15 minutes.
+// Generous enough for a shared-NAT household working through one attempt
+// (a request, up to three verifies, and a cancel), tight enough to slow
+// distributed OTP guessing across many accounts — the per-user attempt cap
+// and lockout in user.Svc are the primary defense against guessing a single
+// account's code.
+func EmailChangeRateLimiter() echo.MiddlewareFunc {
+	return newIPRateLimiter(emailChangeRate15Min/passwordReset15Min, emailChangeBurst)
 }
 
 func newIPRateLimiter(r float64, burst int) echo.MiddlewareFunc {

@@ -161,6 +161,48 @@ func TestSvc_Create(t *testing.T) {
 		assert.Equal(t, money.FromMinorUnits(100000), txn.Amount)
 		repo.AssertExpectations(t)
 	})
+
+	t.Run("income without envelope succeeds", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", transaction.CreateParams{
+			BudgetID:  testBudgetID,
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+			Status:    models.TransactionStatusUncleared,
+		}).Return(makeTxn(150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(150000), txn.Amount)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("rejects when budget is archived", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		budgetChecker := &internalmock.BudgetChecker{}
+		budgetChecker.On("IsArchived", testBudgetID).Return(true, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		svc.SetBudgetChecker(budgetChecker)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrBudgetArchived)
+		repo.AssertNotCalled(t, "Create")
+		budgetChecker.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------

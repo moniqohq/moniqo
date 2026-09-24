@@ -43,6 +43,11 @@ const (
 	invalidJSONMsg   = "invalid json"
 )
 
+// bearerTokenType is the "token_type" value returned alongside every access
+// token, regardless of how the session was established (password, OIDC
+// redirect, or Facebook token login).
+const bearerTokenType = "Bearer"
+
 // Service is the service contract required by Handler.
 type Service interface {
 	Login(ctx context.Context, req LoginRequest) (LoginResult, error)
@@ -97,7 +102,7 @@ func (h *Handler) Login(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
-	h.setRefreshCookie(c, result.RefreshToken, result.RefreshTokenExpiresAt)
+	h.setRefreshCookie(c, result.RefreshToken, result.RefreshTokenExpiresAt, result.RememberMe)
 
 	h.log.Info("login request completed", zap.String("email", req.Email))
 	return httpx.OK(c, LoginResponseData{
@@ -129,7 +134,7 @@ func (h *Handler) Refresh(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
-	h.setRefreshCookie(c, result.Refresh.RawToken, result.Refresh.ExpiresAt)
+	h.setRefreshCookie(c, result.Refresh.RawToken, result.Refresh.ExpiresAt, result.Refresh.RememberMe)
 
 	h.log.Debug("token refresh completed")
 	return httpx.OK(c, RefreshResponseData{
@@ -141,6 +146,7 @@ func (h *Handler) Refresh(c echo.Context) error {
 // PasswordResetService is the service contract required by PasswordResetHandler.
 type PasswordResetService interface {
 	RequestReset(ctx context.Context, req RequestResetRequest) error
+	ValidateResetToken(ctx context.Context, token string) error
 	ConfirmReset(ctx context.Context, req ConfirmResetRequest) error
 }
 
@@ -175,6 +181,30 @@ func (h *PasswordResetHandler) RequestReset(c echo.Context) error {
 	}
 
 	return httpx.OK(c, nil, "if an account with that email exists, a reset link has been sent")
+}
+
+// ValidateToken handles GET /api/v1/auth/password-reset/validate.
+// It reports whether the token in the query string currently resolves to an
+// active reset token, without consuming it. Intended to be called when the
+// reset-password form loads, before the user submits a new password.
+func (h *PasswordResetHandler) ValidateToken(c echo.Context) error {
+	h.log.Debug("received password reset token validation request")
+
+	token := c.QueryParam("token")
+	if errs := validator.ValidateResetTokenParam(token); len(errs) > 0 {
+		return httpx.ValidationError(c, errs)
+	}
+
+	err := h.svc.ValidateResetToken(c.Request().Context(), token)
+	if errors.Is(err, ErrInvalidResetToken) {
+		return httpx.Unauthorized(c, "unauthorized")
+	}
+	if err != nil {
+		h.log.Error("password reset token validation failed", zap.Error(err))
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, nil, "reset token is valid")
 }
 
 // ConfirmReset handles POST /api/v1/auth/password-reset/confirm.
@@ -246,7 +276,17 @@ func (h *Handler) Logout(c echo.Context) error {
 	return httpx.OK(c, nil, "logged out successfully")
 }
 
-func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time) {
+// setRefreshCookie sets the refresh cookie. When rememberMe is false, the
+// cookie is issued without Max-Age so browsers treat it as a session cookie
+// and discard it on close, even though the underlying token still carries its
+// normal server-side expiry.
+//
+//nolint:revive // rememberMe toggles one cookie attribute; splitting would duplicate the cookie struct
+func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Time, rememberMe bool) {
+	maxAge := 0
+	if rememberMe {
+		maxAge = int(time.Until(expiresAt).Seconds())
+	}
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is configurable; HttpOnly and SameSite are always set
 		Name:     refreshCookieName,
 		Value:    raw,
@@ -254,7 +294,7 @@ func (h *Handler) setRefreshCookie(c echo.Context, raw string, expiresAt time.Ti
 		Secure:   h.secureCookie,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
+		MaxAge:   maxAge,
 	})
 }
 

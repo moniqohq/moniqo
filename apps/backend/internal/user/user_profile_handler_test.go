@@ -235,6 +235,16 @@ func TestHandler_ReplaceProfile(t *testing.T) {
 			wantMsg:     "validation failed",
 		},
 		{
+			name:        "non-empty picture returns 400",
+			pathID:      "7",
+			authedAs:    testUserID,
+			body:        `{"username":"saqibtest","email":"saqib@example.com","picture":"https://cdn.moniqo.app/avatar.png"}`,
+			svc:         &mock.UserService{},
+			wantStatus:  http.StatusBadRequest,
+			wantSuccess: false,
+			wantMsg:     "validation failed",
+		},
+		{
 			name:     "conflict returns 409",
 			pathID:   "7",
 			authedAs: testUserID,
@@ -398,17 +408,28 @@ func TestHandler_PatchProfile(t *testing.T) {
 			name:     "partial update succeeds",
 			pathID:   "7",
 			authedAs: testUserID,
-			body:     `{"picture":"https://cdn.moniqo.app/new.png"}`,
+			body:     `{"name":"New Name"}`,
 			svc: &mock.UserService{
 				PatchProfileFn: func(_ context.Context, _ int64, _ user.PatchProfileRequest) (models.User, error) {
 					u := profileUser()
-					u.Picture = "https://cdn.moniqo.app/new.png"
+					name := "New Name"
+					u.Name = &name
 					return u, nil
 				},
 			},
 			wantStatus:  http.StatusOK,
 			wantSuccess: true,
 			wantMsg:     "user updated successfully",
+		},
+		{
+			name:        "picture in body is rejected as read-only",
+			pathID:      "7",
+			authedAs:    testUserID,
+			body:        `{"picture":"https://cdn.moniqo.app/new.png"}`,
+			svc:         &mock.UserService{},
+			wantStatus:  http.StatusBadRequest,
+			wantSuccess: false,
+			wantMsg:     "validation failed",
 		},
 		{
 			name:     "password change succeeds",

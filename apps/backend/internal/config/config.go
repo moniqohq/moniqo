@@ -38,9 +38,15 @@ const (
 	defaultRefreshTokenTTL             = 168 * time.Hour // 7d
 	defaultRefreshTokenMaxAge          = 720 * time.Hour // 30d
 	defaultPasswordResetTokenTTL       = time.Hour
+	defaultEmailChangeCodeTTL          = 15 * time.Minute
+	defaultEmailChangeLockout          = 30 * time.Minute
 	defaultWorkerInterval              = 5 * time.Second
 	defaultWorkerBatch           int32 = 10
 	defaultBaseBackoff                 = 30 * time.Second
+
+	defaultStorageDriver    = "local"
+	defaultStorageLocalRoot = "/app/data"
+	defaultAvatarMaxBytes   = 2 << 20 // 2MB
 )
 
 // Config holds all runtime settings for the backend server.
@@ -55,21 +61,37 @@ type Config struct {
 	RefreshTokenTTL       time.Duration
 	RefreshTokenMaxAge    time.Duration
 	PasswordResetTokenTTL time.Duration
-	AppBaseURL            string   // frontend base URL (APP_BASE_URL)
-	APIBaseURL            string   // backend self URL for building API links (API_BASE_URL)
-	CORSOrigins           []string // CORS_ORIGINS comma-separated; defaults to AppBaseURL
+	EmailChangeCodeTTL    time.Duration // EMAIL_CHANGE_CODE_TTL, default 15m
+	EmailChangeLockout    time.Duration // EMAIL_CHANGE_LOCKOUT, default 30m
+	AppBaseURL            string        // frontend base URL (APP_BASE_URL)
+	APIBaseURL            string        // backend self URL for building API links (API_BASE_URL)
+	CORSOrigins           []string      // CORS_ORIGINS comma-separated; defaults to AppBaseURL
 	Email                 EmailConfig
 	OIDC                  OIDCConfig
+	Uploads               UploadConfig
+}
+
+// UploadConfig groups settings for binary file uploads (currently only user
+// avatars). Driver selects the storage.Storage implementation wired up in
+// cmd/server/main.go; adding an "s3" driver later is a config change plus a
+// new internal/storage/s3 package, not a database migration, because
+// users.picture stores a stable API URL rather than a filesystem path.
+type UploadConfig struct {
+	Driver         string // STORAGE_DRIVER, default "local"
+	LocalRoot      string // STORAGE_LOCAL_ROOT, default "/app/data"
+	MaxAvatarBytes int64  // AVATAR_MAX_BYTES, default 2MB
 }
 
 // OIDCConfig groups OpenID Connect third-party login settings. Each provider
 // sub-struct is independent; a provider with an empty ClientID is simply not
-// registered at startup, so shipping Google first and adding Apple/Facebook
-// later requires only setting their env vars — no code changes.
+// registered at startup, so shipping Google first and adding another
+// provider later requires only setting their env vars — no code changes.
+// Facebook is not an OIDC redirect provider (see internal/auth/oidc/facebook)
+// but its app credentials live here too since they're still "third-party
+// login config".
 type OIDCConfig struct {
 	StateSecret string // OIDC_STATE_SECRET — HMAC key signing the OIDC flow cookie
 	Google      GoogleOIDCConfig
-	Apple       AppleOIDCConfig
 	Facebook    FacebookOIDCConfig
 }
 
@@ -80,20 +102,13 @@ type GoogleOIDCConfig struct {
 	RedirectURL  string // OIDC_GOOGLE_REDIRECT_URL
 }
 
-// AppleOIDCConfig holds Sign in with Apple client settings.
-type AppleOIDCConfig struct {
-	ClientID    string // OIDC_APPLE_CLIENT_ID — the Services ID
-	TeamID      string // OIDC_APPLE_TEAM_ID
-	KeyID       string // OIDC_APPLE_KEY_ID
-	PrivateKey  string // OIDC_APPLE_PRIVATE_KEY — PEM-encoded EC private key content
-	RedirectURL string // OIDC_APPLE_REDIRECT_URL
-}
-
-// FacebookOIDCConfig holds Facebook OAuth client settings.
+// FacebookOIDCConfig holds Facebook app credentials. There is no
+// RedirectURL: Facebook login goes through the client-side JS SDK
+// (FB.login()), not a server redirect, so there is nothing to register one
+// for.
 type FacebookOIDCConfig struct {
-	ClientID     string // OIDC_FACEBOOK_CLIENT_ID
-	ClientSecret string // OIDC_FACEBOOK_CLIENT_SECRET
-	RedirectURL  string // OIDC_FACEBOOK_REDIRECT_URL
+	ClientID     string // OIDC_FACEBOOK_CLIENT_ID — the Facebook App ID
+	ClientSecret string // OIDC_FACEBOOK_CLIENT_SECRET — the Facebook App Secret
 }
 
 // EmailConfig groups all email-related settings.
@@ -136,11 +151,23 @@ func Load() Config {
 		RefreshTokenTTL:       envDuration("REFRESH_TOKEN_TTL", defaultRefreshTokenTTL),
 		RefreshTokenMaxAge:    envDuration("REFRESH_TOKEN_MAX_AGE", defaultRefreshTokenMaxAge),
 		PasswordResetTokenTTL: envDuration("PASSWORD_RESET_TOKEN_TTL", defaultPasswordResetTokenTTL),
+		EmailChangeCodeTTL:    envDuration("EMAIL_CHANGE_CODE_TTL", defaultEmailChangeCodeTTL),
+		EmailChangeLockout:    envDuration("EMAIL_CHANGE_LOCKOUT", defaultEmailChangeLockout),
 		AppBaseURL:            envOrDefault("APP_BASE_URL", "http://localhost:3000"),
 		APIBaseURL:            envOrDefault("API_BASE_URL", "http://localhost:8080"),
 		CORSOrigins:           corsOrigins(envOrDefault("APP_BASE_URL", "http://localhost:3000")),
 		Email:                 loadEmailConfig(env),
 		OIDC:                  loadOIDCConfig(),
+		Uploads:               loadUploadConfig(),
+	}
+}
+
+// loadUploadConfig reads binary-upload settings from the environment.
+func loadUploadConfig() UploadConfig {
+	return UploadConfig{
+		Driver:         envOrDefault("STORAGE_DRIVER", defaultStorageDriver),
+		LocalRoot:      envOrDefault("STORAGE_LOCAL_ROOT", defaultStorageLocalRoot),
+		MaxAvatarBytes: envInt64("AVATAR_MAX_BYTES", defaultAvatarMaxBytes),
 	}
 }
 
@@ -156,17 +183,9 @@ func loadOIDCConfig() OIDCConfig {
 			ClientSecret: os.Getenv("OIDC_GOOGLE_CLIENT_SECRET"),
 			RedirectURL:  os.Getenv("OIDC_GOOGLE_REDIRECT_URL"),
 		},
-		Apple: AppleOIDCConfig{
-			ClientID:    os.Getenv("OIDC_APPLE_CLIENT_ID"),
-			TeamID:      os.Getenv("OIDC_APPLE_TEAM_ID"),
-			KeyID:       os.Getenv("OIDC_APPLE_KEY_ID"),
-			PrivateKey:  os.Getenv("OIDC_APPLE_PRIVATE_KEY"),
-			RedirectURL: os.Getenv("OIDC_APPLE_REDIRECT_URL"),
-		},
 		Facebook: FacebookOIDCConfig{
 			ClientID:     os.Getenv("OIDC_FACEBOOK_CLIENT_ID"),
 			ClientSecret: os.Getenv("OIDC_FACEBOOK_CLIENT_SECRET"),
-			RedirectURL:  os.Getenv("OIDC_FACEBOOK_REDIRECT_URL"),
 		},
 	}
 }
@@ -235,6 +254,17 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	if n, err := strconv.Atoi(v); err == nil && n > 0 {
+		return n
+	}
+	return fallback
+}
+
+func envInt64(key string, fallback int64) int64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
 		return n
 	}
 	return fallback

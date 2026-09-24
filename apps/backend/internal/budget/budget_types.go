@@ -41,6 +41,9 @@ var ErrBudgetAlreadyExists = errors.New("budget with that title already exists")
 // ErrConflict is returned when a duplicate title is found on update.
 var ErrConflict = errors.New("budget title already in use")
 
+// ErrLastBudget is returned when deleting would leave the user with no budgets.
+var ErrLastBudget = errors.New("at least one budget is required; create a new budget before deleting this one")
+
 // ErrMembershipNotFound is returned when a (budget_id, user_id) membership cannot be found.
 var ErrMembershipNotFound = errors.New("membership not found")
 

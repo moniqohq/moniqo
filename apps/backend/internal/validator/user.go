@@ -21,7 +21,9 @@
 package validator
 
 import (
+	"fmt"
 	"net/mail"
+	"net/url"
 	"regexp"
 	"unicode"
 	"unicode/utf8"
@@ -32,14 +34,55 @@ import (
 // usernameRe enforces: starts with a letter, followed by alphanumeric chars, with
 // optional single - or _ separators between alphanumeric segments.
 const (
-	fieldEmail     = "email"
-	minPasswordLen = 8
-	maxPasswordLen = 72
-	maxEmailLen    = 254
-	maxNameLen     = 100
+	fieldEmail       = "email"
+	fieldPicture     = "picture"
+	minPasswordLen   = 8
+	maxPasswordLen   = 72
+	maxEmailLen      = 254
+	maxNameLen       = 100
+	maxPictureURLLen = 2048
+
+	errPictureReadOnly = "read-only; upload via PUT /api/v1/users/{id}/picture"
+	errEmailReadOnly   = "read-only; change via POST /api/v1/users/{id}/email-change"
+
+	fieldNewEmail        = "new_email"
+	fieldCurrentPassword = "current_password"
+	fieldCode            = "code"
+	otpCodeLen           = 6
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)
+
+// mintedPictureRe matches the exact server-minted relative avatar URL
+// ("/api/v1/users/{id}/picture"), the only non-empty form of `picture` a
+// client should ever see or round-trip.
+var mintedPictureRe = regexp.MustCompile(`^/api/v1/users/\d+/picture$`)
+
+// ValidatePictureURL reports whether picture is safe to store and later
+// serve — either directly in an <img>, or (for the avatar GET endpoint) as
+// the target of a server-side redirect. It accepts:
+//   - "" (no picture)
+//   - the exact minted relative avatar URL
+//   - an absolute https:// URL with a non-empty host, no embedded userinfo,
+//     and a bounded length
+//
+// This is what makes the avatar GET endpoint's redirect-to-external-picture
+// behavior provably not an open redirect: nothing else can ever reach
+// users.picture. It rejects javascript:, data:, and other script-capable or
+// scheme-confusable values.
+func ValidatePictureURL(picture string) *httpx.FieldError {
+	if picture == "" || mintedPictureRe.MatchString(picture) {
+		return nil
+	}
+	if len(picture) > maxPictureURLLen {
+		return &httpx.FieldError{Field: fieldPicture, Error: "must not exceed 2048 characters"}
+	}
+	u, err := url.Parse(picture)
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
+		return &httpx.FieldError{Field: fieldPicture, Error: "must be a valid https URL"}
+	}
+	return nil
+}
 
 func validateUsername(username string) *httpx.FieldError {
 	ulen := utf8.RuneCountInString(username)
@@ -176,6 +219,10 @@ type ReplaceProfileInput struct {
 }
 
 // ValidateReplaceProfile aggregates all field-level failures in a single pass.
+// picture is server-managed and read-only over this endpoint: an empty
+// string is accepted (so a round-trip PUT of the current profile still
+// works), but any non-empty value is rejected — clients must use
+// PUT /api/v1/users/{id}/picture instead.
 func ValidateReplaceProfile(in ReplaceProfileInput) []httpx.FieldError {
 	var errs []httpx.FieldError
 
@@ -203,6 +250,10 @@ func ValidateReplaceProfile(in ReplaceProfileInput) []httpx.FieldError {
 		errs = append(errs, *fe)
 	}
 
+	if in.Picture != "" {
+		errs = append(errs, httpx.FieldError{Field: fieldPicture, Error: errPictureReadOnly})
+	}
+
 	return errs
 }
 
@@ -222,17 +273,16 @@ type PatchProfileInput struct {
 
 func validatePatchProfileFields(in PatchProfileInput) []httpx.FieldError {
 	var errs []httpx.FieldError
-	if in.Username != nil {
-		if fe := validateUsername(*in.Username); fe != nil {
-			errs = append(errs, *fe)
-		}
+	if fe := validatePatchUsername(in.Username); fe != nil {
+		errs = append(errs, *fe)
 	}
-	if in.Email != nil {
-		if fe := validateEmail(*in.Email); fe != nil {
-			errs = append(errs, *fe)
-		}
+	if fe := validatePatchEmail(in.Email); fe != nil {
+		errs = append(errs, *fe)
 	}
 	if fe := validateName(in.Name); fe != nil {
+		errs = append(errs, *fe)
+	}
+	if fe := validatePatchPicture(in.Picture); fe != nil {
 		errs = append(errs, *fe)
 	}
 	return append(errs, validatePatchPreferenceFields(in)...)
@@ -254,6 +304,34 @@ func validatePatchPreferenceFields(in PatchProfileInput) []httpx.FieldError {
 		errs = append(errs, *fe)
 	}
 	return errs
+}
+
+func validatePatchUsername(username *string) *httpx.FieldError {
+	if username == nil {
+		return nil
+	}
+	return validateUsername(*username)
+}
+
+// validatePatchEmail rejects a non-nil email on PATCH: email is read-only
+// over this endpoint, an exact mirror of validatePatchPicture below. Clients
+// must use the OTP-verified POST /api/v1/users/{id}/email-change flow instead.
+func validatePatchEmail(email *string) *httpx.FieldError {
+	if email == nil {
+		return nil
+	}
+	return &httpx.FieldError{Field: fieldEmail, Error: errEmailReadOnly}
+}
+
+// validatePatchPicture rejects a non-nil picture on PATCH: picture is
+// server-managed and read-only over this endpoint, whether or not the
+// supplied value matches the current one. Clients must use
+// PUT /api/v1/users/{id}/picture instead.
+func validatePatchPicture(picture *string) *httpx.FieldError {
+	if picture == nil {
+		return nil
+	}
+	return &httpx.FieldError{Field: fieldPicture, Error: errPictureReadOnly}
 }
 
 func validatePatchPasswordFields(in PatchProfileInput) []httpx.FieldError {
@@ -300,6 +378,47 @@ func ValidateDeleteAccount(in DeleteAccountInput) []httpx.FieldError {
 	}
 	if fe := validatePassword("current_password", *in.CurrentPassword); fe != nil {
 		return []httpx.FieldError{*fe}
+	}
+	return nil
+}
+
+// -----------------------------------------------------------------------------
+// Verified email change (OTP)
+// -----------------------------------------------------------------------------
+
+// RequestEmailChangeInput holds the fields for
+// POST /api/v1/users/{id}/email-change.
+type RequestEmailChangeInput struct {
+	NewEmail        string
+	CurrentPassword *string
+}
+
+// ValidateRequestEmailChange checks new_email format. current_password
+// format isn't checked here — whether it's required at all depends on
+// whether the account has a password credential, which the validator can't
+// see; the service returns ErrWrongPassword (403) if it was required and
+// missing or wrong.
+func ValidateRequestEmailChange(in RequestEmailChangeInput) []httpx.FieldError {
+	var errs []httpx.FieldError
+	if fe := validateEmail(in.NewEmail); fe != nil {
+		errs = append(errs, httpx.FieldError{Field: fieldNewEmail, Error: fe.Error})
+	}
+	if in.CurrentPassword != nil && *in.CurrentPassword == "" {
+		errs = append(errs, httpx.FieldError{Field: fieldCurrentPassword, Error: "must not be empty if provided"})
+	}
+	return errs
+}
+
+// otpCodeRe matches exactly 6 ASCII digits.
+var otpCodeRe = regexp.MustCompile(`^[0-9]{6}$`)
+
+// ValidateVerifyEmailChange checks that code is exactly 6 ASCII digits.
+func ValidateVerifyEmailChange(code string) []httpx.FieldError {
+	if code == "" {
+		return []httpx.FieldError{{Field: fieldCode, Error: errRequired}}
+	}
+	if !otpCodeRe.MatchString(code) {
+		return []httpx.FieldError{{Field: fieldCode, Error: fmt.Sprintf("must be exactly %d digits", otpCodeLen)}}
 	}
 	return nil
 }

@@ -31,6 +31,8 @@ export type ApiBudget = {
   title: string;
   notes: string | null;
   created_at: string;
+  is_archived: boolean;
+  archived_at: string | null;
 };
 
 export type ApiAccount = {

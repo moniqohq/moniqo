@@ -81,6 +81,11 @@ WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 DELETE FROM accounts
 WHERE id = $1 AND budget_id = $2;
 
+-- name: SoftDeleteAccountsByBudget :exec
+UPDATE accounts
+SET deleted_at = now()
+WHERE budget_id = $1 AND deleted_at IS NULL;
+
 -- name: AccountExistsByName :one
 SELECT EXISTS (
     SELECT 1

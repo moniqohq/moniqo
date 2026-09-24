@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -46,11 +47,17 @@ func NewRepo(pool *pgxpool.Pool, log *zap.Logger) *Repo {
 
 // rowToBudget converts a generated db.Budget row to the public-safe model.
 func rowToBudget(b db.Budget) models.Budget {
+	var archivedAt *time.Time
+	if b.ArchivedAt.Valid {
+		archivedAt = &b.ArchivedAt.Time
+	}
 	return models.Budget{
-		ID:        b.ID,
-		Title:     b.Title,
-		Notes:     b.Notes,
-		CreatedAt: b.CreatedAt.Time,
+		ID:         b.ID,
+		Title:      b.Title,
+		Notes:      b.Notes,
+		CreatedAt:  b.CreatedAt.Time,
+		IsArchived: archivedAt != nil,
+		ArchivedAt: archivedAt,
 	}
 }
 
@@ -166,11 +173,10 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Budget, error) 
 	return rowToBudget(row), nil
 }
 
-// SoftDeleteCascade soft-deletes the budget and all active memberships in a
-// single transaction. Idempotent: already-deleted budgets match zero rows and
-// no error is returned.
-// M3/M4 extension point: archive accounts and envelopes here once those
-// tables exist (doctrine item 5 — never physically delete or touch transactions).
+// SoftDeleteCascade soft-deletes the budget and everything scoped to it
+// (transactions, accounts, envelopes, memberships) in a single transaction.
+// Idempotent: already-deleted budgets match zero rows and no error is
+// returned.
 func (r *Repo) SoftDeleteCascade(ctx context.Context, budgetID int64) error {
 	r.log.Debug("beginning SoftDeleteCascade transaction", zap.Int64("budget_id", budgetID))
 
@@ -182,14 +188,29 @@ func (r *Repo) SoftDeleteCascade(ctx context.Context, budgetID int64) error {
 
 	q := db.New(tx)
 
-	if err := q.SoftDeleteBudget(ctx, budgetID); err != nil {
-		r.log.Error("SoftDeleteBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
-		return fmt.Errorf("soft delete budget: %w", err)
+	if err := q.SoftDeleteTransactionsByBudget(ctx, budgetID); err != nil {
+		r.log.Error("SoftDeleteTransactionsByBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return fmt.Errorf("soft delete transactions: %w", err)
+	}
+
+	if err := q.SoftDeleteAccountsByBudget(ctx, budgetID); err != nil {
+		r.log.Error("SoftDeleteAccountsByBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return fmt.Errorf("soft delete accounts: %w", err)
+	}
+
+	if err := q.SoftDeleteEnvelopesByBudget(ctx, budgetID); err != nil {
+		r.log.Error("SoftDeleteEnvelopesByBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return fmt.Errorf("soft delete envelopes: %w", err)
 	}
 
 	if err := q.SoftDeleteAllMembershipsForBudget(ctx, budgetID); err != nil {
 		r.log.Error("SoftDeleteAllMembershipsForBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
 		return fmt.Errorf("soft delete memberships: %w", err)
+	}
+
+	if err := q.SoftDeleteBudget(ctx, budgetID); err != nil {
+		r.log.Error("SoftDeleteBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return fmt.Errorf("soft delete budget: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -198,6 +219,49 @@ func (r *Repo) SoftDeleteCascade(ctx context.Context, budgetID int64) error {
 
 	r.log.Info("budget soft-deleted with cascade", zap.Int64("budget_id", budgetID))
 	return nil
+}
+
+// Archive marks the budget identified by budgetID as archived. Idempotent:
+// archiving an already-archived budget matches zero rows, so the current row
+// is re-fetched and returned instead of erroring.
+func (r *Repo) Archive(ctx context.Context, budgetID int64) (models.Budget, error) {
+	q := db.New(r.pool)
+	row, err := q.ArchiveBudget(ctx, budgetID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return r.GetByID(ctx, budgetID)
+		}
+		r.log.Error("ArchiveBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return models.Budget{}, fmt.Errorf("archive budget: %w", err)
+	}
+	return rowToBudget(row), nil
+}
+
+// IsArchived reports whether budgetID refers to an archived budget. Satisfies
+// the BudgetChecker interface used by the account, envelope, and transaction
+// packages to reject writes against archived budgets.
+func (r *Repo) IsArchived(ctx context.Context, budgetID int64) (bool, error) {
+	q := db.New(r.pool)
+	archived, err := q.IsBudgetArchived(ctx, budgetID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, ErrNotFound
+		}
+		r.log.Error("IsBudgetArchived query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
+		return false, fmt.Errorf("is budget archived: %w", err)
+	}
+	return archived, nil
+}
+
+// CountActiveBudgetsForUser returns the number of active budgets userID is an
+// active member of.
+func (r *Repo) CountActiveBudgetsForUser(ctx context.Context, userID int64) (int64, error) {
+	q := db.New(r.pool)
+	count, err := q.CountActiveBudgetsForUser(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("count active budgets for user: %w", err)
+	}
+	return count, nil
 }
 
 // TitleExistsForUser reports whether the user (as OWNER) already has an active

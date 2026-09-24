@@ -111,7 +111,7 @@ func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) 
 		return LoginResult{}, err
 	}
 
-	refreshIssue, err := s.IssueRefreshToken(ctx, creds.User.ID)
+	refreshIssue, err := s.IssueRefreshToken(ctx, creds.User.ID, req.RememberMe)
 	if err != nil {
 		s.log.Error("login: refresh token issuance failed", zap.String("email", req.Email), zap.Error(err))
 		return LoginResult{}, err
@@ -125,15 +125,18 @@ func (s *Svc) Login(ctx context.Context, req LoginRequest) (LoginResult, error) 
 	s.log.Info("login successful", zap.Int64("user_id", creds.User.ID))
 	return LoginResult{
 		AccessToken:           tokenString,
-		TokenType:             "Bearer",
+		TokenType:             bearerTokenType,
 		RefreshToken:          refreshIssue.RawToken,
 		RefreshTokenExpiresAt: refreshIssue.ExpiresAt,
+		RememberMe:            refreshIssue.RememberMe,
 	}, nil
 }
 
 // IssueRefreshToken creates a new token family and inserts the first refresh
 // token row. Returns the raw token (sent to the client) and its expiry.
-func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue, error) {
+// rememberMe controls whether the handler persists the refresh cookie across
+// browser restarts or scopes it to the current browser session only.
+func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64, rememberMe bool) (RefreshIssue, error) {
 	raw, hash, err := GenerateRefreshToken()
 	if err != nil {
 		return RefreshIssue{}, err
@@ -150,11 +153,12 @@ func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64) (RefreshIssue
 		TokenHash:         hash,
 		ExpiresAt:         expiresAt,
 		AbsoluteExpiresAt: absoluteExpiresAt,
+		RememberMe:        rememberMe,
 	}); err != nil {
 		return RefreshIssue{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 
-	return RefreshIssue{RawToken: raw, ExpiresAt: expiresAt}, nil
+	return RefreshIssue{RawToken: raw, ExpiresAt: expiresAt, RememberMe: rememberMe}, nil
 }
 
 // RefreshAccessToken validates rawToken, detects reuse, rotates the token, and
@@ -190,6 +194,7 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 		TokenHash:         newHash,
 		ExpiresAt:         newExpiresAt,
 		AbsoluteExpiresAt: row.AbsoluteExpiresAt.Time,
+		RememberMe:        row.RememberMe,
 	}); err != nil {
 		return RefreshResult{}, fmt.Errorf("rotate refresh token: %w", err)
 	}
@@ -201,8 +206,8 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 
 	return RefreshResult{
 		AccessToken: accessToken,
-		TokenType:   "Bearer",
-		Refresh:     RefreshIssue{RawToken: newRaw, ExpiresAt: newExpiresAt},
+		TokenType:   bearerTokenType,
+		Refresh:     RefreshIssue{RawToken: newRaw, ExpiresAt: newExpiresAt, RememberMe: row.RememberMe},
 	}, nil
 }
 
@@ -313,6 +318,26 @@ func (s *PasswordResetSvc) RequestReset(ctx context.Context, req RequestResetReq
 	return nil
 }
 
+// ValidateResetToken reports whether token currently resolves to an active
+// (found, unused, unexpired) password reset token, without consuming it or
+// otherwise mutating state. Returns ErrInvalidResetToken for any validation
+// failure (not found, used, expired) — the caller must not reveal which
+// condition triggered the error.
+func (s *PasswordResetSvc) ValidateResetToken(ctx context.Context, token string) error {
+	hash := HashRefreshToken(token)
+
+	row, err := s.repo.GetPasswordResetTokenByHash(ctx, hash)
+	if errors.Is(err, ErrInvalidResetToken) {
+		return ErrInvalidResetToken
+	}
+	if err != nil {
+		s.log.Error("password reset validate: repo error", zap.Error(err))
+		return fmt.Errorf("get reset token: %w", err)
+	}
+
+	return checkResetTokenRow(row, time.Now())
+}
+
 // ConfirmReset validates the reset token, updates the password, and invalidates
 // all active tokens for the user. Returns ErrInvalidResetToken for any token
 // validation failure (not found, used, expired) — the caller must not reveal
@@ -331,13 +356,8 @@ func (s *PasswordResetSvc) ConfirmReset(ctx context.Context, req ConfirmResetReq
 
 	now := time.Now()
 
-	if row.UsedAt != nil {
-		s.log.Debug("password reset confirm: token already used", zap.Int64("user_id", row.UserID))
-		return ErrInvalidResetToken
-	}
-	if now.After(row.ExpiresAt) {
-		s.log.Debug("password reset confirm: token expired", zap.Int64("user_id", row.UserID))
-		return ErrInvalidResetToken
+	if err := checkResetTokenRow(row, now); err != nil {
+		return err
 	}
 
 	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), s.bcryptCost)
@@ -357,6 +377,18 @@ func (s *PasswordResetSvc) ConfirmReset(ctx context.Context, req ConfirmResetReq
 	}
 
 	s.log.Info("password reset confirmed", zap.Int64("user_id", row.UserID))
+	return nil
+}
+
+// checkResetTokenRow reports whether row is still active (unused, unexpired)
+// as of now. Returns ErrInvalidResetToken otherwise.
+func checkResetTokenRow(row PasswordResetTokenRow, now time.Time) error {
+	if row.UsedAt != nil {
+		return ErrInvalidResetToken
+	}
+	if now.After(row.ExpiresAt) {
+		return ErrInvalidResetToken
+	}
 	return nil
 }
 

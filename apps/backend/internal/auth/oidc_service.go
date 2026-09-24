@@ -31,6 +31,7 @@ import (
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
+	"github.com/moniqohq/moniqo/apps/backend/internal/validator"
 )
 
 const (
@@ -56,31 +57,44 @@ type OIDCRepository interface {
 // OIDCSvc implements the OIDC login/link/unlink business logic. It composes
 // the existing auth Svc to reuse JWT issuance, refresh-token issuance, and
 // last-login bookkeeping rather than duplicating them.
+//
+// It also hosts the Facebook token-verification login/link methods (see
+// facebook_service.go): Facebook is not a redirect provider, but it shares
+// every account-linking policy helper below (findOrCreateForLogin,
+// linkToUser, issueTokens), so splitting it into a separate service would
+// duplicate that policy rather than reuse it.
 type OIDCSvc struct {
 	repo        OIDCRepository
 	registry    oidc.ProviderRegistry
+	fbVerifier  oidc.TokenVerifier // nil when Facebook is unconfigured
 	authSvc     *Svc
 	stateSecret []byte
 	log         *zap.Logger
 }
 
-// NewOIDCSvc returns an OIDCSvc wired to the given dependencies.
-func NewOIDCSvc(repo OIDCRepository, registry oidc.ProviderRegistry, authSvc *Svc, stateSecret []byte, log *zap.Logger) *OIDCSvc {
-	return &OIDCSvc{repo: repo, registry: registry, authSvc: authSvc, stateSecret: stateSecret, log: log}
+// NewOIDCSvc returns an OIDCSvc wired to the given dependencies. fbVerifier
+// may be nil, in which case Facebook login/link is unavailable.
+func NewOIDCSvc(
+	repo OIDCRepository, registry oidc.ProviderRegistry, authSvc *Svc,
+	stateSecret []byte, fbVerifier oidc.TokenVerifier, log *zap.Logger,
+) *OIDCSvc {
+	return &OIDCSvc{repo: repo, registry: registry, fbVerifier: fbVerifier, authSvc: authSvc, stateSecret: stateSecret, log: log}
 }
 
 // InitiateLogin resolves the provider and returns its authorization URL
 // alongside a signed flow-state token for the handler to place in the OIDC
-// flow cookie.
-func (s *OIDCSvc) InitiateLogin(providerName string) (redirectURL, flowToken string, err error) {
-	return s.initiate(providerName, oidcPurposeLogin, 0)
+// flow cookie. intent distinguishes the login page (oidcIntentLogin — never
+// creates an account) from the signup page (oidcIntentSignup — may create or
+// link one); callers should default to oidcIntentLogin.
+func (s *OIDCSvc) InitiateLogin(providerName, intent string) (redirectURL, flowToken string, err error) {
+	return s.initiate(providerName, oidcPurposeLogin, intent, 0)
 }
 
 // InitiateLink is InitiateLogin for the authenticated account-linking flow;
 // userID is carried in the signed flow state so Callback knows which account
 // to link the identity to.
 func (s *OIDCSvc) InitiateLink(providerName string, userID int64) (redirectURL, flowToken string, err error) {
-	return s.initiate(providerName, oidcPurposeLink, userID)
+	return s.initiate(providerName, oidcPurposeLink, "", userID)
 }
 
 // OIDCCallbackResult is returned by Callback on success.
@@ -127,7 +141,7 @@ func (s *OIDCSvc) ListIdentities(ctx context.Context, userID int64) ([]UserIdent
 // remaining sign-in method (no password and no other linked identity) to
 // prevent lockout, and is otherwise idempotent.
 func (s *OIDCSvc) Unlink(ctx context.Context, userID int64, providerName string) error {
-	if _, err := s.registry.Provider(providerName); err != nil {
+	if !s.knownProvider(providerName) {
 		return ErrUnknownProvider
 	}
 
@@ -145,6 +159,18 @@ func (s *OIDCSvc) Unlink(ctx context.Context, userID int64, providerName string)
 	return nil
 }
 
+// knownProvider reports whether providerName is any provider Moniqo
+// recognizes — a redirect IdentityProvider or the configured Facebook
+// TokenVerifier. Unlink uses this instead of s.registry.Provider directly
+// because Facebook is never in the redirect registry; without this, a user
+// could link Facebook (via LinkFacebookToken) but never unlink it.
+func (s *OIDCSvc) knownProvider(providerName string) bool {
+	if _, err := s.registry.Provider(providerName); err == nil {
+		return true
+	}
+	return s.fbVerifier != nil && s.fbVerifier.Name() == providerName
+}
+
 func (s *OIDCSvc) completeCallback(ctx context.Context, st flowState, identity oidc.Identity) (OIDCCallbackResult, error) {
 	if st.Purpose == oidcPurposeLink {
 		if err := s.linkToUser(ctx, st.UserID, identity); err != nil {
@@ -153,14 +179,14 @@ func (s *OIDCSvc) completeCallback(ctx context.Context, st flowState, identity o
 		return OIDCCallbackResult{Purpose: oidcPurposeLink}, nil
 	}
 
-	user, err := s.findOrCreateForLogin(ctx, identity)
+	user, err := s.findOrCreateForLogin(ctx, identity, st.Intent)
 	if err != nil {
 		return OIDCCallbackResult{}, err
 	}
 	return s.issueTokens(ctx, user)
 }
 
-func (s *OIDCSvc) initiate(providerName, purpose string, userID int64) (redirectURL, flowToken string, err error) {
+func (s *OIDCSvc) initiate(providerName, purpose, intent string, userID int64) (redirectURL, flowToken string, err error) {
 	p, err := s.registry.Provider(providerName)
 	if err != nil {
 		return "", "", ErrUnknownProvider
@@ -190,6 +216,7 @@ func (s *OIDCSvc) initiate(providerName, purpose string, userID int64) (redirect
 		Verifier:  verifier,
 		Provider:  providerName,
 		Purpose:   purpose,
+		Intent:    intent,
 		UserID:    userID,
 		ExpiresAt: time.Now().Add(oidcFlowStateTTL).Unix(),
 	}, s.stateSecret)
@@ -229,7 +256,7 @@ func (s *OIDCSvc) issueTokens(ctx context.Context, user models.User) (OIDCCallba
 		return OIDCCallbackResult{}, err
 	}
 
-	refreshIssue, err := s.authSvc.IssueRefreshToken(ctx, user.ID)
+	refreshIssue, err := s.authSvc.IssueRefreshToken(ctx, user.ID, true)
 	if err != nil {
 		return OIDCCallbackResult{}, err
 	}
@@ -250,12 +277,14 @@ func (s *OIDCSvc) issueTokens(ctx context.Context, user models.User) (OIDCCallba
 //  1. an existing identity for (provider, subject) always wins;
 //  2. otherwise, a verified email that matches an existing account auto-links
 //     to it (promoting a dormant pending_verification account to active);
-//  3. otherwise a brand-new account is created.
+//  3. otherwise, for signup intent, a brand-new account is created; for
+//     login intent, ErrAccountNotFound is returned — the login page never
+//     creates an account on the user's behalf.
 //
 // An unverified provider email is rejected outright — there is no pending/
 // partial path for OIDC signups, since Moniqo has no channel to verify an
 // email the identity provider itself won't vouch for.
-func (s *OIDCSvc) findOrCreateForLogin(ctx context.Context, identity oidc.Identity) (models.User, error) {
+func (s *OIDCSvc) findOrCreateForLogin(ctx context.Context, identity oidc.Identity, intent string) (models.User, error) {
 	existing, err := s.repo.GetIdentityByProviderSubject(ctx, identity.Provider, identity.Subject)
 	switch {
 	case err == nil:
@@ -272,15 +301,18 @@ func (s *OIDCSvc) findOrCreateForLogin(ctx context.Context, identity oidc.Identi
 		return models.User{}, ErrIdentityNotVerified
 	}
 
-	return s.linkOrCreateByEmail(ctx, identity)
+	return s.linkOrCreateByEmail(ctx, identity, intent)
 }
 
-func (s *OIDCSvc) linkOrCreateByEmail(ctx context.Context, identity oidc.Identity) (models.User, error) {
+func (s *OIDCSvc) linkOrCreateByEmail(ctx context.Context, identity oidc.Identity, intent string) (models.User, error) {
 	linkable, err := s.repo.GetUserByEmailForLinking(ctx, identity.Email)
 	switch {
 	case err == nil:
 		return s.linkExistingAndActivate(ctx, linkable, identity)
 	case errors.Is(err, ErrUserNotFound):
+		if intent != oidcIntentSignup {
+			return models.User{}, ErrAccountNotFound
+		}
 		return s.createUserForIdentity(ctx, identity)
 	default:
 		return models.User{}, fmt.Errorf("get user by email for linking: %w", err)
@@ -313,11 +345,24 @@ func (s *OIDCSvc) createUserForIdentity(ctx context.Context, identity oidc.Ident
 		name := identity.Name
 		namePtr = &name
 	}
+	// The identity provider's picture claim is untrusted input: it must be a
+	// valid https URL (see validator.ValidatePictureURL) since it flows
+	// straight into an <img src> and, via the avatar GET endpoint's
+	// redirect-for-external-pictures behavior, into a server-side redirect
+	// target. A malformed or malicious claim degrades to no picture rather
+	// than failing the whole signup.
+	picture := identity.Picture
+	if fe := validator.ValidatePictureURL(picture); fe != nil {
+		s.log.Warn("dropping invalid picture claim from OIDC identity",
+			zap.String("provider", identity.Provider))
+		picture = ""
+	}
+
 	user, err := s.repo.CreateUserFromIdentity(ctx, CreateOIDCUserParams{
 		Username:        deriveUsername(identity.Email, identity.Name),
 		Email:           identity.Email,
 		Name:            namePtr,
-		Picture:         identity.Picture,
+		Picture:         picture,
 		Provider:        identity.Provider,
 		ProviderSubject: identity.Subject,
 		ProviderEmail:   identity.Email,

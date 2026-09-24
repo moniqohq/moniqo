@@ -53,8 +53,9 @@ var (
 // LoginRequest is the HTTP request body for POST /auth/login and the
 // service-layer input to AuthSvc.Login.
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	RememberMe bool   `json:"remember_me"`
 }
 
 // LoginResponseData is the HTTP response body for a successful login.
@@ -80,12 +81,14 @@ type LoginResult struct {
 	TokenType             string
 	RefreshToken          string
 	RefreshTokenExpiresAt time.Time
+	RememberMe            bool
 }
 
 // RefreshIssue holds the raw refresh token and its expiry returned by IssueRefreshToken.
 type RefreshIssue struct {
-	RawToken  string
-	ExpiresAt time.Time
+	RawToken   string
+	ExpiresAt  time.Time
+	RememberMe bool
 }
 
 // RefreshResult is returned by RefreshAccessToken on a successful rotation.
@@ -131,6 +134,7 @@ type InsertRefreshTokenRepoParams struct {
 	TokenHash         string
 	ExpiresAt         time.Time
 	AbsoluteExpiresAt time.Time
+	RememberMe        bool
 }
 
 // -----------------------------------------------------------------------------

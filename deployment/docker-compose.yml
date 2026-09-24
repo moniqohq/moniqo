@@ -83,6 +83,11 @@ services:
       OIDC_GOOGLE_CLIENT_SECRET: ${OIDC_GOOGLE_CLIENT_SECRET:?OIDC_GOOGLE_CLIENT_SECRET is required}
       OIDC_GOOGLE_REDIRECT_URL: https://${DOMAIN}/api/v1/auth/callback/google
       OIDC_STATE_SECRET: ${OIDC_STATE_SECRET:?OIDC_STATE_SECRET is required}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_ROOT: /app/data
+      AVATAR_MAX_BYTES: ${AVATAR_MAX_BYTES:-2097152}
+    volumes:
+      - avatar_data:/app/data
     healthcheck:
       # No dedicated /health route exists yet; a bare TCP check confirms
       # the server is accepting connections on its listen port.
@@ -118,6 +123,13 @@ services:
 
 volumes:
   db_data:
+  # Persistent avatar storage for STORAGE_DRIVER=local (the default). Back
+  # this up alongside db_data — it holds uploaded profile pictures that
+  # aren't reproducible from any other source. Moving to an S3/MinIO
+  # backend later (see internal/storage/s3, not yet implemented) would
+  # retire this volume without a database migration, since users.picture
+  # stores a stable API URL rather than a filesystem path.
+  avatar_data:
 
 networks:
   edge:

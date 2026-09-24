@@ -42,10 +42,61 @@ func (q *Queries) ActivateUser(ctx context.Context, id int64) error {
 	return err
 }
 
+const clearUserAvatar = `-- name: ClearUserAvatar :one
+UPDATE users
+SET avatar_key = '', avatar_content_type = '', avatar_size_bytes = 0,
+    avatar_etag = '', avatar_updated_at = NULL, picture = '', updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+`
+
+type ClearUserAvatarRow struct {
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	DateFormat            *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	HasPassword           bool
+}
+
+// Clears both the stored-avatar columns and picture, so removing a photo
+// also drops an inherited OIDC picture (both fall back to initials client-side).
+func (q *Queries) ClearUserAvatar(ctx context.Context, id int64) (ClearUserAvatarRow, error) {
+	row := q.db.QueryRow(ctx, clearUserAvatar, id)
+	var i ClearUserAvatarRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Picture,
+		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.DateFormat,
+		&i.OnboardingCompletedAt,
+		&i.LastLogin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.HasPassword,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, hash, name)
 VALUES ($1, $2, $3, $4)
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type CreateUserParams struct {
@@ -70,6 +121,7 @@ type CreateUserRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
+	HasPassword           bool
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -95,6 +147,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.HasPassword,
 	)
 	return i, err
 }
@@ -102,7 +155,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 const createUserWithoutPassword = `-- name: CreateUserWithoutPassword :one
 INSERT INTO users (username, email, hash, name, picture, status)
 VALUES ($1, $2, NULL, $3, $4, 'active')
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type CreateUserWithoutPasswordParams struct {
@@ -127,6 +180,7 @@ type CreateUserWithoutPasswordRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
+	HasPassword           bool
 }
 
 // Used for OIDC-only signups: no password credential, email already verified
@@ -154,12 +208,45 @@ func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserW
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.HasPassword,
+	)
+	return i, err
+}
+
+const getUserAvatarMeta = `-- name: GetUserAvatarMeta :one
+SELECT avatar_key, avatar_content_type, avatar_size_bytes, avatar_etag, avatar_updated_at, picture
+FROM users
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type GetUserAvatarMetaRow struct {
+	AvatarKey         string
+	AvatarContentType string
+	AvatarSizeBytes   int64
+	AvatarEtag        string
+	AvatarUpdatedAt   pgtype.Timestamptz
+	Picture           string
+}
+
+// Used by the avatar GET handler to decide whether it is serving a locally
+// stored file (avatar_key set), redirecting to an external OIDC picture
+// (picture set, avatar_key empty), or returning 404 (both empty).
+func (q *Queries) GetUserAvatarMeta(ctx context.Context, id int64) (GetUserAvatarMetaRow, error) {
+	row := q.db.QueryRow(ctx, getUserAvatarMeta, id)
+	var i GetUserAvatarMetaRow
+	err := row.Scan(
+		&i.AvatarKey,
+		&i.AvatarContentType,
+		&i.AvatarSizeBytes,
+		&i.AvatarEtag,
+		&i.AvatarUpdatedAt,
+		&i.Picture,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before
+SELECT id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before, (hash IS NOT NULL)::boolean AS has_password
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -180,6 +267,7 @@ type GetUserByIDRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
 	TokensInvalidBefore   pgtype.Timestamptz
+	HasPassword           bool
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error) {
@@ -201,6 +289,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, er
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.TokensInvalidBefore,
+		&i.HasPassword,
 	)
 	return i, err
 }
@@ -271,6 +360,74 @@ func (q *Queries) SetTokensInvalidBefore(ctx context.Context, arg SetTokensInval
 	return err
 }
 
+const setUserAvatar = `-- name: SetUserAvatar :one
+UPDATE users
+SET avatar_key = $2, avatar_content_type = $3, avatar_size_bytes = $4,
+    avatar_etag = $5, avatar_updated_at = now(), picture = $6, updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+`
+
+type SetUserAvatarParams struct {
+	ID                int64
+	AvatarKey         string
+	AvatarContentType string
+	AvatarSizeBytes   int64
+	AvatarEtag        string
+	Picture           string
+}
+
+type SetUserAvatarRow struct {
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	DateFormat            *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	HasPassword           bool
+}
+
+// Points picture at the stable API URL passed in $6 (always
+// "/api/v1/users/{id}/picture" in practice; the caller computes it since
+// queries should not embed application URL structure).
+func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (SetUserAvatarRow, error) {
+	row := q.db.QueryRow(ctx, setUserAvatar,
+		arg.ID,
+		arg.AvatarKey,
+		arg.AvatarContentType,
+		arg.AvatarSizeBytes,
+		arg.AvatarEtag,
+		arg.Picture,
+	)
+	var i SetUserAvatarRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Picture,
+		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.DateFormat,
+		&i.OnboardingCompletedAt,
+		&i.LastLogin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.HasPassword,
+	)
+	return i, err
+}
+
 const softDeleteUser = `-- name: SoftDeleteUser :exec
 UPDATE users
 SET deleted_at = now()
@@ -282,6 +439,62 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id int64) error {
 	return err
 }
 
+const updateUserEmail = `-- name: UpdateUserEmail :one
+UPDATE users
+SET email = $2, status = 'active', updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+`
+
+type UpdateUserEmailParams struct {
+	ID    int64
+	Email string
+}
+
+type UpdateUserEmailRow struct {
+	ID                    int64
+	Username              string
+	Email                 string
+	Name                  *string
+	Picture               string
+	Status                UserStatus
+	Currency              *string
+	Timezone              *string
+	DateFormat            *string
+	OnboardingCompletedAt pgtype.Timestamptz
+	LastLogin             pgtype.Timestamptz
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	HasPassword           bool
+}
+
+// Applies a verified email change and promotes a still-pending account to
+// active: completing the OTP flow proves control of the new address, which
+// is exactly what pending_verification was waiting on.
+func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (UpdateUserEmailRow, error) {
+	row := q.db.QueryRow(ctx, updateUserEmail, arg.ID, arg.Email)
+	var i UpdateUserEmailRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.Name,
+		&i.Picture,
+		&i.Status,
+		&i.Currency,
+		&i.Timezone,
+		&i.DateFormat,
+		&i.OnboardingCompletedAt,
+		&i.LastLogin,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.HasPassword,
+	)
+	return i, err
+}
+
 const updateUserOnboardingProfile = `-- name: UpdateUserOnboardingProfile :one
 UPDATE users
 SET name = COALESCE($4, name),
@@ -289,7 +502,7 @@ SET name = COALESCE($4, name),
     timezone = $3,
     updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type UpdateUserOnboardingProfileParams struct {
@@ -314,6 +527,7 @@ type UpdateUserOnboardingProfileRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
+	HasPassword           bool
 }
 
 func (q *Queries) UpdateUserOnboardingProfile(ctx context.Context, arg UpdateUserOnboardingProfileParams) (UpdateUserOnboardingProfileRow, error) {
@@ -339,6 +553,7 @@ func (q *Queries) UpdateUserOnboardingProfile(ctx context.Context, arg UpdateUse
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.HasPassword,
 	)
 	return i, err
 }
@@ -364,7 +579,7 @@ UPDATE users
 SET name = $2, username = $3, email = $4, picture = $5,
     currency = $6, timezone = $7, date_format = $8, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at
+RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type UpdateUserProfileParams struct {
@@ -393,6 +608,7 @@ type UpdateUserProfileRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	DeletedAt             pgtype.Timestamptz
+	HasPassword           bool
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error) {
@@ -422,6 +638,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.HasPassword,
 	)
 	return i, err
 }

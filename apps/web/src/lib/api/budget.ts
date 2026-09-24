@@ -49,3 +49,7 @@ export function patchBudget(
 export function deleteBudget(id: number): Promise<void> {
   return apiFetch<void>(`/api/v1/budgets/${id}`, { method: "DELETE" });
 }
+
+export function archiveBudget(id: number): Promise<ApiBudget> {
+  return apiFetch<ApiBudget>(`/api/v1/budgets/${id}/archive`, { method: "POST" });
+}

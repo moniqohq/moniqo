@@ -3,6 +3,7 @@ sql:
   - engine: "postgresql"
     queries:
       - "queries/users.sql"
+      - "queries/email_change.sql"
       - "queries/auth.sql"
       - "queries/email_jobs.sql"
       - "queries/password_reset.sql"
