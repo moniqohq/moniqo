@@ -66,6 +66,7 @@ export interface ApiTransaction {
   date: string;
   memo?: string | null;
   status: ApiTransactionStatus;
+  balance_after: number | null;
   created_at: string;
 }
 

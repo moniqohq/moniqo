@@ -415,9 +415,22 @@ func (q *Queries) GetMonthlyStats(ctx context.Context, arg GetMonthlyStatsParams
 }
 
 const getTransactionByID = `-- name: GetTransactionByID :one
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
-FROM transactions
-WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
+WITH running AS (
+    SELECT id,
+           SUM(amount) OVER (
+               PARTITION BY account_id
+               ORDER BY date, id
+               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           )::BIGINT AS balance_after
+    FROM transactions
+    WHERE budget_id = $2 AND deleted_at IS NULL
+)
+SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id,
+       t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at,
+       r.balance_after
+FROM transactions t
+JOIN running r ON r.id = t.id
+WHERE t.id = $1 AND t.budget_id = $2 AND t.deleted_at IS NULL
 `
 
 type GetTransactionByIDParams struct {
@@ -439,6 +452,7 @@ type GetTransactionByIDRow struct {
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
+	BalanceAfter      int64
 }
 
 func (q *Queries) GetTransactionByID(ctx context.Context, arg GetTransactionByIDParams) (GetTransactionByIDRow, error) {
@@ -458,6 +472,7 @@ func (q *Queries) GetTransactionByID(ctx context.Context, arg GetTransactionByID
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.BalanceAfter,
 	)
 	return i, err
 }
@@ -539,9 +554,22 @@ func (q *Queries) HardDeleteTransactionsByEnvelope(ctx context.Context, arg Hard
 }
 
 const listTransactions = `-- name: ListTransactions :many
-SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id, t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at
+WITH running AS (
+    SELECT id,
+           SUM(amount) OVER (
+               PARTITION BY account_id
+               ORDER BY date, id
+               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           )::BIGINT AS balance_after
+    FROM transactions
+    WHERE budget_id = $1 AND deleted_at IS NULL
+)
+SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id,
+       t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at,
+       r.balance_after
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
+JOIN running r ON r.id = t.id
 WHERE t.budget_id  = $1
   AND t.deleted_at IS NULL
   AND a.deleted_at IS NULL
@@ -583,6 +611,7 @@ type ListTransactionsRow struct {
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	DeletedAt         pgtype.Timestamptz
+	BalanceAfter      int64
 }
 
 // Archived-account transactions are excluded by default (main list = active accounts
@@ -593,6 +622,9 @@ type ListTransactionsRow struct {
 //
 // ListTransactions and CountTransactions must stay predicate-identical or pagination
 // totals will desync.
+// balance_after is computed as a per-account running total across the account's full
+// (unfiltered) transaction history, so archived-account exclusion above must not be
+// applied inside the running CTE or historical balances would be wrong.
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]ListTransactionsRow, error) {
 	rows, err := q.db.Query(ctx, listTransactions,
 		arg.BudgetID,
@@ -625,6 +657,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.BalanceAfter,
 		); err != nil {
 			return nil, err
 		}
@@ -655,12 +688,13 @@ func (q *Queries) MarkAccountTransactionsReconciled(ctx context.Context, arg Mar
 const patchTransaction = `-- name: PatchTransaction :one
 UPDATE transactions
 SET account_id          = COALESCE($3, account_id),
-    envelope_id         = COALESCE($4, envelope_id),
-    transfer_account_id = COALESCE($5, transfer_account_id),
-    amount              = COALESCE($6, amount),
-    date                = COALESCE($7, date),
-    memo                = COALESCE($8, memo),
-    status              = COALESCE($9, status),
+    envelope_id         = CASE WHEN $4::boolean THEN NULL
+                               ELSE COALESCE($5, envelope_id) END,
+    transfer_account_id = COALESCE($6, transfer_account_id),
+    amount              = COALESCE($7, amount),
+    date                = COALESCE($8, date),
+    memo                = COALESCE($9, memo),
+    status              = COALESCE($10, status),
     updated_at          = now()
 WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL
 RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
@@ -670,6 +704,7 @@ type PatchTransactionParams struct {
 	ID                int64
 	BudgetID          int64
 	AccountID         *int64
+	ClearEnvelope     bool
 	EnvelopeID        *int64
 	TransferAccountID *int64
 	Amount            *int64
@@ -699,6 +734,7 @@ func (q *Queries) PatchTransaction(ctx context.Context, arg PatchTransactionPara
 		arg.ID,
 		arg.BudgetID,
 		arg.AccountID,
+		arg.ClearEnvelope,
 		arg.EnvelopeID,
 		arg.TransferAccountID,
 		arg.Amount,

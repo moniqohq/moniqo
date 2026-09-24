@@ -85,6 +85,7 @@ export interface Transaction {
   envelopeId?: number;
   envelopeName?: string;
   transferAccountId?: number;
+  transferAccountName?: string;
   payee: string;
   amount: number;
   type: TransactionType;

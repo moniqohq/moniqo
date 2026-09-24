@@ -118,22 +118,28 @@ func rowToModel(row db.CreateFullTransactionRow) models.Transaction {
 
 // getRowToModel converts a db.GetTransactionByIDRow to models.Transaction.
 func getRowToModel(row db.GetTransactionByIDRow) models.Transaction {
-	return toModel(
+	m := toModel(
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
 		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
+	b := money.FromMinorUnits(row.BalanceAfter)
+	m.BalanceAfter = &b
+	return m
 }
 
 // listRowToModel converts a db.ListTransactionsRow to models.Transaction.
 func listRowToModel(row db.ListTransactionsRow) models.Transaction {
-	return toModel(
+	m := toModel(
 		row.ID, row.BudgetID, row.AccountID,
 		row.EnvelopeID, row.TransferAccountID,
 		row.TransferGroupID,
 		row.Amount, row.Date, row.CreatedAt, row.Status, row.Memo,
 	)
+	b := money.FromMinorUnits(row.BalanceAfter)
+	m.BalanceAfter = &b
+	return m
 }
 
 // updateRowToModel converts a db.UpdateTransactionRow to models.Transaction.
@@ -379,6 +385,7 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Transaction, er
 		ID:                p.ID,
 		BudgetID:          p.BudgetID,
 		AccountID:         p.AccountID,
+		ClearEnvelope:     p.ClearEnvelope,
 		EnvelopeID:        p.EnvelopeID,
 		TransferAccountID: p.TransferAccountID,
 		Amount:            amountPtr,

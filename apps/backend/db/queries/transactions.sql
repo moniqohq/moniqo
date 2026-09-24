@@ -62,9 +62,22 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at;
 
 -- name: GetTransactionByID :one
-SELECT id, budget_id, account_id, envelope_id, transfer_account_id, transfer_group_id, amount, date, memo, status, created_at, updated_at, deleted_at
-FROM transactions
-WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
+WITH running AS (
+    SELECT id,
+           SUM(amount) OVER (
+               PARTITION BY account_id
+               ORDER BY date, id
+               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           )::BIGINT AS balance_after
+    FROM transactions
+    WHERE budget_id = $2 AND deleted_at IS NULL
+)
+SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id,
+       t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at,
+       r.balance_after
+FROM transactions t
+JOIN running r ON r.id = t.id
+WHERE t.id = $1 AND t.budget_id = $2 AND t.deleted_at IS NULL;
 
 -- name: ListTransactions :many
 -- Archived-account transactions are excluded by default (main list = active accounts
@@ -74,9 +87,25 @@ WHERE id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 --   - include_archived=true bypasses the exclusion budget-wide
 -- ListTransactions and CountTransactions must stay predicate-identical or pagination
 -- totals will desync.
-SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id, t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at
+-- balance_after is computed as a per-account running total across the account's full
+-- (unfiltered) transaction history, so archived-account exclusion above must not be
+-- applied inside the running CTE or historical balances would be wrong.
+WITH running AS (
+    SELECT id,
+           SUM(amount) OVER (
+               PARTITION BY account_id
+               ORDER BY date, id
+               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+           )::BIGINT AS balance_after
+    FROM transactions
+    WHERE budget_id = $1 AND deleted_at IS NULL
+)
+SELECT t.id, t.budget_id, t.account_id, t.envelope_id, t.transfer_account_id, t.transfer_group_id,
+       t.amount, t.date, t.memo, t.status, t.created_at, t.updated_at, t.deleted_at,
+       r.balance_after
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
+JOIN running r ON r.id = t.id
 WHERE t.budget_id  = $1
   AND t.deleted_at IS NULL
   AND a.deleted_at IS NULL
@@ -126,7 +155,8 @@ RETURNING id, budget_id, account_id, envelope_id, transfer_account_id, transfer_
 -- name: PatchTransaction :one
 UPDATE transactions
 SET account_id          = COALESCE(sqlc.narg(account_id), account_id),
-    envelope_id         = COALESCE(sqlc.narg(envelope_id), envelope_id),
+    envelope_id         = CASE WHEN sqlc.arg(clear_envelope)::boolean THEN NULL
+                               ELSE COALESCE(sqlc.narg(envelope_id), envelope_id) END,
     transfer_account_id = COALESCE(sqlc.narg(transfer_account_id), transfer_account_id),
     amount              = COALESCE(sqlc.narg(amount), amount),
     date                = COALESCE(sqlc.narg(date), date),

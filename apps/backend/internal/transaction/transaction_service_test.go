@@ -203,6 +203,44 @@ func TestSvc_Create(t *testing.T) {
 		repo.AssertNotCalled(t, "Create")
 		budgetChecker.AssertExpectations(t)
 	})
+
+	t.Run("income with envelope returns ErrValidation", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		eid := testEnvelopeID
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(150000),
+			Date:       testDate,
+		})
+		assert.ErrorIs(t, err, transaction.ErrValidation)
+		repo.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("income with no envelope succeeds", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("Create", transaction.CreateParams{
+			BudgetID:  testBudgetID,
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+			Status:    models.TransactionStatusUncleared,
+		}).Return(makeTxn(150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Create(context.Background(), testBudgetID, transaction.CreateRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(150000),
+			Date:      testDate,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(150000), txn.Amount)
+		repo.AssertExpectations(t)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -430,6 +468,80 @@ func TestSvc_Replace(t *testing.T) {
 		repo.AssertNotCalled(t, "GetByID")
 	})
 
+	t.Run("expense with envelope succeeds", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
+			return p.ID == testTransactionID && p.Amount.Int64() == -200000
+		})).Return(makeTxnWithEnvelope(-200000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-200000),
+			Date:       testDate,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(-200000), txn.Amount)
+	})
+
+	t.Run("expense with no envelope returns ErrValidation", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(-200000),
+			Date:      testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrValidation)
+		repo.AssertNotCalled(t, "Update")
+	})
+
+	t.Run("income with envelope returns ErrValidation", func(t *testing.T) {
+		t.Parallel()
+		eid := testEnvelopeID
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(200000),
+			Date:       testDate,
+		})
+
+		assert.ErrorIs(t, err, transaction.ErrValidation)
+		repo.AssertNotCalled(t, "Update")
+	})
+
+	t.Run("income with no envelope succeeds", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxn(150000), nil)
+		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
+			return p.ID == testTransactionID && p.Amount.Int64() == 200000 && p.EnvelopeID == nil
+		})).Return(makeTxn(200000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
+			AccountID: testAccountID,
+			Amount:    money.FromMinorUnits(200000),
+			Date:      testDate,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(200000), txn.Amount)
+	})
+
 	t.Run("transfer with envelope returns ErrConflict naming budget_envelope_id", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.TransactionRepository{}
@@ -468,6 +580,7 @@ func TestSvc_Replace(t *testing.T) {
 
 	t.Run("persists explicit status", func(t *testing.T) {
 		t.Parallel()
+		eid := testEnvelopeID
 		repo := &internalmock.TransactionRepository{}
 		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
 		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
@@ -477,10 +590,11 @@ func TestSvc_Replace(t *testing.T) {
 		clearedStatus := models.TransactionStatusCleared
 		svc := transaction.NewSvc(repo, log)
 		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
-			AccountID: testAccountID,
-			Amount:    money.FromMinorUnits(-200000),
-			Date:      testDate,
-			Status:    &clearedStatus,
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-200000),
+			Date:       testDate,
+			Status:     &clearedStatus,
 		})
 		require.NoError(t, err)
 		repo.AssertExpectations(t)
@@ -488,6 +602,7 @@ func TestSvc_Replace(t *testing.T) {
 
 	t.Run("defaults status to uncleared when omitted", func(t *testing.T) {
 		t.Parallel()
+		eid := testEnvelopeID
 		repo := &internalmock.TransactionRepository{}
 		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
 		repo.On("Update", testifymock.MatchedBy(func(p transaction.UpdateParams) bool {
@@ -496,9 +611,10 @@ func TestSvc_Replace(t *testing.T) {
 
 		svc := transaction.NewSvc(repo, log)
 		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
-			AccountID: testAccountID,
-			Amount:    money.FromMinorUnits(-200000),
-			Date:      testDate,
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-200000),
+			Date:       testDate,
 		})
 		require.NoError(t, err)
 		repo.AssertExpectations(t)
@@ -610,6 +726,123 @@ func TestSvc_Patch(t *testing.T) {
 
 		svc := transaction.NewSvc(repo, log)
 		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Status: &clearedStatus})
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("flipping amount sign to income clears the existing envelope", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		newAmt := money.FromMinorUnits(150000)
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:            testTransactionID,
+			BudgetID:      testBudgetID,
+			Amount:        &newAmt,
+			ClearEnvelope: true,
+		}).Return(makeTxn(150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		txn, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Amount: &newAmt})
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(150000), txn.Amount)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("positive amount with explicit envelope returns ErrValidation", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		newAmt := money.FromMinorUnits(150000)
+		eid := testEnvelopeID
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{
+			Amount:     &newAmt,
+			EnvelopeID: &eid,
+		})
+		assert.ErrorIs(t, err, transaction.ErrValidation)
+		repo.AssertNotCalled(t, "Patch")
+	})
+
+	t.Run("memo-only patch on an income transaction does not fail", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		memo := "updated memo"
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxn(150000), nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:       testTransactionID,
+			BudgetID: testBudgetID,
+			Memo:     &memo,
+		}).Return(makeTxn(150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Memo: &memo})
+		require.NoError(t, err)
+	})
+
+	t.Run("flipping amount sign to expense without an envelope returns ErrValidation", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		newAmt := money.FromMinorUnits(-150000)
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxn(150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Amount: &newAmt})
+		assert.ErrorIs(t, err, transaction.ErrValidation)
+		repo.AssertNotCalled(t, "Patch")
+	})
+
+	t.Run("expense already carrying an envelope is left untouched (ClearEnvelope false)", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.TransactionRepository{}
+		newAcc := testAccount2ID
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:        testTransactionID,
+			BudgetID:  testBudgetID,
+			AccountID: &newAcc,
+		}).Return(makeTxnWithEnvelope(-150000), nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{AccountID: &newAcc})
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("status-only patch on a transfer leg propagates to the mirror leg", func(t *testing.T) {
+		t.Parallel()
+		groupID := "test-group-id"
+		status := models.TransactionStatusReconciled
+		acc1 := testAccountID
+		acc2 := testAccount2ID
+
+		leg1 := makeTxn(-500000)
+		leg1.TransferGroupID = &groupID
+		leg1.TransferAccountID = &acc2
+
+		leg2 := leg1
+		leg2.ID = 2
+		leg2.AccountID = acc2
+		leg2.TransferAccountID = &acc1
+		leg2.Amount = money.FromMinorUnits(500000)
+
+		repo := &internalmock.TransactionRepository{}
+		repo.On("GetByID", testTransactionID, testBudgetID).Return(leg1, nil)
+		repo.On("GetByGroupID", groupID, testBudgetID).Return([]models.Transaction{leg1, leg2}, nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:       testTransactionID,
+			BudgetID: testBudgetID,
+			Status:   &status,
+		}).Return(leg1, nil)
+		repo.On("Patch", transaction.PatchParams{
+			ID:       leg2.ID,
+			BudgetID: testBudgetID,
+			Status:   &status,
+		}).Return(leg2, nil)
+
+		svc := transaction.NewSvc(repo, log)
+		_, err := svc.Patch(context.Background(), testTransactionID, testBudgetID, transaction.PatchRequest{Status: &status})
 		require.NoError(t, err)
 		repo.AssertExpectations(t)
 	})
@@ -814,6 +1047,7 @@ func TestSvc_ArchivedAccountGuard(t *testing.T) {
 
 	t.Run("Replace rejects archived account", func(t *testing.T) {
 		t.Parallel()
+		eid := testEnvelopeID
 		repo := &internalmock.TransactionRepository{}
 		repo.On("GetByID", testTransactionID, testBudgetID).Return(makeTxnWithEnvelope(-150000), nil)
 		checker := &internalmock.AccountChecker{}
@@ -822,9 +1056,10 @@ func TestSvc_ArchivedAccountGuard(t *testing.T) {
 		svc := transaction.NewSvc(repo, log)
 		svc.SetAccountChecker(checker)
 		_, err := svc.Replace(context.Background(), testTransactionID, testBudgetID, transaction.ReplaceRequest{
-			AccountID: testAccountID,
-			Amount:    money.FromMinorUnits(-1000),
-			Date:      testDate,
+			AccountID:  testAccountID,
+			EnvelopeID: &eid,
+			Amount:     money.FromMinorUnits(-1000),
+			Date:       testDate,
 		})
 
 		assert.ErrorIs(t, err, transaction.ErrAccountArchived)

@@ -159,6 +159,7 @@ export function EditTransactionModal({
   const [transferTo, setTransferTo] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   /* dropdown open states */
   const [typeOpen, setTypeOpen] = useState(false);
@@ -177,6 +178,7 @@ export function EditTransactionModal({
     setAmount(Math.abs(tx.amount).toFixed(2));
     setTransferTo(tx.transferAccountId ?? null);
     setNotes(tx.memo ?? "");
+    setSaveError(null);
   }, [tx]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -223,17 +225,26 @@ export function EditTransactionModal({
     : ACCOUNT_TYPE_META.checking;
 
   const signedAmount = isIncome ? numericAmount : -numericAmount;
-  const accountBefore = Number(selectedAccount?.balance ?? 0) - signedAmount;
-  const _accountAfter = Number(selectedAccount?.balance ?? 0);
-  const realAccountBefore = accountBefore;
-  const realAccountAfter = accountBefore + signedAmount;
 
+  // selectedAccount.balance is SUM(amount) over all of the account's transactions,
+  // so it already includes this transaction. Reverse only the ORIGINAL persisted
+  // amount to recover the pre-transaction balance — it must not depend on the
+  // current (possibly edited) input. If the user switches to a different account,
+  // this transaction isn't in it yet, so that account's current balance already IS
+  // the "before" figure.
+  const isOriginalAccount = selectedAccount?.id === tx.accountId;
+  const accountBefore = Number(selectedAccount?.balance ?? 0) - (isOriginalAccount ? tx.amount : 0);
+  const accountAfter = accountBefore + signedAmount;
+
+  // Envelope "available" is allocated minus spent, not spent alone. spent_amt already
+  // reflects this transaction's original effect, so reverse it the same way as above.
   const envAvailable = selectedEnvelope
     ? Number(selectedEnvelope.allocated_amt) - Number(selectedEnvelope.spent_amt)
     : 0;
-  const envBefore = selectedEnvelope ? envAvailable + (isExpense ? numericAmount : 0) : 0;
-  const envAfter = envAvailable;
-  const isOverspent = isExpense && selectedEnvelope && envAfter < 0;
+  const isOriginalEnvelope = selectedEnvelope?.id === tx.envelopeId;
+  const envBefore = envAvailable - (isOriginalEnvelope ? tx.amount : 0);
+  const envAfter = envBefore + signedAmount;
+  const isOverspent = isExpense && selectedEnvelope != null && envAfter < 0;
   const typeMeta = TX_TYPES.find((t) => t.value === txType)!;
 
   const amountDisplayColor = isIncome
@@ -247,18 +258,20 @@ export function EditTransactionModal({
   async function handleSave() {
     if (!tx || !budgetId || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const payload: Record<string, unknown> = {
         amount: signedAmount,
         date: tx.date,
         memo: notes || undefined,
       };
-      if (txType === "transfer") {
+      if (isTransfer) {
         payload.account_id = Number(accountId) || undefined;
         payload.transfer_account_id = Number(transferTo) || undefined;
       } else {
         payload.account_id = Number(accountId) || undefined;
-        payload.budget_envelope_id = Number(envId) || null;
+        // Envelopes only apply to expenses; income must clear the field.
+        payload.budget_envelope_id = isExpense ? Number(envId) || null : null;
       }
       await apiFetch<unknown>(`/api/v1/budgets/${budgetId}/transactions/${tx.id}`, {
         method: "PATCH",
@@ -267,8 +280,8 @@ export function EditTransactionModal({
       invalidateBudgetData(queryClient, budgetId ?? null);
       onSave?.();
       onClose();
-    } catch {
-      // error is surfaced inline in a future iteration
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setSaving(false);
     }
@@ -427,6 +440,9 @@ export function EditTransactionModal({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setTxType(t.value);
+                                  // Envelopes only apply to expenses; drop any selection
+                                  // so a stale envelope can't be submitted for income/transfer.
+                                  if (t.value !== "expense") setEnvId(null);
                                   setTypeOpen(false);
                                 }}
                                 className={cn(
@@ -547,8 +563,8 @@ export function EditTransactionModal({
                         )}
                       </div>
 
-                      {/* Envelope / Category */}
-                      {!isTransfer && (
+                      {/* Envelope / Category — expense only; envelopes do not apply to income or transfers */}
+                      {isExpense && (
                         <div className="relative">
                           <label className={labelCls}>Envelope / Category</label>
                           <button
@@ -753,10 +769,7 @@ export function EditTransactionModal({
                         </span>
                       </p>
                       <div className="divide-y divide-[#111B2D] rounded-xl border border-[#141F32] bg-[#080E1C] px-4 py-1">
-                        <ImpactLine
-                          label="Balance Before"
-                          value={formatCurrency(realAccountBefore)}
-                        />
+                        <ImpactLine label="Balance Before" value={formatCurrency(accountBefore)} />
                         <ImpactLine
                           label="Change"
                           value={`${signedAmount >= 0 ? "+" : ""}${formatCurrency(signedAmount)}`}
@@ -764,14 +777,14 @@ export function EditTransactionModal({
                         />
                         <ImpactLine
                           label="Balance After"
-                          value={formatCurrency(realAccountAfter)}
-                          highlight={realAccountAfter >= 0 ? undefined : "red"}
+                          value={formatCurrency(accountAfter)}
+                          highlight={accountAfter >= 0 ? undefined : "red"}
                         />
                       </div>
                     </div>
 
                     {/* Envelope Impact */}
-                    {!isTransfer && selectedEnvelope && (
+                    {isExpense && selectedEnvelope && (
                       <div className="mb-4">
                         <p className="mb-2 text-sm font-semibold text-[#A8B4CC]">
                           Envelope Impact{" "}
@@ -834,6 +847,7 @@ export function EditTransactionModal({
 
               {/* ── Footer ──────────────────────────────────── */}
               <div className="mt-5 flex items-center justify-end gap-2.5 border-t border-[#111B2D] px-6 py-4">
+                {saveError && <p className="mr-auto text-xs text-[#F87171]">{saveError}</p>}
                 <button
                   onClick={onClose}
                   className="rounded-xl border border-[#1E2B42] bg-transparent px-6 py-2.5 text-sm font-medium text-[#A8B4CC] transition-all hover:bg-[#131C2E] hover:text-white focus:ring-2 focus:ring-[#6C3AED]/30 focus:outline-none"
