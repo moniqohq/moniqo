@@ -88,21 +88,20 @@ func (r *Repo) LogoutTransaction(ctx context.Context, p LogoutParams) error {
 
 	q := db.New(tx)
 
-	if err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
+	revokeParams := db.InsertRevokedAccessTokenParams{
 		Jti:       pgtype.UUID{Bytes: p.JTI, Valid: true},
 		UserID:    p.UserID,
 		ExpiresAt: pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
-	}); err != nil {
+	}
+	if err := q.InsertRevokedAccessToken(ctx, revokeParams); err != nil {
 		r.log.Error("LogoutTransaction: insert revoked access token failed", zap.Error(err))
 		return fmt.Errorf("insert revoked token: %w", err)
 	}
 
 	if p.RefreshTokenHash != "" {
 		reason := "logout"
-		if err := q.RevokeRefreshToken(ctx, db.RevokeRefreshTokenParams{
-			TokenHash:     p.RefreshTokenHash,
-			RevokedReason: &reason,
-		}); err != nil {
+		revokeRefreshParams := db.RevokeRefreshTokenParams{TokenHash: p.RefreshTokenHash, RevokedReason: &reason}
+		if err := q.RevokeRefreshToken(ctx, revokeRefreshParams); err != nil {
 			r.log.Error("LogoutTransaction: revoke refresh token failed", zap.Error(err))
 			return fmt.Errorf("revoke refresh token: %w", err)
 		}
@@ -196,10 +195,11 @@ func (r *Repo) MarkRefreshTokenUsed(ctx context.Context, id [16]byte) error {
 // RevokeRefreshTokenFamily invalidates every token that shares the given family ID.
 func (r *Repo) RevokeRefreshTokenFamily(ctx context.Context, familyID [16]byte, reason string) error {
 	q := db.New(r.pool)
-	if err := q.RevokeRefreshTokenFamily(ctx, db.RevokeRefreshTokenFamilyParams{
+	revokeFamilyParams := db.RevokeRefreshTokenFamilyParams{
 		FamilyID:      pgtype.UUID{Bytes: familyID, Valid: true},
 		RevokedReason: &reason,
-	}); err != nil {
+	}
+	if err := q.RevokeRefreshTokenFamily(ctx, revokeFamilyParams); err != nil {
 		r.log.Error("RevokeRefreshTokenFamily query failed", zap.Error(err))
 		return fmt.Errorf("revoke refresh token family: %w", err)
 	}
@@ -267,11 +267,12 @@ func (r *Repo) InvalidateUserPasswordResetTokens(ctx context.Context, userID int
 // InsertPasswordResetToken persists a new password reset token row.
 func (r *Repo) InsertPasswordResetToken(ctx context.Context, userID int64, tokenHash string, expiresAt time.Time) error {
 	q := db.New(r.pool)
-	if _, err := q.InsertPasswordResetToken(ctx, db.InsertPasswordResetTokenParams{
+	insertResetParams := db.InsertPasswordResetTokenParams{
 		UserID:    userID,
 		TokenHash: tokenHash,
 		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
-	}); err != nil {
+	}
+	if _, err := q.InsertPasswordResetToken(ctx, insertResetParams); err != nil {
 		r.log.Error("InsertPasswordResetToken query failed", zap.Int64("user_id", userID), zap.Error(err))
 		return fmt.Errorf("insert password reset token: %w", err)
 	}
@@ -319,27 +320,24 @@ func (r *Repo) ConfirmResetTransaction(ctx context.Context, p ConfirmResetTxPara
 		return fmt.Errorf("mark token used: %w", err)
 	}
 
-	if err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
-		ID:   p.UserID,
-		Hash: &p.NewHash,
-	}); err != nil {
+	updatePasswordParams := db.UpdateUserPasswordParams{ID: p.UserID, Hash: &p.NewHash}
+	if err := q.UpdateUserPassword(ctx, updatePasswordParams); err != nil {
 		r.log.Error("ConfirmResetTransaction: update password failed", zap.Int64("user_id", p.UserID), zap.Error(err))
 		return fmt.Errorf("update password: %w", err)
 	}
 
-	if err := q.SetTokensInvalidBefore(ctx, db.SetTokensInvalidBeforeParams{
+	invalidBeforeParams := db.SetTokensInvalidBeforeParams{
 		ID:                  p.UserID,
 		TokensInvalidBefore: pgtype.Timestamptz{Time: p.InvalidatAt, Valid: true},
-	}); err != nil {
+	}
+	if err := q.SetTokensInvalidBefore(ctx, invalidBeforeParams); err != nil {
 		r.log.Error("ConfirmResetTransaction: set tokens_invalid_before failed", zap.Int64("user_id", p.UserID), zap.Error(err))
 		return fmt.Errorf("set token epoch: %w", err)
 	}
 
 	reason := "password_reset"
-	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
-		UserID:        p.UserID,
-		RevokedReason: &reason,
-	}); err != nil {
+	revokeAllParams := db.RevokeAllUserRefreshTokensParams{UserID: p.UserID, RevokedReason: &reason}
+	if err := q.RevokeAllUserRefreshTokens(ctx, revokeAllParams); err != nil {
 		r.log.Error("ConfirmResetTransaction: revoke refresh tokens failed", zap.Int64("user_id", p.UserID), zap.Error(err))
 		return fmt.Errorf("revoke refresh tokens: %w", err)
 	}

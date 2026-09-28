@@ -509,10 +509,8 @@ func (r *Repo) SoftDelete(ctx context.Context, id, budgetID int64) error {
 	)
 
 	q := db.New(r.pool)
-	if err := q.SoftDeleteEnvelope(ctx, db.SoftDeleteEnvelopeParams{
-		ID:       id,
-		BudgetID: budgetID,
-	}); err != nil {
+	softDeleteParams := db.SoftDeleteEnvelopeParams{ID: id, BudgetID: budgetID}
+	if err := q.SoftDeleteEnvelope(ctx, softDeleteParams); err != nil {
 		r.log.Error("SoftDeleteEnvelope query failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -536,10 +534,8 @@ func (r *Repo) HardDelete(ctx context.Context, id, budgetID int64) error {
 	)
 
 	q := db.New(r.pool)
-	if err := q.HardDeleteEnvelope(ctx, db.HardDeleteEnvelopeParams{
-		ID:       id,
-		BudgetID: budgetID,
-	}); err != nil {
+	hardDeleteParams := db.HardDeleteEnvelopeParams{ID: id, BudgetID: budgetID}
+	if err := q.HardDeleteEnvelope(ctx, hardDeleteParams); err != nil {
 		r.log.Error("HardDeleteEnvelope query failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -571,10 +567,8 @@ func (r *Repo) ForceDelete(ctx context.Context, id, budgetID int64) error {
 
 	q := db.New(tx)
 
-	if err := q.HardDeleteTransactionsByEnvelope(ctx, db.HardDeleteTransactionsByEnvelopeParams{
-		EnvelopeID: &id,
-		BudgetID:   budgetID,
-	}); err != nil {
+	hardDeleteTxnsParams := db.HardDeleteTransactionsByEnvelopeParams{EnvelopeID: &id, BudgetID: budgetID}
+	if err := q.HardDeleteTransactionsByEnvelope(ctx, hardDeleteTxnsParams); err != nil {
 		r.log.Error("HardDeleteTransactionsByEnvelope query failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -583,10 +577,8 @@ func (r *Repo) ForceDelete(ctx context.Context, id, budgetID int64) error {
 		return fmt.Errorf("hard delete envelope transactions: %w", err)
 	}
 
-	if err := q.HardDeleteEnvelope(ctx, db.HardDeleteEnvelopeParams{
-		ID:       id,
-		BudgetID: budgetID,
-	}); err != nil {
+	forceDeleteEnvelopeParams := db.HardDeleteEnvelopeParams{ID: id, BudgetID: budgetID}
+	if err := q.HardDeleteEnvelope(ctx, forceDeleteEnvelopeParams); err != nil {
 		r.log.Error("HardDeleteEnvelope query failed",
 			zap.Int64("envelope_id", id),
 			zap.Int64("budget_id", budgetID),

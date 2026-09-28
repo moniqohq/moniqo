@@ -222,19 +222,18 @@ func (r *Repo) UpdatePassword(ctx context.Context, id int64, hash string) error 
 		return fmt.Errorf("update user password: %w", err)
 	}
 
-	if err := q.SetTokensInvalidBefore(ctx, db.SetTokensInvalidBeforeParams{
+	invalidBeforeParams := db.SetTokensInvalidBeforeParams{
 		ID:                  id,
 		TokensInvalidBefore: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}); err != nil {
+	}
+	if err := q.SetTokensInvalidBefore(ctx, invalidBeforeParams); err != nil {
 		r.log.Error("SetTokensInvalidBefore query failed", zap.Int64("user_id", id), zap.Error(err))
 		return fmt.Errorf("set tokens invalid before: %w", err)
 	}
 
 	reason := "password_changed"
-	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
-		UserID:        id,
-		RevokedReason: &reason,
-	}); err != nil {
+	revokeAllParams := db.RevokeAllUserRefreshTokensParams{UserID: id, RevokedReason: &reason}
+	if err := q.RevokeAllUserRefreshTokens(ctx, revokeAllParams); err != nil {
 		r.log.Error("RevokeAllUserRefreshTokens query failed", zap.Int64("user_id", id), zap.Error(err))
 		return fmt.Errorf("revoke user refresh tokens: %w", err)
 	}
@@ -319,18 +318,17 @@ func softDeleteUserAndCredentials(ctx context.Context, q *db.Queries, p DeleteAc
 	}
 
 	reason := "account_deletion"
-	if err := q.RevokeAllUserRefreshTokens(ctx, db.RevokeAllUserRefreshTokensParams{
-		UserID:        p.UserID,
-		RevokedReason: &reason,
-	}); err != nil {
+	revokeAllForResetParams := db.RevokeAllUserRefreshTokensParams{UserID: p.UserID, RevokedReason: &reason}
+	if err := q.RevokeAllUserRefreshTokens(ctx, revokeAllForResetParams); err != nil {
 		return fmt.Errorf("revoke user refresh tokens: %w", err)
 	}
 
-	if err := q.InsertRevokedAccessToken(ctx, db.InsertRevokedAccessTokenParams{
+	revokeAccessParams := db.InsertRevokedAccessTokenParams{
 		Jti:       pgtype.UUID{Bytes: p.JTI, Valid: true},
 		UserID:    p.UserID,
 		ExpiresAt: pgtype.Timestamptz{Time: p.ExpiresAt, Valid: true},
-	}); err != nil {
+	}
+	if err := q.InsertRevokedAccessToken(ctx, revokeAccessParams); err != nil {
 		return fmt.Errorf("revoke access token: %w", err)
 	}
 

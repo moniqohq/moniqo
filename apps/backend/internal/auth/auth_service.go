@@ -147,14 +147,15 @@ func (s *Svc) IssueRefreshToken(ctx context.Context, userID int64, rememberMe bo
 	expiresAt := now.Add(s.refreshTokenTTL)
 	absoluteExpiresAt := now.Add(s.refreshTokenMaxAge)
 
-	if _, err := s.repo.InsertRefreshToken(ctx, InsertRefreshTokenRepoParams{
+	insertRefreshParams := InsertRefreshTokenRepoParams{
 		FamilyID:          familyID,
 		UserID:            userID,
 		TokenHash:         hash,
 		ExpiresAt:         expiresAt,
 		AbsoluteExpiresAt: absoluteExpiresAt,
 		RememberMe:        rememberMe,
-	}); err != nil {
+	}
+	if _, err := s.repo.InsertRefreshToken(ctx, insertRefreshParams); err != nil {
 		return RefreshIssue{}, fmt.Errorf("insert refresh token: %w", err)
 	}
 
@@ -188,14 +189,15 @@ func (s *Svc) RefreshAccessToken(ctx context.Context, rawToken string) (RefreshR
 
 	newExpiresAt := clampExpiry(now.Add(s.refreshTokenTTL), row.AbsoluteExpiresAt)
 
-	if _, err := s.repo.RotateRefreshToken(ctx, row.ID.Bytes, InsertRefreshTokenRepoParams{
+	rotateParams := InsertRefreshTokenRepoParams{
 		FamilyID:          row.FamilyID.Bytes,
 		UserID:            row.UserID,
 		TokenHash:         newHash,
 		ExpiresAt:         newExpiresAt,
 		AbsoluteExpiresAt: row.AbsoluteExpiresAt.Time,
 		RememberMe:        row.RememberMe,
-	}); err != nil {
+	}
+	if _, err := s.repo.RotateRefreshToken(ctx, row.ID.Bytes, rotateParams); err != nil {
 		return RefreshResult{}, fmt.Errorf("rotate refresh token: %w", err)
 	}
 
@@ -366,12 +368,13 @@ func (s *PasswordResetSvc) ConfirmReset(ctx context.Context, req ConfirmResetReq
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	if err := s.repo.ConfirmResetTransaction(ctx, ConfirmResetTxParams{
+	confirmResetTxParams := ConfirmResetTxParams{
 		TokenID:     row.ID,
 		UserID:      row.UserID,
 		NewHash:     string(newHash),
 		InvalidatAt: now,
-	}); err != nil {
+	}
+	if err := s.repo.ConfirmResetTransaction(ctx, confirmResetTxParams); err != nil {
 		s.log.Error("password reset confirm: transaction failed", zap.Int64("user_id", row.UserID), zap.Error(err))
 		return fmt.Errorf("confirm reset transaction: %w", err)
 	}

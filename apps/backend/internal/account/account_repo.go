@@ -341,10 +341,8 @@ func (r *Repo) SoftDelete(ctx context.Context, id, budgetID int64) error {
 	)
 
 	q := db.New(r.pool)
-	if err := q.SoftDeleteAccount(ctx, db.SoftDeleteAccountParams{
-		ID:       id,
-		BudgetID: budgetID,
-	}); err != nil {
+	softDeleteParams := db.SoftDeleteAccountParams{ID: id, BudgetID: budgetID}
+	if err := q.SoftDeleteAccount(ctx, softDeleteParams); err != nil {
 		r.log.Error("SoftDeleteAccount query failed",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -368,10 +366,8 @@ func (r *Repo) HardDelete(ctx context.Context, id, budgetID int64) error {
 	)
 
 	q := db.New(r.pool)
-	if err := q.HardDeleteAccount(ctx, db.HardDeleteAccountParams{
-		ID:       id,
-		BudgetID: budgetID,
-	}); err != nil {
+	hardDeleteParams := db.HardDeleteAccountParams{ID: id, BudgetID: budgetID}
+	if err := q.HardDeleteAccount(ctx, hardDeleteParams); err != nil {
 		r.log.Error("HardDeleteAccount query failed",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -478,10 +474,8 @@ func (r *Repo) MarkReconciled(ctx context.Context, id, budgetID int64) (models.A
 	)
 
 	q := db.New(r.pool)
-	if err := q.MarkAccountTransactionsReconciled(ctx, db.MarkAccountTransactionsReconciledParams{
-		AccountID: id,
-		BudgetID:  budgetID,
-	}); err != nil {
+	markReconciledParams := db.MarkAccountTransactionsReconciledParams{AccountID: id, BudgetID: budgetID}
+	if err := q.MarkAccountTransactionsReconciled(ctx, markReconciledParams); err != nil {
 		r.log.Error("MarkAccountTransactionsReconciled query failed",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),

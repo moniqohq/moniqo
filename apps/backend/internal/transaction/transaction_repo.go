@@ -420,10 +420,8 @@ func (r *Repo) SoftDelete(ctx context.Context, id, budgetID int64) error {
 	)
 
 	q := db.New(r.conn)
-	if err := q.SoftDeleteTransaction(ctx, db.SoftDeleteTransactionParams{
-		ID:       id,
-		BudgetID: budgetID,
-	}); err != nil {
+	softDeleteParams := db.SoftDeleteTransactionParams{ID: id, BudgetID: budgetID}
+	if err := q.SoftDeleteTransaction(ctx, softDeleteParams); err != nil {
 		r.log.Error("SoftDeleteTransaction query failed",
 			zap.Int64("transaction_id", id),
 			zap.Int64("budget_id", budgetID),
@@ -485,10 +483,8 @@ func (r *Repo) SoftDeleteByGroupID(ctx context.Context, groupID string, budgetID
 	}
 
 	q := db.New(r.conn)
-	if err := q.SoftDeleteTransactionsByGroupID(ctx, db.SoftDeleteTransactionsByGroupIDParams{
-		TransferGroupID: pgGroupID,
-		BudgetID:        budgetID,
-	}); err != nil {
+	softDeleteByGroupParams := db.SoftDeleteTransactionsByGroupIDParams{TransferGroupID: pgGroupID, BudgetID: budgetID}
+	if err := q.SoftDeleteTransactionsByGroupID(ctx, softDeleteByGroupParams); err != nil {
 		r.log.Error("SoftDeleteTransactionsByGroupID query failed",
 			zap.String("group_id", groupID),
 			zap.Int64("budget_id", budgetID),

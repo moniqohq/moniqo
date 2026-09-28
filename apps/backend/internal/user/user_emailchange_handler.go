@@ -47,10 +47,8 @@ func (h *Handler) RequestEmailChange(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
 	}
 
-	if errs := validator.ValidateRequestEmailChange(validator.RequestEmailChangeInput{
-		NewEmail:        req.NewEmail,
-		CurrentPassword: req.CurrentPassword,
-	}); len(errs) > 0 {
+	emailChangeInput := validator.RequestEmailChangeInput{NewEmail: req.NewEmail, CurrentPassword: req.CurrentPassword}
+	if errs := validator.ValidateRequestEmailChange(emailChangeInput); len(errs) > 0 {
 		return httpx.ValidationError(c, errs)
 	}
 

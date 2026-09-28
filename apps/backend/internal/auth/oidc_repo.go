@@ -228,12 +228,13 @@ func (r *OIDCRepo) createUserAndIdentityTx(ctx context.Context, p CreateOIDCUser
 	}
 
 	providerEmail := &p.ProviderEmail
-	if _, err := q.CreateUserIdentity(ctx, db.CreateUserIdentityParams{
+	createIdentityParams := db.CreateUserIdentityParams{
 		UserID:          row.ID,
 		Provider:        p.Provider,
 		ProviderSubject: p.ProviderSubject,
 		ProviderEmail:   providerEmail,
-	}); err != nil {
+	}
+	if _, err := q.CreateUserIdentity(ctx, createIdentityParams); err != nil {
 		return models.User{}, fmt.Errorf("create user identity: %w", err)
 	}
 

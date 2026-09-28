@@ -178,11 +178,8 @@ func (r *MembershipRepo) TransferOwnership(ctx context.Context, budgetID, curren
 
 	q := db.New(tx)
 
-	if _, err := q.UpdateMemberRole(ctx, db.UpdateMemberRoleParams{
-		BudgetID: budgetID,
-		UserID:   targetUserID,
-		Role:     db.BudgetRoleOWNER,
-	}); err != nil {
+	promoteParams := db.UpdateMemberRoleParams{BudgetID: budgetID, UserID: targetUserID, Role: db.BudgetRoleOWNER}
+	if _, err := q.UpdateMemberRole(ctx, promoteParams); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrMembershipNotFound
 		}
@@ -190,11 +187,8 @@ func (r *MembershipRepo) TransferOwnership(ctx context.Context, budgetID, curren
 		return fmt.Errorf("promote target to owner: %w", err)
 	}
 
-	if _, err := q.UpdateMemberRole(ctx, db.UpdateMemberRoleParams{
-		BudgetID: budgetID,
-		UserID:   currentOwnerID,
-		Role:     db.BudgetRoleADMIN,
-	}); err != nil {
+	demoteParams := db.UpdateMemberRoleParams{BudgetID: budgetID, UserID: currentOwnerID, Role: db.BudgetRoleADMIN}
+	if _, err := q.UpdateMemberRole(ctx, demoteParams); err != nil {
 		r.log.Error("demote current owner failed", zap.Int64("current_owner", currentOwnerID), zap.Error(err))
 		return fmt.Errorf("demote current owner: %w", err)
 	}
