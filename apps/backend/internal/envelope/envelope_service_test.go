@@ -835,7 +835,11 @@ func TestSvc_GetDashboardStats(t *testing.T) {
 			Expenses: 30000,
 		}, nil)
 		repo.On("GetMonthlySparkline", testBudgetID).Return([]db.GetMonthlySparklineRow{
-			{Month: pgtype.Date{Time: time.Date(2026, time.February, 1, 0, 0, 0, 0, time.UTC), Valid: true}, Income: 70000, Expenses: 40000},
+			{
+				Month:    pgtype.Date{Time: time.Date(2026, time.February, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+				Income:   70000,
+				Expenses: 40000,
+			},
 			{Month: pgtype.Date{Time: month, Valid: true}, Income: 80000, Expenses: 30000},
 		}, nil)
 
