@@ -33,7 +33,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	_ "time/tzdata"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -41,6 +40,7 @@ import (
 	"go.uber.org/zap"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "time/tzdata"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 
