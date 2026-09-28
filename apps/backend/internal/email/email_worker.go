@@ -140,13 +140,14 @@ func (w *Worker) processJob(ctx context.Context, job *ClaimedJob) {
 		return
 	}
 
-	if err := w.provider.Send(ctx, providers.Message{
+	err = w.provider.Send(ctx, providers.Message{
 		To:       job.RecipientEmail,
 		ToName:   job.RecipientName,
 		Subject:  out.Subject,
 		HTMLBody: out.HTMLBody,
 		TextBody: out.TextBody,
-	}); err != nil {
+	})
+	if err != nil {
 		log.Warn(
 			"email worker: send failed, will retry",
 			zap.Int32("attempt", job.AttemptCount+1),

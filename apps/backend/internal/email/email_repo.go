@@ -68,14 +68,15 @@ func (r *Repo) Enqueue(ctx context.Context, p EnqueueParams) error {
 	}
 
 	q := db.New(r.pool)
-	if err := q.EnqueueEmailJob(ctx, db.EnqueueEmailJobParams{
+	err = q.EnqueueEmailJob(ctx, db.EnqueueEmailJobParams{
 		IdempotencyKey: p.IdempotencyKey,
 		TemplateName:   string(p.Template),
 		RecipientEmail: p.To,
 		RecipientName:  p.ToName,
 		Payload:        raw,
 		MaxAttempts:    maxAttempts,
-	}); err != nil {
+	})
+	if err != nil {
 		r.log.Error(
 			"failed to enqueue email job",
 			zap.String("idempotency_key", p.IdempotencyKey),
@@ -158,11 +159,12 @@ func (r *Repo) MarkFailed(ctx context.Context, id pgtype.UUID, errMsg string, at
 	delay := time.Duration(float64(baseBackoff) * math.Pow(expBackoffBase, float64(attempt)))
 	next := pgtype.Timestamptz{Time: time.Now().Add(delay), Valid: true}
 	errStr := errMsg
-	if err := db.New(r.pool).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{
+	err := db.New(r.pool).MarkEmailJobFailed(ctx, db.MarkEmailJobFailedParams{
 		ID:            id,
 		LastError:     &errStr,
 		NextAttemptAt: next,
-	}); err != nil {
+	})
+	if err != nil {
 		r.log.Error(
 			"failed to mark email job failed",
 			zap.String("job_id", uuid.UUID(id.Bytes).String()),
