@@ -79,10 +79,8 @@ func (h *Handler) Login(c echo.Context) error {
 	}
 
 	h.log.Debug("validating login input", zap.String("email", req.Email))
-	if errs := validator.ValidateLogin(validator.LoginInput{
-		Email:    req.Email,
-		Password: req.Password,
-	}); len(errs) > 0 {
+	loginInput := validator.LoginInput{Email: req.Email, Password: req.Password}
+	if errs := validator.ValidateLogin(loginInput); len(errs) > 0 {
 		h.log.Debug("login input validation failed", zap.String("email", req.Email), zap.Int("error_count", len(errs)))
 		return httpx.ValidationError(c, errs)
 	}
@@ -216,10 +214,8 @@ func (h *PasswordResetHandler) ConfirmReset(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: invalidBodyField, Error: invalidJSONMsg}})
 	}
 
-	if errs := validator.ValidateConfirmReset(validator.ConfirmResetInput{
-		Token:       req.Token,
-		NewPassword: req.NewPassword,
-	}); len(errs) > 0 {
+	confirmResetInput := validator.ConfirmResetInput{Token: req.Token, NewPassword: req.NewPassword}
+	if errs := validator.ValidateConfirmReset(confirmResetInput); len(errs) > 0 {
 		return httpx.ValidationError(c, errs)
 	}
 

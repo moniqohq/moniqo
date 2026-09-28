@@ -117,12 +117,13 @@ func (h *Handler) Register(c echo.Context) error {
 	}
 
 	h.log.Debug("validating registration input", zap.String("username", req.Username), zap.String("email", req.Email))
-	if errs := validator.ValidateRegister(validator.RegisterInput{
+	registerInput := validator.RegisterInput{
 		Username: req.Username,
 		Password: req.Password,
 		Email:    req.Email,
 		Name:     req.Name,
-	}); len(errs) > 0 {
+	}
+	if errs := validator.ValidateRegister(registerInput); len(errs) > 0 {
 		h.log.Debug("registration input validation failed", zap.String("username", req.Username), zap.Int("error_count", len(errs)))
 		return httpx.ValidationError(c, errs)
 	}
@@ -182,7 +183,7 @@ func (h *Handler) ReplaceProfile(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
 	}
 
-	if errs := validator.ValidateReplaceProfile(validator.ReplaceProfileInput{
+	replaceProfileInput := validator.ReplaceProfileInput{
 		Name:       req.Name,
 		Username:   req.Username,
 		Email:      req.Email,
@@ -190,7 +191,8 @@ func (h *Handler) ReplaceProfile(c echo.Context) error {
 		Currency:   req.Currency,
 		Timezone:   req.Timezone,
 		DateFormat: req.DateFormat,
-	}); len(errs) > 0 {
+	}
+	if errs := validator.ValidateReplaceProfile(replaceProfileInput); len(errs) > 0 {
 		return httpx.ValidationError(c, errs)
 	}
 
@@ -224,7 +226,7 @@ func (h *Handler) PatchProfile(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
 	}
 
-	if errs := validator.ValidatePatchProfile(validator.PatchProfileInput{
+	patchProfileInput := validator.PatchProfileInput{
 		Name:            req.Name,
 		Username:        req.Username,
 		Email:           req.Email,
@@ -234,7 +236,8 @@ func (h *Handler) PatchProfile(c echo.Context) error {
 		DateFormat:      req.DateFormat,
 		CurrentPassword: req.CurrentPassword,
 		NewPassword:     req.NewPassword,
-	}); len(errs) > 0 {
+	}
+	if errs := validator.ValidatePatchProfile(patchProfileInput); len(errs) > 0 {
 		return httpx.ValidationError(c, errs)
 	}
 
@@ -272,9 +275,8 @@ func (h *Handler) DeleteProfile(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}})
 	}
 
-	if errs := validator.ValidateDeleteAccount(validator.DeleteAccountInput{
-		CurrentPassword: req.CurrentPassword,
-	}); len(errs) > 0 {
+	deleteAccountInput := validator.DeleteAccountInput{CurrentPassword: req.CurrentPassword}
+	if errs := validator.ValidateDeleteAccount(deleteAccountInput); len(errs) > 0 {
 		return httpx.ValidationError(c, errs)
 	}
 
