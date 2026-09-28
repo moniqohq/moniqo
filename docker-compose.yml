@@ -78,6 +78,11 @@ services:
       # pnpm workspace lockfile, which lives there.
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        # next.config.ts reads this during `next build` to resolve the
+        # /api/v1/* rewrite destination into the compiled routes manifest,
+        # so it must be a build arg, not just a runtime environment var.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:8080}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api/v1}

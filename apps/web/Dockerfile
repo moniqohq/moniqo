@@ -36,6 +36,11 @@ WORKDIR /app
 
 RUN corepack enable
 
+# Read by apps/web/next.config.ts at build time to resolve the /api/v1/*
+# rewrite destination into the compiled routes manifest.
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+
 COPY --from=deps /app ./
 COPY apps/web ./apps/web
 RUN pnpm --filter=@moniqo/web run build
