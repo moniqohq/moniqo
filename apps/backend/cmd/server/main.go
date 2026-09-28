@@ -39,9 +39,8 @@ import (
 	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 
-	_ "time/tzdata"
-
 	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "time/tzdata"
 
 	echomw "github.com/labstack/echo/v4/middleware"
 
