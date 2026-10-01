@@ -433,10 +433,7 @@ const signupSchema = z.object({
   phone: z
     .string()
     .optional()
-    .refine(
-      (val) => !val || /^[0-9]{8,15}$/.test(val),
-      "Enter a valid phone number (8-15 digits)",
-    ),
+    .refine((val) => !val || /^[0-9]{8,15}$/.test(val), "Enter a valid phone number (8-15 digits)"),
 });
 
 type SignupFields = z.infer<typeof signupSchema>;
@@ -851,7 +848,9 @@ export default function SignupPage() {
                       style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
                     >
                       <span className="text-base leading-none">🇮🇳</span>
-                      <span className="text-sm font-medium text-[#A8B4CC]">{COUNTRY_DIAL_CODE}</span>
+                      <span className="text-sm font-medium text-[#A8B4CC]">
+                        {COUNTRY_DIAL_CODE}
+                      </span>
                       <ChevronDown className="h-3.5 w-3.5 text-[#5A6A85]" />
                     </button>
                     <div className="group relative flex-1">
