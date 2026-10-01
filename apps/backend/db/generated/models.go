@@ -407,6 +407,7 @@ type User struct {
 	AvatarSizeBytes       int64
 	AvatarEtag            string
 	AvatarUpdatedAt       pgtype.Timestamptz
+	MobileNumber          *string
 }
 
 type UserIdentity struct {

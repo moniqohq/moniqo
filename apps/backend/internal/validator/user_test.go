@@ -225,6 +225,47 @@ func TestValidateRegister(t *testing.T) {
 			wantField: "name",
 			wantMsg:   "must not exceed 100 characters",
 		},
+		// --- mobile_number ---
+		{
+			name:  "nil mobile number is valid",
+			input: func() validator.RegisterInput { i := validInput(); i.MobileNumber = nil; return i }(),
+		},
+		{
+			name:  "with optional mobile number",
+			input: func() validator.RegisterInput { i := validInput(); i.MobileNumber = strPtr("+919876543210"); return i }(),
+		},
+		{
+			name:  "mobile number without leading +",
+			input: func() validator.RegisterInput { i := validInput(); i.MobileNumber = strPtr("9876543210"); return i }(),
+		},
+		{
+			name:      "mobile number empty string is invalid",
+			input:     func() validator.RegisterInput { i := validInput(); i.MobileNumber = new(string); return i }(),
+			wantField: "mobile_number",
+			wantMsg:   "must not be empty if provided",
+		},
+		{
+			name:      "mobile number too short (7 digits)",
+			input:     func() validator.RegisterInput { i := validInput(); i.MobileNumber = strPtr("1234567"); return i }(),
+			wantField: "mobile_number",
+			wantMsg:   "must be 8-15 digits",
+		},
+		{
+			name: "mobile number too long (16 digits)",
+			input: func() validator.RegisterInput {
+				i := validInput()
+				i.MobileNumber = strPtr("1234567890123456")
+				return i
+			}(),
+			wantField: "mobile_number",
+			wantMsg:   "must be 8-15 digits",
+		},
+		{
+			name:      "mobile number with letters",
+			input:     func() validator.RegisterInput { i := validInput(); i.MobileNumber = strPtr("98765abcde"); return i }(),
+			wantField: "mobile_number",
+			wantMsg:   "must be 8-15 digits",
+		},
 	}
 
 	for _, tc := range tests {

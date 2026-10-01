@@ -107,6 +107,30 @@ func TestUserService_Register(t *testing.T) {
 		repo.AssertExpectations(t)
 	})
 
+	t.Run("success with mobile number", func(t *testing.T) {
+		t.Parallel()
+
+		u := makeUser("saqibtest", "saqib@example.com")
+		u.MobileNumber = ptr("+919876543210")
+		repo := &internalmock.UserRepository{}
+		repo.On("Create", mock.AnythingOfType("CreateParams")).Return(u, nil).
+			Run(func(args mock.Arguments) {
+				p := args.Get(0).(user.CreateParams)
+				require.NotNil(t, p.MobileNumber)
+				assert.Equal(t, "+919876543210", *p.MobileNumber)
+			})
+		svc := user.NewSvc(repo, newNoopMailer(), 4, "http://localhost:3000", []byte("test-secret"), log)
+
+		req := validReq
+		req.MobileNumber = ptr("+919876543210")
+		pub, err := svc.Register(context.Background(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, pub.MobileNumber)
+		assert.Equal(t, "+919876543210", *pub.MobileNumber)
+		repo.AssertExpectations(t)
+	})
+
 	t.Run("password is hashed before storage", func(t *testing.T) {
 		t.Parallel()
 
