@@ -64,6 +64,13 @@ export function StepCategories() {
     };
   }, [budgetId]);
 
+  const allSelected = accepted.size === DEFAULT_CATEGORIES.length;
+  const noneSelected = accepted.size === 0;
+
+  function setAll(select: boolean) {
+    setAccepted(select ? new Set(DEFAULT_CATEGORIES.map((c) => c.title)) : new Set());
+  }
+
   function toggle(title: string) {
     setAccepted((prev) => {
       const next = new Set(prev);
@@ -91,6 +98,7 @@ export function StepCategories() {
           title: category.title,
           allocated_amt: 0,
           description: category.description,
+          nature: category.nature,
         });
       }
       for (const envelope of existing) {
@@ -118,6 +126,30 @@ export function StepCategories() {
       error={submitError}
       nextDisabled={accepted.size === 0 || !loaded}
     >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-[#5A6A85]">
+          {accepted.size} of {DEFAULT_CATEGORIES.length} selected
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAll(true)}
+            disabled={allSelected}
+            className="rounded-lg border border-[#1E2B42] px-2.5 py-1.5 text-xs font-medium text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            onClick={() => setAll(false)}
+            disabled={noneSelected}
+            className="rounded-lg border border-[#1E2B42] px-2.5 py-1.5 text-xs font-medium text-[#A8B4CC] transition-colors hover:bg-[#131C2E] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Deselect all
+          </button>
+        </div>
+      </div>
+
       <div className="max-h-96 space-y-5 overflow-y-auto pr-1">
         {DEFAULT_CATEGORY_GROUPS.map((group) => (
           <div key={group}>
