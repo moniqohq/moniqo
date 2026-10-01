@@ -43,8 +43,10 @@ import (
 	moniqooidc "github.com/moniqohq/moniqo/apps/backend/internal/auth/oidc"
 )
 
-const testIssuer = "https://issuer.test"
-const testClientID = "test-client-id"
+const (
+	testIssuer   = "https://issuer.test"
+	testClientID = "test-client-id"
+)
 
 // fakeKeySet skips cryptographic signature verification and returns the raw
 // JWT payload — these tests exercise this package's own wiring (AuthURL

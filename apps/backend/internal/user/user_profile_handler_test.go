@@ -500,7 +500,13 @@ func TestHandler_PatchProfile_PreferencesEchoedAndHashStripped(t *testing.T) {
 			return u, nil
 		},
 	}
-	c, rec := newProfileCtx(e, http.MethodPatch, "7", `{"currency":"USD","timezone":"America/New_York","date_format":"YYYY-MM-DD"}`, testUserID)
+	c, rec := newProfileCtx(
+		e,
+		http.MethodPatch,
+		"7",
+		`{"currency":"USD","timezone":"America/New_York","date_format":"YYYY-MM-DD"}`,
+		testUserID,
+	)
 	h := user.NewHandler(svc, "http://localhost:3000", log)
 
 	require.NoError(t, h.PatchProfile(c))

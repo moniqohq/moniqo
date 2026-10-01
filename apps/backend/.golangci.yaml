@@ -109,7 +109,6 @@ formatters:
     - gci
     - gofmt
     - gofumpt
-    - goimports
     - golines
   settings:
     gci:

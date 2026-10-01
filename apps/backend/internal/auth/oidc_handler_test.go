@@ -139,7 +139,12 @@ func TestOIDCHandler_Callback(t *testing.T) {
 		svc := &mock.OIDCService{
 			CallbackFn: func(_ context.Context, providerName, code, stateParam, flowCookieRaw string) (auth.OIDCCallbackResult, error) {
 				gotCode, gotState, gotCookie = code, stateParam, flowCookieRaw
-				return auth.OIDCCallbackResult{Purpose: auth.OIDCPurposeLogin, AccessToken: "at", RefreshToken: "rt", RefreshTokenExpiresAt: time.Now().Add(time.Hour)}, nil
+				return auth.OIDCCallbackResult{
+					Purpose:               auth.OIDCPurposeLogin,
+					AccessToken:           "at",
+					RefreshToken:          "rt",
+					RefreshTokenExpiresAt: time.Now().Add(time.Hour),
+				}, nil
 			},
 		}
 		h := auth.NewOIDCHandler(svc, zap.NewNop(), true, "https://app.moniqo.in")
