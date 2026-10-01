@@ -25,11 +25,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-
-	"github.com/jackc/pgx/v5/pgtype"
 
 	db "github.com/moniqohq/moniqo/apps/backend/db/generated"
 	"github.com/moniqohq/moniqo/apps/backend/internal/account"
