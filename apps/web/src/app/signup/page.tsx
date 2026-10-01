@@ -406,6 +406,10 @@ const inputBase = {
   border: "1px solid #1E2B42",
 } as const;
 
+// Fixed dial code shown by the country-code control; prepended to the
+// entered digits before being sent to the API as mobile_number.
+const COUNTRY_DIAL_CODE = "+91";
+
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const signupSchema = z.object({
@@ -426,6 +430,13 @@ const signupSchema = z.object({
     .regex(/[A-Z]/, "Must contain an uppercase letter")
     .regex(/[a-z]/, "Must contain a lowercase letter")
     .regex(/[0-9]/, "Must contain a number"),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || /^[0-9]{8,15}$/.test(val),
+      "Enter a valid phone number (8-15 digits)",
+    ),
 });
 
 type SignupFields = z.infer<typeof signupSchema>;
@@ -470,6 +481,7 @@ export default function SignupPage() {
           username: data.username,
           email: data.email,
           password: data.password,
+          mobile_number: data.phone ? `${COUNTRY_DIAL_CODE}${data.phone}` : undefined,
         }),
       });
       setSuccess(true);
@@ -839,7 +851,7 @@ export default function SignupPage() {
                       style={{ background: "#0A0E1A", border: "1px solid #1E2B42" }}
                     >
                       <span className="text-base leading-none">🇮🇳</span>
-                      <span className="text-sm font-medium text-[#A8B4CC]">+91</span>
+                      <span className="text-sm font-medium text-[#A8B4CC]">{COUNTRY_DIAL_CODE}</span>
                       <ChevronDown className="h-3.5 w-3.5 text-[#5A6A85]" />
                     </button>
                     <div className="group relative flex-1">
@@ -849,12 +861,21 @@ export default function SignupPage() {
                         placeholder="Enter your phone number"
                         autoComplete="tel"
                         className="h-12 w-full rounded-xl pr-4 pl-11 text-sm text-[#E8EEF8] placeholder-[#5A6A85] transition-all duration-200 outline-none"
-                        style={inputBase}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "#6C3AED")}
-                        onBlur={(e) => (e.currentTarget.style.borderColor = "#1E2B42")}
+                        style={{
+                          ...inputBase,
+                          border: `1px solid ${errors.phone ? "#EF4444" : "#1E2B42"}`,
+                        }}
+                        {...register("phone")}
+                        onFocus={(e) =>
+                          (e.currentTarget.style.borderColor = errors.phone ? "#EF4444" : "#6C3AED")
+                        }
+                        onBlur={(e) =>
+                          (e.currentTarget.style.borderColor = errors.phone ? "#EF4444" : "#1E2B42")
+                        }
                       />
                     </div>
                   </div>
+                  {errors.phone && <p className="text-xs text-[#FCA5A5]">{errors.phone.message}</p>}
                 </div>
 
                 {/* Terms checkbox */}

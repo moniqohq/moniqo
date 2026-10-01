@@ -47,7 +47,7 @@ UPDATE users
 SET avatar_key = '', avatar_content_type = '', avatar_size_bytes = 0,
     avatar_etag = '', avatar_updated_at = NULL, picture = '', updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+RETURNING id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type ClearUserAvatarRow struct {
@@ -55,6 +55,7 @@ type ClearUserAvatarRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -78,6 +79,7 @@ func (q *Queries) ClearUserAvatar(ctx context.Context, id int64) (ClearUserAvata
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,
@@ -94,16 +96,17 @@ func (q *Queries) ClearUserAvatar(ctx context.Context, id int64) (ClearUserAvata
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, email, hash, name)
-VALUES ($1, $2, $3, $4)
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+INSERT INTO users (username, email, hash, name, mobile_number)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type CreateUserParams struct {
-	Username string
-	Email    string
-	Hash     *string
-	Name     *string
+	Username     string
+	Email        string
+	Hash         *string
+	Name         *string
+	MobileNumber *string
 }
 
 type CreateUserRow struct {
@@ -111,6 +114,7 @@ type CreateUserRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -130,6 +134,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		arg.Email,
 		arg.Hash,
 		arg.Name,
+		arg.MobileNumber,
 	)
 	var i CreateUserRow
 	err := row.Scan(
@@ -137,6 +142,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,
@@ -155,7 +161,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 const createUserWithoutPassword = `-- name: CreateUserWithoutPassword :one
 INSERT INTO users (username, email, hash, name, picture, status)
 VALUES ($1, $2, NULL, $3, $4, 'active')
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+RETURNING id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type CreateUserWithoutPasswordParams struct {
@@ -170,6 +176,7 @@ type CreateUserWithoutPasswordRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -185,6 +192,7 @@ type CreateUserWithoutPasswordRow struct {
 
 // Used for OIDC-only signups: no password credential, email already verified
 // by the identity provider so the account is created active, not pending.
+// mobile_number is left NULL: OIDC signups have no form step to collect it.
 func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserWithoutPasswordParams) (CreateUserWithoutPasswordRow, error) {
 	row := q.db.QueryRow(ctx, createUserWithoutPassword,
 		arg.Username,
@@ -198,6 +206,7 @@ func (q *Queries) CreateUserWithoutPassword(ctx context.Context, arg CreateUserW
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,
@@ -246,7 +255,7 @@ func (q *Queries) GetUserAvatarMeta(ctx context.Context, id int64) (GetUserAvata
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before, (hash IS NOT NULL)::boolean AS has_password
+SELECT id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, tokens_invalid_before, (hash IS NOT NULL)::boolean AS has_password
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -256,6 +265,7 @@ type GetUserByIDRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -278,6 +288,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, er
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,
@@ -365,7 +376,7 @@ UPDATE users
 SET avatar_key = $2, avatar_content_type = $3, avatar_size_bytes = $4,
     avatar_etag = $5, avatar_updated_at = now(), picture = $6, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+RETURNING id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type SetUserAvatarParams struct {
@@ -382,6 +393,7 @@ type SetUserAvatarRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -413,6 +425,7 @@ func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (S
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,
@@ -443,7 +456,7 @@ const updateUserEmail = `-- name: UpdateUserEmail :one
 UPDATE users
 SET email = $2, status = 'active', updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+RETURNING id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type UpdateUserEmailParams struct {
@@ -456,6 +469,7 @@ type UpdateUserEmailRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -480,6 +494,7 @@ func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,
@@ -502,7 +517,7 @@ SET name = COALESCE($4, name),
     timezone = $3,
     updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+RETURNING id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type UpdateUserOnboardingProfileParams struct {
@@ -517,6 +532,7 @@ type UpdateUserOnboardingProfileRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -543,6 +559,7 @@ func (q *Queries) UpdateUserOnboardingProfile(ctx context.Context, arg UpdateUse
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,
@@ -579,7 +596,7 @@ UPDATE users
 SET name = $2, username = $3, email = $4, picture = $5,
     currency = $6, timezone = $7, date_format = $8, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, username, email, name, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
+RETURNING id, username, email, name, mobile_number, picture, status, currency, timezone, date_format, onboarding_completed_at, last_login, created_at, updated_at, deleted_at, (hash IS NOT NULL)::boolean AS has_password
 `
 
 type UpdateUserProfileParams struct {
@@ -598,6 +615,7 @@ type UpdateUserProfileRow struct {
 	Username              string
 	Email                 string
 	Name                  *string
+	MobileNumber          *string
 	Picture               string
 	Status                UserStatus
 	Currency              *string
@@ -628,6 +646,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Username,
 		&i.Email,
 		&i.Name,
+		&i.MobileNumber,
 		&i.Picture,
 		&i.Status,
 		&i.Currency,

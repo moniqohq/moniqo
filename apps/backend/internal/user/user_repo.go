@@ -55,6 +55,7 @@ type publicUserRow struct {
 	Name                  *string
 	Username              string
 	Email                 string
+	MobileNumber          *string
 	Picture               string
 	Status                db.UserStatus
 	Currency              *string
@@ -83,6 +84,7 @@ func toPublicUser(row publicUserRow) models.User {
 		Name:                  row.Name,
 		Username:              row.Username,
 		Email:                 row.Email,
+		MobileNumber:          row.MobileNumber,
 		Picture:               row.Picture,
 		Status:                models.UserStatus(row.Status),
 		Currency:              row.Currency,
@@ -145,7 +147,7 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (models.User, error) {
 		return models.User{}, fmt.Errorf("get user by id: %w", err)
 	}
 	return toPublicUser(publicUserRow{
-		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, MobileNumber: row.MobileNumber, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 		HasPassword: row.HasPassword,
@@ -181,7 +183,7 @@ func (r *Repo) UpdateProfile(ctx context.Context, p UpdateProfileParams) (models
 		return models.User{}, fmt.Errorf("update user profile: %w", err)
 	}
 	return toPublicUser(publicUserRow{
-		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, MobileNumber: row.MobileNumber, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 		HasPassword: row.HasPassword,
@@ -446,7 +448,7 @@ func (r *Repo) SetAvatar(ctx context.Context, p SetAvatarParams) (models.User, e
 		return models.User{}, fmt.Errorf("set user avatar: %w", err)
 	}
 	return toPublicUser(publicUserRow{
-		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, MobileNumber: row.MobileNumber, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 		HasPassword: row.HasPassword,
@@ -468,7 +470,7 @@ func (r *Repo) ClearAvatar(ctx context.Context, id int64) (models.User, error) {
 		return models.User{}, fmt.Errorf("clear user avatar: %w", err)
 	}
 	return toPublicUser(publicUserRow{
-		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, MobileNumber: row.MobileNumber, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone, DateFormat: row.DateFormat,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 		HasPassword: row.HasPassword,
@@ -482,10 +484,11 @@ func (r *Repo) insertWithTx(ctx context.Context, tx pgx.Tx, p CreateParams) (mod
 
 	q := db.New(tx)
 	row, err := q.CreateUser(ctx, db.CreateUserParams{
-		Username: p.Username,
-		Email:    p.Email,
-		Hash:     &p.Hash,
-		Name:     p.Name,
+		Username:     p.Username,
+		Email:        p.Email,
+		Hash:         &p.Hash,
+		Name:         p.Name,
+		MobileNumber: p.MobileNumber,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
