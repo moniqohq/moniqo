@@ -98,6 +98,7 @@ export function StepCategories() {
           title: category.title,
           allocated_amt: 0,
           description: category.description,
+          nature: category.nature,
         });
       }
       for (const envelope of existing) {
