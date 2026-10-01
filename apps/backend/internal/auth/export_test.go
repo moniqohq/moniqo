@@ -23,8 +23,10 @@ package auth
 import "time"
 
 // Exported for use in package auth_test only.
-var SetClaimsInContext = setClaimsInContext
-var SetUserInContext = setUserInContext
+var (
+	SetClaimsInContext = setClaimsInContext
+	SetUserInContext   = setUserInContext
+)
 
 const Issuer = issuer
 
