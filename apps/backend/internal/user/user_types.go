@@ -35,10 +35,11 @@ import (
 // RegisterRequest is the HTTP request body for POST /api/v1/users and the
 // service-layer input to Svc.Register.
 type RegisterRequest struct {
-	Username string  `json:"username"`
-	Password string  `json:"password"`
-	Email    string  `json:"email"`
-	Name     *string `json:"name"`
+	Username     string  `json:"username"`
+	Password     string  `json:"password"`
+	Email        string  `json:"email"`
+	Name         *string `json:"name"`
+	MobileNumber *string `json:"mobile_number"`
 }
 
 // ReplaceProfileRequest is the HTTP request body for PUT /api/v1/users/{id}.
@@ -140,10 +141,11 @@ func (*LastOwnerError) Is(target error) bool {
 
 // CreateParams holds the values needed to insert a new user row.
 type CreateParams struct {
-	Username string
-	Email    string
-	Hash     string
-	Name     *string
+	Username     string
+	Email        string
+	Hash         string
+	Name         *string
+	MobileNumber *string
 }
 
 // UpdateProfileParams holds the values for a full or partial profile update.

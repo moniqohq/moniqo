@@ -34,13 +34,14 @@ import (
 // usernameRe enforces: starts with a letter, followed by alphanumeric chars, with
 // optional single - or _ separators between alphanumeric segments.
 const (
-	fieldEmail       = "email"
-	fieldPicture     = "picture"
-	minPasswordLen   = 8
-	maxPasswordLen   = 72
-	maxEmailLen      = 254
-	maxNameLen       = 100
-	maxPictureURLLen = 2048
+	fieldEmail        = "email"
+	fieldPicture      = "picture"
+	fieldMobileNumber = "mobile_number"
+	minPasswordLen    = 8
+	maxPasswordLen    = 72
+	maxEmailLen       = 254
+	maxNameLen        = 100
+	maxPictureURLLen  = 2048
 
 	errPictureReadOnly = "read-only; upload via PUT /api/v1/users/{id}/picture"
 	errEmailReadOnly   = "read-only; change via POST /api/v1/users/{id}/email-change"
@@ -52,6 +53,11 @@ const (
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*$`)
+
+// mobileNumberRe accepts an optional leading "+" followed by 8-15 digits
+// (E.164-ish: no spaces, dashes, or parentheses — the client is responsible
+// for normalizing user input before submitting).
+var mobileNumberRe = regexp.MustCompile(`^\+?[0-9]{8,15}$`)
 
 // mintedPictureRe matches the exact server-minted relative avatar URL
 // ("/api/v1/users/{id}/picture"), the only non-empty form of `picture` a
@@ -172,12 +178,32 @@ func validateName(name *string) *httpx.FieldError {
 	return nil
 }
 
+// validateMobileNumber checks an optional mobile number: nil (omitted) is
+// fine, an explicitly empty string is not, and a provided value must match
+// mobileNumberRe (optional leading "+", 8-15 digits).
+func validateMobileNumber(mobileNumber *string) *httpx.FieldError {
+	if mobileNumber == nil {
+		return nil
+	}
+	if *mobileNumber == "" {
+		return &httpx.FieldError{Field: fieldMobileNumber, Error: errNotEmptyIfProvided}
+	}
+	if !mobileNumberRe.MatchString(*mobileNumber) {
+		return &httpx.FieldError{
+			Field: fieldMobileNumber,
+			Error: "must be 8-15 digits, with an optional leading +",
+		}
+	}
+	return nil
+}
+
 // RegisterInput holds the fields for POST /api/v1/users registration.
 type RegisterInput struct {
-	Username string
-	Password string
-	Email    string
-	Name     *string // nil = omitted; non-nil empty string = explicitly empty (invalid)
+	Username     string
+	Password     string
+	Email        string
+	Name         *string // nil = omitted; non-nil empty string = explicitly empty (invalid)
+	MobileNumber *string // nil = omitted; non-nil empty string = explicitly empty (invalid)
 }
 
 // ValidateRegister aggregates all field-level failures in a single pass.
@@ -201,6 +227,11 @@ func ValidateRegister(in RegisterInput) []httpx.FieldError {
 
 	// Name (optional — omitted is fine; explicitly empty is not)
 	if fe := validateName(in.Name); fe != nil {
+		errs = append(errs, *fe)
+	}
+
+	// Mobile number (optional — omitted is fine; explicitly empty is not)
+	if fe := validateMobileNumber(in.MobileNumber); fe != nil {
 		errs = append(errs, *fe)
 	}
 
