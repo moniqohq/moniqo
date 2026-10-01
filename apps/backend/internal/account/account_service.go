@@ -145,8 +145,16 @@ func (s *Svc) Create(ctx context.Context, budgetID int64, req CreateRequest) (mo
 	}
 
 	// Record an opening transaction if an initial balance was provided.
+	// Liability accounts (CREDIT_CARD, LOAN) carry a negative balance when
+	// money is owed (per models.NetWorth), so the caller-supplied, always
+	// non-negative InitialBalance is negated for those types before being
+	// recorded — otherwise it reads as positive income instead of debt.
 	if req.InitialBalance.Int64() > 0 {
-		if err := s.repo.CreateOpeningTransaction(ctx, budgetID, account.ID, req.InitialBalance); err != nil {
+		openingAmount := req.InitialBalance
+		if req.Type.IsLiability() {
+			openingAmount = money.FromMinorUnits(-openingAmount.Int64())
+		}
+		if err := s.repo.CreateOpeningTransaction(ctx, budgetID, account.ID, openingAmount); err != nil {
 			s.log.Error("CreateOpeningTransaction failed",
 				zap.Int64("budget_id", budgetID),
 				zap.Int64("account_id", account.ID),
