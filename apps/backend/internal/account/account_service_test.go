@@ -105,6 +105,30 @@ func TestSvc_Create(t *testing.T) {
 		repo.AssertExpectations(t)
 	})
 
+	t.Run("success — loan initial balance recorded as negative (liability, not income)", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("ExistsByName", testBudgetID, "Car Loan", (*int64)(nil)).Return(false, nil)
+		repo.On("Create", account.CreateParams{
+			BudgetID: testBudgetID,
+			Name:     "Car Loan",
+			Type:     models.AccountTypeLoan,
+		}).Return(models.Account{ID: testAccountID, BudgetID: testBudgetID, Name: "Car Loan", Type: models.AccountTypeLoan}, nil)
+		repo.On("CreateOpeningTransaction", testBudgetID, testAccountID, money.FromMinorUnits(-1000)).Return(nil)
+		repo.On("Balances", testAccountID, testBudgetID).Return(money.FromMinorUnits(-1000), money.FromMinorUnits(0), nil)
+
+		svc := account.NewSvc(repo, log)
+		a, err := svc.Create(context.Background(), testBudgetID, account.CreateRequest{
+			Name:           "Car Loan",
+			Type:           models.AccountTypeLoan,
+			InitialBalance: money.FromMinorUnits(1000),
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, money.FromMinorUnits(-1000), a.Balance)
+		repo.AssertExpectations(t)
+	})
+
 	t.Run("duplicate name returns ErrConflict", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.AccountRepository{}

@@ -148,10 +148,11 @@ func (s *Svc) Register(ctx context.Context, req RegisterRequest) (models.User, e
 
 	s.log.Debug("persisting user via repo", zap.String("username", req.Username))
 	pub, err := s.repo.Create(ctx, CreateParams{
-		Username: req.Username,
-		Email:    req.Email,
-		Hash:     string(hash),
-		Name:     req.Name,
+		Username:     req.Username,
+		Email:        req.Email,
+		Hash:         string(hash),
+		Name:         req.Name,
+		MobileNumber: req.MobileNumber,
 	})
 	if err != nil {
 		if errors.Is(err, ErrConflict) {

@@ -42,6 +42,7 @@ Represents an authenticated identity in the system.
 | `username` | String | Yes | Unique username (8–12 chars, see constraints) |
 | `hash` | String | No | bcrypt password hash — absent for accounts created via third-party (OIDC) sign-in with no password set; **never returned in any response regardless** |
 | `email` | String | Yes | Unique email address (RFC 5321, required at registration) |
+| `mobile_number` | String | No | Mobile number, 8–15 digits with an optional leading `+`; `null` if not provided at registration. **Set only at registration; read-only thereafter** — not editable via PUT/PATCH |
 | `picture` | String | Yes | Server-managed avatar reference; empty string `""` when not set, never `null`. Either the relative URL `/api/v1/users/{id}/picture` (an uploaded avatar) or an absolute `https` URL (an OIDC-provided avatar). **Read-only** over this API — see [Profile Picture](#profile-picture) below; PUT/PATCH reject a non-empty value. |
 | `status` | Enum | Yes | Account lifecycle state: `pending_verification` or `active` |
 | `currency` | String | No | Display currency, ISO-4217 code (one of `INR`, `USD`, `EUR`, `GBP`, `AUD`, `CAD`, `SGD`); `null` until set |
@@ -150,7 +151,8 @@ Creates a new user account. This is the entry point into the system — no authe
   "username": "saqibtest",
   "password": "securePassword123",
   "name": "Saqib Abdul",
-  "email": "saqib@example.com"
+  "email": "saqib@example.com",
+  "mobile_number": "+919876543210"
 }
 ```
 
@@ -160,6 +162,7 @@ Creates a new user account. This is the entry point into the system — no authe
 | `password` | Yes | 8–72 bytes (bcrypt truncates beyond 72) |
 | `email` | Yes | RFC 5321 format; max 254 chars |
 | `name` | No | If provided, non-empty string; max 100 chars |
+| `mobile_number` | No | If provided, non-empty; 8–15 digits with an optional leading `+` |
 
 **Response — 201 Created**
 
@@ -171,6 +174,7 @@ Creates a new user account. This is the entry point into the system — no authe
     "name": "Saqib Abdul",
     "username": "saqibtest",
     "email": "saqib@example.com",
+    "mobile_number": "+919876543210",
     "picture": "",
     "status": "pending_verification",
     "last_login": null,
@@ -190,6 +194,7 @@ Creates a new user account. This is the entry point into the system — no authe
 - `status` is always `pending_verification` on creation.
 - `last_login` is always `null` on creation.
 - `picture` is always `""` (empty string) when not set, never `null`.
+- `mobile_number` is `null` when not provided; not unique (no uniqueness constraint), and not editable after registration (read-only on PUT/PATCH).
 - All writes occur within a single DB transaction; any failure rolls back.
 - Concurrent duplicate registrations: exactly one request succeeds with `201`; the rest receive `409`.
 

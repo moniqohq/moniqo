@@ -199,7 +199,7 @@ func (r *Repo) CompleteEmailChange(ctx context.Context, requestID uuid.UUID, use
 		return models.User{}, fmt.Errorf("commit transaction: %w", err)
 	}
 	return toPublicUser(publicUserRow{
-		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, Picture: row.Picture,
+		ID: row.ID, Name: row.Name, Username: row.Username, Email: row.Email, MobileNumber: row.MobileNumber, Picture: row.Picture,
 		Status: row.Status, Currency: row.Currency, Timezone: row.Timezone,
 		OnboardingCompletedAt: row.OnboardingCompletedAt, LastLogin: row.LastLogin, CreatedAt: row.CreatedAt,
 		HasPassword: row.HasPassword,
