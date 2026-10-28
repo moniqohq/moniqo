@@ -26,7 +26,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
-	github.com/labstack/echo/v4 v4.16.0
+	github.com/labstack/echo/v4 v4.16.2
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/zap v1.28.0
