@@ -53,20 +53,29 @@ pull_request_rules:
           title: pr-title
           body: pr-body
 
-  # Automatically update PR branch when main changes
+  # Automatically update PR branch when main changes.
+  # Dependabot PRs are excluded: Dependabot stops auto-rebasing a PR once any
+  # extra commit (including a Mergify "Merge branch 'main'" commit) is pushed
+  # to it, and only Dependabot can regenerate pnpm-lock.yaml to resolve a
+  # lockfile conflict. Conflicting PRs are skipped since the update would fail.
   - name: Keep PR branch up to date with main
     conditions:
       - base=main
       - "-draft"
+      - "-conflict"
+      - "author!=dependabot[bot]"
       - "#commits-behind>=1"
     actions:
       update: {}
 
-  # Rebase stale PRs (open > 7 days with no activity)
+  # Rebase stale PRs (open > 7 days with no activity). Dependabot handles its
+  # own rebases (see above).
   - name: Rebase stale PRs
     conditions:
       - base=main
       - "-draft"
+      - "-conflict"
+      - "author!=dependabot[bot]"
       - "updated-at<7 days ago"
       - "#commits-behind>=1"
     actions:
