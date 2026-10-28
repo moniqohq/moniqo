@@ -118,10 +118,11 @@ func (h *Handler) Register(c echo.Context) error {
 
 	h.log.Debug("validating registration input", zap.String("username", req.Username), zap.String("email", req.Email))
 	registerInput := validator.RegisterInput{
-		Username: req.Username,
-		Password: req.Password,
-		Email:    req.Email,
-		Name:     req.Name,
+		Username:     req.Username,
+		Password:     req.Password,
+		Email:        req.Email,
+		Name:         req.Name,
+		MobileNumber: req.MobileNumber,
 	}
 	if errs := validator.ValidateRegister(registerInput); len(errs) > 0 {
 		h.log.Debug("registration input validation failed", zap.String("username", req.Username), zap.Int("error_count", len(errs)))

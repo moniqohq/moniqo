@@ -43,6 +43,7 @@ type User struct {
 	Name                  *string    `json:"name"`
 	Username              string     `json:"username"`
 	Email                 string     `json:"email"`
+	MobileNumber          *string    `json:"mobile_number"`
 	Picture               string     `json:"picture"`
 	Status                UserStatus `json:"status"`
 	Currency              *string    `json:"currency"`
