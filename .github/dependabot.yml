@@ -7,11 +7,18 @@ version: 2
 # updates arrive as individual PRs (they don't match group `update-types`)
 # so they can be reviewed deliberately.
 #
+# npm is special: pnpm workspaces share ONE root pnpm-lock.yaml. Every npm PR
+# rewrites that file, so separate `updates` entries per directory produce PRs
+# that conflict with each other as soon as one merges. All npm workspace
+# directories therefore live in a single entry using `directories`, so each
+# group yields exactly one PR spanning every directory.
+#
 # Adding a new app or package:
-#   1. Copy the closest existing stanza below.
-#   2. Change `directory` to the path containing the manifest file.
-#   3. Adjust `labels` and `groups` to match the ecosystem.
-#   4. For large frameworks that require manual migration, add an `ignore` rule.
+#   - npm:  add its path to the `directories` list of the npm entry below and
+#           add/adjust `groups` patterns; majors still arrive individually.
+#   - other ecosystems: copy the closest existing stanza, change `directory`,
+#     adjust `labels` and `groups`.
+#   - For large frameworks that require manual migration, add an `ignore` rule.
 
 updates:
   # ── GitHub Actions ──────────────────────────────────────────────────────────
@@ -96,32 +103,23 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  # ── npm — monorepo root ─────────────────────────────────────────────────────
-  # Monitors /package.json (prettier, workspace-level dev tooling).
+  # ── npm — all pnpm workspace packages (single root lockfile) ───────────────
+  # One entry for every npm manifest in the workspace. Groups span all listed
+  # directories, so a group update is a single PR touching pnpm-lock.yaml once.
+  # Major React / Next.js / Expo / React Native upgrades are blocked here —
+  # they require coordinated migration work and must be handled manually.
   - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-    assignees:
-      - abdul-saqib
-    groups:
-      root-dev-tooling:
-        patterns: ["prettier", "prettier-plugin-*"]
-        update-types: ["minor", "patch"]
-
-  # ── npm — Next.js web application ──────────────────────────────────────────
-  # Monitors apps/web/package.json.
-  # Major React and Next.js upgrades are blocked here — they require
-  # coordinated migration work and must be handled manually.
-  - package-ecosystem: npm
-    directory: /apps/web
+    directories:
+      - /
+      - /apps/web
+      - /apps/mobile
+      - /apps/desktop
+      - /packages/ui
+      - /packages/design-system
+      - /packages/validation
+      - /packages/types
+      - /packages/sdk
+      - /packages/config
     schedule:
       interval: weekly
       day: monday
@@ -131,7 +129,6 @@ updates:
     labels:
       - dependencies
       - javascript
-      - nextjs
     assignees:
       - abdul-saqib
     ignore:
@@ -145,89 +142,6 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: eslint-config-next
         update-types: ["version-update:semver-major"]
-    groups:
-      # React and Next.js core (minor/patch only — majors blocked above).
-      react-nextjs-core:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "next"
-          - "next-*"
-          - "eslint-config-next"
-        update-types: ["minor", "patch"]
-      # UI primitives, icons, animation, and charting.
-      ui-and-styling:
-        patterns:
-          - "tailwindcss"
-          - "@tailwindcss/*"
-          - "tailwind-merge"
-          - "tailwind-*"
-          - "tw-*"
-          - "clsx"
-          - "class-variance-authority"
-          - "lucide-react"
-          - "framer-motion"
-          - "shadcn"
-          - "@base-ui/*"
-          - "recharts"
-        update-types: ["minor", "patch"]
-      # Form handling and runtime validation.
-      forms-and-validation:
-        patterns:
-          - "react-hook-form"
-          - "@hookform/*"
-          - "zod"
-        update-types: ["minor", "patch"]
-      # State management.
-      state-management:
-        patterns:
-          - "zustand"
-        update-types: ["minor", "patch"]
-      # TypeScript compiler and ambient type packages.
-      typescript-types:
-        patterns:
-          - "typescript"
-          - "@types/*"
-        update-types: ["minor", "patch"]
-      # Linting and formatting tools.
-      linting-tooling:
-        patterns:
-          - "eslint"
-          - "eslint-*"
-          - "@eslint/*"
-        update-types: ["minor", "patch"]
-      # Test runners and utilities (vitest, jest, testing-library, playwright…).
-      testing:
-        patterns:
-          - "vitest"
-          - "jest"
-          - "jest-*"
-          - "@jest/*"
-          - "@testing-library/*"
-          - "@playwright/*"
-          - "playwright"
-          - "cypress"
-        update-types: ["minor", "patch"]
-
-  # ── npm — Expo / React Native mobile application ────────────────────────────
-  # Monitors apps/mobile/package.json.
-  # Major Expo and React Native upgrades require a coordinated SDK migration
-  # and must be handled manually.
-  - package-ecosystem: npm
-    directory: /apps/mobile
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - react-native
-    assignees:
-      - abdul-saqib
-    ignore:
       # Expo SDK major upgrades require manual migration.
       - dependency-name: expo
         update-types: ["version-update:semver-major"]
@@ -242,7 +156,19 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@react-native/*"
         update-types: ["version-update:semver-major"]
+    # A dependency joins the FIRST group whose patterns match it, so keep the
+    # catch-all `npm-misc` group last. Minor/patch updates always land in some
+    # group; majors never match a group and arrive as individual PRs.
     groups:
+      # React and Next.js core (minor/patch only — majors blocked above).
+      react-nextjs-core:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "next"
+          - "next-*"
+          - "eslint-config-next"
+        update-types: ["minor", "patch"]
       # Expo SDK and all first-party Expo packages.
       expo-ecosystem:
         patterns:
@@ -258,191 +184,69 @@ updates:
           - "@react-native/*"
           - "@react-navigation/*"
         update-types: ["minor", "patch"]
-      # Shared React packages (same versions used in web).
-      react-ecosystem:
+      # UI primitives, icons, animation, and charting.
+      ui-and-styling:
         patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-native"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "tailwind-merge"
+          - "tailwind-*"
+          - "tw-*"
+          - "clsx"
+          - "class-variance-authority"
+          - "cmdk"
+          - "lucide-react"
+          - "framer-motion"
+          - "shadcn"
+          - "@base-ui/*"
+          - "recharts"
+          - "next-themes"
         update-types: ["minor", "patch"]
-      # Test utilities for React Native (jest, detox, …).
-      testing:
+      # Form handling and runtime validation.
+      forms-and-validation:
         patterns:
-          - "jest"
-          - "jest-*"
-          - "@jest/*"
-          - "detox"
-          - "@testing-library/*"
-          - "babel-jest"
+          - "react-hook-form"
+          - "@hookform/*"
+          - "zod"
         update-types: ["minor", "patch"]
-      # TypeScript types and compiler.
+      # State management and data fetching.
+      state-management:
+        patterns:
+          - "zustand"
+          - "@tanstack/*"
+        update-types: ["minor", "patch"]
+      # TypeScript compiler and ambient type packages.
       typescript-types:
         patterns:
           - "typescript"
+          - "@typescript/*"
           - "@types/*"
         update-types: ["minor", "patch"]
-
-  # ── npm — Tauri desktop application ────────────────────────────────────────
-  # Monitors apps/desktop/package.json. The Tauri Rust toolchain is managed
-  # separately; only the JS/TS frontend dependencies appear here.
-  - package-ecosystem: npm
-    directory: /apps/desktop
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - desktop
-    assignees:
-      - abdul-saqib
-    groups:
-      desktop-deps:
-        patterns: ["*"]
+      # Linting and formatting tools.
+      linting-tooling:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+          - "prettier"
+          - "prettier-plugin-*"
         update-types: ["minor", "patch"]
-
-  # ── npm — Hugo landing page ─────────────────────────────────────────────────
-  # Monitors apps/landing/package.json (PostCSS, Tailwind CSS build tooling).
-  - package-ecosystem: npm
-    directory: /apps/landing
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-    assignees:
-      - abdul-saqib
-    groups:
-      landing-tooling:
-        patterns: ["*"]
+      # Test runners and utilities (vitest, jest, testing-library, playwright, detox…).
+      testing:
+        patterns:
+          - "vitest"
+          - "jest"
+          - "jest-*"
+          - "@jest/*"
+          - "babel-jest"
+          - "@testing-library/*"
+          - "@playwright/*"
+          - "playwright"
+          - "cypress"
+          - "detox"
         update-types: ["minor", "patch"]
-
-  # ── npm — shared packages ───────────────────────────────────────────────────
-  # One stanza per workspace package under packages/. These are currently stubs;
-  # adding a stanza now means Dependabot will start tracking them automatically
-  # once dependencies are added to their package.json files.
-  #
-  # To add a new package: copy any stanza below, change `directory`, and adjust
-  # `labels` / `groups` as needed.
-
-  - package-ecosystem: npm
-    directory: /packages/ui
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - shared-packages
-    assignees:
-      - abdul-saqib
-    groups:
-      ui-pkg-deps:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  - package-ecosystem: npm
-    directory: /packages/design-system
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - shared-packages
-    assignees:
-      - abdul-saqib
-    groups:
-      design-system-pkg-deps:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  - package-ecosystem: npm
-    directory: /packages/validation
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - shared-packages
-    assignees:
-      - abdul-saqib
-    groups:
-      validation-pkg-deps:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  - package-ecosystem: npm
-    directory: /packages/types
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - shared-packages
-    assignees:
-      - abdul-saqib
-    groups:
-      types-pkg-deps:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  - package-ecosystem: npm
-    directory: /packages/sdk
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - shared-packages
-    assignees:
-      - abdul-saqib
-    groups:
-      sdk-pkg-deps:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  - package-ecosystem: npm
-    directory: /packages/config
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - dependencies
-      - javascript
-      - shared-packages
-    assignees:
-      - abdul-saqib
-    groups:
-      config-pkg-deps:
+      # Everything else (minor/patch). Keeps stray single-dependency PRs from
+      # competing for the shared lockfile.
+      npm-misc:
         patterns: ["*"]
         update-types: ["minor", "patch"]
