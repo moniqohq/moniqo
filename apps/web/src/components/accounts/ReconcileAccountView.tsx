@@ -613,7 +613,10 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
     setFinishError(null);
     setFinishing(true);
     try {
-      await reconcileAccount(budgetId, accountId);
+      await reconcileAccount(budgetId, accountId, {
+        statement_balance: statementBalance,
+        statement_date: statementDate,
+      });
       await loadTransactions();
       invalidateBudgetData(queryClient, budgetId);
       setShowSuccess(true);

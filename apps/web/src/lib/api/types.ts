@@ -155,6 +155,30 @@ export type ApiAccountBalanceHistory = {
   net_worth: ApiBalancePoint[];
 };
 
+export type ApiReconciliationCheckpoint = {
+  id: number;
+  budget_id: number;
+  account_id: number;
+  statement_balance: number;
+  statement_date: string; // YYYY-MM-DD
+  cleared_balance: number;
+  ledger_balance: number;
+  difference: number;
+  transactions_count: number;
+  reconciled_by_user_id: number | null;
+  created_at: string;
+};
+
+export type ApiReconcileRequest = {
+  statement_balance: number; // major units, e.g. 10500.25
+  statement_date: string; // YYYY-MM-DD
+};
+
+export type ApiReconcileResult = {
+  account: ApiAccount;
+  checkpoint: ApiReconciliationCheckpoint;
+};
+
 export type ApiIncomeSource = {
   name: string;
   amount_amt: number;
