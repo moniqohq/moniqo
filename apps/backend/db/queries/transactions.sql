@@ -10,7 +10,7 @@ SELECT
 FROM transactions
 WHERE account_id = $1 AND budget_id = $2 AND deleted_at IS NULL;
 
--- name: MarkAccountTransactionsReconciled :exec
+-- name: MarkAccountTransactionsReconciled :execrows
 UPDATE transactions
 SET status = 'reconciled', updated_at = now()
 WHERE account_id = $1 AND budget_id = $2 AND status = 'cleared' AND deleted_at IS NULL;

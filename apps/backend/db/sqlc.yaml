@@ -15,6 +15,7 @@ sql:
       - "queries/search.sql"
       - "queries/oidc.sql"
       - "queries/onboarding.sql"
+      - "queries/reconciliation.sql"
     schema: "migrations"
     gen:
       go:

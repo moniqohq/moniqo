@@ -349,6 +349,21 @@ type PasswordResetToken struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type ReconciliationCheckpoint struct {
+	ID                 int64
+	BudgetID           int64
+	AccountID          int64
+	StatementBalance   int64
+	StatementDate      pgtype.Date
+	ClearedBalance     int64
+	LedgerBalance      int64
+	Difference         int64
+	TransactionsCount  int32
+	ReconciledByUserID *int64
+	CreatedAt          pgtype.Timestamptz
+	DeletedAt          pgtype.Timestamptz
+}
+
 type RefreshToken struct {
 	ID                pgtype.UUID
 	FamilyID          pgtype.UUID
