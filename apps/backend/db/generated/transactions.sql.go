@@ -675,7 +675,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 	return items, nil
 }
 
-const markAccountTransactionsReconciled = `-- name: MarkAccountTransactionsReconciled :exec
+const markAccountTransactionsReconciled = `-- name: MarkAccountTransactionsReconciled :execrows
 UPDATE transactions
 SET status = 'reconciled', updated_at = now()
 WHERE account_id = $1 AND budget_id = $2 AND status = 'cleared' AND deleted_at IS NULL
@@ -686,9 +686,12 @@ type MarkAccountTransactionsReconciledParams struct {
 	BudgetID  int64
 }
 
-func (q *Queries) MarkAccountTransactionsReconciled(ctx context.Context, arg MarkAccountTransactionsReconciledParams) error {
-	_, err := q.db.Exec(ctx, markAccountTransactionsReconciled, arg.AccountID, arg.BudgetID)
-	return err
+func (q *Queries) MarkAccountTransactionsReconciled(ctx context.Context, arg MarkAccountTransactionsReconciledParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markAccountTransactionsReconciled, arg.AccountID, arg.BudgetID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const patchTransaction = `-- name: PatchTransaction :one

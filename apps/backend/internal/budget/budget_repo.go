@@ -174,7 +174,8 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Budget, error) 
 }
 
 // SoftDeleteCascade soft-deletes the budget and everything scoped to it
-// (transactions, accounts, envelopes, memberships) in a single transaction.
+// (transactions, reconciliation checkpoints, accounts, envelopes, memberships)
+// in a single transaction.
 // Idempotent: already-deleted budgets match zero rows and no error is
 // returned.
 func (r *Repo) SoftDeleteCascade(ctx context.Context, budgetID int64) error {
@@ -188,29 +189,23 @@ func (r *Repo) SoftDeleteCascade(ctx context.Context, budgetID int64) error {
 
 	q := db.New(tx)
 
-	if err := q.SoftDeleteTransactionsByBudget(ctx, budgetID); err != nil {
-		r.log.Error("SoftDeleteTransactionsByBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
-		return fmt.Errorf("soft delete transactions: %w", err)
+	steps := []struct {
+		name string
+		run  func() error
+	}{
+		{"transactions", func() error { return q.SoftDeleteTransactionsByBudget(ctx, budgetID) }},
+		{"reconciliation checkpoints", func() error { return q.SoftDeleteCheckpointsByBudget(ctx, budgetID) }},
+		{"accounts", func() error { return q.SoftDeleteAccountsByBudget(ctx, budgetID) }},
+		{"envelopes", func() error { return q.SoftDeleteEnvelopesByBudget(ctx, budgetID) }},
+		{"memberships", func() error { return q.SoftDeleteAllMembershipsForBudget(ctx, budgetID) }},
+		{"budget", func() error { return q.SoftDeleteBudget(ctx, budgetID) }},
 	}
-
-	if err := q.SoftDeleteAccountsByBudget(ctx, budgetID); err != nil {
-		r.log.Error("SoftDeleteAccountsByBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
-		return fmt.Errorf("soft delete accounts: %w", err)
-	}
-
-	if err := q.SoftDeleteEnvelopesByBudget(ctx, budgetID); err != nil {
-		r.log.Error("SoftDeleteEnvelopesByBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
-		return fmt.Errorf("soft delete envelopes: %w", err)
-	}
-
-	if err := q.SoftDeleteAllMembershipsForBudget(ctx, budgetID); err != nil {
-		r.log.Error("SoftDeleteAllMembershipsForBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
-		return fmt.Errorf("soft delete memberships: %w", err)
-	}
-
-	if err := q.SoftDeleteBudget(ctx, budgetID); err != nil {
-		r.log.Error("SoftDeleteBudget query failed", zap.Int64("budget_id", budgetID), zap.Error(err))
-		return fmt.Errorf("soft delete budget: %w", err)
+	for _, step := range steps {
+		if err := step.run(); err != nil {
+			r.log.Error("soft delete cascade step failed",
+				zap.String("step", step.name), zap.Int64("budget_id", budgetID), zap.Error(err))
+			return fmt.Errorf("soft delete %s: %w", step.name, err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

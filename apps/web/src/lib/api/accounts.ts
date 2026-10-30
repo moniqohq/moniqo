@@ -19,7 +19,13 @@
  */
 
 import { apiFetch } from "./client";
-import type { ApiAccount, ApiAccountBalanceHistory } from "./types";
+import type {
+  ApiAccount,
+  ApiAccountBalanceHistory,
+  ApiReconcileRequest,
+  ApiReconcileResult,
+  ApiReconciliationCheckpoint,
+} from "./types";
 
 const base = (budgetId: number) => `/api/v1/budgets/${budgetId}/accounts`;
 
@@ -80,8 +86,22 @@ export function deleteAccount(budgetId: number, id: number): Promise<void> {
   return apiFetch<void>(`${base(budgetId)}/${id}`, { method: "DELETE" });
 }
 
-export function reconcileAccount(budgetId: number, id: number): Promise<ApiAccount> {
-  return apiFetch<ApiAccount>(`${base(budgetId)}/${id}/reconcile`, { method: "POST" });
+export function reconcileAccount(
+  budgetId: number,
+  id: number,
+  body: ApiReconcileRequest,
+): Promise<ApiReconcileResult> {
+  return apiFetch<ApiReconcileResult>(`${base(budgetId)}/${id}/reconcile`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function listAccountReconciliations(
+  budgetId: number,
+  id: number,
+): Promise<ApiReconciliationCheckpoint[]> {
+  return apiFetch<ApiReconciliationCheckpoint[]>(`${base(budgetId)}/${id}/reconciliations`);
 }
 
 export function getAccountBalanceHistory(

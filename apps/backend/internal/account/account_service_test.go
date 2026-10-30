@@ -475,6 +475,7 @@ func TestSvc_Delete(t *testing.T) {
 		repo := &internalmock.AccountRepository{}
 		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Main"), nil)
 		repo.On("HasTransactions", testAccountID, testBudgetID).Return(false, nil)
+		repo.On("HasCheckpoints", testAccountID, testBudgetID).Return(false, nil)
 		repo.On("HardDelete", testAccountID, testBudgetID).Return(nil)
 
 		svc := account.NewSvc(repo, log)
@@ -490,6 +491,7 @@ func TestSvc_Delete(t *testing.T) {
 		repo := &internalmock.AccountRepository{}
 		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Main"), nil)
 		repo.On("HasTransactions", testAccountID, testBudgetID).Return(true, nil)
+		repo.On("HasCheckpoints", testAccountID, testBudgetID).Return(false, nil)
 		repo.On("SoftDelete", testAccountID, testBudgetID).Return(nil)
 
 		svc := account.NewSvc(repo, log)
@@ -497,6 +499,23 @@ func TestSvc_Delete(t *testing.T) {
 
 		require.NoError(t, err)
 		repo.AssertExpectations(t)
+		repo.AssertNotCalled(t, "HardDelete")
+	})
+
+	t.Run("checkpoints but no transactions — soft delete", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Main"), nil)
+		repo.On("HasTransactions", testAccountID, testBudgetID).Return(false, nil)
+		repo.On("HasCheckpoints", testAccountID, testBudgetID).Return(true, nil)
+		repo.On("SoftDelete", testAccountID, testBudgetID).Return(nil)
+
+		svc := account.NewSvc(repo, log)
+		err := svc.Delete(context.Background(), testAccountID, testBudgetID, models.RoleOwner)
+
+		require.NoError(t, err)
+		repo.AssertExpectations(t)
+		repo.AssertNotCalled(t, "HardDelete")
 		repo.AssertNotCalled(t, "HardDelete")
 	})
 
@@ -542,33 +561,115 @@ func TestSvc_Reconcile(t *testing.T) {
 	t.Parallel()
 	log := zap.NewNop()
 
-	t.Run("success", func(t *testing.T) {
+	const testUserID int64 = 42
+	statementDate := time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC)
+	req := account.ReconcileRequest{StatementBalance: money.FromMinorUnits(1050025), StatementDate: statementDate}
+	wantParams := account.ReconcileParams{
+		AccountID:          testAccountID,
+		BudgetID:           testBudgetID,
+		StatementBalance:   req.StatementBalance,
+		StatementDate:      statementDate,
+		ReconciledByUserID: testUserID,
+	}
+
+	t.Run("success returns account and checkpoint", func(t *testing.T) {
 		t.Parallel()
 		now := time.Now()
 		reconciled := makeAccount("Main")
 		reconciled.LastReconciledAt = &now
+		checkpoint := models.ReconciliationCheckpoint{
+			ID:               7,
+			BudgetID:         testBudgetID,
+			AccountID:        testAccountID,
+			StatementBalance: req.StatementBalance,
+			StatementDate:    models.Date{Time: statementDate},
+			ClearedBalance:   money.FromMinorUnits(1000000),
+			Difference:       money.FromMinorUnits(50025),
+		}
 
 		repo := &internalmock.AccountRepository{}
-		repo.On("MarkReconciled", testAccountID, testBudgetID).Return(reconciled, nil)
+		repo.On("Reconcile", wantParams).Return(reconciled, checkpoint, nil)
 
 		svc := account.NewSvc(repo, log)
-		a, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID)
+		res, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID, testUserID, req)
 
 		require.NoError(t, err)
-		assert.Equal(t, &now, a.LastReconciledAt)
+		assert.Equal(t, &now, res.Account.LastReconciledAt)
+		assert.Equal(t, checkpoint, res.Checkpoint)
 		repo.AssertExpectations(t)
 	})
 
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 		repo := &internalmock.AccountRepository{}
-		repo.On("MarkReconciled", testAccountID, testBudgetID).Return(models.Account{}, account.ErrNotFound)
+		repo.On("Reconcile", wantParams).Return(models.Account{}, models.ReconciliationCheckpoint{}, account.ErrNotFound)
 
 		svc := account.NewSvc(repo, log)
-		_, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID)
+		_, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID, testUserID, req)
 
 		assert.ErrorIs(t, err, account.ErrNotFound)
 		repo.AssertExpectations(t)
+	})
+
+	t.Run("archived budget is rejected before touching the repo", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		checker := &internalmock.BudgetChecker{}
+		checker.On("IsArchived", testBudgetID).Return(true, nil)
+
+		svc := account.NewSvc(repo, log)
+		svc.SetBudgetChecker(checker)
+		_, err := svc.Reconcile(context.Background(), testAccountID, testBudgetID, testUserID, req)
+
+		assert.ErrorIs(t, err, account.ErrBudgetArchived)
+		repo.AssertNotCalled(t, "Reconcile")
+	})
+}
+
+// TestSvc_ListReconciliations covers account.Svc.ListReconciliations.
+func TestSvc_ListReconciliations(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+
+	t.Run("returns checkpoints from repo", func(t *testing.T) {
+		t.Parallel()
+		want := []models.ReconciliationCheckpoint{{ID: 2, AccountID: testAccountID, BudgetID: testBudgetID}, {ID: 1, AccountID: testAccountID, BudgetID: testBudgetID}}
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Main"), nil)
+		repo.On("ListCheckpoints", testAccountID, testBudgetID).Return(want, nil)
+
+		svc := account.NewSvc(repo, log)
+		got, err := svc.ListReconciliations(context.Background(), testAccountID, testBudgetID)
+
+		require.NoError(t, err)
+		assert.Equal(t, want, got)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("nil from repo becomes empty slice", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(makeAccount("Main"), nil)
+		repo.On("ListCheckpoints", testAccountID, testBudgetID).Return(nil, nil)
+
+		svc := account.NewSvc(repo, log)
+		got, err := svc.ListReconciliations(context.Background(), testAccountID, testBudgetID)
+
+		require.NoError(t, err)
+		assert.NotNil(t, got)
+		assert.Empty(t, got)
+	})
+
+	t.Run("unknown account returns not found", func(t *testing.T) {
+		t.Parallel()
+		repo := &internalmock.AccountRepository{}
+		repo.On("GetByID", testAccountID, testBudgetID).Return(models.Account{}, account.ErrNotFound)
+
+		svc := account.NewSvc(repo, log)
+		_, err := svc.ListReconciliations(context.Background(), testAccountID, testBudgetID)
+
+		assert.ErrorIs(t, err, account.ErrNotFound)
+		repo.AssertNotCalled(t, "ListCheckpoints")
 	})
 }
 

@@ -344,10 +344,25 @@ Idempotent operation.
 
 ### Reconcile Account
 
-Marks all `cleared` transactions on the account as `reconciled` and stamps `last_reconciled_at` with the current time.
+Marks all `cleared` transactions on the account as `reconciled`, stamps `last_reconciled_at` with the current time, and persists a **reconciliation checkpoint** snapshotting the statement balance against the ledger. All three happen in a single database transaction: if any step fails, nothing is changed.
 
 **`POST /api/v1/budgets/{budget_id}/accounts/{id}/reconcile`**
 **Authentication:** Required
+**Authorization:** `OWNER`, `ADMIN`, `EDITOR`
+
+**Request Body**
+
+```json
+{
+  "statement_balance": 10000.00,
+  "statement_date": "2026-07-07"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `statement_balance` | Number (major units, 2 decimals) | Yes | Closing balance printed on the bank statement |
+| `statement_date` | String (`YYYY-MM-DD`) | Yes | Statement closing date |
 
 **Response — 200 OK**
 
@@ -355,25 +370,100 @@ Marks all `cleared` transactions on the account as `reconciled` and stamps `last
 {
   "success": true,
   "data": {
-    "id": 101,
-    "name": "HDFC Checking",
-    "type": "checking",
-    "budget_id": 1,
-    "balance": 10000.00,
-    "cleared_balance": 10000.00,
-    "requires_recon": true,
-    "last_reconciled_at": "2026-07-07T10:15:00Z",
-    "notes": "Primary salary account"
+    "account": {
+      "id": 101,
+      "name": "HDFC Checking",
+      "type": "CHECKING",
+      "budget_id": 1,
+      "balance": 10000.00,
+      "cleared_balance": 10000.00,
+      "requires_recon": true,
+      "last_reconciled_at": "2026-07-07T10:15:00Z",
+      "notes": "Primary salary account"
+    },
+    "checkpoint": {
+      "id": 55,
+      "budget_id": 1,
+      "account_id": 101,
+      "statement_balance": 10000.00,
+      "statement_date": "2026-07-07",
+      "cleared_balance": 10000.00,
+      "ledger_balance": 10250.00,
+      "difference": 0.00,
+      "transactions_count": 12,
+      "reconciled_by_user_id": 7,
+      "created_at": "2026-07-07T10:15:00Z"
+    }
   },
   "msg": "account reconciled successfully"
 }
 ```
 
+**Checkpoint Fields**
+
+| Field | Description |
+|---|---|
+| `statement_balance` | Balance supplied in the request |
+| `cleared_balance` | Sum of `cleared` + `reconciled` transactions at the time of reconcile |
+| `ledger_balance` | Sum of all active transactions (including `uncleared`) at the time of reconcile |
+| `difference` | `statement_balance - cleared_balance`; `0.00` for a clean reconcile |
+| `transactions_count` | Number of transactions flipped from `cleared` to `reconciled` by this call |
+| `reconciled_by_user_id` | Budget member who performed the reconcile |
+
 **Business Rules**
 
 - Transactions with status `cleared` transition to `reconciled`; `uncleared` transactions are untouched.
 - `cleared_balance` is unchanged by reconciling (reconciled transactions still count toward it).
-- Idempotent: reconciling with no cleared transactions still updates `last_reconciled_at`.
+- Reconciling with no cleared transactions still updates `last_reconciled_at` and creates a checkpoint with `transactions_count: 0`.
+- Exactly one checkpoint is created per successful call. Checkpoints are append-only and scoped to `(budget_id, account_id)`.
+- Checkpoints are soft-deleted with their account or budget and are never physically removed. An account with checkpoints is always soft-deleted (see Deletion Scenarios).
+
+**Error Scenarios**
+
+| HTTP | Code | Description |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Invalid ID, missing/invalid `statement_balance` or `statement_date` (per-field errors) |
+| 401 | `UNAUTHORIZED` | Not authenticated |
+| 403 | `FORBIDDEN` | Caller is a `VIEWER` |
+| 404 | `NOT_FOUND` | Account not found |
+| 409 | `CONFLICT` | Budget is archived |
+| 500 | `INTERNAL_ERROR` | Unexpected failure |
+
+---
+
+### List Reconciliations
+
+Returns the account's reconciliation checkpoints, newest first.
+
+**`GET /api/v1/budgets/{budget_id}/accounts/{id}/reconciliations`**
+**Authentication:** Required
+**Authorization:** Any budget member (`VIEWER` and above)
+
+**Response — 200 OK**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 55,
+      "budget_id": 1,
+      "account_id": 101,
+      "statement_balance": 10000.00,
+      "statement_date": "2026-07-07",
+      "cleared_balance": 10000.00,
+      "ledger_balance": 10250.00,
+      "difference": 0.00,
+      "transactions_count": 12,
+      "reconciled_by_user_id": 7,
+      "created_at": "2026-07-07T10:15:00Z"
+    }
+  ],
+  "msg": "reconciliations retrieved successfully"
+}
+```
+
+- An account that has never been reconciled returns `200` with `data: []`, never `404`.
 
 **Error Scenarios**
 
@@ -532,7 +622,7 @@ Returns the monthly closing-balance series for the budget's cash (checking + cas
 
 ## Deletion Scenarios
 
-### Case 1 — Account Has No Transactions
+### Case 1 — Account Has No Transactions or Reconciliation Checkpoints
 
 Safe case.
 
@@ -540,9 +630,9 @@ Safe case.
 - ✔ No side effects
 - ✔ No balance impact
 
-### Case 2 — Account Has Transactions (Most Common)
+### Case 2 — Account Has Transactions or Reconciliation Checkpoints (Most Common)
 
-You cannot delete an account with history. You must close it, zero the balance, and archive it.
+You cannot delete an account with history (transactions or reconciliation checkpoints are both history). You must close it, zero the balance, and archive it.
 
 | Item | Effect |
 |---|---|

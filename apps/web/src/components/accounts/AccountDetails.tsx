@@ -49,6 +49,8 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useReconciliationHistory } from "@/hooks/use-reconciliation-history";
+import { useFormatters } from "@/hooks/use-formatters";
 import { BalanceChart, type ChartPoint } from "./BalanceChart";
 import { ModifyAccountModal } from "./ModifyAccountModal";
 import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
@@ -265,6 +267,11 @@ export function AccountDetails({ accountId, budgetId }: Props) {
   const { data: budgets } = useBudgets();
   const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const account = accounts.find((a) => a.id === accountId);
+  const { data: reconciliations, isLoading: reconciliationsLoading } = useReconciliationHistory(
+    budgetId,
+    account?.requires_recon ? accountId : null,
+  );
+  const { formatTableDate, formatCurrency: fmtCurrency } = useFormatters();
   const typeMeta = account
     ? (TYPE_META[API_TO_UI[account.type as ApiAccountType]] ?? TYPE_META.checking)
     : TYPE_META.checking;
@@ -669,6 +676,69 @@ export function AccountDetails({ accountId, budgetId }: Props) {
           </div>
         )}
       </div>
+
+      {account.requires_recon && (
+        <div className="overflow-hidden rounded-2xl border border-[#1A2540] bg-[#0B1120]">
+          <div className="flex items-center justify-between border-b border-[#1A2540] px-5 py-4">
+            <h3 className="text-sm font-semibold text-white">Reconciliation History</h3>
+            <span className="text-xs text-[#5A6A80]">
+              {reconciliations.length} {reconciliations.length === 1 ? "checkpoint" : "checkpoints"}
+            </span>
+          </div>
+          {reconciliationsLoading ? (
+            <div className="px-5 py-8 text-center text-sm text-[#3A4A60]">Loading history…</div>
+          ) : reconciliations.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-sm text-[#3A4A60]">No reconciliations yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs tracking-wide text-[#5A6A80] uppercase">
+                    <th className="px-5 py-3 font-medium">Statement date</th>
+                    <th className="px-5 py-3 text-right font-medium">Statement</th>
+                    <th className="px-5 py-3 text-right font-medium">Cleared</th>
+                    <th className="px-5 py-3 text-right font-medium">Difference</th>
+                    <th className="px-5 py-3 text-right font-medium">Txns</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reconciliations.map((cp) => {
+                    const clean = Math.abs(cp.difference) < 0.005;
+                    return (
+                      <tr key={cp.id} className="border-t border-[#1A2540] text-[#C8D2E0]">
+                        <td className="px-5 py-3">{formatTableDate(cp.statement_date)}</td>
+                        <td className="px-5 py-3 text-right tabular-nums">
+                          {cp.statement_balance < 0 ? "-" : ""}
+                          {fmtCurrency(cp.statement_balance)}
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums">
+                          {cp.cleared_balance < 0 ? "-" : ""}
+                          {fmtCurrency(cp.cleared_balance)}
+                        </td>
+                        <td
+                          className={cn(
+                            "px-5 py-3 text-right tabular-nums",
+                            clean ? "text-[#22C55E]" : "text-[#E9C46A]",
+                          )}
+                        >
+                          {clean
+                            ? "Balanced"
+                            : `${cp.difference < 0 ? "-" : "+"}${fmtCurrency(cp.difference)}`}
+                        </td>
+                        <td className="px-5 py-3 text-right tabular-nums">
+                          {cp.transactions_count}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <ModifyAccountModal
         open={modifyOpen}

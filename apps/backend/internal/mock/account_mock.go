@@ -43,9 +43,11 @@ type AccountService struct {
 	ReplaceFn   func(ctx context.Context, id, budgetID int64, req account.ReplaceRequest) (models.Account, error)
 	PatchFn     func(ctx context.Context, id, budgetID int64, req account.PatchRequest, callerRole models.Role) (models.Account, error)
 	DeleteFn    func(ctx context.Context, id, budgetID int64, callerRole models.Role) error
-	ReconcileFn func(ctx context.Context, id, budgetID int64) (models.Account, error)
-	ArchiveFn   func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
-	UnarchiveFn func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
+	ReconcileFn func(ctx context.Context, id, budgetID, userID int64, req account.ReconcileRequest) (account.ReconcileResult, error)
+
+	ListReconciliationsFn func(ctx context.Context, id, budgetID int64) ([]models.ReconciliationCheckpoint, error)
+	ArchiveFn             func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
+	UnarchiveFn           func(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
 
 	BalanceHistoryFn func(ctx context.Context, budgetID int64, months int) (models.AccountBalanceHistory, error)
 }
@@ -83,8 +85,15 @@ func (m *AccountService) Delete(ctx context.Context, id, budgetID int64, callerR
 }
 
 // Reconcile delegates to ReconcileFn.
-func (m *AccountService) Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error) {
-	return m.ReconcileFn(ctx, id, budgetID)
+func (m *AccountService) Reconcile(
+	ctx context.Context, id, budgetID, userID int64, req account.ReconcileRequest,
+) (account.ReconcileResult, error) {
+	return m.ReconcileFn(ctx, id, budgetID, userID, req)
+}
+
+// ListReconciliations delegates to ListReconciliationsFn.
+func (m *AccountService) ListReconciliations(ctx context.Context, id, budgetID int64) ([]models.ReconciliationCheckpoint, error) {
+	return m.ListReconciliationsFn(ctx, id, budgetID)
 }
 
 // Archive delegates to ArchiveFn.
@@ -199,14 +208,36 @@ func (m *AccountRepository) Balances(_ context.Context, id, budgetID int64) (bal
 	return balance, clearedBalance, args.Error(2) //nolint:mnd
 }
 
-// MarkReconciled records the call and returns the configured stub values.
-func (m *AccountRepository) MarkReconciled(_ context.Context, id, budgetID int64) (models.Account, error) {
-	args := m.Called(id, budgetID)
+// Reconcile records the call and returns the configured stub values.
+func (m *AccountRepository) Reconcile(
+	_ context.Context, p account.ReconcileParams,
+) (models.Account, models.ReconciliationCheckpoint, error) {
+	args := m.Called(p)
 	a, ok := args.Get(0).(models.Account)
 	if !ok {
-		return models.Account{}, args.Error(1)
+		return models.Account{}, models.ReconciliationCheckpoint{}, args.Error(2) //nolint:mnd
 	}
-	return a, args.Error(1)
+	cp, ok := args.Get(1).(models.ReconciliationCheckpoint)
+	if !ok {
+		return models.Account{}, models.ReconciliationCheckpoint{}, args.Error(2) //nolint:mnd
+	}
+	return a, cp, args.Error(2) //nolint:mnd
+}
+
+// ListCheckpoints records the call and returns the configured stub values.
+func (m *AccountRepository) ListCheckpoints(_ context.Context, accountID, budgetID int64) ([]models.ReconciliationCheckpoint, error) {
+	args := m.Called(accountID, budgetID)
+	list, ok := args.Get(0).([]models.ReconciliationCheckpoint)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return list, args.Error(1)
+}
+
+// HasCheckpoints records the call and returns the configured stub values.
+func (m *AccountRepository) HasCheckpoints(_ context.Context, id, budgetID int64) (bool, error) {
+	args := m.Called(id, budgetID)
+	return args.Bool(0), args.Error(1)
 }
 
 // Archive records the call and returns the configured stub values.
