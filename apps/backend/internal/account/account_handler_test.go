@@ -467,16 +467,42 @@ func TestHandler_ReconcileAccount(t *testing.T) {
 	log := zap.NewNop()
 	e := echo.New()
 
-	t.Run("success returns 200", func(t *testing.T) {
+	const validBody = `{"statement_balance": 10500.25, "statement_date": "2026-10-30"}`
+
+	fieldErrors := func(t *testing.T, resp httpx.Response) map[string]string {
+		t.Helper()
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok, "data should be an object")
+		raw, ok := data["fields"].([]any)
+		require.True(t, ok, "fields should be an array")
+		out := make(map[string]string, len(raw))
+		for _, f := range raw {
+			m, ok := f.(map[string]any)
+			require.True(t, ok)
+			out[m["field"].(string)] = m["error"].(string) //nolint:forcetypeassert
+		}
+		return out
+	}
+
+	t.Run("success returns 200 with account and checkpoint", func(t *testing.T) {
 		t.Parallel()
+		var gotUserID int64
+		var gotReq account.ReconcileRequest
 		svc := &internalmock.AccountService{
-			ReconcileFn: func(_ context.Context, _, _ int64) (models.Account, error) {
-				return makeAccount("Main"), nil
+			ReconcileFn: func(_ context.Context, _, _, userID int64, req account.ReconcileRequest) (account.ReconcileResult, error) {
+				gotUserID, gotReq = userID, req
+				return account.ReconcileResult{
+					Account:    makeAccount("Main"),
+					Checkpoint: models.ReconciliationCheckpoint{ID: 7, StatementBalance: req.StatementBalance},
+				}, nil
 			},
 		}
-		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
 		c.SetParamNames("budget_id", "id")
 		c.SetParamValues("10", "1")
+		m := fixedMembership(models.RoleEditor)
+		m.UserID = 42
+		injectMembership(c, m)
 		h := account.NewHandler(svc, log)
 
 		require.NoError(t, h.ReconcileAccount(c))
@@ -484,16 +510,83 @@ func TestHandler_ReconcileAccount(t *testing.T) {
 		resp := parseResp(t, rec.Body.String())
 		assert.True(t, resp.Success)
 		assert.Equal(t, "account reconciled successfully", resp.Msg)
+
+		assert.Equal(t, int64(42), gotUserID)
+		assert.Equal(t, int64(1050025), gotReq.StatementBalance.Int64())
+		assert.Equal(t, "2026-10-30", gotReq.StatementDate.Format("2006-01-02"))
+
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, data, "account")
+		assert.Contains(t, data, "checkpoint")
+		cp, ok := data["checkpoint"].(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, 10500.25, cp["statement_balance"], 0.0001)
+	})
+
+	t.Run("missing fields return 400 with field errors", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodPost, "/", `{}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		errs := fieldErrors(t, parseResp(t, rec.Body.String()))
+		assert.Equal(t, "is required", errs["statement_balance"])
+		assert.Equal(t, "is required", errs["statement_date"])
+	})
+
+	t.Run("string balance and malformed date return 400 with field errors", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodPost, "/", `{"statement_balance": "100", "statement_date": "2026-13-45"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		errs := fieldErrors(t, parseResp(t, rec.Body.String()))
+		assert.Contains(t, errs["statement_balance"], "JSON number")
+		assert.Contains(t, errs["statement_date"], "YYYY-MM-DD")
+	})
+
+	t.Run("null balance returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodPost, "/", `{"statement_balance": null, "statement_date": "2026-10-30"}`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		errs := fieldErrors(t, parseResp(t, rec.Body.String()))
+		assert.Equal(t, "is required", errs["statement_balance"])
+		assert.NotContains(t, errs, "statement_date")
+	})
+
+	t.Run("invalid JSON body returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodPost, "/", `{not json`)
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		errs := fieldErrors(t, parseResp(t, rec.Body.String()))
+		assert.Contains(t, errs, "body")
 	})
 
 	t.Run("not found returns 404", func(t *testing.T) {
 		t.Parallel()
 		svc := &internalmock.AccountService{
-			ReconcileFn: func(_ context.Context, _, _ int64) (models.Account, error) {
-				return models.Account{}, account.ErrNotFound
+			ReconcileFn: func(_ context.Context, _, _, _ int64, _ account.ReconcileRequest) (account.ReconcileResult, error) {
+				return account.ReconcileResult{}, account.ErrNotFound
 			},
 		}
-		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
 		c.SetParamNames("budget_id", "id")
 		c.SetParamValues("10", "1")
 		h := account.NewHandler(svc, log)
@@ -505,12 +598,87 @@ func TestHandler_ReconcileAccount(t *testing.T) {
 
 	t.Run("invalid account id returns 400", func(t *testing.T) {
 		t.Parallel()
-		c, rec := newCtx(e, http.MethodPost, "/", "")
+		c, rec := newCtx(e, http.MethodPost, "/", validBody)
 		c.SetParamNames("budget_id", "id")
 		c.SetParamValues("10", "abc")
 		h := account.NewHandler(nil, log)
 
 		require.NoError(t, h.ReconcileAccount(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestHandler_ListReconciliations
+// ---------------------------------------------------------------------------
+
+func TestHandler_ListReconciliations(t *testing.T) {
+	t.Parallel()
+	log := zap.NewNop()
+	e := echo.New()
+
+	t.Run("empty history returns 200 with empty array", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ListReconciliationsFn: func(_ context.Context, _, _ int64) ([]models.ReconciliationCheckpoint, error) {
+				return []models.ReconciliationCheckpoint{}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ListReconciliations(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), `"data":[]`)
+		assert.True(t, parseResp(t, rec.Body.String()).Success)
+	})
+
+	t.Run("returns checkpoints", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ListReconciliationsFn: func(_ context.Context, _, _ int64) ([]models.ReconciliationCheckpoint, error) {
+				return []models.ReconciliationCheckpoint{{ID: 2}, {ID: 1}}, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ListReconciliations(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		resp := parseResp(t, rec.Body.String())
+		list, ok := resp.Data.([]any)
+		require.True(t, ok)
+		assert.Len(t, list, 2)
+	})
+
+	t.Run("unknown account returns 404", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.AccountService{
+			ListReconciliationsFn: func(_ context.Context, _, _ int64) ([]models.ReconciliationCheckpoint, error) {
+				return nil, account.ErrNotFound
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "1")
+		h := account.NewHandler(svc, log)
+
+		require.NoError(t, h.ListReconciliations(c))
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("invalid account id returns 400", func(t *testing.T) {
+		t.Parallel()
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id", "id")
+		c.SetParamValues("10", "abc")
+		h := account.NewHandler(nil, log)
+
+		require.NoError(t, h.ListReconciliations(c))
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 }

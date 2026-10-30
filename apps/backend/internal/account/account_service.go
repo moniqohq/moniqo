@@ -53,6 +53,8 @@ type BudgetChecker interface {
 }
 
 // Service is the business-logic contract for accounts.
+//
+//nolint:interfacebloat
 type Service interface {
 	Create(ctx context.Context, budgetID int64, req CreateRequest) (models.Account, error)
 	GetByID(ctx context.Context, id, budgetID int64) (models.Account, error)
@@ -60,7 +62,8 @@ type Service interface {
 	Replace(ctx context.Context, id, budgetID int64, req ReplaceRequest) (models.Account, error)
 	Patch(ctx context.Context, id, budgetID int64, req PatchRequest, callerRole models.Role) (models.Account, error)
 	Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error
-	Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error)
+	Reconcile(ctx context.Context, id, budgetID, userID int64, req ReconcileRequest) (ReconcileResult, error)
+	ListReconciliations(ctx context.Context, id, budgetID int64) ([]models.ReconciliationCheckpoint, error)
 	Archive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
 	Unarchive(ctx context.Context, id, budgetID int64, callerRole models.Role) (models.Account, error)
 	BalanceHistory(ctx context.Context, budgetID int64, months int) (models.AccountBalanceHistory, error)
@@ -429,10 +432,10 @@ func (s *Svc) Patch(ctx context.Context, id, budgetID int64, req PatchRequest, c
 
 // Delete removes the account identified by id within budgetID. The operation is
 // idempotent: attempting to delete a non-existent account is treated as success.
-// If the account has any transactions it is soft-deleted; otherwise it is
-// permanently hard-deleted. Only OWNER or ADMIN callers may delete accounts.
+// If the account has any transactions or reconciliation checkpoints it is
+// soft-deleted; otherwise it is permanently hard-deleted. Only OWNER or ADMIN callers may delete accounts.
 //
-//nolint:revive
+//nolint:revive,funlen
 func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.Role) error {
 	// Enforce minimum privilege level.
 	if callerRole != models.RoleOwner && callerRole != models.RoleAdmin {
@@ -466,7 +469,20 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 		return fmt.Errorf("check account transactions: %w", err)
 	}
 
-	if hasTxns {
+	hasCheckpoints, err := s.repo.HasCheckpoints(ctx, id, budgetID)
+	if err != nil {
+		s.log.Error("HasCheckpoints failed during Delete",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("check account checkpoints: %w", err)
+	}
+
+	// Any ledger history (transactions or reconciliation checkpoints) must be
+	// preserved for audit, so the account is only soft-deleted in that case.
+	softDelete := hasTxns || hasCheckpoints
+	if softDelete {
 		if err := s.repo.SoftDelete(ctx, id, budgetID); err != nil {
 			s.log.Error("repo.SoftDelete failed",
 				zap.Int64("account_id", id),
@@ -489,41 +505,80 @@ func (s *Svc) Delete(ctx context.Context, id, budgetID int64, callerRole models.
 	s.log.Info("account deleted",
 		zap.Int64("account_id", id),
 		zap.Int64("budget_id", budgetID),
-		zap.Bool("soft_delete", hasTxns),
+		zap.Bool("soft_delete", softDelete),
 	)
 	return nil
 }
 
-// Reconcile marks all cleared transactions on the account as reconciled and
-// stamps last_reconciled_at, returning the refreshed account.
+// Reconcile atomically marks all cleared transactions on the account as
+// reconciled, stamps last_reconciled_at, and persists a reconciliation
+// checkpoint snapshotting the statement against the ledger. userID is the
+// acting budget member recorded on the checkpoint.
 // Returns ErrNotFound if the account does not exist or is soft-deleted.
-func (s *Svc) Reconcile(ctx context.Context, id, budgetID int64) (models.Account, error) {
+func (s *Svc) Reconcile(ctx context.Context, id, budgetID, userID int64, req ReconcileRequest) (ReconcileResult, error) {
 	s.log.Debug("reconciling account",
 		zap.Int64("account_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
 
 	if err := s.checkBudgetNotArchived(ctx, budgetID); err != nil {
-		return models.Account{}, err
+		return ReconcileResult{}, err
 	}
 
-	account, err := s.repo.MarkReconciled(ctx, id, budgetID)
+	account, checkpoint, err := s.repo.Reconcile(ctx, ReconcileParams{
+		AccountID:          id,
+		BudgetID:           budgetID,
+		StatementBalance:   req.StatementBalance,
+		StatementDate:      req.StatementDate,
+		ReconciledByUserID: userID,
+	})
 	if err != nil {
 		if !errors.Is(err, ErrNotFound) {
-			s.log.Error("repo.MarkReconciled failed",
+			s.log.Error("repo.Reconcile failed",
 				zap.Int64("account_id", id),
 				zap.Int64("budget_id", budgetID),
 				zap.Error(err),
 			)
 		}
-		return models.Account{}, err //nolint:wrapcheck
+		return ReconcileResult{}, err //nolint:wrapcheck
 	}
 
 	s.log.Info("account reconciled",
 		zap.Int64("account_id", account.ID),
 		zap.Int64("budget_id", budgetID),
+		zap.Int64("checkpoint_id", checkpoint.ID),
 	)
-	return account, nil
+	return ReconcileResult{Account: account, Checkpoint: checkpoint}, nil
+}
+
+// ListReconciliations returns the account's reconciliation checkpoints, newest
+// first. Returns ErrNotFound if the account does not exist in the budget; an
+// account with no checkpoints yields an empty (non-nil) slice.
+func (s *Svc) ListReconciliations(ctx context.Context, id, budgetID int64) ([]models.ReconciliationCheckpoint, error) {
+	if _, err := s.repo.GetByID(ctx, id, budgetID); err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			s.log.Error("repo.GetByID failed during ListReconciliations",
+				zap.Int64("account_id", id),
+				zap.Int64("budget_id", budgetID),
+				zap.Error(err),
+			)
+		}
+		return nil, err //nolint:wrapcheck
+	}
+
+	checkpoints, err := s.repo.ListCheckpoints(ctx, id, budgetID)
+	if err != nil {
+		s.log.Error("repo.ListCheckpoints failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("list reconciliations: %w", err)
+	}
+	if checkpoints == nil {
+		checkpoints = []models.ReconciliationCheckpoint{}
+	}
+	return checkpoints, nil
 }
 
 // Archive marks the account identified by id within budgetID as archived,

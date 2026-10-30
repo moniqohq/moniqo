@@ -50,7 +50,9 @@ type Repository interface {
 	ExistsByName(ctx context.Context, budgetID int64, name string, excludeID *int64) (bool, error)
 	HasTransactions(ctx context.Context, id, budgetID int64) (bool, error)
 	Balances(ctx context.Context, id, budgetID int64) (balance, clearedBalance money.Amount, err error)
-	MarkReconciled(ctx context.Context, id, budgetID int64) (models.Account, error)
+	Reconcile(ctx context.Context, p ReconcileParams) (models.Account, models.ReconciliationCheckpoint, error)
+	ListCheckpoints(ctx context.Context, accountID, budgetID int64) ([]models.ReconciliationCheckpoint, error)
+	HasCheckpoints(ctx context.Context, id, budgetID int64) (bool, error)
 	Archive(ctx context.Context, id, budgetID int64) (models.Account, error)
 	Unarchive(ctx context.Context, id, budgetID int64) (models.Account, error)
 	IsArchived(ctx context.Context, id, budgetID int64) (bool, error)
@@ -331,24 +333,41 @@ func (r *Repo) Patch(ctx context.Context, p PatchParams) (models.Account, error)
 	), nil
 }
 
-// SoftDelete marks the account as deleted. Idempotent: re-deleting an already
-// soft-deleted account silently no-ops (the WHERE clause skips rows where
-// deleted_at IS NOT NULL).
+// SoftDelete marks the account and its reconciliation checkpoints as deleted
+// in a single transaction. Idempotent: re-deleting an already soft-deleted
+// account silently no-ops (the WHERE clauses skip rows where deleted_at IS NOT NULL).
 func (r *Repo) SoftDelete(ctx context.Context, id, budgetID int64) error {
 	r.log.Debug("executing SoftDeleteAccount query",
 		zap.Int64("account_id", id),
 		zap.Int64("budget_id", budgetID),
 	)
 
-	q := db.New(r.pool)
-	softDeleteParams := db.SoftDeleteAccountParams{ID: id, BudgetID: budgetID}
-	if err := q.SoftDeleteAccount(ctx, softDeleteParams); err != nil {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+	cpParams := db.SoftDeleteCheckpointsByAccountParams{AccountID: id, BudgetID: budgetID}
+	if err := q.SoftDeleteCheckpointsByAccount(ctx, cpParams); err != nil {
+		r.log.Error("SoftDeleteCheckpointsByAccount query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return fmt.Errorf("soft delete reconciliation checkpoints: %w", err)
+	}
+	if err := q.SoftDeleteAccount(ctx, db.SoftDeleteAccountParams{ID: id, BudgetID: budgetID}); err != nil {
 		r.log.Error("SoftDeleteAccount query failed",
 			zap.Int64("account_id", id),
 			zap.Int64("budget_id", budgetID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("soft delete account: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
 	}
 
 	r.log.Info("account soft-deleted",
@@ -443,76 +462,121 @@ func (r *Repo) HasTransactions(ctx context.Context, id, budgetID int64) (bool, e
 // as the sum of all (resp. cleared/reconciled) active transaction amounts
 // (stored in minor units / cents).
 func (r *Repo) Balances(ctx context.Context, id, budgetID int64) (balance, clearedBalance money.Amount, err error) {
-	r.log.Debug("executing GetAccountBalances query",
-		zap.Int64("account_id", id),
-		zap.Int64("budget_id", budgetID),
-	)
-
-	q := db.New(r.pool)
-	row, err := q.GetAccountBalances(ctx, db.GetAccountBalancesParams{
-		AccountID: id,
-		BudgetID:  budgetID,
-	})
-	if err != nil {
-		r.log.Error("GetAccountBalances query failed",
-			zap.Int64("account_id", id),
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return 0, 0, fmt.Errorf("get account balances: %w", err)
-	}
-	return money.FromMinorUnits(row.Balance), money.FromMinorUnits(row.ClearedBalance), nil
+	return r.queryBalances(ctx, db.New(r.pool), id, budgetID)
 }
 
-// MarkReconciled flips all cleared transactions on the account to reconciled
-// and stamps the account's last_reconciled_at, returning the refreshed account.
-// Returns ErrNotFound if the account does not exist or is soft-deleted.
-func (r *Repo) MarkReconciled(ctx context.Context, id, budgetID int64) (models.Account, error) {
-	r.log.Debug("executing MarkAccountReconciled query",
-		zap.Int64("account_id", id),
-		zap.Int64("budget_id", budgetID),
+// Reconcile atomically stamps the account's last_reconciled_at, flips all
+// cleared transactions to reconciled, and persists a reconciliation checkpoint
+// snapshotting the statement, cleared and ledger balances. Returns ErrNotFound
+// if the account does not exist or is soft-deleted; in that case nothing is
+// modified.
+func (r *Repo) Reconcile(ctx context.Context, p ReconcileParams) (models.Account, models.ReconciliationCheckpoint, error) {
+	r.log.Debug("beginning Reconcile transaction",
+		zap.Int64("account_id", p.AccountID),
+		zap.Int64("budget_id", p.BudgetID),
 	)
 
-	q := db.New(r.pool)
-	markReconciledParams := db.MarkAccountTransactionsReconciledParams{AccountID: id, BudgetID: budgetID}
-	if err := q.MarkAccountTransactionsReconciled(ctx, markReconciledParams); err != nil {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return models.Account{}, models.ReconciliationCheckpoint{}, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	q := db.New(tx)
+
+	row, err := r.markAccountReconciled(ctx, q, p.AccountID, p.BudgetID)
+	if err != nil {
+		return models.Account{}, models.ReconciliationCheckpoint{}, err
+	}
+
+	txnParams := db.MarkAccountTransactionsReconciledParams{AccountID: p.AccountID, BudgetID: p.BudgetID}
+	flipped, err := q.MarkAccountTransactionsReconciled(ctx, txnParams)
+	if err != nil {
 		r.log.Error("MarkAccountTransactionsReconciled query failed",
-			zap.Int64("account_id", id),
-			zap.Int64("budget_id", budgetID),
+			zap.Int64("account_id", p.AccountID),
+			zap.Int64("budget_id", p.BudgetID),
 			zap.Error(err),
 		)
-		return models.Account{}, fmt.Errorf("mark transactions reconciled: %w", err)
+		return models.Account{}, models.ReconciliationCheckpoint{}, fmt.Errorf("mark transactions reconciled: %w", err)
 	}
 
-	row, err := q.MarkAccountReconciled(ctx, db.MarkAccountReconciledParams{
-		ID:       id,
-		BudgetID: budgetID,
-	})
+	balance, clearedBalance, err := r.queryBalances(ctx, q, p.AccountID, p.BudgetID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Account{}, ErrNotFound
-		}
-		r.log.Error("MarkAccountReconciled query failed",
-			zap.Int64("account_id", id),
-			zap.Int64("budget_id", budgetID),
-			zap.Error(err),
-		)
-		return models.Account{}, fmt.Errorf("mark account reconciled: %w", err)
+		return models.Account{}, models.ReconciliationCheckpoint{}, err
 	}
 
-	balance, clearedBalance, err := r.Balances(ctx, row.ID, row.BudgetID)
+	cp, err := r.insertCheckpoint(ctx, q, p, balance, clearedBalance, flipped)
 	if err != nil {
-		return models.Account{}, err
+		return models.Account{}, models.ReconciliationCheckpoint{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return models.Account{}, models.ReconciliationCheckpoint{}, fmt.Errorf("commit transaction: %w", err)
 	}
 
 	r.log.Info("account reconciled",
 		zap.Int64("account_id", row.ID),
 		zap.Int64("budget_id", row.BudgetID),
+		zap.Int64("checkpoint_id", cp.ID),
 	)
 	return rowToAccount(
 		row.ID, row.BudgetID, row.Name, row.Type, row.RequiresRecon, row.IsOnBudget, row.IsImmutable, row.Notes,
 		row.AccountNumber, row.Institution, row.LastReconciledAt, row.ArchivedAt, row.CreatedAt, row.UpdatedAt, balance, clearedBalance,
-	), nil
+	), rowToCheckpoint(cp), nil
+}
+
+// ListCheckpoints returns the account's reconciliation checkpoints, newest first.
+func (r *Repo) ListCheckpoints(ctx context.Context, accountID, budgetID int64) ([]models.ReconciliationCheckpoint, error) {
+	r.log.Debug("executing ListCheckpointsByAccount query",
+		zap.Int64("account_id", accountID),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	rows, err := db.New(r.pool).ListCheckpointsByAccount(ctx, db.ListCheckpointsByAccountParams{AccountID: accountID, BudgetID: budgetID})
+	if err != nil {
+		r.log.Error("ListCheckpointsByAccount query failed",
+			zap.Int64("account_id", accountID),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("list reconciliation checkpoints: %w", err)
+	}
+
+	out := make([]models.ReconciliationCheckpoint, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, rowToCheckpoint(row))
+	}
+	return out, nil
+}
+
+// HasCheckpoints reports whether the account has any active reconciliation checkpoints.
+func (r *Repo) HasCheckpoints(ctx context.Context, id, budgetID int64) (bool, error) {
+	has, err := db.New(r.pool).AccountHasCheckpoints(ctx, db.AccountHasCheckpointsParams{AccountID: id, BudgetID: budgetID})
+	if err != nil {
+		r.log.Error("AccountHasCheckpoints query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return false, fmt.Errorf("account has checkpoints: %w", err)
+	}
+	return has, nil
+}
+
+func rowToCheckpoint(row db.ReconciliationCheckpoint) models.ReconciliationCheckpoint {
+	return models.ReconciliationCheckpoint{
+		ID:                 row.ID,
+		BudgetID:           row.BudgetID,
+		AccountID:          row.AccountID,
+		StatementBalance:   money.FromMinorUnits(row.StatementBalance),
+		StatementDate:      models.Date{Time: row.StatementDate.Time},
+		ClearedBalance:     money.FromMinorUnits(row.ClearedBalance),
+		LedgerBalance:      money.FromMinorUnits(row.LedgerBalance),
+		Difference:         money.FromMinorUnits(row.Difference),
+		TransactionsCount:  int(row.TransactionsCount),
+		ReconciledByUserID: row.ReconciledByUserID,
+		CreatedAt:          row.CreatedAt.Time,
+	}
 }
 
 // Archive stamps archived_at on the account, returning the refreshed account.
@@ -695,4 +759,71 @@ func (r *Repo) BalanceHistory(ctx context.Context, budgetID int64, months int) (
 		return nil, fmt.Errorf("get account type balance history: %w", err)
 	}
 	return rows, nil
+}
+
+// queryBalances is the DBTX-agnostic core of Balances so it can run inside a transaction.
+func (r *Repo) queryBalances(ctx context.Context, q *db.Queries, id, budgetID int64) (balance, clearedBalance money.Amount, err error) {
+	r.log.Debug("executing GetAccountBalances query",
+		zap.Int64("account_id", id),
+		zap.Int64("budget_id", budgetID),
+	)
+
+	row, err := q.GetAccountBalances(ctx, db.GetAccountBalancesParams{
+		AccountID: id,
+		BudgetID:  budgetID,
+	})
+	if err != nil {
+		r.log.Error("GetAccountBalances query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return 0, 0, fmt.Errorf("get account balances: %w", err)
+	}
+	return money.FromMinorUnits(row.Balance), money.FromMinorUnits(row.ClearedBalance), nil
+}
+
+// markAccountReconciled stamps last_reconciled_at inside the caller's
+// transaction, mapping a missing/soft-deleted account to ErrNotFound.
+func (r *Repo) markAccountReconciled(ctx context.Context, q *db.Queries, id, budgetID int64) (db.MarkAccountReconciledRow, error) {
+	row, err := q.MarkAccountReconciled(ctx, db.MarkAccountReconciledParams{ID: id, BudgetID: budgetID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.MarkAccountReconciledRow{}, ErrNotFound
+		}
+		r.log.Error("MarkAccountReconciled query failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return db.MarkAccountReconciledRow{}, fmt.Errorf("mark account reconciled: %w", err)
+	}
+	return row, nil
+}
+
+// insertCheckpoint persists the reconciliation snapshot inside the caller's transaction.
+func (r *Repo) insertCheckpoint(
+	ctx context.Context, q *db.Queries, p ReconcileParams, balance, clearedBalance money.Amount, flipped int64,
+) (db.ReconciliationCheckpoint, error) {
+	userID := p.ReconciledByUserID
+	cp, err := q.CreateCheckpoint(ctx, db.CreateCheckpointParams{
+		BudgetID:           p.BudgetID,
+		AccountID:          p.AccountID,
+		StatementBalance:   p.StatementBalance.Int64(),
+		StatementDate:      pgtype.Date{Time: p.StatementDate, Valid: true},
+		ClearedBalance:     clearedBalance.Int64(),
+		LedgerBalance:      balance.Int64(),
+		Difference:         p.StatementBalance.Int64() - clearedBalance.Int64(),
+		TransactionsCount:  int32(flipped), //nolint:gosec // bounded by the account's transaction count
+		ReconciledByUserID: &userID,
+	})
+	if err != nil {
+		r.log.Error("CreateCheckpoint query failed",
+			zap.Int64("account_id", p.AccountID),
+			zap.Int64("budget_id", p.BudgetID),
+			zap.Error(err),
+		)
+		return db.ReconciliationCheckpoint{}, fmt.Errorf("create reconciliation checkpoint: %w", err)
+	}
+	return cp, nil
 }

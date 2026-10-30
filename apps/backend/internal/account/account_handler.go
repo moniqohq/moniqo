@@ -21,8 +21,10 @@
 package account
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
+	"time"
 	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
@@ -435,6 +437,65 @@ func (h *Handler) DeleteAccount(c echo.Context) error {
 	return httpx.OK(c, nil, "account deleted successfully")
 }
 
+// reconcileBody is the raw request body for the reconcile endpoint. The
+// balance is kept as raw JSON so that a malformed value yields a field error
+// rather than a whole-body decode failure.
+type reconcileBody struct {
+	StatementBalance json.RawMessage `json:"statement_balance"`
+	StatementDate    string          `json:"statement_date"`
+}
+
+const (
+	fieldStatementBalance = "statement_balance"
+	fieldStatementDate    = "statement_date"
+	errRequired           = "is required"
+	errInvalidAmount      = "must be a JSON number in major units, e.g. 12.34"
+	errInvalidDate        = "must be a date in YYYY-MM-DD format"
+)
+
+// validateReconcileBody converts the raw body into a ReconcileRequest,
+// returning one field error per invalid field.
+func validateReconcileBody(body reconcileBody) (ReconcileRequest, []httpx.FieldError) {
+	var (
+		req  ReconcileRequest
+		errs []httpx.FieldError
+	)
+
+	if len(body.StatementBalance) == 0 || string(body.StatementBalance) == "null" {
+		errs = append(errs, httpx.FieldError{Field: fieldStatementBalance, Error: errRequired})
+	} else if err := json.Unmarshal(body.StatementBalance, &req.StatementBalance); err != nil {
+		errs = append(errs, httpx.FieldError{Field: fieldStatementBalance, Error: errInvalidAmount})
+	}
+
+	if body.StatementDate == "" {
+		errs = append(errs, httpx.FieldError{Field: fieldStatementDate, Error: errRequired})
+	} else if d, err := time.Parse(time.DateOnly, body.StatementDate); err != nil {
+		errs = append(errs, httpx.FieldError{Field: fieldStatementDate, Error: errInvalidDate})
+	} else {
+		req.StatementDate = d
+	}
+
+	return req, errs
+}
+
+// bindReconcileRequest decodes and validates the reconcile request body.
+func bindReconcileRequest(c echo.Context) (ReconcileRequest, []httpx.FieldError) {
+	var body reconcileBody
+	if err := c.Bind(&body); err != nil {
+		return ReconcileRequest{}, []httpx.FieldError{{Field: fieldBody, Error: errInvalidJSON}}
+	}
+	return validateReconcileBody(body)
+}
+
+// actorUserID returns the acting budget member's user ID, or 0 when no
+// membership was injected (e.g. in isolated handler tests).
+func actorUserID(c echo.Context) int64 {
+	if m, ok := membershipFromContext(c); ok {
+		return m.UserID
+	}
+	return 0
+}
+
 // ReconcileAccount handles POST /api/v1/budgets/:budget_id/accounts/:id/reconcile.
 func (h *Handler) ReconcileAccount(c echo.Context) error {
 	budgetID, err := parseBudgetID(c)
@@ -447,7 +508,12 @@ func (h *Handler) ReconcileAccount(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errInvalidID}})
 	}
 
-	acc, err := h.svc.Reconcile(c.Request().Context(), id, budgetID)
+	req, errs := bindReconcileRequest(c)
+	if len(errs) > 0 {
+		return httpx.ValidationError(c, errs)
+	}
+
+	result, err := h.svc.Reconcile(c.Request().Context(), id, budgetID, actorUserID(c), req)
 	if err != nil {
 		if ok, resp := mapAccountServiceError(c, err); ok {
 			return resp
@@ -460,7 +526,35 @@ func (h *Handler) ReconcileAccount(c echo.Context) error {
 		return httpx.InternalError(c)
 	}
 
-	return httpx.OK(c, acc, "account reconciled successfully")
+	return httpx.OK(c, result, "account reconciled successfully")
+}
+
+// ListReconciliations handles GET /api/v1/budgets/:budget_id/accounts/:id/reconciliations.
+func (h *Handler) ListReconciliations(c echo.Context) error {
+	budgetID, err := parseBudgetID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldBudgetID, Error: errInvalidID}})
+	}
+
+	id, err := parseAccountID(c)
+	if err != nil {
+		return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldAccountID, Error: errInvalidID}})
+	}
+
+	checkpoints, err := h.svc.ListReconciliations(c.Request().Context(), id, budgetID)
+	if err != nil {
+		if ok, resp := mapAccountServiceError(c, err); ok {
+			return resp
+		}
+		h.log.Error("List reconciliations failed",
+			zap.Int64("account_id", id),
+			zap.Int64("budget_id", budgetID),
+			zap.Error(err),
+		)
+		return httpx.InternalError(c)
+	}
+
+	return httpx.OK(c, checkpoints, "reconciliations retrieved successfully")
 }
 
 // ArchiveAccount handles POST /api/v1/budgets/:budget_id/accounts/:id/archive.

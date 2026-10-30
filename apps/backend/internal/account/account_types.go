@@ -24,6 +24,7 @@ package account
 
 import (
 	"errors"
+	"time"
 
 	"github.com/moniqohq/moniqo/apps/backend/internal/models"
 	"github.com/moniqohq/moniqo/apps/backend/internal/money"
@@ -130,4 +131,27 @@ type PatchParams struct {
 	Notes         *string
 	AccountNumber *string
 	Institution   *string
+}
+
+// ReconcileRequest carries the validated statement details for
+// POST /api/v1/budgets/:budget_id/accounts/:id/reconcile.
+type ReconcileRequest struct {
+	StatementBalance money.Amount
+	StatementDate    time.Time
+}
+
+// ReconcileResult is the response payload of a successful reconcile: the
+// refreshed account plus the checkpoint that was persisted.
+type ReconcileResult struct {
+	Account    models.Account                  `json:"account"`
+	Checkpoint models.ReconciliationCheckpoint `json:"checkpoint"`
+}
+
+// ReconcileParams carries the repository-layer arguments for an atomic reconcile.
+type ReconcileParams struct {
+	AccountID          int64
+	BudgetID           int64
+	StatementBalance   money.Amount
+	StatementDate      time.Time
+	ReconciledByUserID int64
 }
