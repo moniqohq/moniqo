@@ -811,6 +811,16 @@ export function EditTransactionModal({
                       </div>
                     )}
 
+                    {tx?.status === "reconciled" && (
+                      <div className="flex gap-2.5 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.08)] p-3">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[#FBBF24]" />
+                        <p className="text-sm leading-snug text-[#FCD34D]">
+                          This transaction is reconciled. Editing it means the account&apos;s last
+                          reconciliation will no longer match.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Validation card */}
                     <div
                       className={cn(

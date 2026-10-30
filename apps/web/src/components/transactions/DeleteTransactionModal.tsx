@@ -162,6 +162,16 @@ export function DeleteTransactionModal({
                   </div>
                 </div>
 
+                {tx.status === "reconciled" && (
+                  <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.08)] px-4 py-3 text-sm text-[#FCD34D]">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[#FBBF24]" />
+                    <span>
+                      This transaction is reconciled. Deleting it means the account&apos;s last
+                      reconciliation will no longer match.
+                    </span>
+                  </div>
+                )}
+
                 {/* ── Error ────────────────────────────── */}
                 {error && (
                   <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-3 text-sm text-[#FCA5A5]">

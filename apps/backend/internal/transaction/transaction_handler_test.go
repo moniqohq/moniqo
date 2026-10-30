@@ -204,6 +204,63 @@ func TestHandler_ListTransactions(t *testing.T) {
 		assert.False(t, got.IncludeArchived)
 	})
 
+	t.Run("status query param maps onto ListFilters.Status", func(t *testing.T) {
+		t.Parallel()
+		for _, want := range []models.TransactionStatus{
+			models.TransactionStatusUncleared,
+			models.TransactionStatusCleared,
+			models.TransactionStatusReconciled,
+		} {
+			var got transaction.ListFilters
+			svc := &internalmock.TransactionService{
+				ListFn: func(_ context.Context, _ int64, f transaction.ListFilters) ([]models.Transaction, int, error) {
+					got = f
+					return []models.Transaction{}, 0, nil
+				},
+			}
+			c, rec := newCtx(e, http.MethodGet, "/?status="+string(want), "")
+			c.SetParamNames("budget_id")
+			c.SetParamValues("10")
+
+			require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+			assert.Equal(t, http.StatusOK, rec.Code)
+			require.NotNil(t, got.Status)
+			assert.Equal(t, want, *got.Status)
+		}
+	})
+
+	t.Run("missing status leaves ListFilters.Status nil", func(t *testing.T) {
+		t.Parallel()
+		var got transaction.ListFilters
+		svc := &internalmock.TransactionService{
+			ListFn: func(_ context.Context, _ int64, f transaction.ListFilters) ([]models.Transaction, int, error) {
+				got = f
+				return []models.Transaction{}, 0, nil
+			},
+		}
+		c, rec := newCtx(e, http.MethodGet, "/", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Nil(t, got.Status)
+	})
+
+	t.Run("invalid status returns 400 without calling the service", func(t *testing.T) {
+		t.Parallel()
+		svc := &internalmock.TransactionService{} // nil ListFn panics if invoked
+		c, rec := newCtx(e, http.MethodGet, "/?status=bogus", "")
+		c.SetParamNames("budget_id")
+		c.SetParamValues("10")
+
+		require.NoError(t, transaction.NewHandler(svc, log).ListTransactions(c))
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		fe := findFieldError(t, fieldErrors(t, parseResp(t, rec.Body.String())), "status")
+		assert.Contains(t, fe.Error, "must be one of")
+	})
+
 	t.Run("include_archived=true maps to IncludeArchived true", func(t *testing.T) {
 		t.Parallel()
 		var got transaction.ListFilters
