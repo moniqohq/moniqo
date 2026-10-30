@@ -74,6 +74,7 @@ export function BulkDeleteTransactionsModal({
     };
   }, [open]);
 
+  const reconciledCount = transactions.filter((t) => t.status === "reconciled").length;
   if (transactions.length === 0 && lockedTransactions.length === 0) return null;
 
   const total = transactions.reduce((s, t) => s + t.amount, 0);
@@ -205,6 +206,17 @@ export function BulkDeleteTransactionsModal({
                       {lockedTransactions.length}{" "}
                       {lockedTransactions.length === 1 ? "transaction" : "transactions"} will be
                       skipped because their account is locked.
+                    </span>
+                  </div>
+                )}
+
+                {reconciledCount > 0 && (
+                  <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.08)] px-4 py-3 text-sm text-[#FCD34D]">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[#FBBF24]" />
+                    <span>
+                      {reconciledCount} reconciled{" "}
+                      {reconciledCount === 1 ? "transaction is" : "transactions are"} included. The
+                      account&apos;s last reconciliation will no longer match.
                     </span>
                   </div>
                 )}

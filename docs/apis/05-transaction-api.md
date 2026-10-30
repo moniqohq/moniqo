@@ -211,6 +211,7 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 | `budget_envelope_id` | Filter by envelope |
 | `date_from` | Start date range |
 | `date_to` | End date range |
+| `status` | Filter by [`TransactionStatus`](#transactionstatus-enum): `uncleared`, `cleared` or `reconciled`. Any other value returns `400` |
 | `include_archived` | `true` to include transactions belonging to archived accounts budget-wide (default `false`) |
 | `page` | Page number |
 | `page_size` | Results per page |
@@ -243,10 +244,25 @@ A `400 VALIDATION_ERROR` response names every field that failed and why, aggrega
 
 > Empty collection returns `200` with `data: []`.
 
+**Response — 400 Bad Request** (invalid `status`)
+
+```json
+{
+  "success": false,
+  "data": {
+    "fields": [
+      { "field": "status", "error": "must be one of uncleared, cleared, reconciled" }
+    ]
+  },
+  "msg": "validation failed"
+}
+```
+
 **Business Rules**
 
 - Only transactions within the specified budget returned.
 - Soft-deleted transactions excluded.
+- `status` narrows the returned rows only; `balance_after` is still the running total over the account's full history.
 - Transactions belonging to archived accounts are excluded by default, unless the request sets an explicit `account_id` for that account or passes `include_archived=true`.
 
 ---

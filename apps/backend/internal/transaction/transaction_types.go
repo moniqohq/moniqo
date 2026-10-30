@@ -126,6 +126,7 @@ type ListFilters struct {
 	EnvelopeID      *int64
 	DateFrom        *time.Time
 	DateTo          *time.Time
+	Status          *models.TransactionStatus
 	IncludeArchived bool
 	Page            int
 	PageSize        int

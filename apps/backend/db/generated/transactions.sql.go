@@ -62,8 +62,9 @@ WHERE t.budget_id  = $1
   AND (t.envelope_id = $3 OR $3 IS NULL)
   AND (t.date >= $4 OR $4 IS NULL)
   AND (t.date <= $5   OR $5   IS NULL)
+  AND (t.status = $6::transaction_status OR $6 IS NULL)
   AND (
-    $6::bool IS TRUE
+    $7::bool IS TRUE
     OR $2 IS NOT NULL
     OR a.archived_at IS NULL
   )
@@ -75,6 +76,7 @@ type CountTransactionsParams struct {
 	EnvelopeID      *int64
 	DateFrom        pgtype.Timestamptz
 	DateTo          pgtype.Timestamptz
+	Status          *TransactionStatus
 	IncludeArchived *bool
 }
 
@@ -86,6 +88,7 @@ func (q *Queries) CountTransactions(ctx context.Context, arg CountTransactionsPa
 		arg.EnvelopeID,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.Status,
 		arg.IncludeArchived,
 	)
 	var total int64
@@ -577,8 +580,9 @@ WHERE t.budget_id  = $1
   AND (t.envelope_id = $5 OR $5 IS NULL)
   AND (t.date >= $6 OR $6 IS NULL)
   AND (t.date <= $7   OR $7   IS NULL)
+  AND (t.status = $8::transaction_status OR $8 IS NULL)
   AND (
-    $8::bool IS TRUE
+    $9::bool IS TRUE
     OR $4 IS NOT NULL
     OR a.archived_at IS NULL
   )
@@ -594,6 +598,7 @@ type ListTransactionsParams struct {
 	EnvelopeID      *int64
 	DateFrom        pgtype.Timestamptz
 	DateTo          pgtype.Timestamptz
+	Status          *TransactionStatus
 	IncludeArchived *bool
 }
 
@@ -634,6 +639,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		arg.EnvelopeID,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.Status,
 		arg.IncludeArchived,
 	)
 	if err != nil {

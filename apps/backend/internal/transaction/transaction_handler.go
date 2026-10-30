@@ -406,11 +406,23 @@ func (h *Handler) ListTransactions(c echo.Context) error {
 		return httpx.ValidationError(c, []httpx.FieldError{paramFieldError(fieldBudgetID, c.Param("budget_id"))})
 	}
 
+	// status is strict (unlike the lenient filters below): a malformed value is a
+	// 400 so the reconcile view can rely on it rather than filtering client-side.
+	var status *models.TransactionStatus
+	if raw := c.QueryParam("status"); raw != "" {
+		s := models.TransactionStatus(raw)
+		if !s.IsValid() {
+			return httpx.ValidationError(c, []httpx.FieldError{{Field: fieldStatus, Error: errInvalidStatus}})
+		}
+		status = &s
+	}
+
 	f := ListFilters{
 		AccountID:       parseOptionalInt64(c.QueryParam("account_id")),
 		EnvelopeID:      parseOptionalInt64(c.QueryParam("budget_envelope_id")),
 		DateFrom:        parseOptionalTime(c.QueryParam("date_from")),
 		DateTo:          parseOptionalTime(c.QueryParam("date_to")),
+		Status:          status,
 		IncludeArchived: parseOptionalBool(c.QueryParam("include_archived")),
 		Page:            parseOptionalPage(c.QueryParam("page"), 1),
 		PageSize:        parseOptionalPage(c.QueryParam("page_size"), defaultPageSize),

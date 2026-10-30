@@ -189,6 +189,15 @@ func timeToPg(t *time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: *t, Valid: true}
 }
 
+// statusToPg converts an optional domain status into the nullable sqlc enum param.
+func statusToPg(s *models.TransactionStatus) *db.TransactionStatus {
+	if s == nil {
+		return nil
+	}
+	v := db.TransactionStatus(*s)
+	return &v
+}
+
 // timeValToPg converts a time.Time to pgtype.Timestamptz.
 func timeValToPg(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: t, Valid: true}
@@ -279,6 +288,7 @@ func (r *Repo) List(ctx context.Context, budgetID int64, f ListFilters) ([]model
 		EnvelopeID:      f.EnvelopeID,
 		DateFrom:        timeToPg(f.DateFrom),
 		DateTo:          timeToPg(f.DateTo),
+		Status:          statusToPg(f.Status),
 		IncludeArchived: &f.IncludeArchived,
 		Limit:           int32(pageSize), //nolint:gosec
 		Offset:          int32(offset),   //nolint:gosec
@@ -309,6 +319,7 @@ func (r *Repo) Count(ctx context.Context, budgetID int64, f ListFilters) (int, e
 		EnvelopeID:      f.EnvelopeID,
 		DateFrom:        timeToPg(f.DateFrom),
 		DateTo:          timeToPg(f.DateTo),
+		Status:          statusToPg(f.Status),
 		IncludeArchived: &f.IncludeArchived,
 	})
 	if err != nil {

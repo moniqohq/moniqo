@@ -51,7 +51,11 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAccounts } from "@/hooks/use-accounts";
+import { useAccounts as useRawAccounts } from "@/hooks/useAccounts";
+import { useEnvelopes } from "@/hooks/useEnvelopes";
 import { useBudgets } from "@/hooks/use-budgets";
+import { isFeatureEnabled } from "@/features/feature-flags";
+import { AddTransactionModal } from "@/components/transactions/AddTransactionModal";
 import { listTransactions, patchTransaction } from "@/lib/api/transactions";
 import { reconcileAccount } from "@/lib/api/accounts";
 import { invalidateBudgetData } from "@/lib/query-keys";
@@ -415,6 +419,8 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: accounts } = useAccounts(budgetId);
+  const { accounts: rawAccounts } = useRawAccounts(budgetId);
+  const { envelopes } = useEnvelopes(budgetId);
   const { data: budgets } = useBudgets();
   const budgetName = budgets.find((b) => b.id === budgetId)?.name;
   const account = accounts.find((a) => a.id === accountId);
@@ -435,19 +441,24 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [addTx, setAddTx] = useState<{ open: boolean; memo?: string }>({ open: false });
   const PAGE_SIZE = 25;
 
   /* ── Data loading ────────────────────────────────────────── */
 
   const loadTransactions = useCallback(async () => {
     try {
-      const raw = await listTransactions(budgetId, { account_id: accountId });
+      const raw = await listTransactions(budgetId, {
+        account_id: accountId,
+        status: filter === "uncleared" ? "uncleared" : undefined,
+      });
       setRawTransactions(raw);
       setTxError(null);
     } catch (e) {
       setTxError(e instanceof Error ? e.message : "Failed to load transactions");
     }
-  }, [budgetId, accountId]);
+  }, [budgetId, accountId, filter]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -461,12 +472,15 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
 
   const transactions = useMemo(() => {
     const sorted = [...rawTransactions].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+    // balance_after comes from the API and is computed over the account's full
+    // history, so it stays correct even when the fetch is status-filtered. The
+    // client-side fallback only applies when the API omits it.
     const opening = (account?.balance ?? 0) - sorted.reduce((s, t) => s + t.amount, 0);
     const rows: ReconTx[] = [];
     let running = opening;
     for (const t of sorted) {
       running += t.amount;
-      rows.push(apiTransactionToRecon(t, running));
+      rows.push(apiTransactionToRecon(t, t.balance_after ?? running));
     }
     return rows;
   }, [rawTransactions, account?.balance]);
@@ -532,6 +546,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
     try {
       await Promise.all(ids.map((id) => patchTransaction(budgetId, id, { status })));
       setTxError(null);
+      setSelectedIds(new Set());
       invalidateBudgetData(queryClient, budgetId);
     } catch (e) {
       setTxError(e instanceof Error ? e.message : "Failed to update transaction status");
@@ -557,6 +572,41 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
       .filter((t) => t.status !== "reconciled" && t.status !== targetStatus)
       .map((t) => t.id);
     patchStatus(ids, targetStatus);
+  }
+
+  const selectablePageRows = pageRows.filter((t) => t.status !== "reconciled");
+  const allPageSelected =
+    selectablePageRows.length > 0 && selectablePageRows.every((t) => selectedIds.has(t.id));
+  const somePageSelected =
+    !allPageSelected && selectablePageRows.some((t) => selectedIds.has(t.id));
+
+  function toggleSelected(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function togglePageSelected() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) selectablePageRows.forEach((t) => next.delete(t.id));
+      else selectablePageRows.forEach((t) => next.add(t.id));
+      return next;
+    });
+  }
+
+  function bulkSetStatus(status: ApiTransactionStatus) {
+    const ids = rawTransactions
+      .filter((t) => selectedIds.has(t.id) && t.status !== "reconciled" && t.status !== status)
+      .map((t) => t.id);
+    if (ids.length === 0) {
+      setSelectedIds(new Set());
+      return;
+    }
+    patchStatus(ids, status);
   }
 
   async function handleFinishReconciliation() {
@@ -612,6 +662,17 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
         totalCount={totalCount}
         clearedBalance={clearedBalance}
         statementDate={statementDate}
+      />
+      <AddTransactionModal
+        open={addTx.open}
+        onClose={() => setAddTx({ open: false })}
+        defaultType="expense"
+        budgetId={budgetId}
+        accounts={rawAccounts}
+        envelopes={envelopes}
+        defaultAccountId={accountId}
+        defaultMemo={addTx.memo}
+        onSuccess={loadTransactions}
       />
 
       {/* ── Scrollable content ── */}
@@ -795,6 +856,7 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                           key={f}
                           onClick={() => {
                             setFilter(f);
+                            setSelectedIds(new Set());
                             setShowFilterMenu(false);
                             setPage(1);
                           }}
@@ -881,12 +943,52 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
               </div>
             </div>
 
+            {/* Bulk action bar */}
+            {selectedIds.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 border-b border-[#1E2B42] bg-[#0D1626] px-4 py-2.5">
+                <span className="mr-auto text-xs font-medium text-[#A8B4CC]">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  onClick={() => bulkSetStatus("cleared")}
+                  className="rounded-lg bg-[#22C55E]/15 px-3 py-1.5 text-xs font-semibold text-[#4ADE80] transition-colors hover:bg-[#22C55E]/25 focus:outline-none"
+                >
+                  Mark cleared
+                </button>
+                <button
+                  onClick={() => bulkSetStatus("uncleared")}
+                  className="rounded-lg border border-[#2A3A54] px-3 py-1.5 text-xs font-semibold text-[#A8B4CC] transition-colors hover:bg-[#1A2540] focus:outline-none"
+                >
+                  Mark uncleared
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="rounded-lg px-2 py-1.5 text-xs text-[#5A6A85] transition-colors hover:text-white focus:outline-none"
+                >
+                  Clear selection
+                </button>
+              </div>
+            )}
+
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#1E2B42]">
                     <th className="w-10 py-3 pl-4">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all on this page"
+                        checked={allPageSelected}
+                        disabled={selectablePageRows.length === 0}
+                        ref={(el) => {
+                          if (el) el.indeterminate = somePageSelected;
+                        }}
+                        onChange={togglePageSelected}
+                        className="h-4 w-4 cursor-pointer rounded border-[#2A3A54] bg-[#131C2E] accent-[#6C3AED] disabled:cursor-not-allowed disabled:opacity-40"
+                      />
+                    </th>
+                    <th className="w-10 py-3">
                       <input
                         type="checkbox"
                         checked={allChecked}
@@ -935,7 +1037,18 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                             : "hover:bg-[#131C2E]",
                         )}
                       >
-                        <td className="w-10 py-3 pl-4">
+                        <td className="w-10 py-3 pl-4" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Select transaction ${tx.payee}`}
+                            checked={selectedIds.has(tx.id)}
+                            disabled={tx.status === "reconciled"}
+                            title={tx.status === "reconciled" ? "Already reconciled" : undefined}
+                            onChange={() => toggleSelected(tx.id)}
+                            className="h-4 w-4 cursor-pointer rounded border-[#2A3A54] bg-[#131C2E] accent-[#6C3AED] disabled:cursor-not-allowed disabled:opacity-40"
+                          />
+                        </td>
+                        <td className="w-10 py-3">
                           <div
                             title={tx.status === "reconciled" ? "Already reconciled" : undefined}
                             className={cn(
@@ -1050,7 +1163,10 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                 <span className="text-xs text-[#5A6A85]">{filteredRows.length} transactions</span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    onClick={() => {
+                      setPage((p) => Math.max(1, p - 1));
+                      setSelectedIds(new Set());
+                    }}
                     disabled={page <= 1}
                     className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#1E2B42] text-[#5A6A85] transition-colors hover:border-[#2A3A54] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                   >
@@ -1060,7 +1176,10 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
                     {page} / {totalPages}
                   </span>
                   <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    onClick={() => {
+                      setPage((p) => Math.min(totalPages, p + 1));
+                      setSelectedIds(new Set());
+                    }}
                     disabled={page >= totalPages}
                     className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#1E2B42] text-[#5A6A85] transition-colors hover:border-[#2A3A54] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
                   >
@@ -1188,37 +1307,54 @@ export function ReconcileAccountView({ budgetId, accountId }: Props) {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  {
-                    icon: <SlidersHorizontal size={18} />,
-                    label: "Add Adjustment Transaction",
-                    color: "#6C3AED",
-                    bg: "rgba(108,58,237,0.12)",
-                  },
-                  {
-                    icon: <Plus size={18} />,
-                    label: "Create Missing Transaction",
-                    color: "#22C55E",
-                    bg: "rgba(34,197,94,0.12)",
-                  },
-                  {
-                    icon: <Banknote size={18} />,
-                    label: "Record Bank Fee",
-                    color: "#F59E0B",
-                    bg: "rgba(245,158,11,0.12)",
-                  },
-                  {
-                    icon: <Download size={18} />,
-                    label: "Export Report",
-                    color: "#3B82F6",
-                    bg: "rgba(59,130,246,0.12)",
-                  },
-                ].map((action) => (
+                {(
+                  [
+                    {
+                      icon: <SlidersHorizontal size={18} />,
+                      label: "Add Adjustment Transaction",
+                      color: "#6C3AED",
+                      bg: "rgba(108,58,237,0.12)",
+                      // Wired by the adjustment-transaction issue.
+                      onClick: undefined,
+                    },
+                    {
+                      icon: <Plus size={18} />,
+                      label: "Create Missing Transaction",
+                      color: "#22C55E",
+                      bg: "rgba(34,197,94,0.12)",
+                      onClick: () => setAddTx({ open: true }),
+                    },
+                    {
+                      icon: <Banknote size={18} />,
+                      label: "Record Bank Fee",
+                      color: "#F59E0B",
+                      bg: "rgba(245,158,11,0.12)",
+                      onClick: () => setAddTx({ open: true, memo: "Bank fee" }),
+                    },
+                    ...(isFeatureEnabled("transactionExport")
+                      ? [
+                          {
+                            icon: <Download size={18} />,
+                            label: "Export Report",
+                            color: "#3B82F6",
+                            bg: "rgba(59,130,246,0.12)",
+                            onClick: undefined,
+                          },
+                        ]
+                      : []),
+                  ] as const
+                ).map((action) => (
                   <button
                     key={action.label}
-                    disabled
-                    title="Coming soon"
-                    className="group flex cursor-not-allowed flex-col items-center gap-2 rounded-xl border border-[#1E2B42] p-3 text-center opacity-40"
+                    disabled={!action.onClick}
+                    onClick={action.onClick}
+                    title={action.onClick ? undefined : "Coming soon"}
+                    className={cn(
+                      "group flex flex-col items-center gap-2 rounded-xl border border-[#1E2B42] p-3 text-center transition-colors focus:outline-none",
+                      action.onClick
+                        ? "cursor-pointer hover:border-[#2A3A54] hover:bg-[#131C2E]"
+                        : "cursor-not-allowed opacity-40",
+                    )}
                   >
                     <div
                       className="flex h-9 w-9 items-center justify-center rounded-xl"

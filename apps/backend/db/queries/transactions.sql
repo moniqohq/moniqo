@@ -113,6 +113,7 @@ WHERE t.budget_id  = $1
   AND (t.envelope_id = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
   AND (t.date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
   AND (t.date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL)
+  AND (t.status = sqlc.narg(status)::transaction_status OR sqlc.narg(status) IS NULL)
   AND (
     sqlc.narg(include_archived)::bool IS TRUE
     OR sqlc.narg(account_id) IS NOT NULL
@@ -133,6 +134,7 @@ WHERE t.budget_id  = $1
   AND (t.envelope_id = sqlc.narg(envelope_id) OR sqlc.narg(envelope_id) IS NULL)
   AND (t.date >= sqlc.narg(date_from) OR sqlc.narg(date_from) IS NULL)
   AND (t.date <= sqlc.narg(date_to)   OR sqlc.narg(date_to)   IS NULL)
+  AND (t.status = sqlc.narg(status)::transaction_status OR sqlc.narg(status) IS NULL)
   AND (
     sqlc.narg(include_archived)::bool IS TRUE
     OR sqlc.narg(account_id) IS NOT NULL
