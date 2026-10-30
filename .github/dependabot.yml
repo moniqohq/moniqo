@@ -9,13 +9,16 @@ version: 2
 #
 # npm is special: pnpm workspaces share ONE root pnpm-lock.yaml. Every npm PR
 # rewrites that file, so separate `updates` entries per directory produce PRs
-# that conflict with each other as soon as one merges. All npm workspace
-# directories therefore live in a single entry using `directories`, so each
-# group yields exactly one PR spanning every directory.
+# that conflict with each other as soon as one merges. Dependabot also only
+# regenerates the lockfile when it runs from the directory that owns it, so a
+# `directories` list of workspace members produces PRs that bump package.json
+# without touching pnpm-lock.yaml (and fail `pnpm install --frozen-lockfile`).
+# The npm entry therefore uses the single root `directory: /`; Dependabot reads
+# pnpm-workspace.yaml from there and covers every member package.json.
 #
 # Adding a new app or package:
-#   - npm:  add its path to the `directories` list of the npm entry below and
-#           add/adjust `groups` patterns; majors still arrive individually.
+#   - npm:  nothing to do here — add it to pnpm-workspace.yaml and adjust
+#           `groups` patterns if needed; majors still arrive individually.
 #   - other ecosystems: copy the closest existing stanza, change `directory`,
 #     adjust `labels` and `groups`.
 #   - For large frameworks that require manual migration, add an `ignore` rule.
@@ -104,22 +107,13 @@ updates:
         update-types: ["minor", "patch"]
 
   # ── npm — all pnpm workspace packages (single root lockfile) ───────────────
-  # One entry for every npm manifest in the workspace. Groups span all listed
-  # directories, so a group update is a single PR touching pnpm-lock.yaml once.
+  # One entry rooted at `/`: Dependabot discovers workspace members from
+  # pnpm-workspace.yaml, so a group update is a single PR that bumps the member
+  # package.json files and regenerates pnpm-lock.yaml together.
   # Major React / Next.js / Expo / React Native upgrades are blocked here —
   # they require coordinated migration work and must be handled manually.
   - package-ecosystem: npm
-    directories:
-      - /
-      - /apps/web
-      - /apps/mobile
-      - /apps/desktop
-      - /packages/ui
-      - /packages/design-system
-      - /packages/validation
-      - /packages/types
-      - /packages/sdk
-      - /packages/config
+    directory: /
     schedule:
       interval: weekly
       day: monday
