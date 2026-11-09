@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate commit messages against Conventional Commits spec
-        uses: commit-check/commit-check-action@b6819c7bfd40f576d670a78712646a67f2659ff3 # v2
+        uses: commit-check/commit-check-action@382788bc42fde36f387a6b62210c8a4a29c24f07 # v2
         with:
           message: true
           branch: false
@@ -65,7 +65,7 @@ jobs:
     if: github.actor != 'dependabot[bot]' && github.actor != 'mergify[bot]'
     steps:
       - name: Validate PR title against Conventional Commits spec
-        uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        uses: amannn/action-semantic-pull-request@2252a14e810aa9b85c2d560bd7070c802206ecf6 # v6.1.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
